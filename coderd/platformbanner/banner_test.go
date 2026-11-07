@@ -48,6 +48,47 @@ func clean(t *testing.T, payload any) (platformbanner.Fields, error) {
 	return platformbanner.Clean(raw)
 }
 
+func TestCleanBlankBannerAndClearedFields(t *testing.T) {
+	t.Parallel()
+	f, err := clean(t, map[string]any{"enabled": true})
+	require.NoError(t, err, "an enabled banner may be blank")
+	require.True(t, f.Enabled)
+	require.Empty(t, f.Message)
+	require.Empty(t, f.Picture)
+	require.Empty(t, f.Countdown)
+
+	// A cleared field is stored cleared, not kept from before.
+	f, err = clean(t, map[string]any{
+		"enabled": true, "picture": "", "linkText": "", "linkUrl": "", "title": "", "countdown": "",
+	})
+	require.NoError(t, err)
+	require.Empty(t, f.Picture)
+	require.Empty(t, f.LinkText)
+	require.Empty(t, f.LinkURL)
+	require.Empty(t, f.Title)
+	require.Empty(t, f.Countdown)
+}
+
+func TestCleanDismissible(t *testing.T) {
+	t.Parallel()
+	f, err := clean(t, map[string]any{"message": "x"})
+	require.NoError(t, err)
+	require.True(t, f.Dismissible, "dismissible unless turned off")
+	f, err = clean(t, map[string]any{"message": "x", "dismissible": false})
+	require.NoError(t, err)
+	require.False(t, f.Dismissible)
+}
+
+func TestCleanPulldown(t *testing.T) {
+	t.Parallel()
+	f, err := clean(t, map[string]any{"message": "x"})
+	require.NoError(t, err)
+	require.True(t, f.Pulldown, "the pulldown is on unless turned off")
+	f, err = clean(t, map[string]any{"message": "x", "pulldown": false})
+	require.NoError(t, err)
+	require.False(t, f.Pulldown)
+}
+
 func TestCleanIntroductions(t *testing.T) {
 	t.Parallel()
 	f, err := clean(t, map[string]any{"message": "hello"})
@@ -140,6 +181,7 @@ func TestCleanFillsAndChecks(t *testing.T) {
 		{map[string]any{"title": strings.Repeat("é", 81), "message": "x"}, "title is too long (max 80 characters)."},
 		{map[string]any{"message": "x", "introductions": "yes"}, "introductions must be true or false."},
 		{map[string]any{"message": "x", "dismissible": "yes"}, "dismissible must be true or false."},
+		{map[string]any{"message": "x", "pulldown": "yes"}, "pulldown must be true or false."},
 		{map[string]any{"message": "x", "level": "loud"}, "Style must be one of: info, success, warning, critical."},
 		{map[string]any{"message": "x", "effect": nil}, "Text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, starwars, pewpew, flap, shimmer, kitt, aurora, neon, chrome, focus, ember, spectrum, anaglyph, heartbeat, softblur, voltage, gold, hologram, vaporwave, slam, terminal, prism, sparkle, frost, longshadow, retro, popart, glitch, elastic, pendulum, stretch, jitter, iridescent, motionblur, karaoke, marker, loud, duotone."},
 		{map[string]any{"message": "x", "crawlSpeed": 15.5}, "The crawl's speed must be a whole number from 4 to 60."},
@@ -149,7 +191,6 @@ func TestCleanFillsAndChecks(t *testing.T) {
 		{map[string]any{"message": "x", "picture": "//evil.test/p.png"}, "The picture's address must start with https://, http:// or /."},
 		{map[string]any{"message": "x", "countdown": "tomorrow"}, "The countdown must be a UTC time such as 2026-10-20T18:00:00Z."},
 		{map[string]any{"message": "x", "refreshSeconds": 14}, "Check interval must be between 15 and 3600 seconds."},
-		{map[string]any{}, "Write a message (or choose a background image or a countdown) before publishing the banner."},
 		{map[string]any{"message": "x", "linkUrl": "javascript:alert(1)"}, "The link must start with https://, http:// or /."},
 		{[]any{1}, "Expected a JSON object."},
 	} {

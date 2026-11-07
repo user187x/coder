@@ -30,6 +30,15 @@ export const AnnouncementReader: React.FC<{
 	children: React.ReactElement;
 }> = ({ banner, children }) => {
 	const [open, setOpen] = useState(false);
+	if (banner.pulldown === false) {
+		return (
+			<AnnouncementMotionDisabled.Provider
+				value={banner.animationsDisabled === true}
+			>
+				{children}
+			</AnnouncementMotionDisabled.Provider>
+		);
+	}
 	return (
 		<AnnouncementMotionDisabled.Provider
 			value={banner.animationsDisabled === true}

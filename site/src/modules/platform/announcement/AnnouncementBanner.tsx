@@ -184,7 +184,6 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 
 	const shown =
 		banner?.enabled &&
-		hasContent(banner) &&
 		!(banner.dismissible && dismissedId === banner.id) &&
 		(placement !== "login" || banner.showOnLoginPage);
 
@@ -225,7 +224,9 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const queryClient = useQueryClient();
 	// Receipts (who viewed it, Confirm): not on the sign-in page, and only when
 	// the announcement asks for them (a greeting need not).
-	const receipts = placement !== "login" && banner.receipts !== false;
+	// A blank banner has nothing to read or confirm, and announces nothing.
+	const blank = !hasContent(banner);
+	const receipts = placement !== "login" && banner.receipts !== false && !blank;
 	const compact = placement !== "page";
 	const inNavbar = placement === "navbar";
 	const statusQuery = useQuery({
@@ -293,7 +294,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				ref={card}
 				id="coder-system-banner"
 				data-announcement-motion={motion.effects ? "on" : "off"}
-				role="status"
+				role={blank ? undefined : "status"}
 				data-closing={motion.effects ? close.props["data-closing"] : undefined}
 				data-opening={opening ? openEffect : undefined}
 				onAnimationEnd={(event) => {
@@ -304,7 +305,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					"flex items-center gap-1",
 					placement === "navbar"
 						? "ml-3 min-h-9 min-w-0 flex-1 gap-1.5 rounded-[14px] py-1 pl-1 pr-1.5 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
-						: "w-full p-1 text-center text-sm",
+						: "min-h-9 w-full p-1 text-center text-sm",
 					motion.effects &&
 						wasPushed(banner.id) &&
 						openEffect === "none" &&
@@ -372,7 +373,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					)}
 				</BannerLcd>
 				{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
-				{placement !== "login" && (
+				{placement !== "login" && banner.pulldown !== false && (
 					<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
 				)}
 				{opening && <OpenLayers effect={openEffect} />}

@@ -42,6 +42,7 @@ describe("editableFields", () => {
 			align: "center",
 			outline: false,
 			introductions: false,
+			pulldown: true,
 			introEffect: "none",
 			introDurationMs: 2000,
 			introSize: "normal",

@@ -29,29 +29,32 @@ import (
 // Fields is a banner as an admin publishes it. The JSON names and their order
 // are the contract with the dashboard (api/platform.ts BannerSettings).
 type Fields struct {
-	Audience           string   `json:"audience"`
-	AudienceUserIDs    []string `json:"audienceUserIds"`
-	Enabled            bool     `json:"enabled"`
-	Level              string   `json:"level"`
-	Title              string   `json:"title"`
-	Message            string   `json:"message"`
-	LinkText           string   `json:"linkText"`
-	LinkURL            string   `json:"linkUrl"`
-	Dismissible        bool     `json:"dismissible"`
-	ShowOnLoginPage    bool     `json:"showOnLoginPage"`
-	RefreshSeconds     int      `json:"refreshSeconds"`
-	Effect             string   `json:"effect"`
-	Repeat             bool     `json:"repeat"`
-	LoopText           bool     `json:"loopText"`
-	AnimationsDisabled bool     `json:"animationsDisabled"`
-	AutoScroll         bool     `json:"autoScroll"`
-	AutoScrollSpeed    int      `json:"autoScrollSpeed"`
-	PauseOnHover       bool     `json:"pauseOnHover"`
-	PauseOnClick       bool     `json:"pauseOnClick"`
-	Speed              string   `json:"speed"`
-	CrawlSpeed         int      `json:"crawlSpeed"`
-	CrawlTilt          int      `json:"crawlTilt"`
-	Font               string   `json:"font"`
+	Audience        string   `json:"audience"`
+	AudienceUserIDs []string `json:"audienceUserIds"`
+	Enabled         bool     `json:"enabled"`
+	Level           string   `json:"level"`
+	Title           string   `json:"title"`
+	Message         string   `json:"message"`
+	LinkText        string   `json:"linkText"`
+	LinkURL         string   `json:"linkUrl"`
+	Dismissible     bool     `json:"dismissible"`
+	// Pulldown: whether users can open the whole message (the pulldown panel
+	// and the right-click reader).
+	Pulldown           bool   `json:"pulldown"`
+	ShowOnLoginPage    bool   `json:"showOnLoginPage"`
+	RefreshSeconds     int    `json:"refreshSeconds"`
+	Effect             string `json:"effect"`
+	Repeat             bool   `json:"repeat"`
+	LoopText           bool   `json:"loopText"`
+	AnimationsDisabled bool   `json:"animationsDisabled"`
+	AutoScroll         bool   `json:"autoScroll"`
+	AutoScrollSpeed    int    `json:"autoScrollSpeed"`
+	PauseOnHover       bool   `json:"pauseOnHover"`
+	PauseOnClick       bool   `json:"pauseOnClick"`
+	Speed              string `json:"speed"`
+	CrawlSpeed         int    `json:"crawlSpeed"`
+	CrawlTilt          int    `json:"crawlTilt"`
+	Font               string `json:"font"`
 	// Receipts: the dashboard records who viewed the announcement and lets
 	// them confirm it. Off for a greeting nobody needs to account for.
 	Receipts    bool   `json:"receipts"`
@@ -100,6 +103,7 @@ func FieldDefaults() Fields {
 		Enabled:         true,
 		Level:           "info",
 		Dismissible:     true,
+		Pulldown:        true,
 		ShowOnLoginPage: true,
 		RefreshSeconds:  60,
 		Effect:          "none",
@@ -234,6 +238,7 @@ func Clean(raw []byte) (Fields, error) {
 	}{
 		{"enabled", &out.Enabled},
 		{"dismissible", &out.Dismissible},
+		{"pulldown", &out.Pulldown},
 		{"showOnLoginPage", &out.ShowOnLoginPage},
 		{"repeat", &out.Repeat},
 		{"loopText", &out.LoopText},
@@ -371,10 +376,8 @@ func Clean(raw []byte) (Fields, error) {
 	}
 	out.RefreshSeconds = seconds
 
-	// A message, a background picture or a countdown: an announcement may be only a picture.
-	if out.Enabled && !hasContent(out) {
-		return Fields{}, ValidationError("Write a message (or choose a background image or a countdown) before publishing the banner.")
-	}
+	// An enabled banner may be blank (no message, picture or countdown): the
+	// enabled flag alone decides whether it shows.
 	if out.LinkURL != "" && !SafeURL(out.LinkURL) {
 		return Fields{}, ValidationError("The link must start with https://, http:// or /.")
 	}
@@ -382,10 +385,6 @@ func Clean(raw []byte) (Fields, error) {
 		out.ShowOnLoginPage = false
 	}
 	return out, nil
-}
-
-func hasContent(f Fields) bool {
-	return f.Message != "" || f.Picture != "" || f.Countdown != ""
 }
 
 // SafeURL reports whether u is an http(s) URL or a same-site path ("/x", not

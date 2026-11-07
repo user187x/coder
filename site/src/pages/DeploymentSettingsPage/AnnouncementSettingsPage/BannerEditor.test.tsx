@@ -206,3 +206,67 @@ it("publishes enforced still mode without erasing the configured effects", async
 		animationsDisabled: true,
 	});
 });
+
+it.each([
+	["Let people dismiss it", { dismissible: false }],
+	["Let people pull down the whole message", { pulldown: false }],
+])("turns off %s", async (name, expected) => {
+	const onChange = vi.fn();
+	render(
+		<QueryClientProvider client={new QueryClient()}>
+			<BannerEditor
+				form={{ ...MockBanner, dismissible: true, pulldown: true }}
+				dirty={false}
+				isPublishing={false}
+				problem={null}
+				onChange={onChange}
+				onProblem={vi.fn()}
+				onPublish={vi.fn()}
+				onDiscard={vi.fn()}
+				onTryOpen={vi.fn()}
+				onTryClose={vi.fn()}
+			/>
+		</QueryClientProvider>,
+	);
+	await userEvent.click(
+		screen.getByRole("checkbox", { name: new RegExp(name) }),
+	);
+	expect(onChange).toHaveBeenCalledWith(expected);
+});
+
+it("publishes a blank form, with every field cleared", async () => {
+	const original = editableFields({
+		...MockBanner,
+		message: "",
+		picture: "/pictures/creeper.gif",
+	});
+	const publish = vi.fn();
+	const Editor = () => {
+		const [form, setForm] = useState(original);
+		return (
+			<BannerEditor
+				form={form}
+				dirty={!sameFields(form, original)}
+				isPublishing={false}
+				problem={null}
+				onChange={(patch) => setForm((value) => ({ ...value, ...patch }))}
+				onProblem={vi.fn()}
+				onPublish={() => publish(form)}
+				onDiscard={vi.fn()}
+				onTryOpen={vi.fn()}
+				onTryClose={vi.fn()}
+			/>
+		);
+	};
+	render(
+		<QueryClientProvider client={new QueryClient()}>
+			<Editor />
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	await user.click(
+		screen.getByRole("button", { name: "Remove the background image" }),
+	);
+	await user.click(screen.getByRole("button", { name: "Publish changes" }));
+	expect(publish).toHaveBeenCalledWith({ ...original, picture: "" });
+});

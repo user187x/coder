@@ -48,6 +48,7 @@ const FIELDS = [
 	"linkText",
 	"linkUrl",
 	"dismissible",
+	"pulldown",
 	"showOnLoginPage",
 	"refreshSeconds",
 	"effect",
@@ -113,6 +114,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		align: banner.align ?? "center",
 		outline: banner.outline ?? false,
 		introductions: banner.introductions ?? false,
+		pulldown: banner.pulldown ?? true,
 		introEffect: banner.introEffect ?? "none",
 		introDurationMs: banner.introDurationMs ?? INTRO_DURATION.default,
 		introSize: banner.introSize ?? "normal",
@@ -253,8 +255,6 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 	// few seconds, so a refetch never discards them.
 	const [draft, setDraft] = useState<BannerFields | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
-	// The Show banner switch was turned on with nothing to show: said beside it until a message is written.
-	const [triedEmpty, setTriedEmpty] = useState(false);
 	const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
 	// The preview: replayed (its effect again) by changing its key; "Try it"
 	// plays its close transition, then it comes back.
@@ -271,9 +271,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 		receipts: published.receipts,
 	};
 	const dirty = !sameFields(form, published);
-	const live = state.banner.enabled && hasContent(state.banner);
-	const nothingToShow =
-		triedEmpty && !live && !hasContent(state.banner) && !hasContent(form);
+	const live = state.banner.enabled;
 	const busy = publish.isPending || reshow.isPending || reset.isPending;
 
 	const onError = (error: unknown) => {
@@ -309,26 +307,15 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 								checked={live}
 								disabled={busy}
 								onCheckedChange={(enabled) => {
-									// Platform: nothing published to show - the draft is published, showing; with no draft
-									// either, the switch says so beside it and the message box is brought into view.
-									if (enabled && !hasContent(state.banner)) {
-										if (hasContent(form)) {
-											doPublish();
-											return;
-										}
-										setPreviewing(false);
-										setTriedEmpty(true);
-										const message = document.querySelector<HTMLElement>(
-											"[data-banner-message]",
-										);
-										message?.scrollIntoView({
-											behavior: "smooth",
-											block: "center",
-										});
-										message?.focus({ preventScroll: true });
+									// Published blank with a written draft: the draft goes out, showing.
+									if (
+										enabled &&
+										!hasContent(state.banner) &&
+										hasContent(form)
+									) {
+										doPublish();
 										return;
 									}
-									setTriedEmpty(false);
 									publish.mutate(
 										{ ...published, enabled },
 										{
@@ -345,29 +332,20 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 							/>
 							<Label htmlFor="announcement-visible">Show banner</Label>
 							<span
-								className={
-									nothingToShow
-										? "text-sm font-medium text-content-warning"
-										: "sr-only"
-								}
+								className="sr-only"
 								data-testid="announcement-visibility-state"
-								role={nothingToShow ? "status" : undefined}
 							>
 								{live
 									? "On: developers see it"
-									: nothingToShow
-										? "Nothing to show yet: write a message below, then turn it on (or press Publish changes)"
-										: hasContent(state.banner)
-											? "Off: hidden from everyone"
-											: hasContent(form)
-												? "Off: turn it on to publish your message and show it"
-												: "Off: write a message below to show one"}
+									: !hasContent(state.banner) && hasContent(form)
+										? "Off: turn it on to publish your message and show it"
+										: "Off: hidden from everyone"}
 							</span>
 						</div>
 						<Button
 							variant="outline"
 							className="col-start-2 row-start-1 row-span-2 self-center border-highlight-orange text-highlight-orange"
-							disabled={busy || !hasContent(state.banner)}
+							disabled={busy}
 							title="Show the banner again to everyone, including people who dismissed it"
 							onClick={() => setConfirm("reshow")}
 						>
@@ -420,29 +398,22 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 							className="min-h-[62px] rounded-md bg-surface-secondary p-3"
 							data-testid="announcement-preview"
 						>
-							{hasContent(form) ? (
-								!gone && (
-									<BannerPreview
-										// A new effect (or its speed, or repeat), or open transition, plays from the start.
-										key={`${run}:${form.effect}:${form.speed}:${form.repeat}:${form.openEffect}`}
-										banner={form}
-										animate
-										closing={closing}
-										onClosed={() => {
-											setGone(true);
-											window.setTimeout(() => {
-												setGone(false);
-												setClosing(false);
-												setRun((n) => n + 1);
-											}, 700);
-										}}
-									/>
-								)
-							) : (
-								<p className="m-0 text-sm text-content-secondary">
-									Type a message (or choose a background image) to see a
-									preview.
-								</p>
+							{!gone && (
+								<BannerPreview
+									// A new effect (or its speed, or repeat), or open transition, plays from the start.
+									key={`${run}:${form.effect}:${form.speed}:${form.repeat}:${form.openEffect}`}
+									banner={form}
+									animate
+									closing={closing}
+									onClosed={() => {
+										setGone(true);
+										window.setTimeout(() => {
+											setGone(false);
+											setClosing(false);
+											setRun((n) => n + 1);
+										}, 700);
+									}}
+								/>
 							)}
 						</div>
 						<p className="m-0 text-sm text-content-secondary">

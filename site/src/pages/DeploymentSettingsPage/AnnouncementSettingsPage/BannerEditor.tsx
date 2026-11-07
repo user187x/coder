@@ -403,6 +403,21 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				</div>
 				<div className="flex items-center gap-2 text-sm">
 					<Checkbox
+						id={`${id}-pulldown`}
+						checked={form.pulldown !== false}
+						onCheckedChange={(checked) =>
+							onChange({ pulldown: checked === true })
+						}
+					/>
+					<Label htmlFor={`${id}-pulldown`} className="font-normal">
+						Let people pull down the whole message{" "}
+						<span className="text-content-secondary">
+							(the panel and the right-click reader)
+						</span>
+					</Label>
+				</div>
+				<div className="flex items-center gap-2 text-sm">
+					<Checkbox
 						id={`${id}-login`}
 						checked={form.showOnLoginPage}
 						onCheckedChange={(checked) =>
@@ -540,7 +555,6 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 					disabled={
 						isPublishing ||
 						!dirty ||
-						!hasContent(form) ||
 						(form.audience === "selected" && !form.audienceUserIds?.length)
 					}
 					onClick={onPublish}

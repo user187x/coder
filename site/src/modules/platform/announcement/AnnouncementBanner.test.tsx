@@ -193,4 +193,47 @@ describe("AnnouncementBanner", () => {
 		await waitFor(() => expect(card?.dataset.opening).toBeUndefined());
 		expect(card?.querySelector(".banner-kitt-sweep")).toBeNull();
 	});
+
+	it("shows an enabled blank banner as a bar that announces nothing", async () => {
+		useBanner({
+			...MockBanner,
+			message: "",
+			receipts: false,
+		});
+		render(<AnnouncementBanner placement="navbar" />);
+
+		await screen.findByRole("button", { name: "Dismiss this announcement" });
+		expect(screen.queryByRole("status")).toBeNull();
+	});
+
+	it("offers the pulldown and the dismiss button by default", async () => {
+		useBanner({ ...MockBanner, receipts: false });
+		render(<AnnouncementBanner placement="navbar" />);
+
+		await screen.findByRole("button", { name: "Dismiss this announcement" });
+		expect(
+			screen.getByRole("button", { name: "Read the whole announcement" }),
+		).toBeDefined();
+	});
+
+	it("renders no pulldown when it is turned off", async () => {
+		useBanner({ ...MockBanner, receipts: false, pulldown: false });
+		render(<AnnouncementBanner placement="navbar" />);
+
+		await screen.findByRole("button", { name: "Dismiss this announcement" });
+		expect(
+			screen.queryByRole("button", { name: "Read the whole announcement" }),
+		).toBeNull();
+	});
+
+	it("renders no dismiss button, and ignores an earlier dismissal, when dismissing is off", async () => {
+		localStorage.setItem("coder-banner-dismissed", MockBanner.id);
+		useBanner({ ...MockBanner, receipts: false, dismissible: false });
+		render(<AnnouncementBanner placement="navbar" />);
+
+		await screen.findByRole("button", { name: "Read the whole announcement" });
+		expect(
+			screen.queryByRole("button", { name: "Dismiss this announcement" }),
+		).toBeNull();
+	});
 });

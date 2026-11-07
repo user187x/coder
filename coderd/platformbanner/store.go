@@ -104,11 +104,6 @@ func (s *Store) Reappear(ctx context.Context, user string) (State, error) {
 		if st.Override != nil {
 			f = *st.Override
 		}
-		// A message, a picture or a countdown: the editor offers "show again"
-		// for any announcement.
-		if !hasContent(f) {
-			return ValidationError("There is no banner message to show. Write and publish one first.")
-		}
 		f.Enabled = true
 		st.Override = &f
 		st.Revision++

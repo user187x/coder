@@ -1673,6 +1673,8 @@ export type Banner = {
 	outline?: boolean;
 	/** Section introductions: the banner names the admin section being opened, and its page drops the big heading. Missing: off. */
 	introductions?: boolean;
+	/** Whether users can open the whole message (the pulldown panel and the right-click reader). Missing: on. */
+	pulldown?: boolean;
 	/** The introduction's text effect (not "starwars"); missing: "none", the fade. */
 	introEffect?: BannerEffect;
 	/** How long the introduction stays visible, in ms (INTRO_DURATION); missing: 2000. */

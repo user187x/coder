@@ -30,15 +30,25 @@ describe("the Show banner switch", () => {
 		);
 	});
 
-	it("says beside it that there is nothing to show yet, and publishes nothing", async () => {
-		const publish = vi.spyOn(PlatformAPI, "publishBanner");
+	it("publishes a blank banner, showing, when turned on with nothing written", async () => {
+		const publish = vi
+			.spyOn(PlatformAPI, "publishBanner")
+			.mockImplementation(async (fields) => ({
+				...empty,
+				banner: { ...empty.banner, ...fields },
+			}));
 		renderWithAuth(<AnnouncementSettingsPage />);
-		const sw = await screen.findByRole("switch", { name: "Show banner" });
-		fireEvent.click(sw);
-		expect(
-			await screen.findByTestId("announcement-visibility-state"),
-		).toHaveTextContent(/Nothing to show yet: write a message below/);
-		expect(publish).not.toHaveBeenCalled();
+		fireEvent.click(await screen.findByRole("switch", { name: "Show banner" }));
+		await waitFor(() =>
+			expect(publish).toHaveBeenCalledWith(
+				expect.objectContaining({
+					enabled: true,
+					message: "",
+					picture: "",
+					countdown: "",
+				}),
+			),
+		);
 	});
 
 	it("publishes the message written, showing, when turned on", async () => {
@@ -153,6 +163,50 @@ describe("announcement recording", () => {
 				expect.objectContaining({
 					message: "Unpublished changes",
 					receipts: false,
+				}),
+			),
+		);
+	});
+});
+
+describe("clearing fields", () => {
+	const withEverything = {
+		...MockBannerState,
+		banner: {
+			...MockBanner,
+			message: "",
+			picture: "/pictures/usa.gif",
+			countdown: "2030-01-01T00:00:00Z",
+			markdown: false,
+		},
+	};
+
+	beforeEach(() => {
+		vi.spyOn(PlatformAPI, "getBannerState").mockResolvedValue(withEverything);
+		vi.spyOn(PlatformAPI, "getAnnouncementReport").mockResolvedValue(
+			MockAnnouncementReport,
+		);
+	});
+
+	it("publishes the cleared picture of a picture-only banner as a blank banner", async () => {
+		const publish = vi
+			.spyOn(PlatformAPI, "publishBanner")
+			.mockResolvedValue(withEverything);
+		const user = userEvent.setup();
+		renderWithAuth(<AnnouncementSettingsPage />);
+		await user.click(
+			await screen.findByRole("button", {
+				name: "Remove the background image",
+			}),
+		);
+		await user.click(screen.getByRole("button", { name: "Publish changes" }));
+		await waitFor(() =>
+			expect(publish).toHaveBeenCalledWith(
+				expect.objectContaining({
+					enabled: true,
+					message: "",
+					picture: "",
+					countdown: "2030-01-01T00:00:00Z",
 				}),
 			),
 		);
