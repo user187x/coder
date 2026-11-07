@@ -111,6 +111,11 @@
 .settings-menu {
 	width: min(364px, calc(100vw - 32px));
 	min-width: 0;
+	/* The Settings panel's corner radius (rounded-2xl), shared by its trays. */
+	--settings-tray-radius: 1rem;
+}
+.settings-menu[data-settings-docked] {
+	--settings-tray-radius: var(--dock-radius);
 }
 .settings-menu:has(
 		[data-workspaces-expanded="true"],
@@ -206,7 +211,8 @@ html[data-settings-side="compact"] {
 }
 .settings-menu[data-settings-docked]
 	:is(.settings-resource-tray, .settings-admin-notes-tray) {
-	left: -49px;
+	/* The tray's right edge meets the panel's left edge exactly. */
+	left: -48px;
 }
 /* Docked beside an attached chat, the expanded Settings shares its column: Settings above, chat below (chatDock.css). */
 html[data-settings-side="expanded"][data-chat-side] {

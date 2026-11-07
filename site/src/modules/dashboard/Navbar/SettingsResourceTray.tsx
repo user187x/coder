@@ -12,7 +12,7 @@ import {
 	Trash2Icon,
 	XIcon,
 } from "lucide-react";
-import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link } from "react-router";
 import { toast } from "sonner";
@@ -110,17 +110,6 @@ export const SettingsResourceTray = ({
 	});
 	const locked = preferences.data?.resource_tray;
 	const expanded = visible ?? locked?.expanded ?? true;
-	const [outlineHeight, setOutlineHeight] = useState(180);
-	useLayoutEffect(() => {
-		if (!container || !expanded) return;
-		const update = () =>
-			setOutlineHeight(Math.max(36, container.getBoundingClientRect().height));
-		update();
-		const observer = new ResizeObserver(update);
-		observer.observe(container);
-		return () => observer.disconnect();
-	}, [container, expanded]);
-	const outlineBottom = outlineHeight + 8;
 	const busy = save.isPending;
 	const toggle = () => {
 		if (busy) return;
@@ -355,17 +344,7 @@ export const SettingsResourceTray = ({
 				role="group"
 				aria-label="Resource shortcuts"
 			>
-				<svg
-					className="settings-resource-tray-outline"
-					viewBox={`0 0 48 ${outlineBottom}`}
-					preserveAspectRatio="none"
-					aria-hidden
-				>
-					<path
-						d={`M47 5 Q47 1 43 2 L6 11 Q1 12 1 17 L1 ${outlineBottom - 17} Q1 ${outlineBottom - 12} 6 ${outlineBottom - 11} L43 ${outlineBottom - 2} Q47 ${outlineBottom - 1} 47 ${outlineBottom - 5} Z`}
-						vectorEffect="non-scaling-stroke"
-					/>
-				</svg>
+				<div className="settings-resource-tray-outline" aria-hidden />
 				<div className="settings-resource-tray-links">
 					<SortableTrayLinks
 						items={
