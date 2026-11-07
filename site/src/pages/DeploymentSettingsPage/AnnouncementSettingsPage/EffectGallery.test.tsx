@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BANNER_EFFECTS, type BannerEffect } from "#/api/platform";
 import { EffectGallery } from "./EffectGallery";
@@ -37,6 +37,38 @@ describe("EffectGallery", () => {
 		for (const effect of NEW_EFFECTS) {
 			expect(BANNER_EFFECTS).toContain(effect);
 		}
+	});
+
+	it.each([
+		"typewriter",
+		"fade",
+		"karaoke",
+		"marker",
+		"shimmer",
+		"pewpew",
+		"flap",
+	] as const)("shows the whole sample, still, for %s", async (effect) => {
+		const user = userEvent.setup();
+		render(<EffectGallery value="none" onChange={vi.fn()} />);
+		await user.click(screen.getByRole("button", { name: "Text effect" }));
+		const tile = screen.getByRole("radio", {
+			name: EFFECT_OPTIONS[effect].label,
+		});
+		expect(tile).toHaveTextContent("Sample");
+	});
+
+	it("draws every tile on the banner's screen, as the banner does", async () => {
+		const user = userEvent.setup();
+		render(<EffectGallery value="none" onChange={vi.fn()} />);
+		await user.click(screen.getByRole("button", { name: "Text effect" }));
+		const tile = screen.getByRole("radio", { name: "Gold Foil" });
+		const stage = within(tile).getByTestId("effect-stage");
+		expect(stage).toHaveAttribute("data-announcement-motion");
+		const screenEl = within(stage).getByTestId("announcement-lcd");
+		expect(screenEl.style.getPropertyValue("--banner-lcd-ink")).not.toBe("");
+		expect(
+			within(screenEl).getByText("Sample").closest("[data-banner-text]"),
+		).toHaveAttribute("data-fx-still");
 	});
 
 	it("opens on a button and lists every effect by name, the chosen one checked", async () => {

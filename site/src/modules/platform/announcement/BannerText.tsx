@@ -760,6 +760,11 @@ type BannerTextProps = {
 	>;
 	/** Plays the banner's text effect (a remount plays it again). */
 	animate?: boolean;
+	/**
+	 * Without animate: a stylesheet effect shown at rest, in a representative
+	 * frame (bannerGalleryFx.css), for previews. The other effects stay plain.
+	 */
+	still?: boolean;
 	loop?: boolean;
 	className?: string;
 };
@@ -782,6 +787,7 @@ export const BannerText: React.FC<BannerTextProps> = (props) => (
 const BannerTextContent: React.FC<BannerTextProps> = ({
 	banner,
 	animate: requestedAnimate = false,
+	still = false,
 	loop: requestedLoop = false,
 	className,
 }) => {
@@ -811,10 +817,12 @@ const BannerTextContent: React.FC<BannerTextProps> = ({
 		banner.effect !== "none" && banner.effect !== "starwars"
 			? EFFECTS[banner.effect]
 			: undefined;
-	const plan =
+	const playing =
 		animate && effect && !(fxDone && !banner.repeat) && !prefersReducedMotion()
 			? effect
 			: null;
+	const atRest = !animate && still && effect?.className ? effect : null;
+	const plan = playing ?? atRest;
 	const count =
 		plan && plan.unit !== "whole" ? countUnits(message, plan.unit) : 0;
 	const timedTypewriter = banner.effect === "typewriter" && banner.repeat;
@@ -918,7 +926,8 @@ const BannerTextContent: React.FC<BannerTextProps> = ({
 				data-banner-text=""
 				data-over-picture={roll ? "" : undefined}
 				data-outline={banner.outline ? "" : undefined}
-				data-fx-once={plan?.className && !banner.repeat ? "" : undefined}
+				data-fx-once={playing?.className && !banner.repeat ? "" : undefined}
+				data-fx-still={atRest ? "" : undefined}
 				className={cn(className, plan?.className)}
 				style={
 					wholeAnimation

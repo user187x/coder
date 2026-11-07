@@ -19,6 +19,7 @@ import {
 } from "#/components/Select/Select";
 import { Slider } from "#/components/Slider/Slider";
 import { Switch } from "#/components/Switch/Switch";
+import { EffectStage } from "#/modules/platform/announcement/EffectStage";
 import { SectionSplashPill } from "#/modules/platform/announcement/SectionSplashPill";
 import { EffectGallery } from "./EffectGallery";
 
@@ -44,6 +45,7 @@ type IntroductionSettings = Pick<
 	| "introDurationMs"
 	| "introSize"
 	| "introWeight"
+	| "introUppercase"
 	| "font"
 	| "animationsDisabled"
 >;
@@ -155,6 +157,15 @@ export const IntroductionCard: React.FC<IntroductionCardProps> = ({
 					</Select>
 				</div>
 				<div className="flex items-center gap-3">
+					<Switch
+						id={`${id}-uppercase`}
+						checked={settings.introUppercase === true}
+						disabled={disabled}
+						onCheckedChange={(introUppercase) => onChange({ introUppercase })}
+					/>
+					<Label htmlFor={`${id}-uppercase`}>All capitals</Label>
+				</div>
+				<div className="flex items-center gap-3">
 					<span id={`${id}-duration`} className="text-sm">
 						Visible for
 					</span>
@@ -183,16 +194,19 @@ export const IntroductionCard: React.FC<IntroductionCardProps> = ({
 						{durationMs / 1000} s
 					</span>
 				</div>
-				<div
-					role="group"
-					aria-label="Introduction preview"
-					className="flex min-h-12 items-center justify-center rounded-md bg-surface-secondary p-2"
-				>
-					<SectionSplashPill
-						key={`${effect}:${size}:${weight}`}
-						label="Appearance"
-						look={settings}
-					/>
+				<div role="group" aria-label="Introduction preview">
+					<EffectStage
+						animationsDisabled={settings.animationsDisabled}
+						className="min-h-16"
+					>
+						<span className="flex min-w-0 flex-1 justify-center py-1">
+							<SectionSplashPill
+								key={`${effect}:${size}:${weight}`}
+								label="Appearance"
+								look={settings}
+							/>
+						</span>
+					</EffectStage>
 				</div>
 			</div>
 		</section>

@@ -687,3 +687,30 @@ html[data-animations="off"] [data-banner-text].fx-karaoke b {
 	color: var(--ink);
 	background: none;
 }
+
+/*
+ * At rest (BannerText "still", the gallery's idle tiles): the effect's own styling in a representative frame
+ * instead of its first keyframe, which for some is empty (karaoke unfilled, the marker not yet drawn, the
+ * ghostwrite's band off the text).
+ */
+[data-banner-text][data-fx-still],
+[data-banner-text][data-fx-still] b,
+[data-banner-text][data-fx-still] b::after {
+	animation: none;
+}
+[data-banner-text][data-fx-still].fx-shimmer {
+	background-position: 50% 0;
+}
+[data-banner-text][data-fx-still].fx-karaoke b {
+	color: transparent;
+	background-size: 100% 100%;
+}
+[data-banner-text][data-fx-still].fx-marker {
+	background-size: 100% 46%;
+	background-position: 0 62%;
+}
+
+/* The split-flap's plates are narrower in a gallery tile, so a sample word fits. */
+[data-effect-stage] [data-banner-text].fx-flap b {
+	width: 1.1em;
+}

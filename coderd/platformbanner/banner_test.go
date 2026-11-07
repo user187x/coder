@@ -124,16 +124,18 @@ func TestCleanIntroductionLook(t *testing.T) {
 	require.Equal(t, 2000, f.IntroDurationMs)
 	require.Equal(t, "normal", f.IntroSize)
 	require.Equal(t, "semibold", f.IntroWeight)
+	require.False(t, f.IntroUppercase, "settings saved before it existed: as written")
 
 	f, err = clean(t, map[string]any{
 		"message": "hello", "introEffect": "pewpew", "introDurationMs": 7500,
-		"introSize": "xlarge", "introWeight": "black",
+		"introSize": "xlarge", "introWeight": "black", "introUppercase": true,
 	})
 	require.NoError(t, err)
 	require.Equal(t, "pewpew", f.IntroEffect)
 	require.Equal(t, 7500, f.IntroDurationMs)
 	require.Equal(t, "xlarge", f.IntroSize)
 	require.Equal(t, "black", f.IntroWeight)
+	require.True(t, f.IntroUppercase)
 
 	for _, c := range []struct {
 		field string
@@ -180,6 +182,7 @@ func TestCleanFillsAndChecks(t *testing.T) {
 		{map[string]any{"message": 5}, "message must be text."},
 		{map[string]any{"title": strings.Repeat("é", 81), "message": "x"}, "title is too long (max 80 characters)."},
 		{map[string]any{"message": "x", "introductions": "yes"}, "introductions must be true or false."},
+		{map[string]any{"message": "x", "introUppercase": "yes"}, "introUppercase must be true or false."},
 		{map[string]any{"message": "x", "dismissible": "yes"}, "dismissible must be true or false."},
 		{map[string]any{"message": "x", "pulldown": "yes"}, "pulldown must be true or false."},
 		{map[string]any{"message": "x", "level": "loud"}, "Style must be one of: info, success, warning, critical."},

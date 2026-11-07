@@ -47,6 +47,7 @@ describe("editableFields", () => {
 			introDurationMs: 2000,
 			introSize: "normal",
 			introWeight: "semibold",
+			introUppercase: false,
 			picture: "",
 			pictureFit: "span",
 			pictureEffect: "none",

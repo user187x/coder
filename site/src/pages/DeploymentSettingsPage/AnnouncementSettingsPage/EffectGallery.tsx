@@ -9,6 +9,7 @@ import {
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
 import { BannerText } from "#/modules/platform/announcement/BannerText";
+import { EffectStage } from "#/modules/platform/announcement/EffectStage";
 import { EFFECT_OPTIONS } from "./effectOptions";
 
 type EffectGalleryProps = {
@@ -20,7 +21,8 @@ type EffectGalleryProps = {
 	disabled?: boolean;
 };
 
-const SAMPLE = "Sample text";
+/** Short enough for the split-flap's plates to fit a tile. */
+const SAMPLE = "Sample";
 
 /**
  * The text effect chooser: a pop-out gallery of tiles, each showing the
@@ -137,26 +139,26 @@ export const EffectGallery: React.FC<EffectGalleryProps> = ({
 									selected && "border-content-link ring-2 ring-content-link",
 								)}
 							>
-								<span
-									aria-hidden
-									className="flex h-12 items-center justify-center overflow-hidden bg-black px-1 text-[13px] text-white"
-								>
-									{/* Remounted when it becomes the active tile: the effect plays from its start. */}
-									<BannerText
-										key={active === effect ? "playing" : "still"}
-										animate={active === effect}
-										banner={{
-											title: "",
-											message: SAMPLE,
-											linkText: "",
-											linkUrl: "",
-											effect,
-											repeat: true,
-											markdown: false,
-											align: "center",
-										}}
-										className="block max-w-full truncate"
-									/>
+								<span aria-hidden className="flex">
+									{/* The banner's own screen and colours; remounted when it becomes the active tile, so the effect plays from its start. */}
+									<EffectStage className="h-12 flex-1 rounded-none text-xs">
+										<BannerText
+											key={active === effect ? "playing" : "still"}
+											animate={active === effect}
+											still
+											banner={{
+												title: "",
+												message: SAMPLE,
+												linkText: "",
+												linkUrl: "",
+												effect,
+												repeat: true,
+												markdown: false,
+												align: "center",
+											}}
+											className="block min-w-0 flex-1 truncate"
+										/>
+									</EffectStage>
 								</span>
 								<span className="truncate px-2 pb-1 text-xs">
 									{EFFECT_OPTIONS[effect].label}

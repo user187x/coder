@@ -1683,6 +1683,8 @@ export type Banner = {
 	introSize?: IntroSize;
 	/** Missing: "semibold". */
 	introWeight?: IntroWeight;
+	/** Set the introduction in capitals; missing: false. */
+	introUppercase?: boolean;
 	/** The banner's background picture (a same-site path or an http(s) URL); "" or missing: none. */
 	picture?: string;
 	/** How the background picture fills the banner's screen; missing: "span". */

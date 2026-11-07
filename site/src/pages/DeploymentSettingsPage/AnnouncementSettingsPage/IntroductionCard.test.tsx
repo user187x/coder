@@ -50,6 +50,28 @@ describe("IntroductionCard", () => {
 		expect(onChange).toHaveBeenCalledWith(expected);
 	});
 
+	it("saves the all-capitals switch, which the splash pill carries as data", async () => {
+		const { onChange, user } = setup();
+		const pill = screen.getByTestId("section-splash-pill");
+		expect(pill).not.toHaveAttribute("data-intro-uppercase");
+		await user.click(screen.getByRole("switch", { name: "All capitals" }));
+		expect(onChange).toHaveBeenCalledWith({ introUppercase: true });
+	});
+
+	it("marks the preview pill when the capitals are on, leaving the label as written", () => {
+		setup({ introUppercase: true });
+		const pill = screen.getByTestId("section-splash-pill");
+		expect(pill).toHaveAttribute("data-intro-uppercase");
+		expect(pill).toHaveTextContent("Appearance");
+	});
+
+	it("previews inside the banner's own screen and motion setting", () => {
+		setup({ introEffect: "gold" });
+		const stage = screen.getByTestId("effect-stage");
+		expect(stage).toHaveAttribute("data-announcement-motion");
+		expect(stage).toContainElement(screen.getByTestId("section-splash-pill"));
+	});
+
 	it("does not offer the crawl, which needs a whole banner", async () => {
 		const { user } = setup();
 		await user.click(

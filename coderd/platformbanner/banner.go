@@ -71,11 +71,12 @@ type Fields struct {
 	Introductions bool `json:"introductions"`
 	// How the introduction looks: a text effect (the banner's, but the crawl),
 	// how long it stays in milliseconds (1000-10000, in steps of 500), and its
-	// font size and weight.
+	// font size and weight, and whether it is set in capitals.
 	IntroEffect     string `json:"introEffect"`
 	IntroDurationMs int    `json:"introDurationMs"`
 	IntroSize       string `json:"introSize"`
 	IntroWeight     string `json:"introWeight"`
+	IntroUppercase  bool   `json:"introUppercase"`
 	// The banner's background picture (a same-site path or an http(s) URL)
 	// and how it fills the banner.
 	Picture       string `json:"picture"`
@@ -250,6 +251,7 @@ func Clean(raw []byte) (Fields, error) {
 		{"markdown", &out.Markdown},
 		{"outline", &out.Outline},
 		{"introductions", &out.Introductions},
+		{"introUppercase", &out.IntroUppercase},
 	} {
 		if v, ok := payload[b.key]; ok {
 			var value bool
