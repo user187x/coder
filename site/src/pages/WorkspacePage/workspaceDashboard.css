@@ -114,9 +114,12 @@ html[data-workspace-expanded] {
 	/* Transparent at rest so the card's border and glow show through; it fills only on hover or focus. Its z-index 1
 	   keeps the Resources and History panels above it. */
 	background: transparent;
+	/* The shared tab blurs what is behind it; at rest that would soften the card's border and glow. */
+	backdrop-filter: none;
 }
 .workspace-dashboard-expand-corner
 	.corner-expand-tab:is(:hover, :focus-visible) {
+	backdrop-filter: blur(12px);
 	background: hsl(var(--surface-tertiary));
 	color: hsl(var(--content-link));
 }
