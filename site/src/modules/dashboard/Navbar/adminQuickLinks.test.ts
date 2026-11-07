@@ -131,6 +131,7 @@ describe("adminCategoryLabel", () => {
 		expect(adminCategoryLabel("/deployment/users")).toBe("Accounts");
 		expect(adminCategoryLabel("/workspaces")).toBe("Workspaces");
 		expect(adminCategoryLabel("/templates")).toBe("Templates");
+		expect(adminCategoryLabel("/dashboard")).toBe("Dashboard");
 	});
 
 	it("has no category for other pages", () => {

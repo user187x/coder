@@ -9,6 +9,7 @@ import {
 	HeartPulseIcon,
 	HourglassIcon,
 	KeyRoundIcon,
+	LayoutDashboardIcon,
 	LifeBuoyIcon,
 	LockIcon,
 	type LucideIcon,
@@ -188,6 +189,14 @@ const WORKSPACE_PAGES: readonly AdminPage[] = [
 	},
 ];
 
+/** The Dashboard: a breadcrumb category of its own, not a Settings sidebar entry (it is linked from the nav). */
+const DASHBOARD_PAGE: AdminPage = {
+	id: "dashboard",
+	label: "Dashboard",
+	icon: LayoutDashboardIcon,
+	path: "/dashboard",
+};
+
 /** Personal destinations and the deployment controls the current user can open. */
 export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
 	...WORKSPACE_PAGES,
@@ -258,7 +267,9 @@ export const adminCategory = (pathname: string): AdminPage | null => {
 		[p.path, ...(CATEGORY_PREFIXES[p.id] ?? [])].some(under),
 	);
 	if (!page) {
-		return WORKSPACE_PAGES.find((p) => under(p.path)) ?? null;
+		return (
+			[...WORKSPACE_PAGES, DASHBOARD_PAGE].find((p) => under(p.path)) ?? null
+		);
 	}
 	const { allowed: _allowed, ...category } = page;
 	return category;
