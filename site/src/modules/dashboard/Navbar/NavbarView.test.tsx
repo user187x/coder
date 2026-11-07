@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
@@ -15,6 +16,7 @@ import {
 import { MockClusterUsage } from "#/testHelpers/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import type { AdminSettingsPermissions } from "./AdminSettings";
+import { NavbarAction, NavbarActionTarget } from "./NavbarAction";
 import { NavbarView } from "./NavbarView";
 
 const proxyContextValue = {
@@ -112,6 +114,44 @@ describe("NavbarView", () => {
 			await waitFor(() => expect(save).toHaveBeenCalledOnce());
 		},
 	);
+
+	it("starts arranging from the page action button without clicking it", async () => {
+		const onClick = vi.fn();
+		const Page = () => {
+			const [target, setTarget] = useState<HTMLDivElement | null>(null);
+			return (
+				<NavbarActionTarget.Provider value={target}>
+					<QueryClientProvider client={new QueryClient()}>
+						<MemoryRouter>
+							<NavbarView
+								actionRef={setTarget}
+								user={MockUserOwner}
+								supportLinks={[]}
+								onSignOut={vi.fn()}
+								adminPermissions={{ canViewHud: true }}
+								proxyContextValue={proxyContextValue}
+							/>
+							<NavbarAction>
+								<button type="button" onClick={onClick}>
+									Create thing
+								</button>
+							</NavbarAction>
+						</MemoryRouter>
+					</QueryClientProvider>
+				</NavbarActionTarget.Provider>
+			);
+		};
+		renderComponent(<Page />);
+		const user = userEvent.setup();
+		await user.pointer({
+			target: await screen.findByRole("button", { name: "Create thing" }),
+			keys: "[MouseRight]",
+		});
+		expect(
+			await screen.findByRole("button", { name: "Move Page action" }),
+		).toBeInTheDocument();
+		expect(onClick).not.toHaveBeenCalled();
+	});
 
 	it("has no Controls button of its own: the Controls are in the latency menu", async () => {
 		renderNavbar({ canViewHud: true, canViewAuditLog: true });

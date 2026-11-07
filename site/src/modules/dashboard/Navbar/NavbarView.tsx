@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { API } from "#/api/api";
 import { type NavbarLayout, PlatformAPI } from "#/api/platform";
 import type * as TypesGen from "#/api/typesGenerated";
@@ -65,19 +66,30 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				}
 			: undefined;
 
+	// A native listener: the page's action button is portaled in, so React
+	// would bubble its events to the page and never through this element.
+	const root = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const element = root.current;
+		if (!element) return;
+		const onContextMenu = (event: MouseEvent) => {
+			// Portaled dropdowns are not inside the navbar.
+			if (
+				event.target instanceof Element &&
+				element.contains(event.target) &&
+				!event.target.closest("[role=menu]")
+			) {
+				event.preventDefault();
+				startNavbarArrange();
+			}
+		};
+		element.addEventListener("contextmenu", onContextMenu);
+		return () => element.removeEventListener("contextmenu", onContextMenu);
+	}, []);
+
 	return (
 		<div
-			onContextMenu={(event) => {
-				// Portaled dropdowns bubble through React without being inside the navbar.
-				if (
-					event.target instanceof Element &&
-					event.currentTarget.contains(event.target) &&
-					!event.target.closest("[role=menu]")
-				) {
-					event.preventDefault();
-					startNavbarArrange();
-				}
-			}}
+			ref={root}
 			style={
 				{
 					"--navbar-zoom": `var(--navbar-preview-scale, ${scale / 100})`,

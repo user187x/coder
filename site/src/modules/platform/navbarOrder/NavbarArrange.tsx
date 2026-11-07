@@ -3,6 +3,7 @@ import {
 	closestCenter,
 	DndContext,
 	type DragEndEvent,
+	type Modifier,
 	PointerSensor,
 	pointerWithin,
 	useSensor,
@@ -16,20 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import {
-	BellIcon,
-	CheckIcon,
-	CircleUserIcon,
-	GaugeIcon,
-	ImageIcon,
-	type LucideIcon,
-	MegaphoneIcon,
-	MonitorIcon,
-	PlusIcon,
-	RadioIcon,
-	RotateCcwIcon,
-	XIcon,
-} from "lucide-react";
+import { CheckIcon, ImageIcon, RotateCcwIcon, XIcon } from "lucide-react";
 import {
 	useEffect,
 	useEffectEvent,
@@ -61,22 +49,46 @@ const LABELS: Record<NavbarItem, string> = {
 	hud: "HUD",
 };
 
-const RESTORE_ICONS: Record<NavbarItem, LucideIcon> = {
-	logo: ImageIcon,
-	action: PlusIcon,
-	notifications: BellIcon,
-	account: CircleUserIcon,
-	workspaces: MonitorIcon,
-	banner: MegaphoneIcon,
-	latency: RadioIcon,
-	hud: GaugeIcon,
-};
-
 // The banner placeholder is wide: the item under the pointer is the target.
 const itemUnderPointer: CollisionDetection = (args) => {
 	const under = pointerWithin(args);
 	return under.length > 0 ? under : closestCenter(args);
 };
+
+/** The navbar's zoom factor; pointer deltas are screen pixels, transforms are zoomed. */
+const readZoom = (element: Element): number => {
+	const zoom = Number.parseFloat(
+		getComputedStyle(element).getPropertyValue("--navbar-zoom"),
+	);
+	return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+};
+
+/** The arrangeable row the drag started in, found from the pointer or key event's target. */
+const rowOfDrag: (args: Parameters<Modifier>[0]) => HTMLElement | null = ({
+	activatorEvent,
+}) =>
+	activatorEvent?.target instanceof Element
+		? activatorEvent.target.closest<HTMLElement>(
+				'[data-testid="navbar-arrange"]',
+			)
+		: null;
+
+/** Moves along x only, and keeps the dragged item inside the row it belongs to. */
+export const restrictToRow =
+	(row = rowOfDrag): Modifier =>
+	(args) => {
+		const { transform, draggingNodeRect } = args;
+		const element = row(args);
+		let x = transform.x;
+		if (element && draggingNodeRect) {
+			const bounds = element.getBoundingClientRect();
+			const min = Math.min(0, bounds.left - draggingNodeRect.left);
+			const max = Math.max(0, bounds.right - draggingNodeRect.right);
+			x = Math.min(Math.max(x, min), max);
+		}
+		const zoom = element ? readZoom(element) : 1;
+		return { ...transform, x: x / zoom, y: 0 };
+	};
 
 type NavbarArrangeProps = {
 	/** Each item's content; null for one this user does not have (it is left out). */
@@ -159,6 +171,13 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 				previousFocus.focus();
 		};
 	}, [arranging]);
+	// The restore previews sit in a portal, outside the navbar's zoom: read it when arranging starts.
+	const [previewZoom, setPreviewZoom] = useState(1);
+	useEffect(() => {
+		if (arranging && toolbar.current) {
+			setPreviewZoom(readZoom(toolbar.current));
+		}
+	}, [arranging]);
 	useEffect(() => {
 		if (!arranging) {
 			return;
@@ -190,6 +209,17 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		);
 	};
 
+	// What an item shows, in the navbar and in the restore previews alike.
+	const itemContent = (id: NavbarItem) =>
+		id === "logo" && items.logo === null ? (
+			<span className="inline-flex h-10 items-center gap-2 rounded-md border border-dashed border-border px-2 text-xs text-content-secondary">
+				<ImageIcon className="size-4" aria-hidden />
+				Logo
+			</span>
+		) : (
+			items[id]
+		);
+
 	const onDragEnd = ({ active, over }: DragEndEvent) => {
 		if (
 			over &&
@@ -211,7 +241,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 			<DndContext
 				sensors={sensors}
 				collisionDetection={itemUnderPointer}
-				modifiers={[({ transform }) => ({ ...transform, y: 0 })]}
+				modifiers={[restrictToRow()]}
 				onDragEnd={onDragEnd}
 				accessibility={{
 					screenReaderInstructions: {
@@ -254,14 +284,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 							onDone={done}
 							onRemove={() => save(order, [...hidden, id])}
 						>
-							{id === "logo" && items.logo === null ? (
-								<span className="inline-flex h-10 items-center gap-2 rounded-md border border-dashed border-border px-2 text-xs text-content-secondary">
-									<ImageIcon className="size-4" aria-hidden />
-									Logo
-								</span>
-							) : (
-								items[id]
-							)}
+							{itemContent(id)}
 						</ArrangeItem>
 					))}
 				</SortableContext>
@@ -270,7 +293,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 				createPortal(
 					<div
 						ref={controls}
-						className="fixed inset-x-0 bottom-[var(--coder-classification-h,0px)] z-[120] flex items-center justify-center bg-black/25 p-4 backdrop-blur-md"
+						className="fixed inset-x-0 bottom-[var(--coder-classification-h,0px)] z-[120] flex items-center justify-center bg-black/25 p-2 backdrop-blur-md sm:p-8"
 						style={{ top: navbarBottom }}
 						onContextMenu={(event) => {
 							event.preventDefault();
@@ -280,10 +303,10 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 						<div
 							role="dialog"
 							aria-labelledby={headingId}
-							className="flex w-full max-w-2xl max-h-full flex-col overflow-y-auto rounded-xl border border-solid border-border bg-surface-primary text-sm text-content-secondary shadow-xl"
+							className="flex w-full max-w-5xl max-h-full flex-col overflow-y-auto rounded-xl border border-solid border-border bg-surface-primary text-sm text-content-secondary shadow-xl"
 							data-testid="navbar-arrange-hint"
 						>
-							<div className="min-h-36 p-5 sm:p-6">
+							<div className="min-h-48 p-5 sm:p-10">
 								<h2
 									id={headingId}
 									className="m-0 text-lg font-semibold text-content-primary"
@@ -304,33 +327,38 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 									{removed.length > 0 ? (
 										<>
 											<span className="w-full font-medium">Restore items</span>
-											{removed.map((id) => {
-												const Icon = RESTORE_ICONS[id];
-												return (
-													<Button
-														key={id}
-														size="sm"
-														variant="outline"
-														aria-label={`Restore ${LABELS[id]}`}
-														onClick={() =>
-															save(
-																order,
-																hidden.filter((item) => item !== id),
-															)
-														}
+											{removed.map((id) => (
+												<button
+													key={id}
+													type="button"
+													aria-label={`Restore ${LABELS[id]}`}
+													title={`Restore ${LABELS[id]}`}
+													className="flex cursor-pointer items-center rounded-lg border border-dashed border-border bg-transparent p-2 hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
+													onClick={() =>
+														save(
+															order,
+															hidden.filter((item) => item !== id),
+														)
+													}
+												>
+													{/* A live copy of the real control, at the navbar's zoom. */}
+													<div
+														aria-hidden
+														inert
+														className="pointer-events-none flex items-center"
+														style={{ zoom: previewZoom }}
 													>
-														<Icon aria-hidden />
-														{LABELS[id]}
-													</Button>
-												);
-											})}
+														{itemContent(id)}
+													</div>
+												</button>
+											))}
 										</>
 									) : (
 										<span>All available items are on the navigation bar.</span>
 									)}
 								</div>
 							</div>
-							<footer className="flex flex-wrap items-center gap-3 border-0 border-t border-solid border-border p-4 sm:px-6">
+							<footer className="flex flex-wrap items-center gap-3 border-0 border-t border-solid border-border p-4 sm:px-10 sm:py-5">
 								<span className="mr-auto">
 									Drag to rearrange. Use × to remove.
 								</span>
