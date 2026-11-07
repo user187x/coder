@@ -35,7 +35,7 @@ export const ScreenShareCard = ({
 }) => {
 	const [workspace, setWorkspace] = useState("");
 	const [directWorkspace, setDirectWorkspace] = useState("");
-	const panel = useRef<HTMLElement>(null);
+	const viewer = useRef<HTMLDivElement>(null);
 	const [fullscreen, setFullscreen] = useState(false);
 	const [fullscreenError, setFullscreenError] = useState("");
 	const [fill, setFill] = useState(false);
@@ -47,16 +47,16 @@ export const ScreenShareCard = ({
 		.find((w) => w.workspaceId === workspace);
 	useEffect(() => {
 		const changed = () =>
-			setFullscreen(document.fullscreenElement === panel.current);
+			setFullscreen(document.fullscreenElement === viewer.current);
 		document.addEventListener("fullscreenchange", changed);
 		return () => document.removeEventListener("fullscreenchange", changed);
 	}, []);
 	const toggleFullscreen = async () => {
 		setFullscreenError("");
 		try {
-			if (document.fullscreenElement === panel.current)
+			if (document.fullscreenElement === viewer.current)
 				await document.exitFullscreen();
-			else await panel.current?.requestFullscreen();
+			else await viewer.current?.requestFullscreen();
 		} catch {
 			setFullscreenError("Fullscreen is unavailable in this browser.");
 		}
@@ -79,7 +79,6 @@ export const ScreenShareCard = ({
 	});
 	return (
 		<section
-			ref={panel}
 			aria-label="Live workspace support"
 			className="support-monitor mb-8 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
 		>
@@ -99,8 +98,8 @@ export const ScreenShareCard = ({
 					aria-label="Support monitor controls"
 				>
 					<Button size="sm" variant="outline" onClick={toggleFullscreen}>
-						{fullscreen ? <MinimizeIcon /> : <MaximizeIcon />}
-						{fullscreen ? "Exit fullscreen" : "Fullscreen"}
+						<MaximizeIcon />
+						Fullscreen
 					</Button>
 					<Button
 						size="sm"
@@ -154,8 +153,23 @@ export const ScreenShareCard = ({
 				</div>
 			</div>
 			<div className="support-crt">
-				<div className="support-crt-screen">
+				<div
+					ref={viewer}
+					className="support-crt-screen"
+					data-live={media.remote || directWorkspace ? "" : undefined}
+				>
 					<CRTShutdown />
+					{fullscreen && (
+						<Button
+							size="sm"
+							variant="outline"
+							className="absolute right-3 top-3 z-10 bg-surface-primary/80"
+							onClick={toggleFullscreen}
+						>
+							<MinimizeIcon />
+							Exit fullscreen
+						</Button>
+					)}
 					{(request.isPending ||
 						media.id ||
 						media.remote ||

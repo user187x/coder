@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { ScreenShareAPI } from "#/api/screenShare";
@@ -107,4 +107,40 @@ it("opens the search door into a focused search field", async () => {
 	expect(
 		screen.getByRole("combobox", { name: "Search workspaces or users" }),
 	).toHaveValue("TestUser2/dev");
+});
+
+it("puts only the viewer in fullscreen and exits from inside it", async () => {
+	const targets: Element[] = [];
+	const requestFullscreen = vi.fn(async function (this: Element) {
+		targets.push(this);
+	});
+	const exitFullscreen = vi.fn(async () => {});
+	Object.assign(HTMLElement.prototype, { requestFullscreen });
+	Object.assign(document, { exitFullscreen });
+	try {
+		render(<ScreenShareCard overview={MockMonitoringOverview} />);
+		await userEvent.click(screen.getByRole("button", { name: "Fullscreen" }));
+		const viewer = targets[0];
+		if (!(viewer instanceof HTMLElement))
+			throw new Error("No fullscreen target");
+		within(viewer).getByText("NO SIGNAL");
+		expect(
+			within(viewer).queryByRole("combobox", {
+				name: "Search workspaces or users",
+			}),
+		).toBeNull();
+		Object.defineProperty(document, "fullscreenElement", {
+			configurable: true,
+			value: viewer,
+		});
+		act(() => document.dispatchEvent(new Event("fullscreenchange")));
+		await userEvent.click(
+			within(viewer).getByRole("button", { name: "Exit fullscreen" }),
+		);
+		expect(exitFullscreen).toHaveBeenCalledOnce();
+	} finally {
+		Reflect.deleteProperty(HTMLElement.prototype, "requestFullscreen");
+		Reflect.deleteProperty(document, "exitFullscreen");
+		Reflect.deleteProperty(document, "fullscreenElement");
+	}
 });

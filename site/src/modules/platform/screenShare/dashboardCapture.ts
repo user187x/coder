@@ -18,7 +18,8 @@ export const captureDashboard = async (onError: (message: string) => void) => {
 			height,
 			windowWidth: width,
 			windowHeight: height,
-			scale: Math.min(1, 1600 / width),
+			// Device pixels up to 1080p keep text sharp; the old 1x cap blurred HiDPI screens.
+			scale: Math.min(devicePixelRatio || 1, 1920 / width, 1080 / height),
 			useCORS: true,
 			logging: false,
 			imageTimeout: 1500,
@@ -41,7 +42,7 @@ export const captureDashboard = async (onError: (message: string) => void) => {
 	};
 	await paint();
 	// Automatic frames remain a fallback for browsers without requestFrame.
-	const stream = canvas.captureStream(5);
+	const stream = canvas.captureStream(30);
 	const track = stream.getVideoTracks()[0];
 	const publishFrame = () => {
 		if (
@@ -69,6 +70,7 @@ export const captureDashboard = async (onError: (message: string) => void) => {
 		}
 		painting = true;
 		clearTimeout(timer);
+		const started = performance.now();
 		try {
 			await paint();
 			if (!stopped) publishFrame();
@@ -83,12 +85,14 @@ export const captureDashboard = async (onError: (message: string) => void) => {
 		if (pending) {
 			pending = false;
 			queueMicrotask(() => void next());
-		} else timer = setTimeout(next, 250);
+		}
+		// Rest at least as long as the paint took, so capture uses at most half of the main thread.
+		else timer = setTimeout(next, Math.max(100, performance.now() - started));
 	};
 	const requestPaint = () => queueMicrotask(() => void next());
 	for (const event of events)
 		window.addEventListener(event, requestPaint, true);
 	publishFrame();
-	timer = setTimeout(next, 250);
+	timer = setTimeout(next, 100);
 	return { stream, stop };
 };

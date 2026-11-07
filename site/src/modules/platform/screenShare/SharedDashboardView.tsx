@@ -1,6 +1,7 @@
+import { PointerIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Button } from "#/components/Button/Button";
-import { sendDashboardInput, useShareMedia } from "./media";
+import { sendDashboardInput, useRemotePointer, useShareMedia } from "./media";
 import { ShareVideo } from "./ShareVideo";
 
 export const SharedDashboardView = ({
@@ -21,21 +22,32 @@ export const SharedDashboardView = ({
 	const controlButton = useRef<HTMLButtonElement>(null);
 	const active = media.dashboard && media.controlReady && enabled && !paused;
 	const coordinates = (x: number, y: number) => {
-		const frame = video.current;
-		if (!frame?.videoWidth || !frame.videoHeight) return null;
-		const rect = frame.getBoundingClientRect();
-		const scale = Math.min(
-			rect.width / frame.videoWidth,
-			rect.height / frame.videoHeight,
-		);
-		const width = frame.videoWidth * scale;
-		const height = frame.videoHeight * scale;
-		const left = rect.left + (rect.width - width) / 2;
-		const top = rect.top + (rect.height - height) / 2;
-		const point = { x: (x - left) / width, y: (y - top) / height };
+		const box = contentBox(video.current);
+		if (!box) return null;
+		const point = {
+			x: (x - box.rect.left - box.left) / box.width,
+			y: (y - box.rect.top - box.top) / box.height,
+		};
 		return point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1
 			? point
 			: null;
+	};
+	const pendingMove = useRef<{ x: number; y: number } | null>(null);
+	const moveFrame = useRef(0);
+	useEffect(() => () => cancelAnimationFrame(moveFrame.current), []);
+	// Coalesce pointer moves to one message per display frame.
+	const move = (event: React.PointerEvent) => {
+		if (!active) return;
+		const point = coordinates(event.clientX, event.clientY);
+		if (!point) return;
+		pendingMove.current = point;
+		if (moveFrame.current) return;
+		moveFrame.current = requestAnimationFrame(() => {
+			moveFrame.current = 0;
+			const latest = pendingMove.current;
+			pendingMove.current = null;
+			if (latest) sendDashboardInput({ type: "move", ...latest });
+		});
 	};
 	const wheel = useEffectEvent((event: WheelEvent) => {
 		if (!active) return;
@@ -64,7 +76,7 @@ export const SharedDashboardView = ({
 			sendDashboardInput({ type: "click", ...point, button, count: 1 });
 	};
 	return (
-		<div data-dashboard-support-ignore>
+		<div data-dashboard-support-ignore className="flex min-h-0 flex-1 flex-col">
 			{media.dashboard && (
 				<div className="my-2 flex flex-wrap items-center gap-2 text-xs">
 					<Button
@@ -87,7 +99,7 @@ export const SharedDashboardView = ({
 					</span>
 				</div>
 			)}
-			<div className="relative">
+			<div className="relative min-h-0 flex-1">
 				<ShareVideo
 					stream={stream}
 					paused={paused}
@@ -103,9 +115,10 @@ export const SharedDashboardView = ({
 					aria-hidden={!active}
 					className={
 						active
-							? "absolute inset-0 cursor-crosshair outline-none focus-visible:ring-2 focus-visible:ring-content-link"
+							? "absolute inset-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-content-link"
 							: "pointer-events-none absolute inset-0"
 					}
+					onPointerMove={move}
 					onClick={(event) => click(event, 0)}
 					onContextMenu={(event) => click(event, 2)}
 					onKeyDown={(event) => {
@@ -147,7 +160,48 @@ export const SharedDashboardView = ({
 						});
 					}}
 				/>
+				{active && <ViewerPointer video={video} />}
 			</div>
 		</div>
+	);
+};
+
+/** The letterboxed area of the video that shows the stream. */
+const contentBox = (frame: HTMLVideoElement | null) => {
+	if (!frame?.videoWidth || !frame.videoHeight) return null;
+	const rect = frame.getBoundingClientRect();
+	const scale = Math.min(
+		rect.width / frame.videoWidth,
+		rect.height / frame.videoHeight,
+	);
+	const width = frame.videoWidth * scale;
+	const height = frame.videoHeight * scale;
+	return {
+		rect,
+		width,
+		height,
+		left: (rect.width - width) / 2,
+		top: (rect.height - height) / 2,
+	};
+};
+
+/** Marks where the sharer applied the last move, so lag or a stuck pointer is visible. */
+const ViewerPointer = ({
+	video,
+}: {
+	video: React.RefObject<HTMLVideoElement | null>;
+}) => {
+	const pointer = useRemotePointer();
+	const box = contentBox(video.current);
+	if (!pointer || !box) return null;
+	return (
+		<PointerIcon
+			aria-hidden
+			className="pointer-events-none absolute size-5 -translate-x-[40%] text-content-link drop-shadow"
+			style={{
+				left: box.left + pointer.x * box.width,
+				top: box.top + pointer.y * box.height,
+			}}
+		/>
 	);
 };

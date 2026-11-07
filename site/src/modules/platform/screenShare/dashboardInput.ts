@@ -1,5 +1,6 @@
 /** Input is limited to the consented dashboard document; no selectors or executable code cross the channel. */
 export type DashboardInput =
+	| { type: "move"; x: number; y: number }
 	| { type: "click"; x: number; y: number; button: 0 | 2; count: 1 | 2 }
 	| { type: "wheel"; x: number; y: number; dx: number; dy: number }
 	| {
@@ -63,6 +64,7 @@ export const parseDashboardInput = (raw: unknown): DashboardInput | null => {
 		};
 	if (!("x" in value) || !point(value.x) || !("y" in value) || !point(value.y))
 		return null;
+	if (value.type === "move") return { type: "move", x: value.x, y: value.y };
 	if (
 		value.type === "click" &&
 		"button" in value &&
@@ -93,6 +95,32 @@ export const parseDashboardInput = (raw: unknown): DashboardInput | null => {
 		};
 	return null;
 };
+
+/** The sharer's echo of where it applied the controller's last move. */
+export const parseDashboardPointer = (
+	raw: unknown,
+): { x: number; y: number } | null => {
+	if (typeof raw !== "string" || raw.length > 256) return null;
+	try {
+		const value: unknown = JSON.parse(raw);
+		if (
+			value &&
+			typeof value === "object" &&
+			"type" in value &&
+			value.type === "dashboard-pointer" &&
+			"x" in value &&
+			point(value.x) &&
+			"y" in value &&
+			point(value.y)
+		)
+			return { x: value.x, y: value.y };
+	} catch {
+		// Not JSON: ignore like any other unknown message.
+	}
+	return null;
+};
+
+let hovered: HTMLElement | null = null;
 
 const allowed = (element: Element | null): element is HTMLElement =>
 	element instanceof HTMLElement &&
@@ -172,13 +200,55 @@ export const applyDashboardInput = (
 	locate: (x: number, y: number) => Element | null = (x, y) =>
 		document.elementFromPoint(x, y),
 ) => {
-	if (input.type === "click" || input.type === "wheel") {
+	if (
+		input.type === "move" ||
+		input.type === "click" ||
+		input.type === "wheel"
+	) {
 		const x = Math.min(innerWidth - 1, input.x * innerWidth);
 		const y = Math.min(innerHeight - 1, input.y * innerHeight);
 		let element = locate(x, y);
 		while (element && !(element instanceof HTMLElement))
 			element = element.parentElement;
 		if (!allowed(element)) return;
+		if (input.type === "move") {
+			const options = {
+				bubbles: true,
+				clientX: x,
+				clientY: y,
+				pointerId: 1,
+				pointerType: "mouse",
+				isPrimary: true,
+			};
+			// Over and out drive React's enter and leave handlers, so hover menus and tooltips respond.
+			if (hovered !== element) {
+				const previous = hovered;
+				hovered = element;
+				if (previous?.isConnected) {
+					previous.dispatchEvent(
+						new PointerEvent("pointerout", {
+							...options,
+							relatedTarget: element,
+						}),
+					);
+					previous.dispatchEvent(
+						new MouseEvent("mouseout", { ...options, relatedTarget: element }),
+					);
+				}
+				element.dispatchEvent(
+					new PointerEvent("pointerover", {
+						...options,
+						relatedTarget: previous,
+					}),
+				);
+				element.dispatchEvent(
+					new MouseEvent("mouseover", { ...options, relatedTarget: previous }),
+				);
+			}
+			element.dispatchEvent(new PointerEvent("pointermove", options));
+			element.dispatchEvent(new MouseEvent("mousemove", options));
+			return;
+		}
 		if (input.type === "wheel") {
 			let scroll: HTMLElement | null = element;
 			while (

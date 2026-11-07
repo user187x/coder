@@ -1,9 +1,14 @@
-import { act, screen } from "@testing-library/react";
+import { act, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { render } from "#/testHelpers/renderHelpers";
 import { applyDashboardInput, parseDashboardInput } from "./dashboardInput";
-import { bindDashboardChannel, stopMedia, updateMedia } from "./media";
+import {
+	bindDashboardChannel,
+	stopMedia,
+	updateMedia,
+	useRemotePointer,
+} from "./media";
 
 afterEach(() => {
 	stopMedia();
@@ -26,6 +31,42 @@ it("accepts only bounded input messages", () => {
 			JSON.stringify({ type: "click", x: 0.5, y: 0.25, button: 0, count: 1 }),
 		),
 	).toEqual({ type: "click", x: 0.5, y: 0.25, button: 0, count: 1 });
+	expect(parseDashboardInput('{"type":"move","x":1.5,"y":0}')).toBeNull();
+	expect(parseDashboardInput('{"type":"move","x":0.5,"y":0.25}')).toEqual({
+		type: "move",
+		x: 0.5,
+		y: 0.25,
+	});
+});
+
+it("moves the pointer over dashboard elements, entering and leaving them", () => {
+	const entered = vi.fn();
+	const left = vi.fn();
+	const moved = vi.fn();
+	vi.stubGlobal("innerWidth", 200);
+	vi.stubGlobal("innerHeight", 100);
+	render(
+		<>
+			<button
+				onPointerEnter={() => entered("Save")}
+				onPointerLeave={() => left("Save")}
+				onPointerMove={(event) => moved(event.clientX, event.clientY)}
+			>
+				Save
+			</button>
+			<button onPointerEnter={() => entered("Cancel")}>Cancel</button>
+		</>,
+	);
+	applyDashboardInput({ type: "move", x: 0.25, y: 0.5 }, () =>
+		screen.getByRole("button", { name: "Save" }),
+	);
+	expect(moved).toHaveBeenLastCalledWith(50, 50);
+	expect(entered).toHaveBeenLastCalledWith("Save");
+	applyDashboardInput({ type: "move", x: 0.75, y: 0.5 }, () =>
+		screen.getByRole("button", { name: "Cancel" }),
+	);
+	expect(left).toHaveBeenCalledWith("Save");
+	expect(entered).toHaveBeenLastCalledWith("Cancel");
 });
 
 it("operates ordinary dashboard buttons and blocks support controls and external links", () => {
@@ -121,6 +162,7 @@ it("rejects control before consent and ignores old channels immediately after St
 		},
 	);
 	const channel = new RTCDataChannel();
+	const pointer = renderHook(useRemotePointer);
 	updateMedia({ id: "session", dashboard: false });
 	bindDashboardChannel(channel, "session", true);
 	expect(close).toHaveBeenCalledOnce();
@@ -144,7 +186,42 @@ it("rejects control before consent and ignores old channels immediately after St
 		});
 	act(() => channel.dispatchEvent(event()));
 	expect(changed).toHaveBeenLastCalledWith("a");
+	Object.assign(document, { elementFromPoint: () => null });
+	act(() =>
+		channel.dispatchEvent(
+			new MessageEvent("message", {
+				data: JSON.stringify({ type: "move", x: 0.5, y: 0.25 }),
+			}),
+		),
+	);
+	expect(send).toHaveBeenLastCalledWith(
+		JSON.stringify({ type: "dashboard-pointer", x: 0.5, y: 0.25 }),
+	);
+	expect(pointer.result.current).toEqual({ x: 0.5, y: 0.25 });
+	Reflect.deleteProperty(document, "elementFromPoint");
 	act(() => stopMedia());
+	expect(pointer.result.current).toBeNull();
 	act(() => channel.dispatchEvent(event()));
 	expect(changed).toHaveBeenCalledTimes(1);
+});
+
+it("shows the viewer where the sharer applied the last move", () => {
+	vi.stubGlobal(
+		"RTCDataChannel",
+		class extends EventTarget {
+			label = "coder-dashboard-control-v1";
+			send = vi.fn();
+			close = vi.fn();
+		},
+	);
+	const pointer = renderHook(useRemotePointer);
+	const channel = new RTCDataChannel();
+	updateMedia({ id: "viewed", dashboard: true });
+	bindDashboardChannel(channel, "viewed", false);
+	const echo = (data: string) =>
+		act(() => channel.dispatchEvent(new MessageEvent("message", { data })));
+	echo(JSON.stringify({ type: "dashboard-pointer", x: 2, y: 0 }));
+	expect(pointer.result.current).toBeNull();
+	echo(JSON.stringify({ type: "dashboard-pointer", x: 0.1, y: 0.9 }));
+	expect(pointer.result.current).toEqual({ x: 0.1, y: 0.9 });
 });

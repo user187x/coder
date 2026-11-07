@@ -36,7 +36,7 @@ export const ShareVideo = ({
 			playsInline
 			muted
 			className={cn(
-				"block max-h-[60vh] w-full bg-black",
+				"block w-full bg-black",
 				fill ? "object-cover" : "object-contain",
 				className,
 			)}

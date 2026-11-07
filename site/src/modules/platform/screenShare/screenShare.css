@@ -26,10 +26,19 @@
 	background: repeating-linear-gradient(0deg, transparent 0 3px, #0002 3px 4px);
 	box-shadow: inset 0 0 28px #0008;
 }
+/* Scanlines would darken every fourth row of a live screen's text. */
+.support-crt-screen[data-live]::after,
+.support-crt-screen:fullscreen::after {
+	display: none;
+}
 
+/* Fill the monitor's width at 16:9, letterboxing other ratios, up to the window's height. */
 .support-monitor-video,
 .support-workspace-screen {
-	height: clamp(256px, 45vh, 600px);
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	min-height: 256px;
+	max-height: calc(100dvh - 12rem);
 }
 .support-crt-shutdown {
 	position: absolute;
@@ -47,32 +56,25 @@
 	box-shadow: 0 0 24px 8px #d9fff5;
 	transform-origin: center;
 }
-.support-monitor:fullscreen {
+.support-crt-screen:fullscreen {
 	display: flex;
 	flex-direction: column;
-	width: 100%;
-	height: 100%;
-	margin: 0;
+	border: 0;
 	border-radius: 0;
-	overflow: auto;
+	background: #000;
+	box-shadow: none;
 }
-.support-monitor:fullscreen .support-crt {
-	display: flex;
-	flex: 1;
-	min-height: 0;
-	flex-direction: column;
-}
-.support-monitor:fullscreen .support-crt-screen {
-	display: flex;
-	flex: 1;
-	min-height: 0;
-	align-items: center;
-	justify-content: center;
-}
-.support-monitor:fullscreen .support-monitor-video,
-.support-monitor:fullscreen .support-workspace-screen {
+.support-crt-screen:fullscreen .support-monitor-video {
 	height: 100%;
+	min-height: 0;
 	max-height: none;
+	aspect-ratio: auto;
+}
+.support-crt-screen:fullscreen .support-workspace-screen {
+	flex: 1;
+	min-height: 0;
+	max-height: none;
+	aspect-ratio: auto;
 }
 
 .support-monitor {

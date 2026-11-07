@@ -66,3 +66,42 @@ it("requires the control connection and an admin click, forwards input, and rele
 		shift: false,
 	});
 });
+
+it("sends at most one normalized pointer move per frame while in control", async () => {
+	const send = vi
+		.spyOn(media, "sendDashboardInput")
+		.mockImplementation(() => {});
+	const frames: FrameRequestCallback[] = [];
+	vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+		frames.push(callback);
+		return frames.length;
+	});
+	vi.spyOn(HTMLVideoElement.prototype, "videoWidth", "get").mockReturnValue(
+		200,
+	);
+	vi.spyOn(HTMLVideoElement.prototype, "videoHeight", "get").mockReturnValue(
+		100,
+	);
+	vi.spyOn(HTMLVideoElement.prototype, "getBoundingClientRect").mockReturnValue(
+		new DOMRect(0, 0, 200, 200),
+	);
+	media.updateMedia({ id: "dashboard", dashboard: true, controlReady: true });
+	render(<SharedDashboardView stream={null} />);
+	const user = userEvent.setup();
+	await user.click(screen.getByRole("button", { name: "Control dashboard" }));
+	const surface = screen.getByRole("application", {
+		name: "Remote dashboard keyboard and mouse",
+	});
+	await user.pointer([
+		{ target: surface, coords: { x: 20, y: 60 } },
+		{ target: surface, coords: { x: 50, y: 100 } },
+	]);
+	expect(frames).toHaveLength(1);
+	expect(send).not.toHaveBeenCalledWith(
+		expect.objectContaining({ type: "move" }),
+	);
+	act(() => frames[0]?.(0));
+	// The 200x100 stream is letterboxed 50px from the top of the 200px box.
+	expect(send).toHaveBeenLastCalledWith({ type: "move", x: 0.25, y: 0.5 });
+	expect(send).toHaveBeenCalledTimes(1);
+});

@@ -181,3 +181,35 @@ it.each(["http://workspace.example/", window.location.origin])(
 		).not.toBeInTheDocument();
 	},
 );
+
+it("asks a desktop viewer for full JPEG quality", async () => {
+	const [resource] = MockSupportBrowserWorkspace.latest_build.resources;
+	const [agent] = resource?.agents ?? [];
+	if (!resource || !agent) throw new Error("Missing support agent fixture");
+	vi.spyOn(API, "getWorkspace").mockResolvedValue({
+		...MockSupportBrowserWorkspace,
+		latest_build: {
+			...MockSupportBrowserWorkspace.latest_build,
+			resources: [
+				{
+					...resource,
+					agents: [
+						{
+							...agent,
+							apps: agent.apps.map((app) => ({
+								...app,
+								slug: "desktop",
+								display_name: "Desktop",
+							})),
+						},
+					],
+				},
+			],
+		},
+	});
+	render(<WorkspaceControlScreen workspaceId="ws-1" onEnded={vi.fn()} />);
+	const frame = await screen.findByTitle<HTMLIFrameElement>(
+		"TestUser2/dev Desktop",
+	);
+	expect(new URL(frame.src).searchParams.get("quality")).toBe("9");
+});

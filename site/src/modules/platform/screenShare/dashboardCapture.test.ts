@@ -83,3 +83,15 @@ it("terminates the stream and reports a capture failure instead of showing a sta
 	expect(stopTrack).toHaveBeenCalledOnce();
 	expect(requestFrame).toHaveBeenCalledOnce();
 });
+
+it("captures HiDPI dashboards at device resolution up to 1080p", async () => {
+	vi.stubGlobal("devicePixelRatio", 2);
+	vi.stubGlobal("innerWidth", 1600);
+	vi.stubGlobal("innerHeight", 900);
+	const capture = await captureDashboard(vi.fn());
+	expect(html2canvas).toHaveBeenCalledWith(
+		document.documentElement,
+		expect.objectContaining({ width: 1600, height: 900, scale: 1.2 }),
+	);
+	capture.stop();
+});

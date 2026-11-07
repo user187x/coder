@@ -115,6 +115,8 @@ const ControlApp = ({
 		if (app.slug === "novnc" || app.slug === "desktop") {
 			url.searchParams.set("autoconnect", "true");
 			url.searchParams.set("path", "websockify");
+			// noVNC defaults to JPEG quality 6, which smears text when scaled up.
+			url.searchParams.set("quality", "9");
 		}
 		url.searchParams.set("support", "1");
 		url.searchParams.set("support_build", workspace.latest_build.id);

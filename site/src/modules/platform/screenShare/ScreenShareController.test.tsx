@@ -96,7 +96,13 @@ it.each(["Stop", "unresponsive signaling", "expiry"] as const)(
 			iceGatheringState = "complete";
 			signalingState = "stable";
 			localDescription: RTCSessionDescriptionInit | null = null;
-			addTrack = vi.fn();
+			addTransceiver = vi.fn(() => ({
+				setCodecPreferences: vi.fn(),
+				sender: {
+					getParameters: () => ({ transactionId: "", encodings: [] }),
+					setParameters: vi.fn().mockResolvedValue(undefined),
+				},
+			}));
 			close = vi.fn();
 			createOffer = vi.fn(async () => ({ type: "offer", sdp: "v=0\r\nlocal" }));
 			setLocalDescription = vi.fn(

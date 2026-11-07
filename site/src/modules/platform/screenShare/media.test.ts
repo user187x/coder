@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import * as dashboardCapture from "./dashboardCapture";
 import {
+	addShareTracks,
 	shareDashboard,
 	shareScreen,
 	stopMedia,
@@ -139,7 +140,11 @@ it("requests video only after consent and stops every capture track", async () =
 	vi.stubGlobal("navigator", { mediaDevices: { getDisplayMedia: capture } });
 	await shareScreen("consented-session");
 	expect(capture).toHaveBeenCalledWith({
-		video: { frameRate: { ideal: 15, max: 30 } },
+		video: {
+			width: { ideal: 1920, max: 1920 },
+			height: { ideal: 1080, max: 1080 },
+			frameRate: { ideal: 30, max: 30 },
+		},
 		audio: false,
 	});
 	expect(ended).toHaveBeenCalledWith("ended", expect.any(Function), {
@@ -147,4 +152,59 @@ it("requests video only after consent and stops every capture track", async () =
 	});
 	stopMedia();
 	expect(stop).toHaveBeenCalledTimes(1);
+});
+
+it("sends video at a high bitrate ceiling, keeps resolution, and prefers VP9", async () => {
+	const setParameters = vi.fn().mockResolvedValue(undefined);
+	const setCodecPreferences = vi.fn();
+	const addTransceiver = vi.fn(() => ({
+		setCodecPreferences,
+		sender: {
+			getParameters: () => ({
+				transactionId: "t1",
+				encodings: [{ active: true }],
+			}),
+			setParameters,
+		},
+	}));
+	const codecs = [
+		{ mimeType: "video/VP8", clockRate: 90000 },
+		{ mimeType: "video/rtx", clockRate: 90000 },
+		{ mimeType: "video/H264", clockRate: 90000 },
+		{ mimeType: "video/VP9", clockRate: 90000 },
+	];
+	vi.stubGlobal("RTCRtpReceiver", { getCapabilities: () => ({ codecs }) });
+	const track = { kind: "video", contentHint: "" };
+	vi.stubGlobal(
+		"MediaStream",
+		class {
+			getTracks() {
+				return [track];
+			}
+		},
+	);
+	vi.stubGlobal(
+		"RTCPeerConnection",
+		class {
+			addTransceiver = addTransceiver;
+		},
+	);
+	const stream = new MediaStream();
+	addShareTracks(new RTCPeerConnection(), stream);
+	expect(track.contentHint).toBe("detail");
+	expect(addTransceiver).toHaveBeenCalledWith(track, {
+		direction: "sendonly",
+		streams: [stream],
+		sendEncodings: [{ maxBitrate: 8_000_000, maxFramerate: 30 }],
+	});
+	expect(setParameters).toHaveBeenCalledWith({
+		transactionId: "t1",
+		degradationPreference: "maintain-resolution",
+		encodings: [{ active: true, maxBitrate: 8_000_000, maxFramerate: 30 }],
+	});
+	expect(
+		setCodecPreferences.mock.calls[0]?.[0].map(
+			(codec: { mimeType: string }) => codec.mimeType,
+		),
+	).toEqual(["video/VP9", "video/H264", "video/VP8", "video/rtx"]);
 });

@@ -1,3 +1,4 @@
+import { PointerIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -12,12 +13,14 @@ import type { ScreenShareSession } from "#/api/screenShare";
 import { Button } from "#/components/Button/Button";
 import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import {
+	addShareTracks,
 	bindDashboardChannel,
 	completeDescription,
 	shareDashboard,
 	shareScreen,
 	stopMedia,
 	updateMedia,
+	useRemotePointer,
 	useShareMedia,
 } from "./media";
 import { SharedDashboardView } from "./SharedDashboardView";
@@ -102,8 +105,7 @@ export const ScreenShareController = () => {
 		};
 		const negotiate = async () => {
 			if (isSharer && media.local) {
-				for (const track of media.local.getTracks())
-					pc.addTrack(track, media.local);
+				addShareTracks(pc, media.local);
 				const sdp = await completeDescription(pc, await pc.createOffer());
 				if (!disposed) await signal({ action: "offer", id, sdp });
 			} else if (offer) {
@@ -280,6 +282,10 @@ export const ScreenShareController = () => {
 					tabs, password fields, and workspace windows are excluded.
 				</p>
 			)}
+			{media.dashboard &&
+				media.local &&
+				media.controlReady &&
+				createPortal(<SupportPointer />, overlayHost)}
 			{connectedElsewhere && (
 				<p className="my-2 text-xs text-content-secondary">
 					Continue in the browser or tab where you connected. End this session
@@ -312,7 +318,7 @@ export const ScreenShareController = () => {
 			{media.id &&
 				media.remote &&
 				location.pathname !== "/deployment/monitoring" && (
-					<SharedDashboardView stream={media.remote} />
+					<SharedDashboardView stream={media.remote} className="max-h-[60vh]" />
 				)}
 			{(mediaError || captureError || actionError) && (
 				<p role="alert" className="text-xs text-content-destructive">
@@ -324,5 +330,19 @@ export const ScreenShareController = () => {
 				</p>
 			)}
 		</aside>
+	);
+};
+
+/** Shows the owner where the support viewer's pointer is; capture excludes it. */
+const SupportPointer = () => {
+	const pointer = useRemotePointer();
+	if (!pointer) return null;
+	return (
+		<PointerIcon
+			aria-hidden
+			data-dashboard-support-ignore
+			className="pointer-events-none fixed z-[100] size-6 -translate-x-[40%] text-content-link drop-shadow"
+			style={{ left: pointer.x * innerWidth, top: pointer.y * innerHeight }}
+		/>
 	);
 };
