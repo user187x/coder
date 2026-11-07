@@ -16,6 +16,11 @@ import {
 	seat,
 	stepCable,
 } from "./cables";
+import {
+	DriveRopeMenu,
+	DriveStyledCable,
+	useDriveCableStyles,
+} from "./DriveCableStyle";
 
 /** Where the cables are drawn over: the Workspaces page's content. */
 export const ROPES_AREA = "data-cloud-drive-area";
@@ -71,6 +76,13 @@ type Row = {
 	left: number;
 	right: number;
 	el: Element;
+};
+
+/** What the render needs of a plugged cable: which workspace's, its name, and (drawn as a tunnel cable) where it sits. */
+type Plugged = {
+	workspace: string;
+	label: string;
+	cable?: { from: Point; to: Point; reach: number };
 };
 
 type Layout = {
@@ -139,6 +151,13 @@ export const CloudDriveRopes: React.FC<{
 	const socket = useRef<SVGGElement>(null);
 	const elements = useRef(new Map<string, SVGGElement>());
 	const [keys, setKeys] = useState<readonly string[]>([]);
+	const drive = useDriveCableStyles("coder-drive-cable-style-v1:ropes");
+	const cableIds = Object.keys(drive.styles)
+		.filter((id) => drive.styles[id].style === "cable")
+		.sort()
+		.join(",");
+	const cableIdsRef = useRef(new Set<string>());
+	const [plugged, setPlugged] = useState<Map<string, Plugged>>(new Map());
 	const animations = useAnimationsEnabled();
 	// the same workspaces in another order (the list re-sorted: one began deleting) are the same cables
 	const ids = [...workspaceIds].sort().join(",");
@@ -155,6 +174,11 @@ export const CloudDriveRopes: React.FC<{
 		linkedRef.current = new Set(linked);
 		kickRef.current();
 	}, [linked]);
+
+	useEffect(() => {
+		cableIdsRef.current = new Set(cableIds ? cableIds.split(",") : []);
+		kickRef.current();
+	}, [cableIds]);
 
 	const going = (deleting ?? []).join(",");
 	useEffect(() => {
@@ -194,6 +218,7 @@ export const CloudDriveRopes: React.FC<{
 			trail: { p: Point; t: number }[];
 		} | null = null;
 		let highlighted: Element | null = null;
+		let published = "";
 
 		const isLinked = (id: string) => {
 			const o = overrides.get(id);
@@ -360,6 +385,36 @@ export const CloudDriveRopes: React.FC<{
 			if (s) {
 				s.setAttribute("transform", `translate(${m.socket.x},${m.socket.y})`);
 				s.setAttribute("visibility", m.rows.size ? "visible" : "hidden");
+			}
+			const order = ranks(m);
+			const attached = new Map<string, Plugged>();
+			for (const w of wires.values()) {
+				const row = w.target ? m.rows.get(w.target) : undefined;
+				if (
+					!w.target ||
+					!row ||
+					w.since > now ||
+					(w.phase !== "plugged" && w.phase !== "seating")
+				) {
+					continue;
+				}
+				const rank = order.get(w.key) ?? 0;
+				attached.set(w.key, {
+					workspace: w.target,
+					label: `Cloud Drive connector ${rank + 1} of ${order.size}`,
+					cable: cableIdsRef.current.has(w.target)
+						? {
+								from: m.start,
+								to: row.end,
+								reach: cableReach(row.end.y - m.start.y, rank),
+							}
+						: undefined,
+				});
+			}
+			const signature = JSON.stringify([...attached]);
+			if (signature !== published) {
+				published = signature;
+				setPlugged(attached);
 			}
 			for (const [key, g] of elements.current) {
 				const w = wires.get(key);
@@ -706,38 +761,81 @@ export const CloudDriveRopes: React.FC<{
 	return (
 		<svg
 			ref={svg}
-			aria-hidden
 			className="cd-ropes"
 			data-testid="cloud-drive-ropes"
 			data-connected={connected === false ? "false" : "true"}
 		>
-			{keys.map((key) => (
-				<g
-					key={key}
-					data-wire={key}
-					visibility="hidden"
-					ref={(el) => {
-						if (el) {
-							elements.current.set(key, el);
-						} else {
-							elements.current.delete(key);
-						}
-					}}
-				>
-					<CloudDriveCable>
-						<rect
-							className="cd-grab"
-							data-grab="plug"
-							x={-4}
-							y={-9}
-							width={PLUG + GAP + 10}
-							height={18}
-						>
-							<title>Drag away to disconnect this workspace</title>
-						</rect>
-					</CloudDriveCable>
-				</g>
-			))}
+			{keys.map((key) => {
+				const attached = plugged.get(key);
+				const grab = (
+					<rect
+						className="cd-grab"
+						data-grab="plug"
+						x={-4}
+						y={-9}
+						width={PLUG + GAP + 10}
+						height={18}
+					>
+						<title>Drag away to disconnect this workspace</title>
+					</rect>
+				);
+				if (attached?.cable) {
+					const { from, to, reach } = attached.cable;
+					return (
+						<g key={key} data-wire={key}>
+							<DriveStyledCable
+								id={attached.workspace}
+								from={from}
+								to={to}
+								reach={reach}
+								value={drive.styleOf(attached.workspace)}
+								onChange={(patch) => drive.update(attached.workspace, patch)}
+								label={attached.label}
+								onOpen={() => {}}
+							>
+								<g
+									className="cd-plug"
+									transform={`translate(${to.x},${to.y}) rotate(180)`}
+								>
+									<CloudDriveMalePlug />
+									{grab}
+								</g>
+							</DriveStyledCable>
+						</g>
+					);
+				}
+				const rope = (
+					<g
+						key={key}
+						data-wire={key}
+						role={attached ? "button" : undefined}
+						tabIndex={attached ? 0 : undefined}
+						aria-label={attached?.label}
+						visibility="hidden"
+						ref={(el) => {
+							if (el) {
+								elements.current.set(key, el);
+							} else {
+								elements.current.delete(key);
+							}
+						}}
+					>
+						<path className="cd-wire-hit" />
+						<CloudDriveCable>{grab}</CloudDriveCable>
+					</g>
+				);
+				return attached ? (
+					<DriveRopeMenu
+						key={key}
+						value={drive.styleOf(attached.workspace)}
+						onChange={(patch) => drive.update(attached.workspace, patch)}
+					>
+						{rope}
+					</DriveRopeMenu>
+				) : (
+					rope
+				);
+			})}
 			<g ref={socket} className="cd-socket-group" visibility="hidden">
 				{linked.length === 0 ? (
 					<CloudDriveMalePlug />

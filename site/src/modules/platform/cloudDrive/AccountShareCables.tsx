@@ -24,6 +24,11 @@ import {
 	seat,
 	stepCable,
 } from "./cables";
+import {
+	DriveRopeMenu,
+	DriveStyledCable,
+	useDriveCableStyles,
+} from "./DriveCableStyle";
 import "./cloudDrive.css";
 import {
 	GAP,
@@ -54,6 +59,9 @@ type Wire = Cable & {
 	length: number;
 	since: number;
 };
+
+/** Where a connector drawn as a tunnel cable sits: its socket end, its plug end, and how far its loop reaches. */
+type StyledEnds = { from: Point; to: Point; reach: number };
 
 type Layout = {
 	ends: ShareEnds;
@@ -185,12 +193,26 @@ const ShareCablesArea: React.FC<{
 	const [owners, setOwners] = useState<readonly string[]>([]);
 	const animations = useAnimationsEnabled();
 	const edgesRef = useRef(edges);
+	const drive = useDriveCableStyles("coder-drive-cable-style-v1:shares");
+	const cableKeys = Object.keys(drive.styles)
+		.filter((key) => drive.styles[key].style === "cable")
+		.sort()
+		.join(",");
+	const cableKeysRef = useRef(new Set<string>());
+	const [styledEnds, setStyledEnds] = useState<Map<string, StyledEnds>>(
+		new Map(),
+	);
 	const kickRef = useRef<() => void>(() => {});
 
 	useEffect(() => {
 		edgesRef.current = edges;
 		kickRef.current();
 	}, [edges]);
+
+	useEffect(() => {
+		cableKeysRef.current = new Set(cableKeys ? cableKeys.split(",") : []);
+		kickRef.current();
+	}, [cableKeys]);
 
 	useEffect(() => {
 		const root = svg.current;
@@ -206,6 +228,7 @@ const ShareCablesArea: React.FC<{
 		let seen = "";
 		let first = true;
 		let pad = 0;
+		let published = "";
 
 		const sync = () => {
 			setKeys([...wires.keys()]);
@@ -338,6 +361,26 @@ const ShareCablesArea: React.FC<{
 				if (s) {
 					g.setAttribute("transform", `translate(${s.at.x},${s.at.y})`);
 				}
+			}
+			const styled = new Map<string, StyledEnds>();
+			for (const w of wires.values()) {
+				const plug = m.ends.plugs.get(w.edge.key);
+				const from = m.ends.sockets.get(w.edge.owner)?.from;
+				if (
+					plug &&
+					from &&
+					w.since <= now &&
+					(w.phase === "plugged" || w.phase === "seating") &&
+					edgesRef.current.some((e) => e.key === w.edge.key) &&
+					cableKeysRef.current.has(w.edge.key)
+				) {
+					styled.set(w.edge.key, { from, to: plug.end, reach: plug.reach });
+				}
+			}
+			const signature = JSON.stringify([...styled]);
+			if (signature !== published) {
+				published = signature;
+				setStyledEnds(styled);
 			}
 			for (const [key, g] of elements.current) {
 				const w = wires.get(key);
@@ -517,15 +560,34 @@ const ShareCablesArea: React.FC<{
 			data-testid="account-shares-area"
 		>
 			{children}
-			<svg
-				ref={svg}
-				aria-hidden={onManage ? undefined : true}
-				className="cd-ropes"
-				data-testid="account-share-cables"
-			>
+			<svg ref={svg} className="cd-ropes" data-testid="account-share-cables">
 				{keys.map((key) => {
 					const edge = byKey.get(key);
-					return (
+					const ends = styledEnds.get(key);
+					if (edge && ends) {
+						return (
+							<DriveStyledCable
+								key={key}
+								id={key}
+								from={ends.from}
+								to={ends.to}
+								reach={ends.reach}
+								value={drive.styleOf(key)}
+								onChange={(patch) => drive.update(key, patch)}
+								label={onManage ? `Manage ${edge.label}` : edge.label}
+								onOpen={() => onManage?.(key)}
+							>
+								<g
+									className="cd-plug"
+									data-access={edge.access}
+									transform={`translate(${ends.to.x},${ends.to.y}) rotate(180)`}
+								>
+									<CloudDriveMalePlug />
+								</g>
+							</DriveStyledCable>
+						);
+					}
+					const rope = (
 						<g
 							key={key}
 							data-share={key}
@@ -535,9 +597,15 @@ const ShareCablesArea: React.FC<{
 							data-access={edge?.access}
 							className="cd-share"
 							data-interactive={Boolean(onManage && edge)}
-							role={onManage && edge ? "button" : undefined}
-							tabIndex={onManage && edge ? 0 : undefined}
-							aria-label={onManage && edge ? `Manage ${edge.label}` : undefined}
+							role={edge ? "button" : undefined}
+							tabIndex={edge ? 0 : undefined}
+							aria-label={
+								edge
+									? onManage
+										? `Manage ${edge.label}`
+										: edge.label
+									: undefined
+							}
 							onClick={() => edge && onManage?.(edge.key)}
 							onKeyDown={(event) => {
 								if (
@@ -571,6 +639,17 @@ const ShareCablesArea: React.FC<{
 								<CloudDriveMalePlug />
 							</g>
 						</g>
+					);
+					return edge ? (
+						<DriveRopeMenu
+							key={key}
+							value={drive.styleOf(key)}
+							onChange={(patch) => drive.update(key, patch)}
+						>
+							{rope}
+						</DriveRopeMenu>
+					) : (
+						rope
 					);
 				})}
 				{owners.map((owner) => (

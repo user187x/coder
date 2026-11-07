@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { type CloudDriveShare, PlatformAPI } from "#/api/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
@@ -91,6 +92,7 @@ describe("AccountShareCables", () => {
 	});
 	afterEach(() => {
 		delete document.documentElement.dataset.animations;
+		localStorage.clear();
 		vi.restoreAllMocks();
 	});
 
@@ -152,5 +154,59 @@ describe("AccountShareCables", () => {
 		await new Promise((r) => setTimeout(r, 100));
 		expect(cables()).toHaveLength(0);
 		expect(screen.queryByTestId("account-shares-legend")).toBeNull();
+	});
+
+	it("draws a connector as a tunnel cable once its context menu says so, and back as a rope", async () => {
+		const user = userEvent.setup();
+		renderTable([share("s1", "ann", "bob")]);
+		const name = "Manage ann's Cloud Drive, shared with bob (read only)";
+		const stored = () =>
+			JSON.parse(
+				localStorage.getItem("coder-drive-cable-style-v1:shares") ?? "{}",
+			);
+		await user.pointer({
+			keys: "[MouseRight]",
+			target: await screen.findByRole("button", { name }),
+		});
+		await user.click(
+			await screen.findByRole("menuitemradio", { name: "Cable" }),
+		);
+		expect(await screen.findByTestId("drive-cable-s1")).toBeDefined();
+		expect(stored().s1).toMatchObject({ style: "cable", arrows: "none" });
+
+		await user.pointer({
+			keys: "[MouseRight]",
+			target: screen.getByRole("button", { name }),
+		});
+		await user.click(
+			await screen.findByRole("menuitem", { name: "Use right-angle routing" }),
+		);
+		await user.pointer({
+			keys: "[MouseRight]",
+			target: screen.getByRole("button", { name }),
+		});
+		await user.click(
+			await screen.findByRole("menuitemradio", {
+				name: "Arrowhead at the end",
+			}),
+		);
+		expect(stored().s1).toMatchObject({
+			style: "cable",
+			arrows: "end",
+			route: { orthogonal: true },
+		});
+
+		await user.pointer({
+			keys: "[MouseRight]",
+			target: screen.getByRole("button", { name }),
+		});
+		await user.click(
+			await screen.findByRole("menuitemradio", { name: "Rope" }),
+		);
+		await waitFor(() =>
+			expect(screen.queryByTestId("drive-cable-s1")).toBeNull(),
+		);
+		expect(stored().s1.style).toBe("rope");
+		await waitFor(() => expect(cables()).toHaveLength(1));
 	});
 });

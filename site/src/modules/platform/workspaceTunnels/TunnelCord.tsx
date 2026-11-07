@@ -7,6 +7,7 @@ import {
 	restingCable,
 	stepCable,
 } from "../cloudDrive/cables";
+import type { CableMarkers } from "./cableArrows";
 
 export const tunnelHandles = (
 	from: Point,
@@ -31,7 +32,18 @@ export const TunnelCord: React.FC<{
 	pending?: boolean;
 	reverseFlow?: boolean;
 	arc?: number;
-}> = ({ from, to, fromSide, toSide, pending, arc, reverseFlow = false }) => {
+	/** Arrowhead marker URLs for the cable's start and end. */
+	markers?: CableMarkers;
+}> = ({
+	from,
+	to,
+	fromSide,
+	toSide,
+	pending,
+	arc,
+	markers,
+	reverseFlow = false,
+}) => {
 	const cable = useRef(makeCable(from, to));
 	const line = useRef<SVGPathElement>(null);
 	const shine = useRef<SVGPathElement>(null);
@@ -81,6 +93,8 @@ export const TunnelCord: React.FC<{
 				d={d}
 				className="workspace-tunnel-conduit"
 				strokeDasharray={pending ? "5 4" : undefined}
+				markerStart={markers?.start}
+				markerEnd={markers?.end}
 			/>
 			<path ref={ridges} d={d} className="workspace-tunnel-ridges" />
 			<path

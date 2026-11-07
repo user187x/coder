@@ -85,3 +85,19 @@ export const ContextMenuCheckboxItem: React.FC<
 		</span>
 	</ContextMenuPrimitive.CheckboxItem>
 );
+
+export const ContextMenuRadioItem: React.FC<
+	React.ComponentProps<typeof ContextMenuPrimitive.RadioItem>
+> = ({ className, children, ...props }) => (
+	<ContextMenuPrimitive.RadioItem
+		className={cn(menuItemClass, "relative pr-8", className)}
+		{...props}
+	>
+		{children}
+		<span className="absolute right-2 flex size-3.5 items-center justify-center">
+			<ContextMenuPrimitive.ItemIndicator>
+				<CheckIcon className="size-4" />
+			</ContextMenuPrimitive.ItemIndicator>
+		</span>
+	</ContextMenuPrimitive.RadioItem>
+);

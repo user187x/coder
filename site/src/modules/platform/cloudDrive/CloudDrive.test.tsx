@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import {
@@ -436,6 +437,42 @@ describe("CloudDrive", () => {
 				"translate(812,125) rotate(180)",
 			);
 		});
+	});
+
+	it("draws a workspace's cable as a tunnel cable when its context menu says so", async () => {
+		const user = userEvent.setup();
+		try {
+			await withRows(["w2"], async (ropes) => {
+				await user.pointer({
+					keys: "[MouseRight]",
+					target: await within(ropes).findByRole("button", {
+						name: "Cloud Drive connector 1 of 1",
+					}),
+				});
+				await user.click(
+					await screen.findByRole("menuitemradio", { name: "Cable" }),
+				);
+				await within(ropes).findByTestId("drive-cable-w1");
+				await user.pointer({
+					keys: "[MouseRight]",
+					target: within(ropes).getByRole("button", {
+						name: "Cloud Drive connector 1 of 1",
+					}),
+				});
+				await user.click(
+					await screen.findByRole("menuitemradio", {
+						name: "Arrowheads at both ends",
+					}),
+				);
+				expect(
+					JSON.parse(
+						localStorage.getItem("coder-drive-cable-style-v1:ropes") ?? "{}",
+					).w1,
+				).toMatchObject({ style: "cable", arrows: "both" });
+			});
+		} finally {
+			localStorage.clear();
+		}
 	});
 
 	it("disconnects a workspace whose plug is dragged away, and connects one a new cable is dragged onto", async () => {

@@ -8,6 +8,7 @@ import {
 } from "#/components/ContextMenu/ContextMenu";
 import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import type { Point } from "../cloudDrive/cables";
+import { type ArrowMode, arrowMarkers, CableArrowMarker } from "./cableArrows";
 import { TunnelOverviewTooltip } from "./TunnelOverview";
 import {
 	insertTunnelBend,
@@ -32,6 +33,10 @@ type Props = {
 	actions?: React.ReactNode;
 	flow?: boolean;
 	pending?: boolean;
+	/** Arrowheads on the routed cable; `id` must match the markers given to a `defaultCable`. */
+	arrowhead?: { id: string; mode: ArrowMode };
+	/** Identifies the cable to tests and tooling. */
+	testId?: string;
 };
 
 /** Edits visual cable routing without changing the underlying tunnel connection. */
@@ -52,6 +57,8 @@ export const EditableTunnelCable = ({
 	actions,
 	flow = false,
 	pending = false,
+	arrowhead,
+	testId,
 }: Props) => {
 	const animations = useAnimationsEnabled();
 	const group = useRef<SVGGElement>(null);
@@ -82,6 +89,7 @@ export const EditableTunnelCable = ({
 		pending?.();
 	};
 	const custom = route.points.length > 0 || route.orthogonal || route.straight;
+	const markers = arrowhead && arrowMarkers(arrowhead.id, arrowhead.mode);
 	const d = custom ? routedTunnelPath(from, to, route) : defaultPath;
 	const position = (clientX: number, clientY: number): Point => {
 		const svg = group.current?.ownerSVGElement;
@@ -110,6 +118,7 @@ export const EditableTunnelCable = ({
 				<g
 					ref={group}
 					className="workspace-tunnel-cord"
+					data-testid={testId}
 					onPointerMove={(e) => {
 						const drag = moving.current;
 						if (!drag || drag.pointerId !== e.pointerId) return;
@@ -164,6 +173,7 @@ export const EditableTunnelCable = ({
 								: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
 					}}
 				>
+					{arrowhead && <CableArrowMarker id={arrowhead.id} />}
 					{!custom && defaultCable ? (
 						defaultCable
 					) : (
@@ -172,6 +182,8 @@ export const EditableTunnelCable = ({
 								d={d}
 								className="workspace-tunnel-conduit"
 								strokeDasharray={pending ? "5 4" : undefined}
+								markerStart={markers?.start}
+								markerEnd={markers?.end}
 							/>
 							<path d={d} className="workspace-tunnel-ridges" />
 							{flow && (

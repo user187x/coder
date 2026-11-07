@@ -223,6 +223,7 @@ html[data-animations="off"] .cd-attaching {
 .cd-share[data-access="write"] .cd-prong {
 	stroke: hsl(var(--content-success));
 }
+.cd-wire-hit,
 .cd-share-hit {
 	fill: none;
 	stroke: transparent;
@@ -233,6 +234,7 @@ html[data-animations="off"] .cd-attaching {
 .cd-share[data-interactive="true"] .cd-share-hit {
 	cursor: pointer;
 }
+.cd-ropes [data-wire]:focus-visible .cd-cable,
 .cd-share:focus-visible .cd-cable {
 	stroke: hsl(var(--content-link));
 	stroke-width: 3;
