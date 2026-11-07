@@ -51,7 +51,9 @@ export const SectionSplashPill: React.FC<SectionSplashPillProps> = ({
 			data-testid="section-splash-pill"
 			data-intro-effect={effect}
 			className={cn(
-				"max-w-full rounded-full bg-black/55 px-4 text-white [text-shadow:0_0_2px_rgb(0_0_0/0.9),0_0_6px_rgb(0_0_0/0.6)] supports-[backdrop-filter]:bg-black/25 supports-[backdrop-filter]:backdrop-blur-md",
+				"relative isolate max-w-full px-4 text-white [text-shadow:0_0_2px_rgb(0_0_0/0.9),0_0_6px_rgb(0_0_0/0.6)]",
+				// The backdrop is a feathered layer behind the text: its tint and blur fade out toward the edges, so the pill has no hard border.
+				"before:pointer-events-none before:absolute before:-inset-x-4 before:-inset-y-2 before:-z-10 before:rounded-full before:bg-black/55 before:[mask-image:radial-gradient(closest-side,#000_55%,transparent)] supports-[backdrop-filter]:before:bg-black/30 supports-[backdrop-filter]:before:backdrop-blur-md",
 				WEIGHT_CLASS[look.introWeight ?? "semibold"],
 				SPLASH_SIZE_CLASS[inNavbar ? "navbar" : "banner"][
 					look.introSize ?? "normal"
