@@ -89,6 +89,8 @@
   GET  /__coder-ui/api/dashboard-address    anyone signed in: the dashboard's host name and the Gateway's addresses
                                            (the announcement terminal's `ip`)
   GET  /__coder-ui/api/quota/me            anyone signed in: their own limits and what their workspaces take (the Workspaces pill)
+  GET  /__coder-ui/api/quota/me/resources  anyone signed in: their limits and each of their own workspaces' CPU, memory,
+                                           disk and GPUs (the Dashboard)
   POST /__coder-ui/api/quota/check         {owner, template_id | template_version_id, rich_parameter_values}: allowed?
   Global Workspace Scheduler (Health > User Quota; admins, and Coder's own check before it creates or reschedules)
   GET  /__coder-ui/api/scheduler           admins: the settings and the workspaces that break them
@@ -6999,6 +7001,36 @@ def quota_me(token, user):
     return {"limited": True, "exempt": False, **addition, "usage": usage, "left": left, "resourceModes": modes,
             "atLimit": any(left[k] is not None and left[k] <= 0 for k in QUOTA_KEYS)}
 
+
+def _workspace_gpus(workspace_ids):
+    """GPUs the pods of these workspaces ask for, by workspace ID; None when the pods cannot be read."""
+    status, pods = KUBE.call("GET", "/api/v1/namespaces/%s/pods" % WORKSPACE_NAMESPACE)
+    if status != 200:
+        return None
+    out = {}
+    for pod in pods.get("items") or []:
+        wid = ((pod.get("metadata") or {}).get("labels") or {}).get("com.coder.workspace.id")
+        if wid in workspace_ids:
+            containers = (pod.get("spec") or {}).get("containers") or []
+            out[wid] = out.get(wid, 0) + sum(_gpus(c.get("resources")) for c in containers)
+    return out
+
+
+def quota_me_resources(token, user):
+    """The Dashboard: the caller's limits (also when exempt or unlimited) and each of their own workspaces with what
+    it was built with and the GPUs its pods ask for. Only workspaces the caller owns, so an admin sees theirs alone."""
+    settings = quota_settings()
+    modes = quota_resource_modes(settings)
+    addition = quotaextras.limits(quota_limits(settings, user["username"]), user["id"])
+    exempt = quota_exempt(settings, user["id"], bool(set(user["roles"]) & ADMIN_ROLES))
+    mine = [w for w in quota_workspaces(token, owner=user["username"]) if w.get("ownerId") == user["id"]]
+    gpus = _workspace_gpus({w["id"] for w in mine})
+    workspaces = [{**{k: w.get(k) for k in ("id", "name", "template", "status", "running", "cpu", "memory", "disk")},
+                   "gpus": None if gpus is None else gpus.get(w["id"], 0)} for w in mine]
+    return {"exempt": exempt, **addition, "resourceModes": modes, "usage": quota_usage(mine, modes),
+            "workspaces": workspaces}
+
+
 def quota_check(token, user, body, resolved=False):
     """Before Coder creates a workspace: would it pass the owner's limits? {"allowed", "message", ...}. Asked by Coder
     with the requester's own session, so it sees exactly what they may see."""
@@ -9117,6 +9149,14 @@ class Handler(BaseHTTPRequestHandler):
                 return
             try:
                 return self.send_json(200, quota_me(self.token(), user))
+            except Exception as e:  # noqa: BLE001
+                return self.send_json(503, {"error": str(e)[:300]})
+        if path == BASE + "/api/quota/me/resources":
+            user, err = self.user()
+            if err:
+                return
+            try:
+                return self.send_json(200, quota_me_resources(self.token(), user))
             except Exception as e:  # noqa: BLE001
                 return self.send_json(503, {"error": str(e)[:300]})
         if path == BASE + "/api/scheduler/me":
