@@ -64,7 +64,8 @@ export const ClusterGauge: React.FC<{
 			role="group"
 			aria-label="Cluster CPU, memory, network and disk"
 			data-cluster-gauge=""
-			className="mt-1 px-2.5 pt-2.5 pb-1.5 border-0 border-t border-solid border-border cursor-default"
+			// Platform: its own rounded box, matching the Controls box above it
+			className="mx-1 mt-1 mb-1 rounded-lg border border-solid border-border px-2.5 pt-2.5 pb-1.5 cursor-default"
 		>
 			<div className="flex items-baseline justify-between mb-2 text-xs font-semibold text-content-primary">
 				<span className="inline-flex items-center gap-1.5">
