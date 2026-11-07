@@ -202,7 +202,7 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 								/>
 							</TableHead>
 						)}
-						<TableHead>User</TableHead>
+						<TableHead className="text-center">User</TableHead>
 						{visible.has("Roles") && (
 							<TableHead>
 								<div className="flex flex-row gap-2 items-center">
