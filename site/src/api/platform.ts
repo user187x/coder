@@ -871,6 +871,28 @@ export type QuotaMe = {
 	atLimit?: boolean;
 };
 
+/** The Dashboard: the caller's limits and each of their own workspaces (GET /api/quota/me/resources). */
+export type QuotaMeResources = {
+	resourceModes: QuotaResourceModes;
+	exempt: boolean;
+	limits: QuotaLimits;
+	/** What counts against the limits (the largest workspace for a per-instance limit). */
+	usage: Record<QuotaKey, number>;
+	workspaces: {
+		id: string;
+		name: string;
+		template: string;
+		status: string;
+		running: boolean;
+		/** Cores, GiB and GB the workspace was built with. */
+		cpu: number;
+		memory: number;
+		disk: number;
+		/** GPUs its pods ask for; null when the pods could not be read. */
+		gpus: number | null;
+	}[];
+};
+
 type QuotaWorkspace = {
 	disk: number;
 	id: string;
@@ -2776,6 +2798,8 @@ export const PlatformAPI = {
 	checkWorkspaceAdmission: (request: WorkspaceAdmissionRequest) =>
 		post<WorkspaceAdmission>(`${PLATFORM_BASE}/api/quota/check`, request),
 	getQuotaMe: () => get<QuotaMe>(`${PLATFORM_BASE}/api/quota/me`),
+	getQuotaMeResources: () =>
+		get<QuotaMeResources>(`${PLATFORM_BASE}/api/quota/me/resources`),
 	getDashboardAddress: () =>
 		get<DashboardAddress>(`${PLATFORM_BASE}/api/dashboard-address`),
 	getSchedulerMe: () => get<SchedulerMe>(`${PLATFORM_BASE}/api/scheduler/me`),

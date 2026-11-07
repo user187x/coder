@@ -1,0 +1,119 @@
+import { act, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { PlatformAPI, type QuotaMeResources } from "#/api/platform";
+import { HUD_REFRESH_MS } from "#/api/queries/platform";
+import { MockUserMember } from "#/testHelpers/entities";
+import {
+	MockCloudDriveSettings,
+	MockSafeSummary,
+} from "#/testHelpers/platform";
+import { render } from "#/testHelpers/renderHelpers";
+import {
+	MockDashboardResourceHistory,
+	MockQuotaMeResources,
+} from "#/testHelpers/userQuota";
+import DashboardPage from "./DashboardPage";
+
+vi.mock("#/hooks/useAuthenticated", () => ({
+	useAuthenticated: () => ({
+		user: MockUserMember,
+		permissions: { viewDeploymentConfig: false },
+	}),
+}));
+
+const setup = (resources: QuotaMeResources = MockQuotaMeResources) => {
+	const quota = vi
+		.spyOn(PlatformAPI, "getQuotaMeResources")
+		.mockResolvedValue(resources);
+	const history = vi
+		.spyOn(PlatformAPI, "getWorkspaceResourceHistory")
+		.mockResolvedValue(MockDashboardResourceHistory);
+	vi.spyOn(PlatformAPI, "getWorkspaceNetwork").mockResolvedValue({
+		windowSeconds: 300,
+		agents: {},
+	});
+	vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(MockSafeSummary);
+	vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(
+		MockCloudDriveSettings,
+	);
+	render(<DashboardPage />);
+	return { quota, history };
+};
+
+const summary = () => screen.getByRole("region", { name: "Summary" });
+
+afterEach(() => {
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+});
+
+it("shows each allocation against the quota", async () => {
+	setup();
+	const rings = await screen.findByRole("img", { name: /CPU: 6 of 8 cores/ });
+	expect(rings).toHaveAccessibleName(
+		"Memory: 12 of 16 GiB allocated (75% of quota), within quota; " +
+			"CPU: 6 of 8 cores allocated (75% of quota), within quota; " +
+			"Disk: 30 of 50 GB allocated (60% of quota), within quota",
+	);
+	expect(screen.getByRole("meter", { name: "Disk allocated" })).toHaveAttribute(
+		"aria-valuetext",
+		"30 of 50 GB used (60% of quota), within quota",
+	);
+	expect(
+		screen.getByRole("meter", { name: "Cloud Drive used" }),
+	).toHaveAttribute(
+		"aria-valuetext",
+		"4 GB of 20 GB used (20% of quota), within quota",
+	);
+	await within(summary()).findByText("1.5 of 4 cores");
+});
+
+it.each([
+	[7, "near quota", "Near quota"],
+	[8, "at or over quota", "At or over quota"],
+])("marks %d of 8 cores as %s", async (cpu, inLabel, badge) => {
+	setup({
+		...MockQuotaMeResources,
+		usage: { ...MockQuotaMeResources.usage, cpu },
+	});
+	const rings = await screen.findByRole("img", {
+		name: new RegExp(`CPU: ${cpu} of 8 cores`),
+	});
+	expect(rings).toHaveAccessibleName(
+		expect.stringContaining(
+			`CPU: ${cpu} of 8 cores allocated (${Math.round((cpu / 8) * 100)}% of quota), ${inLabel}`,
+		),
+	);
+	expect(within(summary()).getAllByText(badge)).toHaveLength(1);
+});
+
+it("leaves the GPU card out without GPUs", async () => {
+	setup();
+	await screen.findByRole("img", { name: /CPU: 6 of 8 cores/ });
+	expect(screen.queryByRole("region", { name: "GPU" })).toBeNull();
+});
+
+it("shows the GPUs a running workspace claims", async () => {
+	const [dev, data] = MockQuotaMeResources.workspaces;
+	setup({ ...MockQuotaMeResources, workspaces: [{ ...dev, gpus: 2 }, data] });
+	const gpu = await screen.findByRole("region", { name: "GPU" });
+	expect(within(gpu).getByRole("definition")).toHaveTextContent("2 GPU");
+});
+
+it("stops refreshing while Live is switched off", async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true });
+	const { quota, history } = setup();
+	const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+	await screen.findByRole("img", { name: /CPU: 6 of 8 cores/ });
+	await act(() => vi.advanceTimersByTimeAsync(HUD_REFRESH_MS + 500));
+	await waitFor(() => expect(quota.mock.calls.length).toBeGreaterThan(1));
+
+	const live = screen.getByRole("button", { name: "Live" });
+	await user.click(live);
+	expect(live).toHaveAttribute("aria-pressed", "false");
+	const quotaCalls = quota.mock.calls.length;
+	const historyCalls = history.mock.calls.length;
+	await act(() => vi.advanceTimersByTimeAsync(HUD_REFRESH_MS * 3));
+	expect(quota).toHaveBeenCalledTimes(quotaCalls);
+	expect(history).toHaveBeenCalledTimes(historyCalls);
+});

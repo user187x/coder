@@ -3,6 +3,7 @@ import type {
 	Banner,
 	BannerState,
 	ClassificationSettings,
+	CloudDriveSettings,
 	ClusterUsage,
 	DatabaseCluster,
 	DrView,
@@ -11,6 +12,7 @@ import type {
 	MonitoringOverview,
 	NetworkReport,
 	PersistenceReport,
+	SafeSummary,
 	TemplateIconList,
 } from "#/api/platform";
 import type { SerpentOption } from "#/api/typesGenerated";
@@ -742,3 +744,51 @@ export const MockObservabilityOptions: SerpentOption[] = [
 		hidden: false,
 	},
 ];
+
+const GiB = 1024 ** 3;
+
+export const MockSafeSummary: SafeSummary = {
+	enabled: true,
+	mountPath: "/home/coder/cloud-drive",
+	usedBytes: 3 * GiB,
+	files: 42,
+	quotaBytes: 10 * GiB,
+	maxUploadBytes: 5 * GiB,
+	volume: "ready",
+	offline: null,
+	encrypted: false,
+	source: null,
+	shared: [
+		{
+			owner: "owner-id",
+			ownerName: "admin",
+			quotaBytes: 10 * GiB,
+			usedBytes: GiB,
+		},
+	],
+};
+
+export const MockCloudDriveSettings: CloudDriveSettings = {
+	canEdit: false,
+	source: "chart",
+	kind: "minio",
+	endpoint: "http://minio:9000",
+	region: "",
+	bucket: "coder-user-storage",
+	accessKey: "",
+	hasSecret: true,
+	chart: {
+		kind: "minio",
+		endpoint: "http://minio:9000",
+		bucket: "coder-user-storage",
+	},
+	mountPath: "/home/coder/cloud-drive",
+	status: {
+		connected: true,
+		error: null,
+		checkedAt: 1793311500,
+		latencyMs: 12,
+	},
+	quota: { gib: 10, chartGib: 10, custom: false, min: 1, max: 10240 },
+	enabled: true,
+};

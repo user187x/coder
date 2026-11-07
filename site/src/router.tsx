@@ -197,6 +197,7 @@ const MonitoringSettingsPage = lazy(
 		),
 );
 const HudPage = lazy(() => import("./pages/HudPage/HudPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage/DashboardPage"));
 const CertificatesPage = lazy(
 	() => import("./pages/UserSettingsPage/CertificatesPage/CertificatesPage"),
 );
@@ -455,6 +456,9 @@ export const router = createBrowserRouter(
 
 					<Route path="/workspaces" element={<AdminSettingsFrame />}>
 						<Route index element={<WorkspacesPage />} />
+					</Route>
+					<Route path="/dashboard" element={<AdminSettingsFrame />}>
+						<Route index element={<DashboardPage />} />
 					</Route>
 					<Route path="/hud" element={<HudPage />} />
 

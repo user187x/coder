@@ -1,4 +1,9 @@
-import type { PlatformAPI, QuotaReport } from "#/api/platform";
+import type {
+	PlatformAPI,
+	QuotaMeResources,
+	QuotaReport,
+	WorkspaceResourceHistory,
+} from "#/api/platform";
 import { MockUserMember } from "./entities";
 
 export const MockQuotaReport: QuotaReport = {
@@ -81,4 +86,80 @@ export const MockSchedulerReport: Awaited<
 	noncompliant: [],
 	users: [MockUserMember.username],
 	generatedAt: "2026-10-31T12:00:00Z",
+};
+
+export const MockQuotaMeResources: QuotaMeResources = {
+	resourceModes: {
+		cpu: "cumulative",
+		memory: "cumulative",
+		disk: "cumulative",
+	},
+	exempt: false,
+	limits: { workspaces: 3, cpu: 8, memory: 16, disk: 50 },
+	usage: { workspaces: 2, cpu: 6, memory: 12, disk: 30 },
+	workspaces: [
+		{
+			id: "ws-dev",
+			name: "dev",
+			template: "Docker",
+			status: "running",
+			running: true,
+			cpu: 4,
+			memory: 8,
+			disk: 20,
+			gpus: 0,
+		},
+		{
+			id: "ws-data",
+			name: "data",
+			template: "Kubernetes",
+			status: "stopped",
+			running: false,
+			cpu: 2,
+			memory: 4,
+			disk: 10,
+			gpus: 0,
+		},
+	],
+};
+
+const resourceSamples = (key: string, text: string) =>
+	Array.from({ length: 60 }, (_, i) => ({
+		t: 1793311200000 + i * 5000,
+		share: 40,
+		value: 40,
+		text,
+		key,
+	}));
+
+/** The running "dev" workspace's last five minutes: about 1.5 cores, 4 GiB and 8 of 20 GB of disk. */
+export const MockDashboardResourceHistory: WorkspaceResourceHistory = {
+	asOf: 1793311500000,
+	windowSeconds: 300,
+	agents: {
+		"dev-agent": {
+			cpu: resourceSamples("0_cpu_usage", "1.5/4 cores (37%)"),
+			ram: resourceSamples("1_ram_usage", "4.29/8.59 GB (50%)"),
+			disk: resourceSamples("2_home_disk", "8.0/20.0 GB (40%)"),
+			load: [],
+		},
+	},
+};
+
+/** The running "dev" workspace's traffic over the same five minutes. */
+export const MockDashboardNetwork: Awaited<
+	ReturnType<typeof PlatformAPI.getWorkspaceNetwork>
+> = {
+	windowSeconds: 300,
+	agents: {
+		"dev-agent": {
+			samples: Array.from({ length: 60 }, (_, i) => ({
+				from: MockDashboardResourceHistory.asOf - (61 - i) * 5000,
+				t: MockDashboardResourceHistory.asOf - (60 - i) * 5000,
+				rx: 2000 + 1500 * Math.sin(i / 5) ** 2,
+				tx: 800 + 600 * Math.cos(i / 7) ** 2,
+			})),
+			last: null,
+		},
+	},
 };

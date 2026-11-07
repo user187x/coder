@@ -88,6 +88,7 @@ export const templateIconsKey = [...platformKey, "icons"] as const;
 const keycloakStatusKey = [...platformKey, "keycloak", "status"] as const;
 export const quotaReportKey = [...platformKey, "quota"] as const;
 export const quotaMeKey = [...platformKey, "quota", "me"] as const;
+const quotaMeResourcesKey = [...quotaMeKey, "resources"] as const;
 const schedulerReportKey = [...platformKey, "scheduler"] as const;
 export const schedulerMeKey = [...platformKey, "scheduler", "me"] as const;
 const certificatesKey = [...platformKey, "certificates"] as const;
@@ -741,7 +742,14 @@ export const updateQuota = (queryClient: QueryClient) => ({
 	},
 });
 
-const HUD_REFRESH_MS = 10_000;
+export const HUD_REFRESH_MS = 10_000;
+
+/** The Dashboard's own view: the caller's limits and each of their workspaces, refreshed like the HUD unless paused. */
+export const quotaMeResources = (paused: boolean) => ({
+	queryKey: quotaMeResourcesKey,
+	queryFn: PlatformAPI.getQuotaMeResources,
+	refetchInterval: paused ? (false as const) : HUD_REFRESH_MS,
+});
 
 /** The HUD's figures, refreshed while the page is open. */
 export const hudHistory = (range: HudRange) => ({
