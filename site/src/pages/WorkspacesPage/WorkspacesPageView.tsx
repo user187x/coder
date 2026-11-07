@@ -129,7 +129,10 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 
 	return (
 		// Platform: relative for the Cloud Drive's ropes over the table.
-		<Margins className="relative pb-12" data-cloud-drive-area>
+		<Margins
+			className="relative flex grow flex-col pb-12"
+			data-cloud-drive-area
+		>
 			{/* Platform: Workspaces | Templates | Images. */}
 			{/* The announcement banner names the section, so the heading is for assistive technology only. */}
 			<PageHeaderTitle className="sr-only">Workspaces</PageHeaderTitle>
@@ -147,196 +150,201 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				</NavbarAction>
 			)}
 
-			{hasError(error) && !isApiValidationError(error) && (
-				<div className="mb-4">
-					<ErrorAlert error={error} />
-				</div>
-			)}
+			{/* Centers the quota and the table in the room below the navbar when they are shorter than it; taller content starts at the top and the page scrolls. */}
+			<div className="my-auto">
+				{hasError(error) && !isApiValidationError(error) && (
+					<div className="mb-4">
+						<ErrorAlert error={error} />
+					</div>
+				)}
 
-			{/* Platform: the search and the Cloud Drive (and, with rows selected, their bulk actions) in one rounded
+				{/* Platform: the search and the Cloud Drive (and, with rows selected, their bulk actions) in one rounded
 			    bar right above the table, no border lines and see-through, padded above and below as far as the Chats card
 			    floats above the page's bottom bar - not at its sides: the search's left edge and the Cloud Drive's right
 			    edge on the table card's */}
-			{/* Platform: the user's quota, where an admin set one for them (Health > User Quota) */}
-			<WorkspaceQuotaPill
-				workspacesKey={workspaces
-					?.map((w) => `${w.id}:${w.latest_build.id}:${w.latest_build.status}`)
-					.join(",")}
-			/>
-			<div
-				className="mb-2.5 flex flex-wrap items-center gap-3 rounded-[18px] bg-transparent py-2.5 text-sm text-content-secondary"
-				data-testid="workspaces-bar"
-			>
-				<div className="min-w-0 flex-1">
-					<WorkspacesFilter filter={filter} error={error} />
-				</div>
-
-				{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
-				<CloudDrive
-					workspaceIds={mine}
-					shareWorkspaceIds={
-						me.roles.some((role) => role.name === "owner")
-							? (workspaces ?? [])
-									.filter((w) => w.owner_id !== me.id)
-									.map((w) => w.id)
-							: []
-					}
-					deleting={deleting}
-					className="ml-auto"
+				{/* Platform: the user's quota, where an admin set one for them (Health > User Quota) */}
+				<WorkspaceQuotaPill
+					workspacesKey={workspaces
+						?.map(
+							(w) => `${w.id}:${w.latest_build.id}:${w.latest_build.status}`,
+						)
+						.join(",")}
 				/>
-			</div>
-
-			{checkedWorkspaces.length > 0 && (
 				<div
-					role="toolbar"
-					aria-label="Workspaces chosen"
-					data-testid="bulk-workspace-actions"
-					className="bulk-action-surface workspace-selection-toolbar mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2"
+					className="mb-2.5 flex flex-wrap items-center gap-3 rounded-[18px] bg-transparent py-2.5 text-sm text-content-secondary"
+					data-testid="workspaces-bar"
 				>
-					<Button
-						size="sm"
-						variant="outline"
-						disabled={
-							isRunningBatchAction ||
-							!checkedWorkspaces.some(
-								(w) =>
-									w.latest_build.status === "stopped" &&
-									!mustUpdateWorkspace(w, canChangeVersions),
-							)
+					<div className="min-w-0 flex-1">
+						<WorkspacesFilter filter={filter} error={error} />
+					</div>
+
+					{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
+					<CloudDrive
+						workspaceIds={mine}
+						shareWorkspaceIds={
+							me.roles.some((role) => role.name === "owner")
+								? (workspaces ?? [])
+										.filter((w) => w.owner_id !== me.id)
+										.map((w) => w.id)
+								: []
 						}
-						onClick={onBatchStartTransition}
-					>
-						<PlayIcon />
-						Start
-					</Button>
-					<Button
-						size="sm"
-						variant="outline"
-						disabled={
-							isRunningBatchAction ||
-							!checkedWorkspaces.some(
-								(w) => w.latest_build.status === "running",
-							)
-						}
-						onClick={onBatchStopTransition}
-					>
-						<SquareIcon />
-						Stop
-					</Button>
-					<Button
-						size="sm"
-						variant="outline"
-						disabled={
-							isRunningBatchAction ||
-							!checkedWorkspaces.some(
-								(w) => w.latest_build.status === "running",
-							)
-						}
-						onClick={onBatchRestartTransition}
-					>
-						<RotateCwIcon />
-						{restartProgress
-							? `Restarting ${Math.min(restartProgress.completed + 1, restartProgress.total)} of ${restartProgress.total}`
-							: "Restart…"}
-					</Button>
-					<Button
-						size="sm"
-						variant="outline"
-						disabled={isRunningBatchAction}
-						onClick={onBatchUpdateTransition}
-					>
-						<CircleArrowUpIcon data-testid="bulk-action-update" />
-						Update…
-					</Button>
-					<Button
-						size="sm"
-						variant="outline"
-						disabled={isRunningBatchAction}
-						onClick={onBatchDeleteTransition}
-					>
-						<TrashIcon />
-						Delete…
-					</Button>
-					<Button
-						size="sm"
-						variant="subtle"
+						deleting={deleting}
 						className="ml-auto"
-						aria-label="Clear workspace selection"
-						disabled={isRunningBatchAction}
-						onClick={() => onCheckChange([])}
-					>
-						<XIcon />
-						Clear
-					</Button>
-				</div>
-			)}
-
-			{pageNumberIsInvalid ? (
-				<EmptyState
-					className="border border-solid border-border rounded-lg"
-					message="Page not found"
-					description="The page you are trying to access does not exist."
-					cta={
-						<Button
-							onClick={() => {
-								onPageChange(1);
-							}}
-						>
-							Back to the first page
-						</Button>
-					}
-				/>
-			) : (
-				// Platform: in a rounded card, its footer saying what it holds and what anything in it does
-				<WorkspaceTableTunnels
-					actorId={me.id}
-					shown={workspaces ?? []}
-					canManage={me.roles.some((role) => role.name === "owner")}
-				>
-					<TableCard
-						footerStats={footerStats}
-						data-testid="workspaces-card"
-						summary={summary}
-						footerRight={
-							checkedWorkspaces.length > 0
-								? `Selected ${checkedWorkspaces.length} of ${workspaces?.length ?? 0} workspaces`
-								: undefined
-						}
-						hint={
-							drive.enabled && mine.length > 0
-								? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"
-								: "Point at anything in the table to read what it does"
-						}
-					>
-						<WorkspacesTable
-							canCreateTemplate={canCreateTemplate}
-							canCreateWorkspace={canCreateWorkspace}
-							workspaces={workspaces}
-							isUsingFilter={filter.used}
-							onClearFilter={() => filter.update("")}
-							checkedWorkspaces={checkedWorkspaces}
-							onCheckChange={onCheckChange}
-							templates={templates}
-							onActionSuccess={onActionSuccess}
-							onActionError={onActionError}
-						/>
-					</TableCard>
-				</WorkspaceTableTunnels>
-			)}
-
-			{count !== undefined && (
-				// Temporary styling stopgap before component is migrated to using
-				// PaginationContainer (which renders PaginationWidgetBase using CSS
-				// flexbox gaps)
-				<div className="pt-4">
-					<PaginationWidgetBase
-						totalRecords={count}
-						pageSize={limit}
-						onPageChange={onPageChange}
-						currentPage={page}
 					/>
 				</div>
-			)}
+
+				{checkedWorkspaces.length > 0 && (
+					<div
+						role="toolbar"
+						aria-label="Workspaces chosen"
+						data-testid="bulk-workspace-actions"
+						className="bulk-action-surface workspace-selection-toolbar mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2"
+					>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={
+								isRunningBatchAction ||
+								!checkedWorkspaces.some(
+									(w) =>
+										w.latest_build.status === "stopped" &&
+										!mustUpdateWorkspace(w, canChangeVersions),
+								)
+							}
+							onClick={onBatchStartTransition}
+						>
+							<PlayIcon />
+							Start
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={
+								isRunningBatchAction ||
+								!checkedWorkspaces.some(
+									(w) => w.latest_build.status === "running",
+								)
+							}
+							onClick={onBatchStopTransition}
+						>
+							<SquareIcon />
+							Stop
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={
+								isRunningBatchAction ||
+								!checkedWorkspaces.some(
+									(w) => w.latest_build.status === "running",
+								)
+							}
+							onClick={onBatchRestartTransition}
+						>
+							<RotateCwIcon />
+							{restartProgress
+								? `Restarting ${Math.min(restartProgress.completed + 1, restartProgress.total)} of ${restartProgress.total}`
+								: "Restart…"}
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={isRunningBatchAction}
+							onClick={onBatchUpdateTransition}
+						>
+							<CircleArrowUpIcon data-testid="bulk-action-update" />
+							Update…
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={isRunningBatchAction}
+							onClick={onBatchDeleteTransition}
+						>
+							<TrashIcon />
+							Delete…
+						</Button>
+						<Button
+							size="sm"
+							variant="subtle"
+							className="ml-auto"
+							aria-label="Clear workspace selection"
+							disabled={isRunningBatchAction}
+							onClick={() => onCheckChange([])}
+						>
+							<XIcon />
+							Clear
+						</Button>
+					</div>
+				)}
+
+				{pageNumberIsInvalid ? (
+					<EmptyState
+						className="border border-solid border-border rounded-lg"
+						message="Page not found"
+						description="The page you are trying to access does not exist."
+						cta={
+							<Button
+								onClick={() => {
+									onPageChange(1);
+								}}
+							>
+								Back to the first page
+							</Button>
+						}
+					/>
+				) : (
+					// Platform: in a rounded card, its footer saying what it holds and what anything in it does
+					<WorkspaceTableTunnels
+						actorId={me.id}
+						shown={workspaces ?? []}
+						canManage={me.roles.some((role) => role.name === "owner")}
+					>
+						<TableCard
+							footerStats={footerStats}
+							data-testid="workspaces-card"
+							summary={summary}
+							footerRight={
+								checkedWorkspaces.length > 0
+									? `Selected ${checkedWorkspaces.length} of ${workspaces?.length ?? 0} workspaces`
+									: undefined
+							}
+							hint={
+								drive.enabled && mine.length > 0
+									? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"
+									: "Point at anything in the table to read what it does"
+							}
+						>
+							<WorkspacesTable
+								canCreateTemplate={canCreateTemplate}
+								canCreateWorkspace={canCreateWorkspace}
+								workspaces={workspaces}
+								isUsingFilter={filter.used}
+								onClearFilter={() => filter.update("")}
+								checkedWorkspaces={checkedWorkspaces}
+								onCheckChange={onCheckChange}
+								templates={templates}
+								onActionSuccess={onActionSuccess}
+								onActionError={onActionError}
+							/>
+						</TableCard>
+					</WorkspaceTableTunnels>
+				)}
+
+				{count !== undefined && (
+					// Temporary styling stopgap before component is migrated to using
+					// PaginationContainer (which renders PaginationWidgetBase using CSS
+					// flexbox gaps)
+					<div className="pt-4">
+						<PaginationWidgetBase
+							totalRecords={count}
+							pageSize={limit}
+							onPageChange={onPageChange}
+							currentPage={page}
+						/>
+					</div>
+				)}
+			</div>
 		</Margins>
 	);
 };
