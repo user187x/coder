@@ -96,6 +96,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 			item("cloud-drive", "/deployment/cloud-drive", "Cloud Drive"),
 		permissions.editDeploymentConfig &&
 			item("customize", "/deployment/customize", "Appearance"),
+		item("dashboard", "/dashboard", "Dashboard"),
 		Boolean(health) && { id: "health", label: "Health", node: health },
 		permissions.editDeploymentConfig && item("images", "/images", "Images"),
 		(permissions.editDeploymentConfig || permissions.viewDeploymentConfig) &&

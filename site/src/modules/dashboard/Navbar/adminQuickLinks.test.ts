@@ -173,6 +173,7 @@ it("offers personal destinations to members and restores their saved quick links
 		oauth2Provider: false,
 	});
 	expect(ids(addableAdminPages([], pages))).toEqual([
+		"dashboard",
 		"workspaces",
 		"templates",
 		"chat",
