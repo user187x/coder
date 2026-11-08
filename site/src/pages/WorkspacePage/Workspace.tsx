@@ -99,22 +99,32 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	useEffect(() => {
 		if (!expanded) return;
 		const root = document.documentElement;
+		// The sticky navbar draws over the page, so the expanded dashboard starts below it, never under it: below
+		// whichever is lower, the page's top or the navbar's bottom, measured again whenever the navbar changes size.
+		const navbar = document.querySelector<HTMLElement>(".navbar-soft");
 		const measure = () => {
 			const page = pageRef.current;
 			if (!page) return;
-			page.style.setProperty(
-				"--workspace-top",
-				`${page.getBoundingClientRect().top}px`,
+			const top = Math.max(
+				page.getBoundingClientRect().top,
+				navbar?.getBoundingClientRect().bottom ?? 0,
 			);
+			page.style.setProperty("--workspace-top", `${top}px`);
 			page.style.setProperty("--workspace-bottom", `${bottomBarsHeight()}px`);
 		};
 
 		root.setAttribute("data-workspace-expanded", "");
 		measure();
 		window.addEventListener("resize", measure);
+		const observer =
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(measure);
+		if (navbar) observer?.observe(navbar);
 		return () => {
 			root.removeAttribute("data-workspace-expanded");
 			window.removeEventListener("resize", measure);
+			observer?.disconnect();
 		};
 	}, [expanded]);
 	const dashboardRef = useRef<HTMLDivElement>(null);
