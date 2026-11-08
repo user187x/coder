@@ -73,6 +73,7 @@ type Draft = {
 	users: Record<string, Record<QuotaKey, string>>;
 	exemptAdmins: boolean;
 	excludedUsers: string[];
+	enabled: boolean;
 };
 
 const emptyRow = (): Record<QuotaKey, string> => ({
@@ -109,6 +110,7 @@ const toDraft = (s: QuotaSettings): Draft => ({
 	),
 	exemptAdmins: s.exemptAdmins,
 	excludedUsers: [...(s.excludedUsers ?? [])].sort(),
+	enabled: s.enabled !== false,
 });
 
 const toSettings = (d: Draft): QuotaSettings => {
@@ -138,6 +140,7 @@ const toSettings = (d: Draft): QuotaSettings => {
 		exemptAdmins: d.exemptAdmins,
 		excludedUsers: d.excludedUsers,
 		resourceModes: d.resourceModes,
+		enabled: d.enabled,
 	};
 };
 
@@ -174,6 +177,8 @@ type QuotaEditorState = {
 	setDraft: (draft: Draft) => void;
 	onSave: () => void;
 	onDiscard: () => void;
+	/** Switches quota on or off at once, keeping any unsaved edits. */
+	onToggle: (enabled: boolean) => void;
 };
 export const QuotaEditorContext = createContext<QuotaEditorState | undefined>(
 	undefined,
@@ -228,6 +233,27 @@ export const UserQuotaProvider: React.FC<{
 					toast.error(getErrorMessage(error, "The quota could not be saved.")),
 			});
 	};
+	const onToggle = (on: boolean) => {
+		if (!saved) return;
+		save.mutate(
+			{ ...saved, enabled: on },
+			{
+				onSuccess: (result) => {
+					queryClient.setQueryData<QuotaReport>(
+						quotaReport().queryKey,
+						(before) =>
+							before ? { ...before, settings: result.settings } : before,
+					);
+					setEdited((current) => current && { ...current, enabled: on });
+					toast.success(on ? "User quota is on." : "User quota is off.");
+				},
+				onError: (error) =>
+					toast.error(
+						getErrorMessage(error, "The quota could not be switched."),
+					),
+			},
+		);
+	};
 	const value = enabled
 		? {
 				report,
@@ -239,6 +265,7 @@ export const UserQuotaProvider: React.FC<{
 				setDraft: setEdited,
 				onSave,
 				onDiscard: () => setEdited(undefined),
+				onToggle,
 			}
 		: undefined;
 	return (
@@ -263,7 +290,9 @@ export const UserQuotaSection: React.FC<{
 		setDraft,
 		onSave,
 		onDiscard,
+		onToggle,
 	} = quota;
+	const on = saved?.enabled !== false;
 	const atLimit = report?.users.filter((u) => u.atLimit) ?? [];
 	const anyLimit = Boolean(
 		saved &&
@@ -290,15 +319,32 @@ export const UserQuotaSection: React.FC<{
 					User Quota
 				</HeaderTitle>
 				{report && (
-					<Badge variant={atLimit.length ? "warning" : "default"}>
-						{!anyLimit
-							? "No limits set"
-							: atLimit.length
-								? `${atLimit.length} at the limit`
-								: "Everyone within quota"}
-					</Badge>
+					<div className="ml-auto flex items-center gap-3">
+						<Badge variant={on && atLimit.length ? "warning" : "default"}>
+							{!on
+								? "Off"
+								: !anyLimit
+									? "No limits set"
+									: atLimit.length
+										? `${atLimit.length} at the limit`
+										: "Everyone within quota"}
+						</Badge>
+						<Switch
+							aria-label="User quota"
+							title={on ? "Switch user quota off" : "Switch user quota on"}
+							checked={on}
+							disabled={saving}
+							onCheckedChange={onToggle}
+						/>
+					</div>
 				)}
 			</Header>
+			{report && !on && (
+				<p className="m-0 mb-3 text-sm text-content-secondary">
+					User quota is off: the limits below stay set, but nobody is held to
+					them until it is switched back on.
+				</p>
+			)}
 
 			<Main className="gap-3" style={{ paddingBottom: 0 }}>
 				{error ? <ErrorAlert error={error} /> : null}

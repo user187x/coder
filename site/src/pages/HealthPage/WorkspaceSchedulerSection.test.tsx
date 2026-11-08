@@ -63,3 +63,24 @@ it("blocks saving with no enforced day", async () => {
 	expect(screen.getByRole("alert")).toHaveTextContent("Pick at least one day.");
 	expect(screen.getByRole("button", { name: "Save scheduler" })).toBeDisabled();
 });
+
+it("switches the scheduler at once, keeping other unsaved changes", async () => {
+	const next = {
+		...MockSchedulerReport.settings,
+		enabled: !MockSchedulerReport.settings.enabled,
+	};
+	const save = vi
+		.spyOn(PlatformAPI, "updateScheduler")
+		.mockResolvedValue({ ok: true, settings: next });
+	setup();
+	const toggle = await screen.findByRole("switch", {
+		name: "Global Workspace Scheduler",
+	});
+	await userEvent.click(toggle);
+	await waitFor(() => expect(save).toHaveBeenCalledWith(next));
+	await waitFor(() =>
+		expect(
+			screen.getByRole("switch", { name: "Global Workspace Scheduler" }),
+		).toHaveAttribute("aria-checked", String(next.enabled)),
+	);
+});

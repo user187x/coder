@@ -164,6 +164,7 @@ export const QuotaLoading: Story = {
 					setDraft: fn(),
 					onSave: fn(),
 					onDiscard: fn(),
+					onToggle: fn(),
 				}}
 			>
 				<Story />
@@ -182,6 +183,7 @@ export const QuotaUnavailable: Story = {
 					setDraft: fn(),
 					onSave: fn(),
 					onDiscard: fn(),
+					onToggle: fn(),
 				}}
 			>
 				<Story />

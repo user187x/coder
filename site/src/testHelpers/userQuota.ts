@@ -17,6 +17,7 @@ export const MockQuotaReport: QuotaReport = {
 		users: {},
 		exemptAdmins: false,
 		excludedUsers: [],
+		enabled: true,
 	},
 	users: [
 		{

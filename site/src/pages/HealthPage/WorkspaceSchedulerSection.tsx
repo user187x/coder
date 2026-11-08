@@ -111,43 +111,62 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 		}
 	};
 
+	// The card's switch: on or off at once, keeping any other unsaved changes.
+	const onToggle = async (enabled: boolean) => {
+		try {
+			const result = await save.mutateAsync({ ...saved, enabled });
+			setForm({
+				saved: result.settings,
+				draft: { ...draft, enabled: result.settings.enabled },
+			});
+			toast.success(
+				enabled ? "Workspace scheduler is on." : "Workspace scheduler is off.",
+			);
+		} catch (e) {
+			toast.error(getErrorMessage(e, "The scheduler could not be switched."));
+		}
+	};
+
 	return (
 		<section className="flex flex-col gap-3" aria-labelledby={`${ids}-title`}>
-			<div>
-				<h2
-					id={`${ids}-title`}
-					className="m-0 flex items-center gap-2 text-base font-medium"
-				>
-					Global Workspace Scheduler
-					{saved.enabled ? (
-						<Badge
-							variant={report.noncompliant.length ? "warning" : "green"}
-							size="xs"
-						>
-							{report.noncompliant.length
-								? `${report.noncompliant.length} without a valid schedule`
-								: "Every workspace complies"}
-						</Badge>
-					) : (
-						<Badge size="xs">Off</Badge>
-					)}
-				</h2>
-				<p className="m-0 mt-1 text-sm text-content-secondary">
-					Require schedules for new workspaces and prompt owners to correct
-					existing ones. Set shared times, a maximum duration, and exemptions
-					below.
-				</p>
-			</div>
-
-			<div className="flex items-center gap-3 text-sm">
+			<div className="flex items-start justify-between gap-3">
+				<div>
+					<h2
+						id={`${ids}-title`}
+						className="m-0 flex items-center gap-2 text-base font-medium"
+					>
+						Global Workspace Scheduler
+						{saved.enabled ? (
+							<Badge
+								variant={report.noncompliant.length ? "warning" : "green"}
+								size="xs"
+							>
+								{report.noncompliant.length
+									? `${report.noncompliant.length} without a valid schedule`
+									: "Every workspace complies"}
+							</Badge>
+						) : (
+							<Badge size="xs">Off</Badge>
+						)}
+					</h2>
+					<p className="m-0 mt-1 text-sm text-content-secondary">
+						Require schedules for new workspaces and prompt owners to correct
+						existing ones. Set shared times, a maximum duration, and exemptions
+						below.
+					</p>
+				</div>
 				<Switch
-					id={`${ids}-enabled`}
-					checked={draft.enabled}
-					onCheckedChange={(enabled) => setDraft({ ...draft, enabled })}
+					aria-label="Global Workspace Scheduler"
+					title={
+						saved.enabled
+							? "Switch the workspace scheduler off"
+							: "Switch it on: every workspace needs a start and stop schedule"
+					}
+					className="mt-0.5 shrink-0"
+					checked={saved.enabled}
+					disabled={save.isPending}
+					onCheckedChange={onToggle}
 				/>
-				<Label htmlFor={`${ids}-enabled`}>
-					Require a start and stop schedule on every workspace
-				</Label>
 			</div>
 
 			<fieldset

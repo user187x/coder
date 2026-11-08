@@ -317,3 +317,20 @@ it("discards an exclusion while preserving the saved limits", async () => {
 	await user.click(screen.getByRole("button", { name: "Save" }));
 	expect(save).not.toHaveBeenCalled();
 });
+
+it("switches user quota off at once, keeping the limits", async () => {
+	const off = { ...MockQuotaReport.settings, enabled: false };
+	const save = vi
+		.spyOn(PlatformAPI, "updateQuota")
+		.mockResolvedValue({ ok: true, settings: off });
+	setup(false, true);
+	const toggle = await screen.findByRole("switch", { name: "User quota" });
+	expect(toggle).toBeChecked();
+	await userEvent.click(toggle);
+	await waitFor(() => expect(save).toHaveBeenCalledWith(off));
+	await waitFor(() =>
+		expect(
+			screen.getByRole("switch", { name: "User quota" }),
+		).not.toBeChecked(),
+	);
+});

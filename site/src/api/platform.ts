@@ -831,6 +831,8 @@ export type QuotaSettings = {
 	exemptAdmins: boolean;
 	/** Account IDs excluded from all workspace resource quotas. */
 	excludedUsers?: string[];
+	/** False: the limits stay set but nobody is held to them. On where absent. */
+	enabled?: boolean;
 };
 
 /** Where users reach the dashboard: its host name and the addresses of the Gateway in front of it. */

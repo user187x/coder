@@ -6747,7 +6747,7 @@ def keycloak_status():
 # Per developer: how many workspaces, and how many CPU cores / GiB of memory those workspaces may be built with in all
 # (the template's "cpu" and "memory" parameters). A default for everyone, overrides per user; empty = no limit. Coder
 # (the platform build) asks /api/quota/check before it creates a workspace and refuses when a limit would be passed.
-QUOTA_DEFAULT = {"default": {"workspaces": None, "cpu": None, "memory": None, "disk": None}, "users": {}, "exemptAdmins": True, "excludedUsers": []}
+QUOTA_DEFAULT = {"default": {"workspaces": None, "cpu": None, "memory": None, "disk": None}, "users": {}, "exemptAdmins": True, "excludedUsers": [], "enabled": True}
 QUOTA_KEYS = ("workspaces", "cpu", "memory", "disk")
 QUOTA_PARAMS = {"cpu": "cpu", "memory": "memory", "disk": "home_disk_size"}   # template parameter names: cores, GiB
 
@@ -6774,7 +6774,9 @@ def quota_settings():
     s = STORE.get_setting("user_quota", None) or {}
     return {"default": {k: (s.get("default") or {}).get(k) for k in QUOTA_KEYS},
             "users": {u: {k: v for k, v in (o or {}).items() if k in QUOTA_KEYS} for u, o in (s.get("users") or {}).items()},
-            "exemptAdmins": s.get("exemptAdmins", True) is not False, "excludedUsers": quota_excluded_users(s), "resourceModes": quota_resource_modes(s)}
+            "exemptAdmins": s.get("exemptAdmins", True) is not False, "excludedUsers": quota_excluded_users(s), "resourceModes": quota_resource_modes(s),
+            # Off (Accounts, User Quota's switch): the limits stay set but nobody is held to them
+            "enabled": s.get("enabled", True) is not False}
 
 
 def _quota_number(v, what, integer=False):
@@ -6800,6 +6802,8 @@ def quota_excluded_users(settings):
 
 
 def quota_exempt(settings, user_id, admin):
+    if settings.get("enabled", True) is False:
+        return True
     return user_id in settings.get("excludedUsers", []) or (admin and settings["exemptAdmins"])
 
 
@@ -6814,7 +6818,10 @@ def clean_quota(raw):
             raise ValueError("Unknown user name %r." % name)
         users[str(name)] = limits(o, name)
     d = limits(raw.get("default") or {}, "Default")
-    return {"default": {k: d.get(k) for k in QUOTA_KEYS}, "users": users, "exemptAdmins": raw.get("exemptAdmins", True) is not False, "excludedUsers": quota_excluded_users(raw), "resourceModes": quota_resource_modes(raw)}
+    enabled = raw.get("enabled", True)
+    if not isinstance(enabled, bool):
+        raise ValueError("Quota must be switched on or off.")
+    return {"default": {k: d.get(k) for k in QUOTA_KEYS}, "users": users, "exemptAdmins": raw.get("exemptAdmins", True) is not False, "excludedUsers": quota_excluded_users(raw), "resourceModes": quota_resource_modes(raw), "enabled": enabled}
 
 
 def quota_limits(settings, username):

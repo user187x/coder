@@ -58,6 +58,12 @@ class QuotaMeResourcesTest(unittest.TestCase):
         self.assertEqual(result['limits'], self.settings['default'])
         self.assertFalse(result['exempt'])
 
+    def test_switched_off_holds_nobody_to_the_limits(self):
+        self.settings['enabled'] = False
+        result = self.resources(ALICE)
+        self.assertTrue(result['exempt'])
+        self.assertEqual(result['limits'], self.settings['default'])
+
     def test_rows_carry_no_owner_or_organization(self):
         row = self.resources(ALICE)['workspaces'][0]
         self.assertEqual(set(row), {'id', 'name', 'template', 'status', 'running', 'cpu', 'memory', 'disk', 'gpus'})
@@ -86,3 +92,22 @@ class QuotaMeResourcesTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CleanQuotaTest(unittest.TestCase):
+    def setUp(self):
+        import uuid
+        source = ast.parse(pathlib.Path(__file__).with_name('ui-service.py').read_text())
+        names = {'clean_quota', '_quota_number', 'quota_excluded_users', 'quota_resource_modes'}
+        body = [n for n in source.body
+                if (isinstance(n, ast.FunctionDef) and n.name in names)
+                or (isinstance(n, ast.Assign) and getattr(n.targets[0], 'id', '') == 'QUOTA_KEYS')]
+        self.scope = {'re': re, 'math': math, 'uuid': uuid}
+        exec(compile(ast.Module(body=body, type_ignores=[]), 'ui-service.py', 'exec'), self.scope)
+
+    def test_keeps_the_switch_on_unless_turned_off(self):
+        clean = self.scope['clean_quota']
+        self.assertTrue(clean({})['enabled'])
+        self.assertFalse(clean({'enabled': False})['enabled'])
+        with self.assertRaises(ValueError):
+            clean({'enabled': 'off'})
