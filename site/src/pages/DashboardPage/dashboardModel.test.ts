@@ -1,3 +1,4 @@
+import { niceTop } from "./dashboardCharts";
 import { networkSeries } from "./dashboardModel";
 
 const agent = (samples: [t: number, rx: number, tx: number][]) => ({
@@ -39,5 +40,15 @@ describe("networkSeries", () => {
 
 	it("has nothing before a workspace's traffic arrives", () => {
 		expect(networkSeries([undefined])).toBeNull();
+	});
+});
+
+describe("niceTop", () => {
+	it("rounds a graph's top up to 1, 2, 2.5 or 5 times a power of ten", () => {
+		expect(niceTop(17.6)).toBe(20);
+		expect(niceTop(9.2)).toBe(10);
+		expect(niceTop(2_100)).toBe(2_500);
+		expect(niceTop(0.42)).toBe(0.5);
+		expect(niceTop(0)).toBe(1);
 	});
 });

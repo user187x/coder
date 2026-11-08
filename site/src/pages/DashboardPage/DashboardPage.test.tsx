@@ -87,10 +87,10 @@ it.each([
 	expect(within(summary()).getAllByText(badge)).toHaveLength(1);
 });
 
-it("leaves the GPU card out without GPUs", async () => {
+it("keeps the GPU card, saying no workspace has a GPU, without GPUs", async () => {
 	setup();
-	await screen.findByRole("img", { name: /CPU: 6 of 8 cores/ });
-	expect(screen.queryByRole("region", { name: "GPU" })).toBeNull();
+	const gpu = await screen.findByRole("region", { name: "GPU" });
+	expect(gpu).toHaveTextContent("No workspace has a GPU enabled");
 });
 
 it("shows the GPUs a running workspace claims", async () => {

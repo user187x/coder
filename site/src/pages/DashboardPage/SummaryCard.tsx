@@ -45,7 +45,12 @@ type SummaryCardProps = {
 	/** Cores and GiB the running workspaces use now; null where it is not measured. */
 	live: { cpu: number | null; memory: number | null };
 	limitName: string;
+	/** GPUs the running workspaces claim; null where it is not known (the whole cluster). */
+	gpus?: number | null;
 };
+
+/** The figures under the rings, two to a row: CPU and Memory, then Disk and GPU. */
+const LEGEND: readonly (Resource | "gpu")[] = ["cpu", "memory", "disk", "gpu"];
 
 /**
  * Allocations against limits: concentric rings with the limit's watermark, the big numbers beside them, and how
@@ -55,6 +60,7 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 	scope,
 	live,
 	limitName,
+	gpus = null,
 }) => {
 	// The ring pointed at, or its legend entry: both light up together.
 	const [active, setActive] = useState<number | null>(null);
@@ -67,8 +73,8 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 	}));
 	return (
 		<div className="@container flex flex-col gap-5">
-			<div className="flex flex-wrap items-center gap-6">
-				<GraphFrame className="shrink-0 p-2">
+			<div className="flex flex-col items-center gap-5">
+				<GraphFrame className="p-2">
 					<QuotaRings
 						rings={rings}
 						limitName={limitName}
@@ -76,8 +82,45 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 						onActiveChange={setActive}
 					/>
 				</GraphFrame>
-				<ul className="m-0 flex min-w-[180px] flex-1 list-none flex-col gap-3 p-0">
-					{ORDER.map((resource, index) => {
+				<ul className="m-0 grid w-full list-none grid-cols-2 gap-x-4 gap-y-3 p-0">
+					{LEGEND.map((key) => {
+						if (key === "gpu") {
+							const none = !gpus;
+							return (
+								<li
+									key="gpu"
+									className={cn(
+										"-mx-2 flex min-w-0 flex-col rounded-lg px-2",
+										none && "opacity-40",
+									)}
+								>
+									<span className="flex items-center gap-2 whitespace-nowrap text-xs text-content-secondary">
+										<span
+											aria-hidden
+											className="size-2 rounded-full bg-content-success"
+										/>
+										GPU
+									</span>
+									<span className="whitespace-nowrap text-2xl font-semibold tabular-nums text-content-primary">
+										{gpus === null ? "N/A" : formatQuotaNumber(gpus)}
+										{gpus !== null && (
+											<span className="text-sm font-normal text-content-secondary">
+												{gpus === 1 ? " GPU" : " GPUs"}
+											</span>
+										)}
+									</span>
+									<span className="whitespace-nowrap text-[11px] text-content-secondary">
+										{gpus === null
+											? "Per account only"
+											: none
+												? "None claimed"
+												: "Claimed by running workspaces"}
+									</span>
+								</li>
+							);
+						}
+						const resource = key;
+						const index = ORDER.indexOf(resource);
 						const used = scope.allocated[resource];
 						const limit = scope.limits[resource];
 						const style = RESOURCE_STYLE[resource];
@@ -86,7 +129,7 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 							<li
 								key={resource}
 								className={cn(
-									"-mx-2 flex flex-col rounded-lg px-2 transition-[background-color,opacity] duration-200",
+									"-mx-2 flex min-w-0 flex-col rounded-lg px-2 transition-[background-color,opacity] duration-200",
 									active === index && "bg-surface-secondary",
 									active !== null && active !== index && "opacity-50",
 								)}

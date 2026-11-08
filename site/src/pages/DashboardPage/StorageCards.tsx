@@ -134,7 +134,9 @@ export const CloudDriveCardBody: React.FC<{
 /** GPUs the running workspaces' pods ask for (a stopped workspace has no pod, so claims none). */
 export const GpuCardBody: React.FC<{
 	workspaces: readonly DashboardWorkspace[];
-}> = ({ workspaces }) => {
+	/** False in the whole-cluster view, whose report has no GPU claims. */
+	known?: boolean;
+}> = ({ workspaces, known = true }) => {
 	const withGpus = workspaces.filter((w) => (w.gpus ?? 0) > 0);
 	const claimed = withGpus.reduce((sum, w) => sum + (w.gpus ?? 0), 0);
 	return (
@@ -145,10 +147,14 @@ export const GpuCardBody: React.FC<{
 				</span>
 				<span className="flex flex-col">
 					<span className="text-2xl font-semibold tabular-nums text-content-primary">
-						{formatQuotaNumber(claimed)}
+						{known ? formatQuotaNumber(claimed) : "N/A"}
 					</span>
 					<span className="text-xs text-content-secondary">
-						GPUs claimed by running workspaces
+						{!known
+							? "GPU claims are shown for your own workspaces"
+							: withGpus.length === 0
+								? "No workspace has a GPU enabled"
+								: "GPUs claimed by running workspaces"}
 					</span>
 				</span>
 			</div>

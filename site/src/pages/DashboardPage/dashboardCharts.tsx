@@ -264,12 +264,24 @@ export const QuotaBar: React.FC<{
 	);
 };
 
+/** The smallest round number (1, 2, 2.5 or 5 times a power of ten) at or above a value: the scale's top, so its
+ * ticks read 0, 10, 20 rather than 0, 9.2, 18.4. */
+export const niceTop = (value: number) => {
+	if (!(value > 0) || !Number.isFinite(value)) {
+		return 1;
+	}
+	const power = 10 ** Math.floor(Math.log10(value));
+	const step = [1, 2, 2.5, 5, 10].find((m) => m * power >= value) ?? 10;
+	return step * power;
+};
+
 const SPARK_W = 300;
 const SPARK_H = 72;
 
 /**
  * A line and area over time with gaps where nothing was measured, and the limit as a dashed watermark line. The
- * scale reaches a little above the higher of the peak and the limit.
+ * scale reaches a little above the higher of the peak and the limit; major ticks on the left mark its bottom,
+ * half-way and top (no axis line).
  */
 export const Sparkline: React.FC<{
 	label: string;
@@ -277,9 +289,11 @@ export const Sparkline: React.FC<{
 	limit: number | null;
 	stroke: string;
 	fill: string;
-}> = ({ label, points, limit, stroke, fill }) => {
+	/** Writes a tick's value; plain numbers by default. */
+	format?: (value: number) => string;
+}> = ({ label, points, limit, stroke, fill, format = formatQuotaNumber }) => {
 	const peak = Math.max(0, ...points.map((p) => p ?? 0));
-	const top = Math.max(peak, limit ?? 0) * 1.15 || 1;
+	const top = niceTop(Math.max(peak, limit ?? 0) * 1.1);
 	const step = points.length > 1 ? SPARK_W / (points.length - 1) : SPARK_W;
 	const y = (v: number) => SPARK_H - (v / top) * (SPARK_H - 4);
 	const runs: { x: number; y: number }[][] = [];
@@ -293,50 +307,103 @@ export const Sparkline: React.FC<{
 		run.push({ x: i * step, y: y(p) });
 	});
 	if (run.length) runs.push(run);
+	const ticks = [top, top / 2, 0];
 	return (
-		<svg
-			role="img"
-			aria-label={label}
-			viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
-			preserveAspectRatio="none"
-			className="h-[72px] w-full overflow-visible"
-		>
-			{runs.map((r) => {
-				const line = r.map((pt) => `${pt.x},${pt.y}`).join(" L");
-				const first = r[0];
-				const last = r[r.length - 1];
-				return (
-					<g key={first.x}>
-						<path
-							d={`M${first.x},${SPARK_H} L${line} L${last.x},${SPARK_H} Z`}
-							className={fill}
-							opacity={0.18}
-						/>
-						<path
-							d={`M${line}`}
-							fill="none"
-							strokeWidth={2}
-							vectorEffect="non-scaling-stroke"
-							className={stroke}
-						/>
-					</g>
-				);
-			})}
-			{limit !== null && (
-				<line
-					x1={0}
-					x2={SPARK_W}
-					y1={y(limit)}
-					y2={y(limit)}
-					strokeDasharray="6 4"
-					strokeWidth={1.5}
-					vectorEffect="non-scaling-stroke"
-					className="stroke-content-destructive"
-				/>
-			)}
-		</svg>
+		<div className="flex items-stretch gap-1.5">
+			<div aria-hidden className="relative h-[72px] w-10 shrink-0">
+				{ticks.map((value) => (
+					<span
+						key={value}
+						className="absolute right-0 flex -translate-y-1/2 items-center gap-1 whitespace-nowrap text-[9px] leading-none tabular-nums text-content-secondary"
+						style={{ top: `${(y(value) / SPARK_H) * 100}%` }}
+					>
+						{format(value)}
+						<span className="w-1.5 border-0 border-t border-solid border-content-secondary" />
+					</span>
+				))}
+			</div>
+			<svg
+				role="img"
+				aria-label={label}
+				viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
+				preserveAspectRatio="none"
+				className="h-[72px] min-w-0 flex-1 overflow-visible"
+			>
+				{runs.map((r) => {
+					const line = r.map((pt) => `${pt.x},${pt.y}`).join(" L");
+					const first = r[0];
+					const last = r[r.length - 1];
+					return (
+						<g key={first.x}>
+							<path
+								d={`M${first.x},${SPARK_H} L${line} L${last.x},${SPARK_H} Z`}
+								className={fill}
+								opacity={0.18}
+							/>
+							<path
+								d={`M${line}`}
+								fill="none"
+								strokeWidth={2}
+								vectorEffect="non-scaling-stroke"
+								className={stroke}
+							/>
+						</g>
+					);
+				})}
+				{limit !== null && (
+					<line
+						x1={0}
+						x2={SPARK_W}
+						y1={y(limit)}
+						y2={y(limit)}
+						strokeDasharray="6 4"
+						strokeWidth={1.5}
+						vectorEffect="non-scaling-stroke"
+						className="stroke-content-destructive"
+					/>
+				)}
+			</svg>
+		</div>
 	);
 };
+
+/** One key of a graph's legend: its name, its line (solid colour, or the limit's red dashes) and its value. */
+type LegendKey = {
+	label: string;
+	/** Background class of a solid line's colour; omitted for the limit's dashed red line. */
+	line?: string;
+	value: string;
+};
+
+/** A graph's legend: its keys in one centred pill, each on the same line. */
+export const GraphLegend: React.FC<{ keys: readonly LegendKey[] }> = ({
+	keys,
+}) => (
+	<div className="flex justify-center">
+		<span className="inline-flex max-w-full items-center gap-2.5 whitespace-nowrap rounded-full border border-solid border-border bg-surface-primary px-3 py-0.5 text-[11px] leading-5 text-content-secondary">
+			{keys.map((key, i) => (
+				<span key={key.label} className="inline-flex items-center gap-1.5">
+					{i > 0 && <span aria-hidden className="mr-1 h-3 w-px bg-border" />}
+					{key.label}
+					{key.line ? (
+						<span
+							aria-hidden
+							className={cn("h-0.5 w-4 rounded-full", key.line)}
+						/>
+					) : (
+						<span
+							aria-hidden
+							className="w-4 border-0 border-t-2 border-dashed border-content-destructive"
+						/>
+					)}
+					<span className="font-medium tabular-nums text-content-primary">
+						{key.value}
+					</span>
+				</span>
+			))}
+		</span>
+	</div>
+);
 
 /** The watermark state in words beside a figure: "Near quota" and the like, coloured by its level. */
 export const WatermarkBadge: React.FC<{

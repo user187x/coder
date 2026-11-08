@@ -2,7 +2,12 @@ import { cn } from "cn";
 import { formatRate } from "#/modules/platform/networkLeds/NetworkHistogram";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
 import { GraphFrame, ShowWorkspaces } from "./DashboardCard";
-import { type BarSegment, QuotaBar, Sparkline } from "./dashboardCharts";
+import {
+	type BarSegment,
+	GraphLegend,
+	QuotaBar,
+	Sparkline,
+} from "./dashboardCharts";
 import {
 	type DashboardScope,
 	RESOURCE_UNIT,
@@ -126,16 +131,23 @@ export const UsageCardBody: React.FC<UsageCardBodyProps> = ({
 					stroke={style.stroke}
 					fill={style.fill}
 				/>
-				{limit !== null && (
-					<span className="flex items-center gap-1.5 text-[11px] text-content-secondary">
-						<span
-							aria-hidden
-							className="w-4 border-0 border-t-2 border-dashed border-content-destructive"
-						/>
-						{limitName === "quota" ? "Quota" : "Capacity"}{" "}
-						{formatQuotaNumber(limit)} {unit}
-					</span>
-				)}
+				<GraphLegend
+					keys={[
+						{
+							label: "Current",
+							line: style.dot,
+							value: now === null ? "N/A" : `${formatQuotaNumber(now)} ${unit}`,
+						},
+						...(limit === null
+							? []
+							: [
+									{
+										label: limitName === "quota" ? "Quota" : "Capacity",
+										value: `${formatQuotaNumber(limit)} ${unit}`,
+									},
+								]),
+					]}
+				/>
 			</GraphFrame>
 			{perWorkspace.length > 0 && (
 				<ShowWorkspaces
@@ -172,12 +184,14 @@ export const NetworkCardBody: React.FC<{
 			series: rx,
 			stroke: "stroke-highlight-sky",
 			fill: "fill-highlight-sky",
+			line: "bg-highlight-sky",
 		},
 		{
 			label: "Sent",
 			series: tx,
 			stroke: "stroke-highlight-orange",
 			fill: "fill-highlight-orange",
+			line: "bg-highlight-orange",
 		},
 	];
 	return (
@@ -206,6 +220,16 @@ export const NetworkCardBody: React.FC<{
 								limit={null}
 								stroke={row.stroke}
 								fill={row.fill}
+								format={formatRate}
+							/>
+							<GraphLegend
+								keys={[
+									{
+										label: "Current",
+										line: row.line,
+										value: now === null ? "N/A" : formatRate(now),
+									},
+								]}
 							/>
 						</div>
 					);

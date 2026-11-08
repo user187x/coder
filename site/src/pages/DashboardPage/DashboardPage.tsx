@@ -138,6 +138,10 @@ const DashboardPage: React.FC = () => {
 	const gpuWorkspaces = (mine.data?.workspaces ?? []).filter(
 		(w) => (w.gpus ?? 0) > 0,
 	);
+	// The cluster's report has no GPU claims: they are known for the account's own workspaces only.
+	const gpus = cluster
+		? null
+		: gpuWorkspaces.reduce((sum, w) => sum + (w.gpus ?? 0), 0);
 	const driveMissing =
 		drive.error instanceof PlatformError && drive.error.status === 404;
 	const trendLoading =
@@ -238,6 +242,7 @@ const DashboardPage: React.FC = () => {
 								<SummaryCardBody
 									scope={scope}
 									limitName={limitName}
+									gpus={gpus}
 									live={{
 										cpu: live?.cpu.latest ?? null,
 										memory: live?.memory.latest ?? null,
@@ -266,11 +271,16 @@ const DashboardPage: React.FC = () => {
 							)}
 						</CardState>
 					</DashboardCard>
-					{!cluster && gpuWorkspaces.length > 0 && (
-						<DashboardCard title="GPU">
-							<GpuCardBody workspaces={gpuWorkspaces} />
-						</DashboardCard>
-					)}
+					{/* Always there; greyed out while no workspace has a GPU. */}
+					<DashboardCard
+						title="GPU"
+						className={cn(!gpus && "opacity-50 grayscale")}
+					>
+						<GpuCardBody
+							workspaces={cluster ? [] : gpuWorkspaces}
+							known={!cluster}
+						/>
+					</DashboardCard>
 					<DashboardCard title="Cloud Drive">
 						<CardState
 							isLoading={drive.isLoading}
