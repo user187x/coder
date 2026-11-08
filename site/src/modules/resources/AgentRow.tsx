@@ -589,7 +589,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					<header
 						id={`${overviewId}-network`}
 						className={cn(
-							"flex flex-wrap items-center justify-between gap-4 leading-normal md:gap-6",
+							// From md up the row never wraps: the network pill shrinks to the room left, so it can never push the controls (Metrics Interval, Open ports, Lock Down) onto a line of their own.
+							"flex flex-wrap items-center justify-between gap-4 leading-normal md:flex-nowrap md:gap-6",
 							overviewCollapsed && "hidden",
 						)}
 					>

@@ -192,6 +192,12 @@ export const AgentNetworkPill: React.FC<{
 		setWidth(bounded);
 		return bounded;
 	};
+	// The graph's drawn width: the row may have shrunk it below the chosen one, and a drag starts from what is seen.
+	const drawnWidth = () =>
+		Math.round(
+			pill.current?.querySelector("svg")?.getBoundingClientRect().width ||
+				shownWidth,
+		);
 	const keep = (value: number) =>
 		localStorage.setItem(WIDTH_KEY, String(value));
 	// the window's clock: it slides every second, readings or not
@@ -395,7 +401,7 @@ export const AgentNetworkPill: React.FC<{
 							className="-mr-1.5 h-4 w-1.5 shrink-0 cursor-ew-resize touch-none rounded-full bg-border hover:bg-content-link focus-visible:bg-content-link focus-visible:outline-none"
 							onPointerDown={(event) => {
 								if (event.button !== 0) return;
-								drag.current = { x: event.clientX, width: shownWidth };
+								drag.current = { x: event.clientX, width: drawnWidth() };
 								event.currentTarget.setPointerCapture(event.pointerId);
 							}}
 							onPointerMove={(event) => {
@@ -413,7 +419,7 @@ export const AgentNetworkPill: React.FC<{
 								keep(
 									event.key === "Home"
 										? resize(PILL_GRAPH_WIDTH)
-										: resize(shownWidth + (step ?? 0)),
+										: resize(drawnWidth() + (step ?? 0)),
 								);
 							}}
 						/>
