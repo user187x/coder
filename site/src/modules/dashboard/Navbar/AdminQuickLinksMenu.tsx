@@ -21,7 +21,6 @@ import {
 	Trash2Icon,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import { Link } from "react-router";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -32,6 +31,12 @@ import { AnnouncementMenuItem } from "./AnnouncementMenuItem";
 import { AppearanceMenuItem } from "./AppearanceMenuItem";
 import type { AdminPage } from "./adminQuickLinks";
 import { ChatMenuItem } from "./ChatMenuItem";
+import {
+	InlineMenuPanel,
+	OpenMenuItem,
+	PageMenuItem,
+	useInlineMenu,
+} from "./InlineMenu";
 import { SettingsDestinationMenu } from "./SettingsDestinationMenu";
 
 type AdminQuickLinksMenuProps = {
@@ -99,6 +104,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		}
 	};
 
+	const controlsMenu = useInlineMenu();
 	const controlsChevron = (
 		<span
 			aria-hidden
@@ -161,6 +167,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				className="mt-auto"
 			>
 				<DropdownMenuItem
+					{...controlsMenu.trigger}
 					aria-expanded={expanded}
 					data-settings-expanded={expanded}
 					aria-controls={choicesId}
@@ -177,6 +184,17 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					<span className="flex-1 text-center">Controls</span>
 					{controlsChevron}
 				</DropdownMenuItem>
+				{controlsMenu.open && (
+					<InlineMenuPanel id={controlsMenu.id} label="Controls options">
+						<OpenMenuItem
+							label={expanded ? "Close" : "Open"}
+							onOpen={() => {
+								setExpanded(!expanded);
+								controlsMenu.close();
+							}}
+						/>
+					</InlineMenuPanel>
+				)}
 				<CollapsibleContent
 					id={choicesId}
 					className="admin-quick-link-choices overflow-hidden"
@@ -212,7 +230,22 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						{onChange &&
 							choices.map((page) => (
 								<div key={page.id} className="flex flex-wrap items-center">
-									<DestinationLink link={page} />
+									<DestinationLink
+										link={page}
+										options={
+											<DropdownMenuItem
+												onSelect={(event) => {
+													event.preventDefault();
+													onChange([...ids, page.id]);
+													setAnnouncement(
+														`${page.label} added to the quick links.`,
+													);
+												}}
+											>
+												Add to quick links
+											</DropdownMenuItem>
+										}
+									/>
 									<DropdownMenuItem
 										aria-label={`Add ${page.label} to quick links`}
 										title={`Pin ${page.label}`}
@@ -242,19 +275,24 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 function DestinationLink({
 	link,
 	className,
+	options,
 }: {
 	link: AdminPage;
 	className?: string;
+	/** Options after "Open" in its right-click menu. */
+	options?: React.ReactNode;
 }) {
 	if (link.id === "workspaces" || link.id === "templates")
 		return <SettingsDestinationMenu link={link} className={className} />;
 	return (
-		<DropdownMenuItem asChild className={cn("min-w-0 flex-1", className)}>
-			<Link to={link.path}>
-				<link.icon aria-hidden />
-				<span className="truncate">{link.label}</span>
-			</Link>
-		</DropdownMenuItem>
+		<PageMenuItem
+			to={link.path}
+			icon={link.icon}
+			label={link.label}
+			className={cn("min-w-0 flex-1", className)}
+			options={options}
+			panelClassName="order-last"
+		/>
 	);
 }
 
@@ -326,7 +364,22 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					className={cn("min-w-0 flex-1", itemClassName)}
 				/>
 			) : (
-				<DestinationLink link={link} className={itemClassName} />
+				<DestinationLink
+					link={link}
+					className={itemClassName}
+					options={
+						editable && (
+							<DropdownMenuItem
+								onSelect={(event) => {
+									event.preventDefault();
+									onRemove();
+								}}
+							>
+								Remove from quick links
+							</DropdownMenuItem>
+						)
+					}
+				/>
 			)}
 			{editable && (
 				<>

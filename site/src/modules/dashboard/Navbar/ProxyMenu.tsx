@@ -44,6 +44,7 @@ import {
 	canViewAdminSettings,
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
+import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { SettingsChatPanel } from "./SettingsChatPanel";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
@@ -87,6 +88,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 }) => {
 	const [open, setOpen] = useState(false);
 	const [chatExpanded, setChatExpanded] = useState(false);
+	// Each entry's right-click options (InlineMenu).
+	const hudMenu = useInlineMenu();
+	const dockMenu = useInlineMenu();
+	const compactMenu = useInlineMenu();
+	const regionMenu = useInlineMenu();
+	const [regionOpen, setRegionOpen] = useState(false);
 	const client = useQueryClient();
 	const prefs = useQuery({
 		...userUIPreferences(),
@@ -202,8 +209,18 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const compactLabel = compact
 		? "Expand Settings sidebar"
 		: "Collapse Settings to shortcut icons";
+	const toggleCompact = () =>
+		docking.mutate({ settings_sidebar_compact: !compact });
+	const toggleDock = () => {
+		setOpen(true);
+		docking.mutate({
+			settings_sidebar: !docked,
+			settings_sidebar_compact: false,
+		});
+	};
 	const compactToggle = docked && (
 		<DropdownMenuItem
+			{...compactMenu.trigger}
 			aria-label={compactLabel}
 			title={compactLabel}
 			disabled={docking.isPending}
@@ -213,11 +230,25 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			)}
 			onSelect={(event) => {
 				event.preventDefault();
-				docking.mutate({ settings_sidebar_compact: !compact });
+				toggleCompact();
 			}}
 		>
 			<PanelRightDashedIcon aria-hidden />
 		</DropdownMenuItem>
+	);
+	const compactOptions = compactMenu.open && (
+		<InlineMenuPanel
+			id={compactMenu.id}
+			label={`${compactLabel} options`}
+			className="order-last"
+		>
+			<OpenMenuItem
+				onOpen={() => {
+					compactMenu.close();
+					toggleCompact();
+				}}
+			/>
+		</InlineMenuPanel>
 	);
 
 	return (
@@ -299,11 +330,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							<div
 								role="group"
 								aria-label="Settings navigation"
-								className="mx-1 mb-1 flex items-center gap-1"
+								className="mx-1 mb-1 flex flex-wrap items-center gap-1"
 							>
 								{hud && (
 									<DropdownMenuItem
 										asChild
+										{...hudMenu.trigger}
 										className="min-h-8 flex-2 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
 									>
 										<NavLink to="/hud" title="HUD">
@@ -312,19 +344,25 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										</NavLink>
 									</DropdownMenuItem>
 								)}
+								{hud && hudMenu.open && (
+									<InlineMenuPanel
+										id={hudMenu.id}
+										label="HUD options"
+										className="order-last"
+									>
+										<OpenMenuItem to="/hud" />
+									</InlineMenuPanel>
+								)}
 								{controls && (
 									<DropdownMenuItem
+										{...dockMenu.trigger}
 										aria-label={dockLabel}
 										title={dockLabel}
 										disabled={docking.isPending || !prefs.data}
 										className="min-h-8 flex-1 justify-center rounded-full border border-solid border-border px-1"
 										onSelect={(event) => {
 											event.preventDefault();
-											setOpen(true);
-											docking.mutate({
-												settings_sidebar: !docked,
-												settings_sidebar_compact: false,
-											});
+											toggleDock();
 										}}
 									>
 										{docked ? (
@@ -334,12 +372,28 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										)}
 									</DropdownMenuItem>
 								)}
+								{controls && dockMenu.open && (
+									<InlineMenuPanel
+										id={dockMenu.id}
+										label={`${dockLabel} options`}
+										className="order-last"
+									>
+										<OpenMenuItem
+											onOpen={() => {
+												dockMenu.close();
+												toggleDock();
+											}}
+										/>
+									</InlineMenuPanel>
+								)}
 								{compactToggle}
+								{compactOptions}
 							</div>
 						)}
 						{compact ? (
 							<>
 								{compactToggle}
+								{compactOptions}
 								{!controls?.quickLinks?.some(
 									(link) => link.id === "workspaces",
 								) && (
@@ -391,8 +445,16 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						) : (
 							<>
 								{regions && proxy && (
-									<DropdownMenuSub>
-										<DropdownMenuSubTrigger data-testid="navbar-region">
+									<DropdownMenuSub
+										open={regionOpen}
+										onOpenChange={setRegionOpen}
+									>
+										<DropdownMenuSubTrigger
+											// the submenu's own aria-expanded stays: only the right-click and its keys
+											onContextMenu={regionMenu.trigger.onContextMenu}
+											onKeyDown={regionMenu.trigger.onKeyDown}
+											data-testid="navbar-region"
+										>
 											<RadioIcon aria-hidden />
 											Region
 											<span className="ml-auto truncate text-xs text-content-secondary">
@@ -471,6 +533,16 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 											</div>
 										</DropdownMenuSubContent>
 									</DropdownMenuSub>
+								)}
+								{regions && proxy && regionMenu.open && (
+									<InlineMenuPanel id={regionMenu.id} label="Region options">
+										<OpenMenuItem
+											onOpen={() => {
+												regionMenu.close();
+												setRegionOpen(true);
+											}}
+										/>
+									</InlineMenuPanel>
 								)}
 
 								{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}

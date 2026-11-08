@@ -881,3 +881,30 @@ export const PanelHandleLockMenu: Story = {
 		});
 	},
 };
+
+/** An entry's right-click options, under it: Audit logs has only Open. */
+export const EntryOptions: Story = {
+	...ResourceTrayOpened,
+	args: {
+		...ResourceTrayOpened.args,
+		controls: {
+			permissions: {
+				canEditDeployment: true,
+				canViewHud: true,
+				canViewAuditLog: true,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: /^Settings/ }),
+		);
+		await userEvent.pointer({
+			target: await within(canvasElement.ownerDocument.body).findByRole(
+				"menuitem",
+				{ name: "Audit logs" },
+			),
+			keys: "[MouseRight]",
+		});
+	},
+};

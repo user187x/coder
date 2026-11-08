@@ -1,8 +1,7 @@
 import { Building2Icon, CableIcon, ScrollTextIcon } from "lucide-react";
-import { Link } from "react-router";
-import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
+import { PageMenuItem } from "./InlineMenu";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 
 /**
@@ -72,28 +71,28 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				onChange={quickLinksEditor?.onChange}
 			/>
 			{permissions.canViewOrganizations && (
-				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/organizations">
-						<Building2Icon aria-hidden />
-						Organizations
-					</Link>
-				</DropdownMenuItem>
+				<PageMenuItem
+					to="/organizations"
+					icon={Building2Icon}
+					label="Organizations"
+					className={itemClassName}
+				/>
 			)}
 			{permissions.canViewAuditLog && (
-				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/audit">
-						<ScrollTextIcon aria-hidden />
-						Audit logs
-					</Link>
-				</DropdownMenuItem>
+				<PageMenuItem
+					to="/audit"
+					icon={ScrollTextIcon}
+					label="Audit logs"
+					className={itemClassName}
+				/>
 			)}
 			{permissions.canViewConnectionLog && (
-				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/connectionlog">
-						<CableIcon aria-hidden />
-						Connection logs
-					</Link>
-				</DropdownMenuItem>
+				<PageMenuItem
+					to="/connectionlog"
+					icon={CableIcon}
+					label="Connection logs"
+					className={itemClassName}
+				/>
 			)}
 			{!externalMetrics && canViewAdminSettings(permissions) && (
 				<SettingsMetricGraphs chatExpanded={Boolean(chatExpanded)} />

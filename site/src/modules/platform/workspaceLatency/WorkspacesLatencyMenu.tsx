@@ -14,6 +14,11 @@ import { Link } from "react-router";
 import { workspaces } from "#/api/queries/workspaces";
 import type { Workspace, WorkspaceAgent } from "#/api/typesGenerated";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import {
+	InlineMenuPanel,
+	OpenMenuItem,
+	useInlineMenu,
+} from "#/modules/dashboard/Navbar/InlineMenu";
 import { ANNOUNCEMENT_ACTION_SURFACE } from "#/modules/platform/announcement/bannerTokens";
 import { getLatencyColor } from "#/utils/latency";
 import "./workspacesLatency.css";
@@ -163,6 +168,8 @@ export const WorkspacesLatencyMenu: React.FC<{
 	const [locked, setLocked] = useState(false);
 	const [keyboard, setKeyboard] = useState(false);
 	const expanded = !chatExpanded && (pressed || locked || keyboard);
+	// Its right-click options: Open keeps the list open (what a hold does), Close shuts it.
+	const options = useInlineMenu();
 	const selecting = (locked || keyboard) && onOpenGrid !== undefined;
 	const [selected, setSelected] = useState<string[]>();
 	const chosen = list.filter(
@@ -316,7 +323,9 @@ export const WorkspacesLatencyMenu: React.FC<{
 					stopHold();
 					setLocked(true);
 				}}
+				onContextMenu={options.trigger.onContextMenu}
 				onKeyDown={(e) => {
+					options.trigger.onKeyDown(e);
 					if (e.key !== "Enter" && e.key !== " ") {
 						return;
 					}
@@ -376,6 +385,23 @@ export const WorkspacesLatencyMenu: React.FC<{
 					<HoldChevrons side="right" />
 				</span>
 			</DropdownMenuItem>
+			{options.open && (
+				<InlineMenuPanel id={options.id} label="Workspaces options">
+					<OpenMenuItem
+						label={expanded ? "Close" : "Open"}
+						onOpen={() => {
+							options.close();
+							if (expanded) {
+								setLocked(false);
+								setKeyboard(false);
+							} else {
+								onExpand?.();
+								setLocked(true);
+							}
+						}}
+					/>
+				</InlineMenuPanel>
+			)}
 			<div
 				ref={listRef}
 				id={listId}
