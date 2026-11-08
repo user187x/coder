@@ -37,6 +37,41 @@ describe("WorkspaceQuotaPillView", () => {
 		expect(screen.queryByTestId("quota-memory")).toBeNull();
 	});
 
+	it("puts the Cloud Drive in the last column, after the limits", () => {
+		render(
+			<WorkspaceQuotaPillView
+				quota={{
+					limited: true,
+					exempt: false,
+					limits: { workspaces: 3, cpu: null, memory: null, disk: 50 },
+					usage: { workspaces: 1, cpu: 2, memory: 4, disk: 10 },
+					left: { workspaces: 2, cpu: null, memory: null, disk: 40 },
+					atLimit: false,
+				}}
+				cloudDrive={<span>drive</span>}
+			/>,
+		);
+		const columns = screen.getByTestId("quota-cloud-drive").parentElement;
+		expect(
+			[...(columns?.children ?? [])].map((c) => c.getAttribute("data-testid")),
+		).toEqual(["quota-workspaces", "quota-disk", "quota-cloud-drive"]);
+		expect(screen.getByTestId("quota-cloud-drive")).toHaveTextContent("drive");
+	});
+
+	it("shows the Cloud Drive column alone where no limit applies", () => {
+		render(
+			<WorkspaceQuotaPillView
+				quota={{ limited: false, exempt: true, limits: none }}
+				cloudDrive={<span>drive</span>}
+			/>,
+		);
+		expect(
+			screen.getByRole("region", { name: "Workspace quota" }),
+		).toHaveTextContent("Quota");
+		expect(screen.queryByTestId("quota-workspaces")).toBeNull();
+		expect(screen.getByTestId("quota-cloud-drive")).toHaveTextContent("drive");
+	});
+
 	it("levels: fine under 80%, near from 80%, full at the limit", () => {
 		expect(quotaLevel(1, 4)).toBe("ok");
 		expect(quotaLevel(4, 5)).toBe("near");

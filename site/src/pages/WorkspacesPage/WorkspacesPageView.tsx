@@ -158,18 +158,34 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					</div>
 				)}
 
-				{/* Platform: the search and the Cloud Drive (and, with rows selected, their bulk actions) in one rounded
-			    bar right above the table, no border lines and see-through, padded above and below as far as the Chats card
-			    floats above the page's bottom bar - not at its sides: the search's left edge and the Cloud Drive's right
-			    edge on the table card's */}
-				{/* Platform: the user's quota, where an admin set one for them (Health > User Quota) */}
+				{/* Platform: the user's quota, where an admin set one for them (Health > User Quota), and their Cloud Drive */}
 				<WorkspaceQuotaPill
 					workspacesKey={workspaces
 						?.map(
 							(w) => `${w.id}:${w.latest_build.id}:${w.latest_build.status}`,
 						)
 						.join(",")}
+					cloudDrive={
+						drive.enabled && (
+							// Platform: the account's Cloud Drive, the quota table's last column.
+							<CloudDrive
+								placement="quota"
+								workspaceIds={mine}
+								shareWorkspaceIds={
+									me.roles.some((role) => role.name === "owner")
+										? (workspaces ?? [])
+												.filter((w) => w.owner_id !== me.id)
+												.map((w) => w.id)
+										: []
+								}
+								deleting={deleting}
+							/>
+						)
+					}
 				/>
+				{/* Platform: the search (and, with rows selected, its bulk actions) in one rounded bar right above the table,
+				    no border lines and see-through, padded above and below as far as the Chats card floats above the page's
+				    bottom bar - not at its sides: the search's left edge on the table card's */}
 				<div
 					className="mb-2.5 flex flex-wrap items-center gap-3 rounded-[18px] bg-transparent py-2.5 text-sm text-content-secondary"
 					data-testid="workspaces-bar"
@@ -177,20 +193,6 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					<div className="min-w-0 flex-1">
 						<WorkspacesFilter filter={filter} error={error} />
 					</div>
-
-					{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
-					<CloudDrive
-						workspaceIds={mine}
-						shareWorkspaceIds={
-							me.roles.some((role) => role.name === "owner")
-								? (workspaces ?? [])
-										.filter((w) => w.owner_id !== me.id)
-										.map((w) => w.id)
-								: []
-						}
-						deleting={deleting}
-						className="ml-auto"
-					/>
 				</div>
 
 				{checkedWorkspaces.length > 0 && (

@@ -33,11 +33,14 @@ export const quotaLevel = (used: number, limit: number) =>
 	used >= limit ? "full" : used >= limit * 0.8 ? "near" : "ok";
 
 export const WorkspaceQuotaPillView: React.FC<{
-	quota: QuotaMe;
+	/** Undefined while it loads, or where a short-term lease replaces the quota. */
+	quota?: QuotaMe;
 	action?: React.ReactNode;
-}> = ({ quota, action }) => {
-	if (!quota.limited || !quota.usage) {
-		return !quota.limited && quota.activeGrantCount ? (
+	/** The table's last column: the account's Cloud Drive (CloudDrive, placement "quota"). */
+	cloudDrive?: React.ReactNode;
+}> = ({ quota, action, cloudDrive }) => {
+	if (!cloudDrive && (!quota?.limited || !quota.usage)) {
+		return quota && !quota.limited && quota.activeGrantCount ? (
 			<div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-solid border-border bg-surface-primary/70 px-4 py-3 text-xs text-content-secondary">
 				<span>
 					{quota.activeGrantCount} approved extra quota grants · No finite cap
@@ -49,7 +52,11 @@ export const WorkspaceQuotaPillView: React.FC<{
 			action
 		);
 	}
+	const limited = Boolean(quota?.limited && quota.usage);
 	const parts = PARTS.flatMap((p) => {
+		if (!quota || !limited) {
+			return [];
+		}
 		const limit = quota.limits[p.key];
 		const used = quota.usage?.[p.key] ?? 0;
 		return limit === null || limit === undefined
@@ -61,7 +68,7 @@ export const WorkspaceQuotaPillView: React.FC<{
 			aria-label="Workspace quota"
 			className="@container w-full overflow-hidden rounded-xl border border-solid border-border bg-surface-primary/70 text-content-secondary"
 			title={
-				quota.atLimit
+				quota?.atLimit
 					? "One or more quota limits are reached. Per-instance limits apply separately to each workspace. Ask an admin to raise a limit if needed."
 					: "Your workspace quota: what your workspaces are built with, of the limits an admin set."
 			}
@@ -70,9 +77,16 @@ export const WorkspaceQuotaPillView: React.FC<{
 				<h2 className="m-0 text-sm font-semibold text-content-primary">
 					Quota
 				</h2>
+				{quota && !quota.limited && quota.activeGrantCount ? (
+					<span className="text-xs">
+						{quota.activeGrantCount} approved extra quota grants · No finite cap
+						applies
+					</span>
+				) : null}
 				{action}
 			</div>
-			<div className="grid grid-cols-1 gap-x-6 gap-y-4 px-4 py-4 @min-[480px]:grid-cols-2 @min-[880px]:grid-cols-4">
+			{/* As many equal columns as it has parts once there is room; the Cloud Drive is the last of them. */}
+			<div className="grid grid-cols-1 gap-x-6 gap-y-4 px-4 py-4 @min-[480px]:grid-cols-2 @min-[880px]:grid-flow-col @min-[880px]:grid-cols-none @min-[880px]:auto-cols-[minmax(0,1fr)]">
 				{parts.map((p) => {
 					const level = quotaLevel(p.used, p.limit);
 					const pct = p.limit > 0 ? Math.min(p.used / p.limit, 1) * 100 : 100;
@@ -88,7 +102,7 @@ export const WorkspaceQuotaPillView: React.FC<{
 								<Icon aria-hidden className="size-3.5 shrink-0" />
 								<span className="font-medium">{p.label}</span>
 								{p.key !== "workspaces" &&
-									quota.resourceModes?.[p.key] === "instance" && (
+									quota?.resourceModes?.[p.key] === "instance" && (
 										<span className="text-2xs">/ instance (largest)</span>
 									)}
 							</div>
@@ -127,26 +141,34 @@ export const WorkspaceQuotaPillView: React.FC<{
 									)}
 									style={{ width: `${pct}%` }}
 								/>
-								{(quota.bonus?.[p.key] ?? 0) > 0 && (
+								{(quota?.bonus?.[p.key] ?? 0) > 0 && (
 									<span
 										className="absolute inset-y-0 right-0 box-border border border-dotted border-content-link"
 										style={{
-											width: `${p.limit > 0 ? Math.min((quota.bonus?.[p.key] ?? 0) / p.limit, 1) * 100 : 0}%`,
+											width: `${p.limit > 0 ? Math.min((quota?.bonus?.[p.key] ?? 0) / p.limit, 1) * 100 : 0}%`,
 										}}
 									/>
 								)}
 							</div>
-							{(quota.bonus?.[p.key] ?? 0) > 0 && (
+							{(quota?.bonus?.[p.key] ?? 0) > 0 && (
 								<span
 									className="mt-2 inline-flex rounded border border-dotted border-content-link px-1.5 py-0.5 text-2xs"
-									title={`Base ${num(quota.baseLimits?.[p.key] ?? p.limit)}${p.unit}; approved extras remain until revoked`}
+									title={`Base ${num(quota?.baseLimits?.[p.key] ?? p.limit)}${p.unit}; approved extras remain until revoked`}
 								>
-									+{num(quota.bonus?.[p.key] ?? 0)} approved
+									+{num(quota?.bonus?.[p.key] ?? 0)} approved
 								</span>
 							)}
 						</div>
 					);
 				})}
+				{cloudDrive && (
+					<div
+						className="min-w-0 @min-[480px]:col-span-2 @min-[880px]:col-span-1"
+						data-testid="quota-cloud-drive"
+					>
+						{cloudDrive}
+					</div>
+				)}
 			</div>
 		</section>
 	);
@@ -156,9 +178,11 @@ export const WorkspaceQuotaPillView: React.FC<{
  * workspacesKey: the table's workspaces and their latest builds - one made, deleted, rebuilt (other parameters) or
  * started refreshes the pill at once; between those it polls (an admin's change to the limits).
  */
-export const WorkspaceQuotaPill: React.FC<{ workspacesKey?: string }> = ({
-	workspacesKey,
-}) => {
+export const WorkspaceQuotaPill: React.FC<{
+	workspacesKey?: string;
+	/** See WorkspaceQuotaPillView. */
+	cloudDrive?: React.ReactNode;
+}> = ({ workspacesKey, cloudDrive }) => {
 	const lease = useQuery(myShortTermLease());
 	const quotaQuery = quotaMe();
 	const { data } = useQuery({
@@ -166,10 +190,21 @@ export const WorkspaceQuotaPill: React.FC<{ workspacesKey?: string }> = ({
 		queryKey: [...quotaQuery.queryKey, workspacesKey],
 		enabled: lease.isSuccess && !lease.data,
 	});
-	if (lease.data) return <LeaseExtensionButton lease={lease.data} />;
+	if (lease.data) {
+		const extend = <LeaseExtensionButton lease={lease.data} />;
+		return cloudDrive ? (
+			<WorkspaceQuotaPillView action={extend} cloudDrive={cloudDrive} />
+		) : (
+			extend
+		);
+	}
 	const action = !lease.isLoading && <QuotaRequestButton />;
-	return data ? (
-		<WorkspaceQuotaPillView quota={data} action={action} />
+	return data || cloudDrive ? (
+		<WorkspaceQuotaPillView
+			quota={data}
+			action={action}
+			cloudDrive={cloudDrive}
+		/>
 	) : (
 		action
 	);

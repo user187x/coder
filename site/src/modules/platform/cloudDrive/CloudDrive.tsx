@@ -20,6 +20,7 @@ import {
 	safe,
 	setCloudDriveConnection,
 } from "#/api/queries/platform";
+import { quotaLevel } from "../workspaceQuota/WorkspaceQuotaPill";
 import { pendingAttachments } from "./attachment";
 import { DropHint, DropProgress, useCloudDriveDrop } from "./CloudDriveDrop";
 import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
@@ -59,7 +60,18 @@ export const CloudDrive: React.FC<{
 	/** Of them, those being deleted: their cables pop off and reel in (CloudDriveRopes). */
 	deleting?: readonly string[];
 	className?: string;
-}> = ({ workspaceIds, shareWorkspaceIds = [], deleting, className }) => {
+	/**
+	 * toolbar (default): a button above the table, its cables roped to the rows. quota: the last column of the
+	 * workspace quota table, laid out like the other columns, without cables.
+	 */
+	placement?: "toolbar" | "quota";
+}> = ({
+	workspaceIds,
+	shareWorkspaceIds = [],
+	deleting,
+	className,
+	placement = "toolbar",
+}) => {
 	const { data: summary, error } = useQuery(safe());
 	const enabled = Boolean(summary?.enabled);
 	const settings = useQuery({ ...cloudDriveSettings(), enabled });
@@ -96,10 +108,11 @@ export const CloudDrive: React.FC<{
 	// Flush with the table's right edge (the toolbar it sits in may be wider than the table).
 	const [right, setRight] = useState(0);
 	const present = Boolean(summary?.enabled);
+	const inQuota = placement === "quota";
 	useLayoutEffect(() => {
 		const el = container.current;
 		const area = el?.closest(`[${ROPES_AREA}]`);
-		if (!el || !area || !present) {
+		if (!el || !area || !present || inQuota) {
 			return;
 		}
 		const place = () => {
@@ -133,7 +146,7 @@ export const CloudDrive: React.FC<{
 			changes.disconnect();
 			window.removeEventListener("resize", place);
 		};
-	}, [present]);
+	}, [present, inQuota]);
 
 	// Every workspace is connected but those its owner disconnected and those shared with others (a new one is
 	// too); none until the list is in.
@@ -222,6 +235,96 @@ export const CloudDrive: React.FC<{
 		? `${formatBytes(space.usedBytes)} of ${formatBytes(space.quotaBytes)}`
 		: `${formatBytes(summary.usedBytes)} in ${summary.source?.name ?? "a workspace"}`;
 	const encrypted = Boolean(summary.encrypted && !summary.source);
+	const ariaLabel = `Cloud Drive: ${usage} used${space && space.parts.length > 1 ? `, ${formatBytes(space.parts.slice(1).reduce((n, p) => n + p.quotaBytes, 0))} of it shared with you` : ""}${encrypted ? ", encrypted" : ""}${status?.connected === true ? ", connected" : status?.connected === false ? ", not connected" : ""}`;
+	const driveWindow = (
+		<CloudDriveWindow
+			open={open}
+			onOpenChange={setOpen}
+			view={view}
+			onView={setView}
+			summary={summary}
+			openAt={openAt}
+			inspect={inspect ?? undefined}
+		/>
+	);
+
+	if (inQuota) {
+		const level = space ? quotaLevel(space.usedBytes, space.quotaBytes) : "ok";
+		return (
+			<>
+				<div
+					ref={container}
+					className={cn("cd-drive relative min-w-0 rounded-md", className)}
+					data-testid="cloud-drive-container"
+					data-drop={drop.over ? (drop.refusal ? "refused" : "on") : undefined}
+					{...drop.handlers}
+				>
+					{drop.over && <DropHint refusal={drop.refusal} />}
+					{/* its leading cloud, in the place of the other columns' icons: what is shared with the user */}
+					<SharedWithYou
+						className="absolute -left-[3px] -top-0.5 z-[1] !size-5 [&_svg]:!size-3.5"
+						onOpen={openFiles}
+					/>
+					<button
+						type="button"
+						className="block w-full min-w-0 cursor-pointer rounded-md border-0 bg-transparent p-0 text-left text-content-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
+						data-testid="cloud-drive"
+						aria-haspopup="dialog"
+						aria-label={ariaLabel}
+						onClick={() => openFiles("", "")}
+					>
+						<span className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+							<span aria-hidden className="size-3.5 shrink-0" />
+							<span className="font-medium">Cloud Drive</span>
+							{encrypted && (
+								<LockIcon
+									aria-hidden
+									className="size-3.5 shrink-0 text-content-link"
+									data-testid="cloud-drive-encrypted"
+								/>
+							)}
+							<span className="ml-auto">
+								<StatusIndicator
+									status={status}
+									compact
+									active={transferring}
+								/>
+							</span>
+						</span>
+						<span className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 tabular-nums">
+							<span
+								className="text-sm font-medium text-content-primary"
+								data-testid="cloud-drive-usage"
+							>
+								{space
+									? `${formatBytes(space.usedBytes)}/${formatBytes(space.quotaBytes)}`
+									: usage}
+							</span>
+							{space && (
+								<span
+									className={cn(
+										"text-xs",
+										level === "full" && "text-content-destructive",
+										level === "near" && "text-content-warning",
+									)}
+								>
+									(
+									{formatBytes(Math.max(space.quotaBytes - space.usedBytes, 0))}{" "}
+									left)
+								</span>
+							)}
+						</span>
+						{drop.progress ? (
+							<DropProgress progress={drop.progress} />
+						) : (
+							space && <CapacityBar space={space} quotaColors />
+						)}
+					</button>
+				</div>
+				{driveWindow}
+			</>
+		);
+	}
 
 	return (
 		<>
@@ -248,7 +351,7 @@ export const CloudDrive: React.FC<{
 					className="flex min-w-0 cursor-pointer flex-col gap-1 rounded-md border-0 bg-transparent px-3 py-1.5 text-left text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
 					data-testid="cloud-drive"
 					aria-haspopup="dialog"
-					aria-label={`Cloud Drive: ${usage} used${space && space.parts.length > 1 ? `, ${formatBytes(space.parts.slice(1).reduce((n, p) => n + p.quotaBytes, 0))} of it shared with you` : ""}${encrypted ? ", encrypted" : ""}${status?.connected === true ? ", connected" : status?.connected === false ? ", not connected" : ""}`}
+					aria-label={ariaLabel}
 					onClick={() => openFiles("", "")}
 				>
 					<span className="flex w-full items-center gap-2 whitespace-nowrap leading-5">
@@ -287,15 +390,7 @@ export const CloudDrive: React.FC<{
 				connected={status?.connected}
 				unattached={unattached}
 			/>
-			<CloudDriveWindow
-				open={open}
-				onOpenChange={setOpen}
-				view={view}
-				onView={setView}
-				summary={summary}
-				openAt={openAt}
-				inspect={inspect ?? undefined}
-			/>
+			{driveWindow}
 		</>
 	);
 };
@@ -306,7 +401,9 @@ export const CloudDrive: React.FC<{
  */
 const CapacityBar: React.FC<{
 	space: NonNullable<ReturnType<typeof room>>;
-}> = ({ space }) => {
+	/** The quota table's colours: its track, and green, amber from 80% and red when full. */
+	quotaColors?: boolean;
+}> = ({ space, quotaColors }) => {
 	const [own, ...shared] = space.parts;
 	const fillOf = (used: number, quota: number) =>
 		Math.min(1, quota > 0 ? used / quota : 0);
@@ -326,17 +423,26 @@ const CapacityBar: React.FC<{
 					aria-valuenow={Math.round(fill * 100)}
 					title={`Your Cloud Drive: ${Math.round(fill * 100)}% full`}
 					data-testid="cloud-drive-fill"
-					className="relative h-full overflow-hidden rounded-full bg-surface-tertiary"
+					className={cn(
+						"relative h-full overflow-hidden rounded-full",
+						quotaColors ? "bg-surface-quaternary" : "bg-surface-tertiary",
+					)}
 					style={{ flex: `${own.quotaBytes} 1 0` }}
 				>
 					<span
 						className={cn(
 							"absolute inset-y-0 left-0 rounded-full transition-[width] duration-500",
-							fill >= 0.9
-								? "bg-content-destructive"
-								: fill >= 0.75
-									? "bg-content-warning"
-									: "bg-content-link",
+							quotaColors
+								? {
+										full: "bg-content-destructive",
+										near: "bg-content-warning",
+										ok: "bg-content-success",
+									}[quotaLevel(own.usedBytes, own.quotaBytes)]
+								: fill >= 0.9
+									? "bg-content-destructive"
+									: fill >= 0.75
+										? "bg-content-warning"
+										: "bg-content-link",
 						)}
 						style={{ width: `${Math.max(fill > 0 ? 3 : 0, fill * 100)}%` }}
 					/>

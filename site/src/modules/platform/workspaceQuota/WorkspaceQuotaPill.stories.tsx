@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { safeKey } from "#/api/queries/platform";
 import { MockQuotaReport } from "#/testHelpers/userQuota";
+import { CloudDrive } from "../cloudDrive/CloudDrive";
 import { QuotaRequestButton } from "../quotaRequests/QuotaRequestButton";
 import { WorkspaceQuotaPillView } from "./WorkspaceQuotaPill";
 
@@ -67,5 +69,40 @@ export const UnlimitedWithGrant: Story = {
 			limited: false,
 			limits: { workspaces: null, cpu: null, memory: null, disk: null },
 		},
+	},
+};
+
+/** The account's Cloud Drive as the table's last column. */
+export const WithCloudDrive: Story = {
+	...AvailableCapacity,
+	args: {
+		...AvailableCapacity.args,
+		cloudDrive: <CloudDrive placement="quota" workspaceIds={[]} />,
+	},
+	parameters: {
+		queries: [
+			{
+				key: safeKey,
+				data: {
+					enabled: true,
+					mountPath: "/home/coder/cloud-drive",
+					usedBytes: 1536 * 1024 * 1024,
+					files: 3,
+					quotaBytes: 10 * 1024 ** 3,
+					maxUploadBytes: 5 * 1024 ** 3,
+					volume: "ready",
+				},
+			},
+			{
+				key: [...safeKey, "settings"],
+				data: {
+					status: { connected: true, error: null, checkedAt: 0, latencyMs: 12 },
+				},
+			},
+			{
+				key: [...safeKey, "connections"],
+				data: { disconnected: [], shared: [], workspaceConnections: [] },
+			},
+		],
 	},
 };

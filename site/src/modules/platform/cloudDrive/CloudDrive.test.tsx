@@ -48,11 +48,11 @@ const settings = (
 	...over,
 });
 
-const renderDrive = (ids: string[] = []) =>
+const renderDrive = (ids: string[] = [], placement?: "toolbar" | "quota") =>
 	renderComponent(
 		<QueryClientProvider client={new QueryClient()}>
 			<MemoryRouter>
-				<CloudDrive workspaceIds={ids} />
+				<CloudDrive workspaceIds={ids} placement={placement} />
 			</MemoryRouter>
 		</QueryClientProvider>,
 	);
@@ -96,6 +96,24 @@ describe("CloudDrive", () => {
 			"Cloud Drive: 1.5 GB of 10 GB used, connected",
 		);
 		expect(screen.getAllByTestId("cloud-drive")).toHaveLength(1);
+	});
+
+	it("lays out like a quota column in the quota table, without cables", async () => {
+		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
+		vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(settings());
+		const user = userEvent.setup();
+		renderDrive(["w1"], "quota");
+		const button = await screen.findByTestId("cloud-drive");
+		expect(button).toHaveTextContent("Cloud Drive");
+		expect(screen.getByTestId("cloud-drive-usage")).toHaveTextContent(
+			"1.5 GB/10 GB",
+		);
+		expect(button).toHaveTextContent("(8.5 GB left)");
+		expect(screen.queryByTestId("cloud-drive-ropes")).toBeNull();
+		await user.click(button);
+		expect(await screen.findByRole("dialog")).toHaveAccessibleName(
+			/Cloud Drive/,
+		);
 	});
 
 	it("opens a window in the middle of the screen onto its files, and uploads into a folder", async () => {
