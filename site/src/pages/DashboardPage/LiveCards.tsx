@@ -12,6 +12,7 @@ import {
 	type DashboardScope,
 	RESOURCE_UNIT,
 	type Series,
+	totalLimit,
 } from "./dashboardModel";
 import { RESOURCE_STYLE } from "./SummaryCard";
 
@@ -78,7 +79,8 @@ export const UsageCardBody: React.FC<UsageCardBodyProps> = ({
 }) => {
 	const style = RESOURCE_STYLE[resource];
 	const unit = RESOURCE_UNIT[resource];
-	const limit = scope.limits[resource];
+	// The workspaces together, against the limit for them all (per instance: times the workspace limit)
+	const limit = totalLimit(scope, resource);
 	const segments = allocationSegments(scope, resource);
 	const points = series?.points ?? [];
 	const peak = Math.max(0, ...points.map((p) => p ?? 0));

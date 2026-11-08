@@ -42,6 +42,7 @@ import {
 	RESOURCE_UNIT,
 	scopeFromCluster,
 	scopeFromMine,
+	totalLimit,
 } from "./dashboardModel";
 import {
 	NetworkCardBody,
@@ -171,7 +172,7 @@ const DashboardPage: React.FC = () => {
 	// What each card's resource the account was given: its quota (the cluster's capacity, for the whole cluster).
 	const suppliedWhat = cluster ? "Cluster capacity" : "Your quota";
 	const supplied = (resource: "cpu" | "memory" | "disk") => {
-		const limit = scope?.limits[resource];
+		const limit = scope ? totalLimit(scope, resource) : null;
 		return limit === null || limit === undefined ? undefined : (
 			<SuppliedBadge
 				value={`${formatQuotaNumber(limit)} ${RESOURCE_UNIT[resource]}`}

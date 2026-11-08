@@ -1,5 +1,5 @@
 import { niceTop } from "./dashboardCharts";
-import { networkSeries } from "./dashboardModel";
+import { networkSeries, totalAllocated, totalLimit } from "./dashboardModel";
 
 const agent = (samples: [t: number, rx: number, tx: number][]) => ({
 	samples: samples.map(([t, rx, tx]) => ({ from: t - 5_000, t, rx, tx })),
@@ -50,5 +50,32 @@ describe("niceTop", () => {
 		expect(niceTop(2_100)).toBe(2_500);
 		expect(niceTop(0.42)).toBe(0.5);
 		expect(niceTop(0)).toBe(1);
+	});
+});
+
+describe("totalLimit", () => {
+	const scope = (
+		mode: "cumulative" | "instance",
+		workspaceLimit: number | null,
+	): Parameters<typeof totalLimit>[0] => ({
+		kind: "mine",
+		limits: { cpu: 4, memory: 8, disk: 25 },
+		workspaceLimit,
+		allocated: { cpu: 0, memory: 0, disk: 10 },
+		running: { cpu: 0, memory: 0, disk: 10 },
+		stopped: { cpu: 0, memory: 0, disk: 5 },
+		modes: { cpu: "cumulative", memory: "cumulative", disk: mode },
+		exempt: false,
+		workspaces: [],
+	});
+
+	it("multiplies a per-workspace limit by how many workspaces the account may have", () => {
+		expect(totalLimit(scope("instance", 2), "disk")).toBe(50);
+		expect(totalAllocated(scope("instance", 2), "disk")).toBe(15);
+	});
+
+	it("keeps a cumulative limit, and has none for per-workspace without a workspace limit", () => {
+		expect(totalLimit(scope("cumulative", 2), "disk")).toBe(25);
+		expect(totalLimit(scope("instance", null), "disk")).toBeNull();
 	});
 });

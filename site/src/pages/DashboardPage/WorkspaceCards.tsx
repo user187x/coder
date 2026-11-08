@@ -16,6 +16,8 @@ import {
 	type DashboardScope,
 	type DashboardWorkspace,
 	type Resource,
+	totalAllocated,
+	totalLimit,
 	WATERMARK_TEXT,
 	watermarkLevel,
 } from "./dashboardModel";
@@ -229,16 +231,16 @@ export const DisksCardBody: React.FC<{
 						Total allocated
 					</span>
 					<span className="tabular-nums text-content-secondary">
-						{formatQuotaNumber(scope.allocated.disk)}
-						{scope.limits.disk === null
+						{formatQuotaNumber(totalAllocated(scope, "disk"))}
+						{totalLimit(scope, "disk") === null
 							? " GB"
-							: ` / ${formatQuotaNumber(scope.limits.disk)} GB`}
+							: ` / ${formatQuotaNumber(totalLimit(scope, "disk") ?? 0)} GB`}
 					</span>
 				</div>
 				<QuotaBar
 					label="Disk allocated"
 					unit="GB"
-					limit={scope.limits.disk}
+					limit={totalLimit(scope, "disk")}
 					limitName={limitName}
 					segments={[
 						{

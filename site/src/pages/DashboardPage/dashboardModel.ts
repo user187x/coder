@@ -303,3 +303,23 @@ export const networkSeries = (
 	};
 	return { rx: series("rx"), tx: series("tx") };
 };
+
+/**
+ * A resource's limit for the account's workspaces together: the limit itself where it counts them all
+ * (cumulative); where it holds for each workspace (per instance), that times how many workspaces the account may
+ * have, or none without a workspace limit. Two workspaces of up to 25 GB each: 50 GB in all.
+ */
+export const totalLimit = (
+	scope: DashboardScope,
+	resource: Resource,
+): number | null => {
+	const limit = scope.limits[resource];
+	if (limit === null || scope.modes[resource] !== "instance") {
+		return limit;
+	}
+	return scope.workspaceLimit === null ? null : limit * scope.workspaceLimit;
+};
+
+/** What the account's workspaces have of a resource together (the allocation counts only the largest per instance). */
+export const totalAllocated = (scope: DashboardScope, resource: Resource) =>
+	scope.running[resource] + scope.stopped[resource];
