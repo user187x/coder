@@ -148,3 +148,11 @@ https://{{ include "platform.coderHost" . }}
 {{- $_ := set .Values.uiUpdates "imagePullSecrets" .Values.global.imagePullSecrets -}}
 {{- end -}}
 {{- end -}}
+
+{{/* Platform control plane: never on an external node (values controlPlaneNodeAffinity), as a pod spec's nodeAffinity. */}}
+{{- define "ca.controlPlaneNodeAffinity" -}}
+{{- with .Values.controlPlaneNodeAffinity }}
+nodeAffinity:
+{{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end }}

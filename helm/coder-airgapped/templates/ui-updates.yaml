@@ -79,6 +79,10 @@ spec:
         app.kubernetes.io/name: coder-ui-updates
         app.kubernetes.io/part-of: coder
     spec:
+      {{- with include "ca.controlPlaneNodeAffinity" $ }}
+      affinity:
+        {{- . | nindent 8 }}
+      {{- end }}
       serviceAccountName: coder-ui-updates
       {{- with $ui.imagePullSecrets }}
       imagePullSecrets:
@@ -449,6 +453,10 @@ spec:
         app.kubernetes.io/name: coder-ui-logs-db
         app.kubernetes.io/part-of: coder
     spec:
+      {{- with include "ca.controlPlaneNodeAffinity" $ }}
+      affinity:
+        {{- . | nindent 8 }}
+      {{- end }}
       automountServiceAccountToken: false
       {{- with $ui.imagePullSecrets }}
       imagePullSecrets:

@@ -236,6 +236,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       affinity:
+        {{- include "ca.controlPlaneNodeAffinity" $ | nindent 8 }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100

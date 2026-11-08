@@ -167,9 +167,34 @@ global:
 # ---------------------------------------------------------------------------------------------------------------
 # Coder server: the upstream coder chart 2.37.3 (+ platform patch) running the fork's image. (Argo CD app argocd/coder)
 # ---------------------------------------------------------------------------------------------------------------
+# Nodes the Coder server and the platform's control plane (webhook, ui-updates, relays) never run on: an external
+# node joined over a single cable (label coder-ha-lab/external=true) would put them behind that cable and its relay.
+# Workspaces may still run there. NotIn matches nodes without the label too.
+controlPlaneNodeAffinity: &controlPlaneNodeAffinity
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: coder-ha-lab/external
+            operator: NotIn
+            values: ["true"]
+
 coder:
   enabled: true
   coder:
+    # The upstream default (replicas on different nodes), and never an external node (controlPlaneNodeAffinity)
+    affinity:
+      nodeAffinity: *controlPlaneNodeAffinity
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/instance
+                    operator: In
+                    values:
+                      - "coder"
+              topologyKey: kubernetes.io/hostname
+            weight: 1
     image:
       # global.coderImages: the fork's, or upstream Coder's on a base without the layer (global.decorator)
       repo: '{{ include "platform.coderImage" (list . "repo") }}'
