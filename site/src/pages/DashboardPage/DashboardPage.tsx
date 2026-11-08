@@ -15,7 +15,7 @@ import {
 import { Button } from "#/components/Button/Button";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
-import { CardState, DashboardCard } from "./DashboardCard";
+import { CardState, DashboardCard, RangePill } from "./DashboardCard";
 import {
 	type DashboardScope,
 	diskFromHistory,
@@ -77,8 +77,16 @@ const DashboardPage: React.FC = () => {
 			refetchInterval,
 		})),
 	});
+	// Network: the traffic of every running workspace in view, the account's own or, for the whole cluster, all of them.
+	const networkTargets = cluster
+		? (report.data?.users ?? []).flatMap((u) =>
+				u.workspaces
+					.filter((w) => w.running)
+					.map((w) => ({ id: w.id, name: `${w.owner}/${w.name}` })),
+			)
+		: running.map((w) => ({ id: w.id, name: w.name }));
 	const networks = useQueries({
-		queries: running.map((w) => ({
+		queries: networkTargets.map((w) => ({
 			...workspaceNetwork(w.id),
 			refetchInterval,
 		})),
@@ -115,20 +123,16 @@ const DashboardPage: React.FC = () => {
 			? []
 			: running.map((w, i) => [w.id, diskFromHistory(histories[i]?.data)]),
 	);
-	const network = cluster
-		? null
-		: networkSeries(networks.map((n) => n.data?.agents));
-	const networkPerWorkspace: NetworkReading[] = cluster
-		? []
-		: running.map((w, i) => {
-				const own = networkSeries([networks[i]?.data?.agents]);
-				return {
-					id: w.id,
-					name: w.name,
-					rx: own?.rx.latest ?? null,
-					tx: own?.tx.latest ?? null,
-				};
-			});
+	const network = networkSeries(networks.map((n) => n.data?.agents));
+	const networkPerWorkspace: NetworkReading[] = networkTargets.map((w, i) => {
+		const own = networkSeries([networks[i]?.data?.agents]);
+		return {
+			id: w.id,
+			name: w.name,
+			rx: own?.rx.latest ?? null,
+			tx: own?.tx.latest ?? null,
+		};
+	});
 	const networkLoading = networks.some((n) => n.isLoading);
 	const networkError = networks.find((n) => n.error)?.error;
 	const gpuWorkspaces = (mine.data?.workspaces ?? []).filter(
@@ -143,7 +147,7 @@ const DashboardPage: React.FC = () => {
 			: histories.length > 0 && histories.every((h) => h.isLoading));
 
 	const usageCard = (resource: "cpu" | "memory", title: string) => (
-		<DashboardCard title={title}>
+		<DashboardCard title={title} actions={<RangePill />}>
 			<CardState
 				isLoading={trendLoading}
 				error={scopeError ?? (cluster && !live ? trend.error : undefined)}
@@ -301,8 +305,8 @@ const DashboardPage: React.FC = () => {
 						</CardState>
 					</DashboardCard>
 					{usageCard("cpu", "Processor")}
-					{!cluster && running.length > 0 && (
-						<DashboardCard title="Network">
+					{networkTargets.length > 0 && (
+						<DashboardCard title="Network" actions={<RangePill />}>
 							<CardState
 								isLoading={networkLoading && !network}
 								error={network ? undefined : networkError}

@@ -154,7 +154,9 @@ export type Series = {
 };
 
 const SERIES_BUCKETS = 12;
-const WINDOW_MS = 300_000;
+/** The span every live graph of the Dashboard shows, up to its newest reading. */
+export const SERIES_WINDOW_MS = 300_000;
+const WINDOW_MS = SERIES_WINDOW_MS;
 
 /** Average each workspace's readings per bucket of the last five minutes, then add the workspaces up. */
 const sumBuckets = (
@@ -277,14 +279,23 @@ export const networkSeries = (
 	}
 	const agents = loaded.flatMap((n) => Object.values(n));
 	const asOf = Math.max(0, ...agents.flatMap((a) => a.samples.map((s) => s.t)));
-	return {
-		rx: sumBuckets(
-			agents.map((a) => a.samples.map((s) => ({ t: s.t, value: s.rx }))),
-			asOf,
-		),
-		tx: sumBuckets(
-			agents.map((a) => a.samples.map((s) => ({ t: s.t, value: s.tx }))),
-			asOf,
-		),
+	// Now: every agent's own newest rate added up, where it reported within the newest two buckets; the newest
+	// bucket alone would miss the agents that have not reported into it yet.
+	const recent = asOf - (2 * WINDOW_MS) / SERIES_BUCKETS;
+	const now = (pick: "rx" | "tx") => {
+		const newest = agents
+			.map((a) => a.samples.at(-1))
+			.filter((s) => s !== undefined && s.t >= recent);
+		return newest.length
+			? newest.reduce((sum, s) => sum + (s?.[pick] ?? 0), 0)
+			: null;
 	};
+	const series = (pick: "rx" | "tx"): Series => {
+		const summed = sumBuckets(
+			agents.map((a) => a.samples.map((s) => ({ t: s.t, value: s[pick] }))),
+			asOf,
+		);
+		return { ...summed, latest: now(pick) ?? summed.latest };
+	};
+	return { rx: series("rx"), tx: series("tx") };
 };

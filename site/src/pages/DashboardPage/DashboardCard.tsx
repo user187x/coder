@@ -8,6 +8,7 @@ import {
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
+import { SERIES_WINDOW_MS } from "./dashboardModel";
 
 type DashboardCardProps = {
 	title: string;
@@ -144,5 +145,18 @@ export const ShowWorkspaces: React.FC<{
 				)}
 			</CollapsibleContent>
 		</Collapsible>
+	);
+};
+
+/** A card header's small pill: the span its live graphs show. */
+export const RangePill: React.FC = () => {
+	const minutes = Math.round(SERIES_WINDOW_MS / 60_000);
+	return (
+		<span
+			className="whitespace-nowrap rounded-full border border-solid border-border bg-surface-secondary px-1.5 text-[10px] leading-4 tabular-nums text-content-secondary"
+			title={`The graphs show the last ${minutes} minutes`}
+		>
+			Last {minutes} min
+		</span>
 	);
 };
