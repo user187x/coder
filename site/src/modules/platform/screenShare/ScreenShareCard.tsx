@@ -76,6 +76,15 @@ export const ScreenShareCard = ({
 			setFullscreenError("Fullscreen is unavailable in this browser.");
 		}
 	};
+	// Brings the whole monitor into view, its top just under the navbar.
+	const showWholeScreen = () =>
+		viewer.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+	// A remote screen that starts showing is scrolled fully into view.
+	const live = Boolean(media.remote);
+	useEffect(() => {
+		if (live)
+			viewer.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+	}, [live]);
 	const end = useMutation({
 		...updateScreenShare(),
 		onSettled: () => client.invalidateQueries({ queryKey: screenShareKey }),
@@ -144,7 +153,10 @@ export const ScreenShareCard = ({
 						variant="outline"
 						disabled={!media.remote}
 						aria-pressed={fill}
-						onClick={() => setFill(!fill)}
+						onClick={() => {
+							setFill(!fill);
+							showWholeScreen();
+						}}
 						title="Fit shows the entire screen; Fill crops its edges to fill the monitor."
 					>
 						<ScanIcon />

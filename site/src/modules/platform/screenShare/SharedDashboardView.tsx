@@ -153,7 +153,7 @@ export const SharedDashboardView = ({
 		if (active) surface.current?.focus();
 	}, [active]);
 	const coordinates = (x: number, y: number) => {
-		const box = contentBox(video.current);
+		const box = contentBox(video.current, fill);
 		if (!box) return null;
 		const point = {
 			x: (x - box.rect.left - box.left) / box.width,
@@ -228,7 +228,7 @@ export const SharedDashboardView = ({
 				<ShareVideo
 					stream={stream}
 					paused={paused}
-					fill={media.dashboard ? false : fill}
+					fill={fill}
 					className={className}
 					videoRef={video}
 				/>
@@ -285,17 +285,20 @@ export const SharedDashboardView = ({
 						});
 					}}
 				/>
-				{active && <ViewerPointer video={video} />}
+				{active && <ViewerPointer video={video} fill={fill} />}
 			</div>
 		</div>
 	);
 };
 
-/** The letterboxed area of the video that shows the stream. */
-const contentBox = (frame: HTMLVideoElement | null) => {
+/**
+ * Where the stream's frame lies within the video element: letterboxed inside it
+ * (Fit), or overflowing it with its edges cropped (Fill).
+ */
+const contentBox = (frame: HTMLVideoElement | null, fill: boolean) => {
 	if (!frame?.videoWidth || !frame.videoHeight) return null;
 	const rect = frame.getBoundingClientRect();
-	const scale = Math.min(
+	const scale = (fill ? Math.max : Math.min)(
 		rect.width / frame.videoWidth,
 		rect.height / frame.videoHeight,
 	);
@@ -313,11 +316,13 @@ const contentBox = (frame: HTMLVideoElement | null) => {
 /** Marks where the sharer applied the last move, so lag or a stuck pointer is visible. */
 const ViewerPointer = ({
 	video,
+	fill,
 }: {
 	video: React.RefObject<HTMLVideoElement | null>;
+	fill: boolean;
 }) => {
 	const pointer = useRemotePointer();
-	const box = contentBox(video.current);
+	const box = contentBox(video.current, fill);
 	if (!pointer || !box) return null;
 	return (
 		<PointerIcon

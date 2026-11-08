@@ -36,13 +36,32 @@
 	display: none;
 }
 
-/* Fill the monitor's width at 16:9, letterboxing other ratios, up to the window's height. */
+/*
+ * Fill the monitor's width at 16:9, letterboxing other ratios, no taller than the window's room below the navbar,
+ * the admin breadcrumb and the classification bars, less the monitor's own frame and footer (6rem): scrolled to
+ * its top (support-crt-screen's scroll margin), the whole remote screen is in view.
+ */
 .support-monitor-video,
 .support-workspace-screen {
 	width: 100%;
 	aspect-ratio: 16 / 9;
 	min-height: 256px;
-	max-height: calc(100dvh - 12rem);
+	max-height: calc(
+		100dvh -
+		var(--dashboard-navigation-height, 72px) -
+		var(--admin-breadcrumb-height, 0px) -
+		2 *
+		var(--coder-classification-h, 0px) -
+		6rem
+	);
+}
+.support-crt-screen {
+	scroll-margin-top: calc(
+		var(--dashboard-navigation-height, 72px) +
+		var(--admin-breadcrumb-height, 0px) +
+		var(--coder-classification-h, 0px) +
+		0.5rem
+	);
 }
 .support-crt-shutdown {
 	position: absolute;

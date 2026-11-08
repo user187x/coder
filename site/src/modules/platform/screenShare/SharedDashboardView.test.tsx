@@ -129,3 +129,37 @@ it("measures latency from the connection's selected candidate pair", async () =>
 		37,
 	);
 });
+
+it("maps clicks onto the cropped frame when the view fills the monitor", async () => {
+	const send = vi
+		.spyOn(media, "sendDashboardInput")
+		.mockImplementation(() => {});
+	// A 2:1 frame in a square view: Fill scales it to 200x100 and crops 50 on each side.
+	vi.spyOn(HTMLVideoElement.prototype, "videoWidth", "get").mockReturnValue(
+		200,
+	);
+	vi.spyOn(HTMLVideoElement.prototype, "videoHeight", "get").mockReturnValue(
+		100,
+	);
+	vi.spyOn(HTMLVideoElement.prototype, "getBoundingClientRect").mockReturnValue(
+		new DOMRect(0, 0, 100, 100),
+	);
+	media.updateMedia({ id: "dashboard", dashboard: true, controlReady: true });
+	render(<SharedDashboardView stream={null} fill />);
+	const user = userEvent.setup();
+	await user.click(screen.getByRole("button", { name: "Control dashboard" }));
+	await user.pointer({
+		target: screen.getByRole("application", {
+			name: "Remote dashboard keyboard and mouse",
+		}),
+		keys: "[MouseLeft]",
+		coords: { x: 25, y: 50 },
+	});
+	expect(send).toHaveBeenLastCalledWith({
+		type: "click",
+		x: 0.375,
+		y: 0.5,
+		button: 0,
+		count: 1,
+	});
+});
