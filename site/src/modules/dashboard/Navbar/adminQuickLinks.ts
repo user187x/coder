@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import type { Permissions } from "#/modules/permissions";
+import { canSeeTemplates } from "#/modules/permissions/templates";
 
 /** An admin page (a category of General) the Admin menu can link to directly. */
 export type AdminPage = {
@@ -204,7 +205,9 @@ const WORKSPACE_PAGES: readonly AdminPage[] = [
 
 /** Personal destinations and the deployment controls the current user can open. */
 export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
-	...WORKSPACE_PAGES,
+	...WORKSPACE_PAGES.filter(
+		(page) => page.id !== "templates" || canSeeTemplates(access.permissions),
+	),
 	...(access.permissions.editDeploymentConfig
 		? [
 				{

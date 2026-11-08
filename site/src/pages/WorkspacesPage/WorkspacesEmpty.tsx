@@ -113,11 +113,13 @@ export const WorkspacesEmpty: React.FC<WorkspacesEmptyProps> = ({
 						))}
 					</div>
 
-					{templates && templates.length > totalFeaturedTemplates && (
-						<Button asChild>
-							<Link to="/templates">See all templates</Link>
-						</Button>
-					)}
+					{canCreateTemplate &&
+						templates &&
+						templates.length > totalFeaturedTemplates && (
+							<Button asChild>
+								<Link to="/templates">See all templates</Link>
+							</Button>
+						)}
 				</div>
 			}
 		/>

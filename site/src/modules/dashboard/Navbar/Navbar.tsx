@@ -13,6 +13,7 @@ import { useProxy } from "#/contexts/ProxyContext";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { canSeeTemplates } from "#/modules/permissions/templates";
 import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { useFeatureVisibility } from "../useFeatureVisibility";
 import { resolveAdminQuickLinks, settingsPagesFor } from "./adminQuickLinks";
@@ -75,6 +76,7 @@ export const Navbar: React.FC<{ actionRef?: React.Ref<HTMLDivElement> }> = ({
 				canViewConnectionLog,
 				canViewHealth,
 				canEditDeployment: permissions.editDeploymentConfig,
+				canViewTemplates: canSeeTemplates(permissions),
 			}}
 			adminQuickLinks={{
 				pages: adminPages,

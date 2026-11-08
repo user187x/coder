@@ -172,11 +172,11 @@ it("offers personal destinations to members and restores their saved quick links
 		permissions: MockNoPermissions,
 		oauth2Provider: false,
 	});
+	// Templates is for those who make or change templates: members reach one by creating a workspace
 	expect(ids(addableAdminPages([], pages))).toEqual([
 		"dashboard",
 		"traffic-control",
 		"workspaces",
-		"templates",
 		"chat",
 	]);
 	expect(
@@ -186,5 +186,13 @@ it("offers personal destinations to members and restores their saved quick links
 				pages,
 			),
 		),
-	).toEqual(["templates", "chat", "workspaces"]);
+	).toEqual(["chat", "workspaces"]);
+});
+
+it("offers Templates to those who make templates", () => {
+	const pages = settingsPagesFor({
+		permissions: { ...MockNoPermissions, createTemplates: true },
+		oauth2Provider: false,
+	});
+	expect(ids(addableAdminPages([], pages))).toContain("templates");
 });

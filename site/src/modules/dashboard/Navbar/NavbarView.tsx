@@ -121,6 +121,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						<nav className="flex items-center h-full">
 							<WorkspacesDropdown
 								images={Boolean(adminPermissions.canEditDeployment)}
+								templates={Boolean(adminPermissions.canViewTemplates)}
 							/>
 						</nav>
 					),

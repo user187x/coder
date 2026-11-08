@@ -94,9 +94,11 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 				<DropdownMenuItem asChild className={itemStyles.default}>
 					<Link to="/workspaces">Workspaces</Link>
 				</DropdownMenuItem>
-				<DropdownMenuItem asChild className={itemStyles.default}>
-					<Link to="/templates">Templates</Link>
-				</DropdownMenuItem>
+				{adminPermissions.canViewTemplates && (
+					<DropdownMenuItem asChild className={itemStyles.default}>
+						<Link to="/templates">Templates</Link>
+					</DropdownMenuItem>
+				)}
 				{adminPermissions.canEditDeployment && (
 					<DropdownMenuItem asChild className={itemStyles.default}>
 						<Link to="/images">Images</Link>

@@ -186,12 +186,17 @@ export const SettingsResourceTray = ({
 			path: "/workspaces",
 			icon: MonitorIcon,
 		},
-		{
-			id: "templates",
-			label: "Templates",
-			path: "/templates",
-			icon: LayoutTemplateIcon,
-		},
+		// Templates only for those whose Settings list has it (who make or change templates: canSeeTemplates)
+		...(pages.some((page) => page.id === "templates")
+			? [
+					{
+						id: "templates",
+						label: "Templates",
+						path: "/templates",
+						icon: LayoutTemplateIcon,
+					},
+				]
+			: []),
 		...custom,
 	];
 	const accountShortcut = (

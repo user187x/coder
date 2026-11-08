@@ -346,6 +346,7 @@ const CoderCupPage = lazy(() => import("./pages/CoderCupPage/CoderCupPage"));
 const ImagesPage = lazy(() => import("./pages/ImagesPage/ImagesPage"));
 
 import { RequireImagesAccess } from "./pages/ImagesPage/imagesAccess";
+import { RequireTemplatesAccess } from "./pages/TemplatesPage/templatesAccess";
 
 const ImageDetailPage = lazy(
 	() => import("./pages/ImagesPage/ImageDetailPage"),
@@ -369,49 +370,56 @@ const templateRouter = () => {
 	return (
 		<Route path=":template">
 			<Route element={<TemplateRedirectController />}>
-				<Route element={<TemplateLayout />}>
-					{/* Platform: no Overview (nor its old tabs): Source Code for editors, New workspace for the others */}
-					<Route index element={<TemplateHomeRedirect from="index" />} />
-					{["overview", "docs", "resources", "versions", "insights"].map(
-						(tab) => (
-							<Route
-								key={tab}
-								path={tab}
-								element={<TemplateHomeRedirect from="tab" />}
-							/>
-						),
-					)}
-					<Route path="files" element={<TemplateFilesPage />} />
-					{/* Platform: no Embed tab any more */}
-					<Route path="embed" element={<Navigate to=".." replace />} />
-					<Route path="prebuilds" element={<TemplatePrebuildsPage />} />
+				{/* Platform: a template's pages for those who make or change templates; others create a workspace */}
+				<Route element={<RequireTemplatesAccess fallback="workspace" />}>
+					<Route element={<TemplateLayout />}>
+						{/* Platform: no Overview (nor its old tabs): Source Code for editors, New workspace for the others */}
+						<Route index element={<TemplateHomeRedirect from="index" />} />
+						{["overview", "docs", "resources", "versions", "insights"].map(
+							(tab) => (
+								<Route
+									key={tab}
+									path={tab}
+									element={<TemplateHomeRedirect from="tab" />}
+								/>
+							),
+						)}
+						<Route path="files" element={<TemplateFilesPage />} />
+						{/* Platform: no Embed tab any more */}
+						<Route path="embed" element={<Navigate to=".." replace />} />
+						<Route path="prebuilds" element={<TemplatePrebuildsPage />} />
+					</Route>
 				</Route>
 
 				<Route path="workspace" element={<CreateWorkspacePage />} />
 
-				<Route path="settings" element={<TemplateSettingsLayout />}>
-					<Route index element={<TemplateSettingsCardsPage />} />
-					<Route
-						path="permissions"
-						element={<TemplateSettingsSectionRedirect section="permissions" />}
-					/>
-					<Route
-						path="variables"
-						element={<TemplateSettingsSectionRedirect section="variables" />}
-					/>
-					<Route
-						path="parameters"
-						element={<TemplateSettingsSectionRedirect section="parameters" />}
-					/>
-					<Route
-						path="schedule"
-						element={<TemplateSettingsSectionRedirect section="schedule" />}
-					/>
-				</Route>
+				<Route element={<RequireTemplatesAccess fallback="workspace" />}>
+					<Route path="settings" element={<TemplateSettingsLayout />}>
+						<Route index element={<TemplateSettingsCardsPage />} />
+						<Route
+							path="permissions"
+							element={
+								<TemplateSettingsSectionRedirect section="permissions" />
+							}
+						/>
+						<Route
+							path="variables"
+							element={<TemplateSettingsSectionRedirect section="variables" />}
+						/>
+						<Route
+							path="parameters"
+							element={<TemplateSettingsSectionRedirect section="parameters" />}
+						/>
+						<Route
+							path="schedule"
+							element={<TemplateSettingsSectionRedirect section="schedule" />}
+						/>
+					</Route>
 
-				<Route path="versions">
-					<Route path=":version">
-						<Route index element={<TemplateVersionPage />} />
+					<Route path="versions">
+						<Route path=":version">
+							<Route index element={<TemplateVersionPage />} />
+						</Route>
 					</Route>
 				</Route>
 			</Route>
@@ -468,18 +476,24 @@ export const router = createBrowserRouter(
 					</Route>
 					<Route path="/hud" element={<HudPage />} />
 
-					<Route path="/starter-templates">
+					<Route
+						path="/starter-templates"
+						element={<RequireTemplatesAccess fallback="/workspaces" />}
+					>
 						<Route index element={<CreateTemplateGalleryPage />} />
 						<Route path=":exampleId" element={<StarterTemplatePage />} />
 					</Route>
 
 					<Route path="/templates">
-						<Route element={<AdminSettingsFrame />}>
-							<Route index element={<TemplatesPage />} />
-						</Route>
-						<Route path="new">
-							<Route index element={<CreateTemplatePage />} />
-							<Route path="builder" element={<TemplateBuilderPage />} />
+						{/* Platform: the template list and its creation for those who make templates */}
+						<Route element={<RequireTemplatesAccess fallback="/workspaces" />}>
+							<Route element={<AdminSettingsFrame />}>
+								<Route index element={<TemplatesPage />} />
+							</Route>
+							<Route path="new">
+								<Route index element={<CreateTemplatePage />} />
+								<Route path="builder" element={<TemplateBuilderPage />} />
+							</Route>
 						</Route>
 						<Route path=":organization">{templateRouter()}</Route>
 						{templateRouter()}

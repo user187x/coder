@@ -49,6 +49,8 @@ export type AdminSettingsPermissions = {
 	canViewHealth?: boolean;
 	/** Platform: may change the deployment's settings - the admins, who alone see Images. */
 	canEditDeployment?: boolean;
+	/** Platform: may open the Templates pages (canSeeTemplates); others reach templates by creating a workspace. */
+	canViewTemplates?: boolean;
 };
 
 export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({

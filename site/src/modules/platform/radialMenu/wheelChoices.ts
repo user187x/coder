@@ -12,6 +12,7 @@ import {
 	type AdminPageAccess,
 	adminPageChoices,
 } from "#/modules/dashboard/Navbar/adminQuickLinks";
+import { canSeeTemplates } from "#/modules/permissions/templates";
 
 /**
  * A choice for a wedge of the quick access wheel (Escape): one of the dashboard's own pages, or a category of
@@ -47,7 +48,7 @@ const DASHBOARD: readonly WheelChoice[] = [
 		icon: FileTextIcon,
 		to: "/templates",
 		group: "dashboard",
-		allowed: everyone,
+		allowed: ({ permissions }) => canSeeTemplates(permissions),
 	},
 	{
 		id: "leases",

@@ -17,7 +17,9 @@ import {
 } from "#/components/Combobox/Combobox";
 import { Link } from "#/components/Link/Link";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import { canSeeTemplates } from "#/modules/permissions/templates";
 
 type TemplatesQuery = UseQueryResult<Template[]>;
 
@@ -34,6 +36,9 @@ export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 }) => {
 	const navigate = useNavigate();
 	const getLink = useLinks();
+	// Platform: the Templates pages are for those who make or change templates.
+	const { permissions } = useAuthenticated();
+	const templatesPage = canSeeTemplates(permissions);
 
 	// Dataset should always be small enough that client-side filtering should be
 	// good enough. Can swap out down the line if it becomes an issue
@@ -114,22 +119,26 @@ export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 					(templates?.length === 0 ? (
 						<ComboboxEmpty>
 							No templates yet.{" "}
-							<Link asChild showExternalIcon={false}>
-								<RouterLink to="/templates">Create one now.</RouterLink>
-							</Link>
+							{templatesPage && (
+								<Link asChild showExternalIcon={false}>
+									<RouterLink to="/templates">Create one now.</RouterLink>
+								</Link>
+							)}
 						</ComboboxEmpty>
 					) : (
 						<ComboboxEmpty>No templates found</ComboboxEmpty>
 					))}
-				<div className="shrink-0 border-0 border-t border-solid border-border py-1">
-					<RouterLink
-						to="/templates"
-						className="flex items-center gap-3 rounded-sm px-4 py-2 text-sm text-content-link no-underline outline-hidden hover:bg-surface-secondary hover:no-underline focus:bg-surface-secondary"
-					>
-						<ExternalLinkIcon className="size-icon-xs" />
-						<span>See all templates</span>
-					</RouterLink>
-				</div>
+				{templatesPage && (
+					<div className="shrink-0 border-0 border-t border-solid border-border py-1">
+						<RouterLink
+							to="/templates"
+							className="flex items-center gap-3 rounded-sm px-4 py-2 text-sm text-content-link no-underline outline-hidden hover:bg-surface-secondary hover:no-underline focus:bg-surface-secondary"
+						>
+							<ExternalLinkIcon className="size-icon-xs" />
+							<span>See all templates</span>
+						</RouterLink>
+					</div>
+				)}
 			</ComboboxContent>
 		</Combobox>
 	);

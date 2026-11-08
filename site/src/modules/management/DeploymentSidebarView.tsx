@@ -4,6 +4,7 @@ import {
 	SettingsSidebarNavItem as SidebarNavItem,
 } from "#/components/Sidebar/Sidebar";
 import type { Permissions } from "#/modules/permissions";
+import { canSeeTemplates } from "#/modules/permissions/templates";
 import { ChatUnreadIndicator } from "#/modules/platform/chat/ChatUnreadIndicator";
 import { HealthIcon } from "#/pages/HealthPage/Content";
 import { AdminCategoryLabel } from "./AdminCategoryLabel";
@@ -119,7 +120,8 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 			item("persistence", "/deployment/persistence", "Persistence"),
 		permissions.viewDeploymentConfig &&
 			item("security", "/deployment/security", "Security"),
-		item("templates", "/templates", "Templates"),
+		canSeeTemplates(permissions) &&
+			item("templates", "/templates", "Templates"),
 		item("traffic-control", "/traffic-control", "Traffic Control"),
 		item("workspaces", "/workspaces", "Workspaces"),
 	];

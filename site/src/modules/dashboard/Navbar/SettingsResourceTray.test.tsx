@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ActivityIcon } from "lucide-react";
+import { ActivityIcon, LayoutTemplateIcon } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { API } from "#/api/api";
@@ -41,6 +41,14 @@ it.each([
 							user={MockUserOwner}
 							supportLinks={[]}
 							onSignOut={vi.fn()}
+							pages={[
+								{
+									id: "templates",
+									label: "Templates",
+									path: "/templates",
+									icon: LayoutTemplateIcon,
+								},
+							]}
 						/>
 					</DropdownMenuContent>
 				</DropdownMenu>
@@ -181,6 +189,15 @@ function renderTray(onSignOut = vi.fn()) {
 							user={MockUserOwner}
 							supportLinks={[]}
 							onSignOut={onSignOut}
+							// an owner's Settings list, which has Templates
+							pages={[
+								{
+									id: "templates",
+									label: "Templates",
+									path: "/templates",
+									icon: LayoutTemplateIcon,
+								},
+							]}
 						/>
 					</DropdownMenuContent>
 				</DropdownMenu>

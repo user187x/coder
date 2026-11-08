@@ -23,9 +23,11 @@ import {
  * each item has its icon before it.
  */
 /** Platform: images - the admins' Images (only they see it). */
-export const WorkspacesDropdown: React.FC<{ images?: boolean }> = ({
-	images = false,
-}) => {
+export const WorkspacesDropdown: React.FC<{
+	images?: boolean;
+	/** Platform: Templates, for those who make or change templates. */
+	templates?: boolean;
+}> = ({ images = false, templates = false }) => {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -65,12 +67,14 @@ export const WorkspacesDropdown: React.FC<{ images?: boolean }> = ({
 							Workspaces
 						</Link>
 					</DropdownMenuItem>
-					<DropdownMenuItem asChild>
-						<Link to="/templates">
-							<LayoutTemplateIcon aria-hidden />
-							Templates
-						</Link>
-					</DropdownMenuItem>
+					{templates && (
+						<DropdownMenuItem asChild>
+							<Link to="/templates">
+								<LayoutTemplateIcon aria-hidden />
+								Templates
+							</Link>
+						</DropdownMenuItem>
+					)}
 					{images && (
 						<DropdownMenuItem asChild>
 							<Link to="/images">
