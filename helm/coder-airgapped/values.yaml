@@ -394,6 +394,11 @@ database:
   # dataDurability: required}: a commit waits for a standby, so a failover loses no committed transaction (needs
   # instances >= 2; with "required" writes wait while no standby is up, so run 3). Empty: off (asynchronous).
   synchronous: {}
+  # With synchronous replication: how long a primary waits on a silent standby before it drops the connection
+  # (wal_sender_timeout; wal_receiver_timeout on the standbys). CloudNativePG's 5s drops standbys that host load
+  # stalls for a few seconds; until one reconnects and catches up, every commit waits, Platform HA's lease renewals
+  # too. Durability is unchanged: a commit still waits for a standby. Empty: CloudNativePG's default.
+  replicationTimeout: 30s
   # PgBouncer in front of the database (a CloudNativePG Pooler: <name>-pooler-rw, transaction mode) for the platform's
   # short clients - code-server HA's relays - so their connections stop counting against max_connections. Coder and
   # the replicator (its advisory lock) keep connecting to <name>-rw. Its name is added to the database's server

@@ -521,3 +521,67 @@ func TestLeadershipHungRenewalsFenceBeforeTheLeaseEnds(t *testing.T) {
 		testutil.IntervalFast, "the standby takes over once the lease lapses")
 	require.NoError(t, standby.Close(ctx))
 }
+
+// lateAckDB commits every lease renewal and then reports it failed once the
+// attempt's timeout ends, as PostgreSQL does when a commit waits on synchronous
+// standbys cut off by host load: "canceling wait for synchronous replication
+// due to user request", the transaction already committed locally.
+type lateAckDB struct {
+	*sql.DB
+	stalled atomic.Bool
+}
+
+func (l *lateAckDB) QueryContext(ctx context.Context, q string, args ...any) (*sql.Rows, error) {
+	if !l.stalled.Load() || !isRenewal(q) {
+		return l.DB.QueryContext(ctx, q, args...)
+	}
+	rows, err := l.DB.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	_ = rows.Close()
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// A leader fenced by renewals that commit unacknowledged (the 2026-11-08
+// incident) leaves the active lease extended past its fence. Leaving lets go of
+// it anyway, so a standby takes over at once instead of after that extension.
+func TestLeadershipFencedLeaderLetsGoWhenLeaving(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	db := openDB(t)
+	longer := func(c *platformha.Config) {
+		c.LeaseTTL, c.RenewInterval = 6*time.Second, time.Second
+	}
+	lateA, lateB := &lateAckDB{DB: db}, &lateAckDB{DB: db}
+	a := startStandby(t, lateA, "coder-0", longer)
+	b := startStandby(t, lateB, "coder-1", longer)
+	active, standby := startActive(ctx, t, a, b)
+	late := lateA
+	if active == b {
+		late = lateB
+	}
+	self := active.Self()
+
+	late.stalled.Store(true)
+	testutil.Eventually(ctx, t, func(context.Context) bool { return active.Fenced() },
+		testutil.IntervalFast, "the leader fences while its renewals go unacknowledged")
+	require.True(t, closed(active.LostActive()), "fencing stops Coder")
+	var expires time.Time
+	var extended bool
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT expires, expires > clock_timestamp() FROM platform_ha.leases
+		WHERE name = $1 AND holder = $2 AND holder_epoch = $3`, platformha.ActiveLease, self.ID, self.Epoch).
+		Scan(&expires, &extended))
+	require.True(t, extended, "the unacknowledged renewals extended the lease past the fence")
+
+	require.NoError(t, active.Close(ctx))
+	testutil.Eventually(ctx, t, func(context.Context) bool { return turned(t, standby, testutil.IntervalFast) },
+		testutil.IntervalFast, "the standby takes over")
+	var acquired time.Time
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT acquired_at FROM platform_ha.leases WHERE name = $1`,
+		platformha.ActiveLease).Scan(&acquired))
+	require.True(t, acquired.Before(expires), "taken at %s, before the extended end %s: the fenced leader let go",
+		acquired, expires)
+	require.NoError(t, standby.Close(ctx))
+}

@@ -43,6 +43,12 @@ spec:
   {{- with $db.synchronous }}
   # Synchronous replication: a commit waits for a standby (database.synchronous).
   postgresql:
+    {{- with $db.replicationTimeout }}
+    # A standby stalled for under this keeps its connection (database.replicationTimeout).
+    parameters:
+      wal_sender_timeout: {{ . | quote }}
+      wal_receiver_timeout: {{ . | quote }}
+    {{- end }}
     synchronous:
       {{- toYaml . | nindent 6 }}
   {{- end }}

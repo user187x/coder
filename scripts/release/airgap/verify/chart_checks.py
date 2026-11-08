@@ -61,6 +61,9 @@ def ha_checks(B, ha_render, default_render):
     check("high availability: synchronous replication (a commit waits for one standby, none lost in a failover)",
           (db.get("postgresql") or {}).get("synchronous") == {"method": "any", "number": 1, "dataDurability": "required"},
           db.get("postgresql"))
+    check("high availability: a standby stalled by host load keeps its replication connection (30s, not 5s)",
+          (db.get("postgresql") or {}).get("parameters") == {"wal_sender_timeout": "30s", "wal_receiver_timeout": "30s"},
+          (db.get("postgresql") or {}).get("parameters"))
     check("high availability: PgBouncer for the relays (2 pods, transaction mode, its pinned image, its name in the "
           "server certificate, the relays' URI on it; Coder stays on -rw)",
           pooler.get("type") == "rw" and pooler.get("instances") == 2

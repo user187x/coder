@@ -43,6 +43,7 @@ type leadership struct {
 	serving    bool      // Coder serves here (MarkServing)
 	handedOver bool      // gave the lease up (a handover, or leaving): not a loss, and never takes it again
 	safeUntil  time.Time // last lease renewal's start + FenceAfter
+	heldEpoch  int64     // registry epoch it last took the active lease under (0: never)
 	successor  bool      // claimed the successor's place in a handover
 	ready      bool      // told the leader it serves (successor_ready)
 	turn       chan struct{}
@@ -265,6 +266,7 @@ func (r *Registry) leadRound(ctx context.Context) {
 		r.mu.Lock()
 		r.lead.holding, r.lead.handedOver = true, false
 		r.lead.safeUntil = began.Add(r.cfg.FenceAfter())
+		r.lead.heldEpoch = self.Epoch
 		r.lead.successor, r.lead.ready = false, false
 		r.mu.Unlock()
 		r.logger.Info(ctx, "took the active lease", slog.F("replica_id", self.ID), slog.F("epoch", self.Epoch))
@@ -488,16 +490,23 @@ func (r *Registry) waitHolding(ctx context.Context, d time.Duration) bool {
 
 // releaseLease lets go of the active lease when leaving (Close), so a standby
 // takes it at its next round instead of after the lease's end.
+//
+// It does so after a fence too: a renewal the database committed after this
+// replica gave up waiting (a commit stalled on synchronous standbys) still
+// extended the lease, which would otherwise keep the standbys out for up to a
+// lease after Coder stopped here. Close runs once Coder no longer serves, and
+// the compare-and-set on the epoch the lease was taken under only ever ends a
+// lease this replica held, so letting go here is always safe.
 func (r *Registry) releaseLease(ctx context.Context) {
 	r.mu.Lock()
-	self, holding := r.self, r.lead.holding
+	self, epoch := r.self, r.lead.heldEpoch
 	r.lead.handedOver = true
 	r.mu.Unlock()
-	if !holding {
+	if epoch == 0 {
 		return
 	}
 	_, _ = r.db.ExecContext(ctx, `UPDATE platform_ha.leases SET expires = now() - interval '1 second', holder = NULL
-		WHERE name = $1 AND holder = $2 AND holder_epoch = $3`, ActiveLease, self.ID, self.Epoch)
+		WHERE name = $1 AND holder = $2 AND holder_epoch = $3`, ActiveLease, self.ID, epoch)
 }
 
 // untilLeaderSafe: the time left before the active lease cannot be trusted
