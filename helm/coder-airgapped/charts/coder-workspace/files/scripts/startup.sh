@@ -343,40 +343,6 @@ else
 	log "File Browser: started in $START_DIR (log: /tmp/filebrowser.log)"
 fi
 
-# btop's disk: where the cluster's volumes are folders of the node's disk (local-path, hostpath: minikube, kind), the
-# home's statvfs() answers for the node's whole disk. A small library (scripts/home-statfs.c), built here once a
-# version, answers for the home volume instead - its size and the home's usage, as the Disk metric measures them
-# (coder stat workspace disk), preloaded by a btop wrapper in ~/.local/bin. On a real volume it changes nothing.
-# The image's btop: the first on the PATH but the wrapper's folder.
-btop_bin=$(PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vxF "$HOME/.local/bin" | paste -sd: -) command -v btop)
-if [ -n "$btop_bin" ] && command -v gcc >/dev/null; then
-	statfs_dir="$HOME/.cache/coder"
-	mkdir -p "$statfs_dir" "$HOME/.local/bin"
-	echo '${home_statfs}' | base64 -d >"$statfs_dir/home-statfs.c.new"
-	if ! cmp -s "$statfs_dir/home-statfs.c.new" "$statfs_dir/home-statfs.c" || [ ! -f "$statfs_dir/home-statfs.so" ]; then
-		mv "$statfs_dir/home-statfs.c.new" "$statfs_dir/home-statfs.c"
-		if gcc -shared -fPIC -O2 -o "$statfs_dir/home-statfs.so" "$statfs_dir/home-statfs.c" -ldl 2>/tmp/home-statfs.log; then
-			log "btop: answers for the home volume (home-statfs built)"
-		else
-			rm -f "$statfs_dir/home-statfs.c"
-			log "btop: home-statfs not built (/tmp/home-statfs.log)"
-		fi
-	else
-		rm -f "$statfs_dir/home-statfs.c.new"
-	fi
-	# The home's size and use for the library, kept fresh here too (each minute, quietly): the Disk metric writes them
-	# as it measures, but an agent can be without its metadata (a lost database row) - btop is right all the same.
-	(
-		while :; do
-			nice -n 19 coder stat workspace disk >/dev/null 2>&1
-			sleep 60
-		done
-	) </dev/null >/dev/null 2>&1 &
-	printf '%s\n' '#!/bin/sh' '# btop answering for the home volume, not the whole node disk (startup.sh: home-statfs)' \
-		'so="$HOME/.cache/coder/home-statfs.so"' \
-		'[ -r "$so" ] && export LD_PRELOAD="$so$${LD_PRELOAD:+:$LD_PRELOAD}"' \
-		"exec '$btop_bin' \"\$@\"" >"$HOME/.local/bin/btop"
-	chmod +x "$HOME/.local/bin/btop"
-fi
+# btop's disk: the workspace agent's setup (agent-setup) makes btop answer for the home volume.
 
 log "Startup done: the apps open once they answer their health checks"

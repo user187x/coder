@@ -489,8 +489,6 @@ resource "coder_agent" "main" {
     file_browser           = var.file_browser
     # coder-filebrowser: File Browser started with every Cloud Drive here as a source of its own
     filebrowser = base64encode(file("${path.module}/scripts/filebrowser.sh"))
-    # btop's disk: the home volume's own size where volumes are folders of the node's disk (startup.sh builds it)
-    home_statfs = base64encode(file("${path.module}/scripts/home-statfs.c"))
   })
 
 }

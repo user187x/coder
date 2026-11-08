@@ -497,8 +497,10 @@ def template_checks(B, chart, default_render, dataflow_render):
             for ln in open(os.path.join(tpl_scripts, n)).read().splitlines()
             if re.search(r"\(.*&&.*&\)\s*$", ln) and not ln.lstrip().startswith("#")]
     check("template scripts: no background subshell keeps the script's output open", not held, held[:3])
-    check("home disk monitoring uses the native agent command", "coder stat workspace disk" in startup
-          and not os.path.exists(os.path.join(tpl_scripts, "metadata.sh")), "")
+    # The Disk metric is the agent's own (native workspace metric disk); btop's home volume is the agent's setup.
+    check("home disk monitoring and btop's disk are the agent's, not the template's",
+          not os.path.exists(os.path.join(tpl_scripts, "metadata.sh"))
+          and not os.path.exists(os.path.join(tpl_scripts, "home-statfs.c")) and "home-statfs" not in startup, "")
     # The Linux user and the hostname are the owner's, not "coder": the account renamed by editing its files (usermod
     # refuses while its processes run), after a sudo rule for the new name that visudo accepted
     check("startup.sh: the Linux user renamed after the owner (sudo rule checked first, files edited, USER set)",

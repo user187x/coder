@@ -34,6 +34,8 @@ type Inputs struct {
 	// WorkspaceName and AgentName build the path-based apps' prefix.
 	WorkspaceName string
 	AgentName     string
+	// Path is the PATH programs are looked up on.
+	Path string
 }
 
 // AppsPrefix is the path Coder proxies the workspace's path-based apps under.
@@ -99,6 +101,7 @@ func Steps() []Step {
 		{Name: "Image dotfiles", Run: imageDotfiles},
 		{Name: "btop", Run: btopConfig},
 		{Name: "tmux", Run: tmuxConfig},
+		{Name: "btop disk", Run: btopDisk},
 	}
 }
 

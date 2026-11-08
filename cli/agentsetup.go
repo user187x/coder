@@ -35,6 +35,7 @@ func agentSetup() *serpent.Command {
 					OwnerName:     os.Getenv("CODER_WORKSPACE_OWNER_NAME"),
 					WorkspaceName: os.Getenv("CODER_WORKSPACE_NAME"),
 					AgentName:     os.Getenv("CODER_WORKSPACE_AGENT_NAME"),
+					Path:          os.Getenv("PATH"),
 				},
 				FS:    afero.NewOsFs(),
 				Cmd:   agentsetup.SystemCommander{},
