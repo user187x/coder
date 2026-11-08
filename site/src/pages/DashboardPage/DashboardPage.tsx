@@ -175,9 +175,7 @@ const DashboardPage: React.FC = () => {
 							aria-hidden
 							className={cn(
 								"size-2 rounded-full",
-								paused
-									? "bg-content-disabled"
-									: "animate-pulse bg-content-success",
+								paused ? "bg-content-disabled" : "bg-content-success",
 							)}
 						/>
 						Dashboard
@@ -220,7 +218,9 @@ const DashboardPage: React.FC = () => {
 								aria-hidden
 								className={cn(
 									"size-2 rounded-full",
-									paused ? "bg-content-disabled" : "bg-content-success",
+									paused
+										? "bg-content-disabled"
+										: "animate-pulse bg-content-success",
 								)}
 							/>
 							Live
