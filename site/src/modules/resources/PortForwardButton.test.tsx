@@ -12,7 +12,7 @@ import {
 	getWorkspaceListeningPortsProtocol,
 	portForwardURL,
 } from "#/utils/portForward";
-import { PortForwardPopoverView } from "./PortForwardButton";
+import { openPortCount, PortForwardPopoverView } from "./PortForwardButton";
 
 const HOST = "*.example.com";
 
@@ -79,5 +79,36 @@ describe("PortForwardPopoverView", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Connect" }));
 
 		expect(open).not.toHaveBeenCalled();
+	});
+});
+
+describe("openPortCount", () => {
+	it("counts each port once, listening or shared on this agent", () => {
+		const share = (agent_name: string, port: number) => ({
+			workspace_id: "w",
+			agent_name,
+			port,
+			share_level: "authenticated" as const,
+			protocol: "http" as const,
+		});
+		expect(
+			openPortCount(
+				"main",
+				[{ process_name: "", network: "tcp", port: 8110 }],
+				[
+					share("main", 7777),
+					share("main", 8888),
+					share("main", 8989),
+					share("other", 9000),
+				],
+			),
+		).toBe(4);
+		expect(
+			openPortCount(
+				"main",
+				[{ process_name: "node", network: "tcp", port: 7777 }],
+				[share("main", 7777)],
+			),
+		).toBe(1);
 	});
 });

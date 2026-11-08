@@ -51,9 +51,11 @@ const combineOpenPorts = (
 });
 
 /** The pill under the tunnels one: how many ports the workspace clicked on has open. */
-const OpenPortsPill: React.FC<{ workspace: TrafficWorkspace }> = ({
-	workspace,
-}) => {
+const OpenPortsPill: React.FC<{
+	workspace: TrafficWorkspace;
+	/** The ports its owner shared: open through Coder even before anything listens on them. */
+	shared: readonly number[];
+}> = ({ workspace, shared }) => {
 	const open = useQueries({
 		queries: workspace.running
 			? workspace.agentIds.map((id) => ({
@@ -63,20 +65,20 @@ const OpenPortsPill: React.FC<{ workspace: TrafficWorkspace }> = ({
 			: [],
 		combine: combineOpenPorts,
 	});
+	// Each port once: what its agents listen on, and what is shared.
+	const ports = [...new Set([...open.ports, ...shared])].sort((a, b) => a - b);
 	const text = !workspace.running
 		? "not running"
 		: open.loading
 			? "counting open ports…"
 			: open.failed
 				? "open ports unavailable"
-				: `${open.ports.length} open ${open.ports.length === 1 ? "port" : "ports"}`;
+				: `${ports.length} open ${ports.length === 1 ? "port" : "ports"}`;
 	return (
 		<span
 			role="status"
 			aria-label={`${workspace.label}: ${text}`}
-			title={
-				open.ports.length ? `Listening: ${open.ports.join(", ")}` : undefined
-			}
+			title={ports.length ? `Open: ${ports.join(", ")}` : undefined}
 			className="whitespace-nowrap rounded-full border border-solid border-[#dc352e]/60 bg-surface-secondary px-2 text-[11px] leading-5 tabular-nums text-content-secondary"
 		>
 			<span className="font-medium text-content-primary">
@@ -178,7 +180,18 @@ const TopologyCard: React.FC<{
 							{topology.tunnels.length === 1 ? "tunnel" : "tunnels"} connected
 						</span>
 					)}
-					{picked && <OpenPortsPill workspace={picked} />}
+					{picked && (
+						<OpenPortsPill
+							workspace={picked}
+							shared={topology.columns.flatMap((c) =>
+								c.kind === "workspace"
+									? []
+									: c.orbs.flatMap((o) =>
+											o.share?.workspace_id === picked.id ? [o.share.port] : [],
+										),
+							)}
+						/>
+					)}
 				</div>
 			</header>
 			<div className="flex justify-center overflow-x-auto py-2">

@@ -64,6 +64,22 @@ type PortForwardButtonProps = {
 	template: Template;
 };
 
+/**
+ * Platform: the ports open on an agent, each once: those it listens on and those its owner shared (a share opens the
+ * port through Coder even before anything listens on it), as the list below shows them.
+ */
+export const openPortCount = (
+	agentName: string,
+	listening: readonly WorkspaceAgentListeningPort[],
+	shared: readonly WorkspaceAgentPortShare[] | undefined,
+) =>
+	new Set([
+		...listening.map((p) => p.port),
+		...(shared ?? [])
+			.filter((s) => s.agent_name === agentName)
+			.map((s) => s.port),
+	]).size;
+
 export const PortForwardButton: React.FC<PortForwardButtonProps> = ({
 	host,
 	workspace,
@@ -84,7 +100,8 @@ export const PortForwardButton: React.FC<PortForwardButtonProps> = ({
 				<Button disabled={!listeningPorts} size="sm" variant="subtle">
 					<Spinner loading={!listeningPorts}>
 						<span className="text-xs font-medium h-5 min-w-5 px-1 rounded-full flex items-center justify-center bg-surface-tertiary">
-							{listeningPorts?.length}
+							{listeningPorts &&
+								openPortCount(agent.name, listeningPorts, sharedPorts)}
 						</span>
 					</Spinner>
 					Open ports
