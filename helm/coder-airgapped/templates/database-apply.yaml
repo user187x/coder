@@ -79,6 +79,10 @@ spec:
         app.kubernetes.io/name: {{ $db.name }}-{{ $mode }}
     spec:
       restartPolicy: Never
+      {{- with include "ca.controlPlaneNodeAffinity" $ }}
+      affinity:
+        {{- . | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ $name }}
       {{- with $.Values.uiUpdates.imagePullSecrets }}
       imagePullSecrets:

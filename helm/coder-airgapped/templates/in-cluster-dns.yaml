@@ -75,6 +75,10 @@ spec:
         app.kubernetes.io/name: coder-dns
     spec:
       restartPolicy: Never
+      {{- with include "ca.controlPlaneNodeAffinity" $ }}
+      affinity:
+        {{- . | nindent 8 }}
+      {{- end }}
       serviceAccountName: coder-dns
       {{- with $.Values.uiUpdates.imagePullSecrets }}
       imagePullSecrets:

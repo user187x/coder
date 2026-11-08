@@ -861,8 +861,14 @@ traefik:
   # HTTPS port is then service.nodePorts / `kubectl get svc`. Pin the NodePorts with ports.websecure.nodePort.
   service:
     type: LoadBalancer
+  # never behind an external node's cable (controlPlaneNodeAffinity)
+  affinity:
+    nodeAffinity: *controlPlaneNodeAffinity
 
 cloudnative-pg:
+  # never behind an external node's cable (controlPlaneNodeAffinity)
+  affinity:
+    nodeAffinity: *controlPlaneNodeAffinity
   image:
     repository: '{{ include "platform.registryHost" (list . "ghcr.io") }}/cloudnative-pg/cloudnative-pg'
     tag: "1.30.0"

@@ -125,8 +125,14 @@ spec:
     spec:
       serviceAccountName: metrics-server
       priorityClassName: system-cluster-critical
-      {{- if gt (int ($ms.replicas | default 1)) 1 }}
+      {{- $spread := gt (int ($ms.replicas | default 1)) 1 }}
+      {{- $offExternal := include "ca.controlPlaneNodeAffinity" $ }}
+      {{- if or $spread $offExternal }}
       affinity:
+        {{- with $offExternal }}
+        {{- . | nindent 8 }}
+        {{- end }}
+        {{- if $spread }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
@@ -134,6 +140,9 @@ spec:
                 topologyKey: kubernetes.io/hostname
                 labelSelector:
                   matchLabels: {app.kubernetes.io/name: metrics-server}
+        {{- end }}
+      {{- end }}
+      {{- if $spread }}
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone

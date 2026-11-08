@@ -83,6 +83,10 @@ spec:
         checksum/script: {{ printf "%s%s" (.Files.Get "files/bootstrap/bootstrap.py") (.Files.Get "files/bootstrap/pgwire.py") | sha256sum | trunc 16 | quote }}
     spec:
       restartPolicy: Never
+      {{- with include "ca.controlPlaneNodeAffinity" $ }}
+      affinity:
+        {{- . | nindent 8 }}
+      {{- end }}
       serviceAccountName: coder-bootstrap
       {{- with .Values.uiUpdates.imagePullSecrets }}
       imagePullSecrets:
