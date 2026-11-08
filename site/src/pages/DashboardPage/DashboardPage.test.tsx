@@ -184,3 +184,19 @@ it("counts the workspaces with the Cloud Drive connected and lists each", async 
 		"dataDisconnected",
 	);
 });
+
+it("keeps the Network card when none of the workspaces is running", async () => {
+	setup({
+		...MockQuotaMeResources,
+		workspaces: MockQuotaMeResources.workspaces.map((w) => ({
+			...w,
+			running: false,
+		})),
+	});
+	expect(
+		await screen.findByText(
+			"None of your workspaces is running: their traffic shows here while one runs.",
+		),
+	).toBeInTheDocument();
+	expect(PlatformAPI.getWorkspaceNetwork).not.toHaveBeenCalled();
+});

@@ -147,6 +147,15 @@ const DashboardPage: React.FC = () => {
 			: running.map((w, i) => [w.id, diskFromHistory(histories[i]?.data)]),
 	);
 	const network = networkSeries(networks.map((n) => n.data?.agents));
+	// Never a blank card: say why there is no traffic to show.
+	const networkEmpty =
+		networkTargets.length === 0
+			? cluster
+				? "No workspace is running in the cluster: traffic shows here while one runs."
+				: "None of your workspaces is running: their traffic shows here while one runs."
+			: !network &&
+				"No traffic readings yet: they appear within a few seconds.";
+
 	const networkPerWorkspace: NetworkReading[] = networkTargets.map((w, i) => {
 		const own = networkSeries([networks[i]?.data?.agents]);
 		return {
@@ -425,27 +434,29 @@ const DashboardPage: React.FC = () => {
 						</CardState>
 					</DashboardCard>
 					{usageCard("cpu", "Processor")}
-					{networkTargets.length > 0 && (
-						<DashboardCard
-							title="Network"
-							icon={NetworkIcon}
-							tone="orange"
-							actions={<RangePill />}
+					{/* Always there: without a running workspace it says so rather than leaving a gap. */}
+					<DashboardCard
+						title="Network"
+						icon={NetworkIcon}
+						tone="orange"
+						actions={networkTargets.length > 0 && <RangePill />}
+					>
+						<CardState
+							isLoading={
+								networkTargets.length > 0 && networkLoading && !network
+							}
+							error={network ? undefined : networkError}
+							empty={networkEmpty}
 						>
-							<CardState
-								isLoading={networkLoading && !network}
-								error={network ? undefined : networkError}
-							>
-								{network && (
-									<NetworkCardBody
-										rx={network.rx}
-										tx={network.tx}
-										perWorkspace={networkPerWorkspace}
-									/>
-								)}
-							</CardState>
-						</DashboardCard>
-					)}
+							{network && (
+								<NetworkCardBody
+									rx={network.rx}
+									tx={network.tx}
+									perWorkspace={networkPerWorkspace}
+								/>
+							)}
+						</CardState>
+					</DashboardCard>
 				</div>
 			</div>
 		</div>
