@@ -75,7 +75,7 @@ export const NavbarLogo: React.FC = () => {
 
 	return (
 		<NavLink
-			to="/workspaces"
+			to="/dashboard"
 			className={navbarTileTriggerClass}
 			data-testid="navbar-logo"
 		>

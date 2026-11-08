@@ -447,7 +447,7 @@ export const router = createBrowserRouter(
 			{/* Dashboard routes */}
 			<Route element={<RequireAuth />}>
 				<Route element={<DashboardLayout />}>
-					<Route index element={<Navigate to="/workspaces" replace />} />
+					<Route index element={<Navigate to="/dashboard" replace />} />
 
 					<Route
 						path="/external-auth/:provider"

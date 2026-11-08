@@ -54,10 +54,10 @@ describe("hasTransparentCorners", () => {
 describe("NavbarLogo", () => {
 	afterEach(() => vi.restoreAllMocks());
 
-	it("sits in the avatar's tile, linking to the workspaces", () => {
+	it("sits in the avatar's tile, linking to the Dashboard", () => {
 		renderLogo();
 		const link = screen.getByTestId("navbar-logo");
-		expect(link).toHaveAttribute("href", "/workspaces");
+		expect(link).toHaveAttribute("href", "/dashboard");
 		const tile = screen.getByTestId("navbar-logo-tile");
 		expect(link.firstElementChild).toBe(tile);
 		// the user menu's avatar tile: an Avatar of size lg, inset as the avatar's picture is

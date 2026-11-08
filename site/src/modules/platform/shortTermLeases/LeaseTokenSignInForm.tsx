@@ -26,7 +26,7 @@ export const LeaseTokenSignInForm = ({
 				// Drop the token from state as soon as it is submitted.
 				setToken("");
 				login.mutate(submitted, {
-					onSuccess: () => window.location.assign("/workspaces"),
+					onSuccess: () => window.location.assign("/"),
 				});
 			}}
 		>

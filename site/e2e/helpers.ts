@@ -85,14 +85,14 @@ export async function login(page: Page, options: LoginOptions = users.owner) {
 	await page.getByLabel("Password").fill(options.password);
 	await page.getByRole("button", { name: "Sign In" }).click();
 	// Sign-in triggers a hard navigation to "/", then React Router
-	// client-side redirects to "/workspaces" without firing a load event.
-	// waitForURL alone resolves on the URL change, before WorkspacesPage
+	// client-side redirects to "/dashboard" without firing a load event.
+	// waitForURL alone resolves on the URL change, before DashboardPage
 	// has mounted. The title check is the actual synchronization point:
 	// it retries until the page component renders. Removing either wait
 	// reintroduces a navigation race in tests that goto() right after
 	// login. See https://github.com/coder/coder/pull/27107.
-	await page.waitForURL((url) => url.pathname === "/workspaces");
-	await expect(page).toHaveTitle("Workspaces - Coder");
+	await page.waitForURL((url) => url.pathname === "/dashboard");
+	await expect(page).toHaveTitle("Dashboard - Coder");
 	(ctx as ContextWithUser)[Symbol.for("currentUser")] = options;
 }
 
