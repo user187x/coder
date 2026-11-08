@@ -5,9 +5,11 @@ import { render } from "#/testHelpers/renderHelpers";
 import { applyDashboardInput, parseDashboardInput } from "./dashboardInput";
 import {
 	bindDashboardChannel,
+	requestDashboardCapture,
 	stopMedia,
 	updateMedia,
 	useRemotePointer,
+	useShareMedia,
 } from "./media";
 
 afterEach(() => {
@@ -224,4 +226,80 @@ it("shows the viewer where the sharer applied the last move", () => {
 	expect(pointer.result.current).toBeNull();
 	echo(JSON.stringify({ type: "dashboard-pointer", x: 0.1, y: 0.9 }));
 	expect(pointer.result.current).toEqual({ x: 0.1, y: 0.9 });
+});
+
+it("announces the capture mode and holds a request for tab video for the sharer's click", () => {
+	const send = vi.fn();
+	vi.stubGlobal(
+		"RTCDataChannel",
+		class extends EventTarget {
+			label = "coder-dashboard-control-v1";
+			send = send;
+			close = vi.fn();
+			readyState = "open";
+			bufferedAmount = 0;
+		},
+	);
+	vi.stubGlobal(
+		"MediaStream",
+		class {
+			getTracks() {
+				return [];
+			}
+		},
+	);
+	const shared = renderHook(useShareMedia);
+	// Sharer: announces its mode when the channel opens, and waits on a tab-video request.
+	const sharer = new RTCDataChannel();
+	act(() =>
+		updateMedia({
+			id: "session",
+			dashboard: true,
+			local: new MediaStream(),
+			capture: "rendered",
+		}),
+	);
+	bindDashboardChannel(sharer, "session", true);
+	act(() => {
+		sharer.dispatchEvent(new Event("open"));
+	});
+	expect(send).toHaveBeenCalledWith(
+		JSON.stringify({ type: "dashboard-capture", mode: "rendered" }),
+	);
+	act(() => {
+		sharer.dispatchEvent(
+			new MessageEvent("message", {
+				data: JSON.stringify({
+					type: "dashboard-capture-request",
+					mode: "tab",
+				}),
+			}),
+		);
+	});
+	expect(shared.result.current.captureRequest).toBe("tab");
+	expect(shared.result.current.capture).toBe("rendered");
+	act(() => stopMedia());
+
+	// Viewer: learns the sharer's mode and sends its own requests.
+	const viewer = new RTCDataChannel();
+	act(() =>
+		updateMedia({
+			id: "session",
+			dashboard: true,
+			remote: new MediaStream(),
+		}),
+	);
+	bindDashboardChannel(viewer, "session", false);
+	act(() => {
+		viewer.dispatchEvent(
+			new MessageEvent("message", {
+				data: JSON.stringify({ type: "dashboard-capture", mode: "tab" }),
+			}),
+		);
+	});
+	expect(shared.result.current.capture).toBe("tab");
+	requestDashboardCapture("rendered");
+	expect(send).toHaveBeenLastCalledWith(
+		JSON.stringify({ type: "dashboard-capture-request", mode: "rendered" }),
+	);
 });

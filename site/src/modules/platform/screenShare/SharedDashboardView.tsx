@@ -1,8 +1,69 @@
+import { cn } from "cn";
 import { MousePointerClickIcon, PointerIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Button } from "#/components/Button/Button";
-import { sendDashboardInput, useRemotePointer, useShareMedia } from "./media";
+import {
+	type DashboardCapture,
+	requestDashboardCapture,
+	sendDashboardInput,
+	useRemotePointer,
+	useShareMedia,
+} from "./media";
 import { ShareVideo } from "./ShareVideo";
+
+const CAPTURE_MODES = {
+	rendered: {
+		label: "Rendered",
+		hint: "Redraws the page a few times a second and hides password fields and private panels.",
+	},
+	tab: {
+		label: "Tab video",
+		hint: "The browser's own video of the tab at up to 30 frames a second: smooth, and shows the tab exactly as it looks.",
+	},
+} satisfies Record<DashboardCapture, { label: string; hint: string }>;
+
+/**
+ * Switches how the shared dashboard becomes video, like the Browser
+ * workspace's transport switch. `requested` marks the mode the other side
+ * asked for.
+ */
+export const CaptureSwitch = ({
+	value,
+	onChange,
+	requested,
+	disabled,
+}: {
+	value: DashboardCapture;
+	onChange: (mode: DashboardCapture) => void;
+	requested?: DashboardCapture | null;
+	disabled?: boolean;
+}) => (
+	<div
+		role="group"
+		aria-label="Dashboard capture"
+		className="inline-flex shrink-0 items-center rounded-full border border-solid border-border bg-surface-secondary p-0.5"
+	>
+		{(["rendered", "tab"] as const).map((mode) => (
+			<Button
+				key={mode}
+				size="sm"
+				variant="subtle"
+				disabled={disabled}
+				aria-pressed={value === mode}
+				title={CAPTURE_MODES[mode].hint}
+				className={cn(
+					"h-6 rounded-full px-2 text-xs text-content-secondary aria-pressed:bg-surface-primary aria-pressed:text-content-link aria-pressed:shadow-sm",
+					requested === mode &&
+						value !== mode &&
+						"ring-2 ring-content-link motion-safe:animate-pulse",
+				)}
+				onClick={() => onChange(mode)}
+			>
+				{CAPTURE_MODES[mode].label}
+			</Button>
+		))}
+	</div>
+);
 
 /**
  * Takes or releases the shared dashboard's keyboard and mouse, showing the
@@ -155,6 +216,12 @@ export const SharedDashboardView = ({
 						paused={paused}
 						buttonRef={controlButton}
 					/>
+					{media.capture && (
+						<CaptureSwitch
+							value={media.capture}
+							onChange={requestDashboardCapture}
+						/>
+					)}
 				</div>
 			)}
 			<div className="relative min-h-0 flex-1">

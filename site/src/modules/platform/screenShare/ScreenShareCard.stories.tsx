@@ -112,6 +112,7 @@ export const DashboardControlLive: Story = {
 			dashboard: true,
 			controlReady: true,
 			latency: 38,
+			capture: "rendered",
 			remote: new MediaStream(),
 		});
 		return () => stopMedia();

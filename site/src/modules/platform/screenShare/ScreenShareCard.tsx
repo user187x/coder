@@ -15,12 +15,15 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { CRTShutdown } from "./CRTShutdown";
 import {
+	type DashboardCapture,
 	notifyShareTermination,
+	requestDashboardCapture,
 	stopMedia,
 	updateMedia,
 	useShareMedia,
 } from "./media";
 import {
+	CaptureSwitch,
 	DashboardControlButton,
 	SharedDashboardView,
 } from "./SharedDashboardView";
@@ -46,6 +49,9 @@ export const ScreenShareCard = ({
 	// Control taken in one session never carries into the next.
 	const [controlFor, setControlFor] = useState<string | null>(null);
 	const controlButton = useRef<HTMLButtonElement>(null);
+	const [askedCapture, setAskedCapture] = useState<DashboardCapture | null>(
+		null,
+	);
 	const client = useQueryClient();
 	const media = useShareMedia();
 	const control = controlFor !== null && controlFor === media.id;
@@ -113,6 +119,21 @@ export const ScreenShareCard = ({
 							paused={paused}
 							buttonRef={controlButton}
 						/>
+					)}
+					{controlling && media.capture && (
+						<CaptureSwitch
+							value={media.capture}
+							requested={askedCapture}
+							onChange={(mode) => {
+								setAskedCapture(mode);
+								requestDashboardCapture(mode);
+							}}
+						/>
+					)}
+					{controlling && askedCapture === "tab" && media.capture !== "tab" && (
+						<span role="status" className="text-xs text-content-secondary">
+							Waiting for the user to allow tab video
+						</span>
 					)}
 					<Button size="sm" variant="outline" onClick={toggleFullscreen}>
 						<MaximizeIcon />

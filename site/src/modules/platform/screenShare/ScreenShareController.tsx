@@ -3,6 +3,7 @@ import { useEffect, useEffectEvent, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useLocation } from "react-router";
+import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import {
 	screenShareKey,
@@ -16,7 +17,9 @@ import {
 	addShareTracks,
 	bindDashboardChannel,
 	completeDescription,
+	declineDashboardCapture,
 	measureLatency,
+	setDashboardCapture,
 	shareDashboard,
 	shareScreen,
 	stopMedia,
@@ -24,7 +27,7 @@ import {
 	useRemotePointer,
 	useShareMedia,
 } from "./media";
-import { SharedDashboardView } from "./SharedDashboardView";
+import { CaptureSwitch, SharedDashboardView } from "./SharedDashboardView";
 
 const subscribeFullscreen = (changed: () => void) => {
 	document.addEventListener("fullscreenchange", changed);
@@ -274,6 +277,39 @@ export const ScreenShareController = () => {
 										: "Sharing screen"
 									: "Viewing"}
 								: {media.status}
+								{media.local && media.dashboard && media.capture && (
+									<>
+										{media.captureRequest === "tab" && (
+											<span className="font-normal text-content-link">
+												Video requested
+											</span>
+										)}
+										<CaptureSwitch
+											value={media.capture}
+											requested={media.captureRequest}
+											onChange={(mode) =>
+												void setDashboardCapture(mode).catch((error) =>
+													toast.error(
+														getErrorMessage(
+															error,
+															"Could not switch the dashboard capture.",
+														),
+													),
+												)
+											}
+										/>
+										{media.captureRequest === "tab" && (
+											<Button
+												size="xs"
+												variant="subtle"
+												className="rounded-full"
+												onClick={declineDashboardCapture}
+											>
+												Not now
+											</Button>
+										)}
+									</>
+								)}
 								<Button
 									size="xs"
 									variant="outline"
