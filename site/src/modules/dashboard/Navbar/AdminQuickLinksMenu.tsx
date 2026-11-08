@@ -344,9 +344,13 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 				transform: CSS.Translate.toString(transform),
 				transition,
 			}}
+			// Pointed at (or holding the keyboard's focus): an oval round the row, and only then its remove and move
+			// controls, so a link is removed or moved only from the row in hand.
 			className={cn(
-				"flex flex-wrap items-center",
-				isDragging && "relative z-10 rounded-md bg-surface-secondary shadow-md",
+				"group/quick flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
+				editable &&
+					"hover:bg-surface-secondary/60 hover:ring-1 hover:ring-border focus-within:ring-1 focus-within:ring-border",
+				isDragging && "relative z-10 bg-surface-secondary shadow-md",
 			)}
 		>
 			{link.id === "chat" ? (
@@ -386,7 +390,11 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					<DropdownMenuItem
 						aria-label={`Remove ${link.label} from the quick links`}
 						title="Remove"
-						className="flex-none px-2 text-content-secondary hover:text-content-destructive focus:text-content-destructive"
+						className={cn(
+							"flex-none px-2 text-content-secondary hover:text-content-destructive focus:text-content-destructive",
+							!(moving || isDragging) &&
+								"invisible group-hover/quick:visible group-focus-within/quick:visible",
+						)}
 						onSelect={(event) => {
 							// Stay open, so several links can be removed in a row.
 							event.preventDefault();
@@ -404,6 +412,8 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 						title="Drag to reorder"
 						className={cn(
 							"flex-none touch-none px-1 text-content-secondary",
+							!(moving || isDragging) &&
+								"invisible group-hover/quick:visible group-focus-within/quick:visible",
 							isDragging ? "cursor-grabbing" : "cursor-grab",
 							moving &&
 								"bg-surface-secondary text-content-primary ring-1 ring-content-link",

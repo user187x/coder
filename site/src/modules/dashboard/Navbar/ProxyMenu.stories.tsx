@@ -908,3 +908,18 @@ export const EntryOptions: Story = {
 		});
 	},
 };
+
+/** A quick link pointed at: an oval round it, and only its remove and move controls. */
+export const QuickLinkHovered: Story = {
+	...CentralAdminMenu,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: /^Settings/ }),
+		);
+		await userEvent.hover(
+			await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
+				name: "Accounts",
+			}),
+		);
+	},
+};

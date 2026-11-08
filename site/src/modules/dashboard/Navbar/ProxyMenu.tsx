@@ -4,7 +4,6 @@ import {
 	MonitorIcon,
 	PanelRightCloseIcon,
 	PanelRightDashedIcon,
-	PanelRightOpenIcon,
 	RadioIcon,
 	SettingsIcon,
 } from "lucide-react";
@@ -368,7 +367,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										{docked ? (
 											<PanelRightCloseIcon aria-hidden className="-rotate-90" />
 										) : (
-											<PanelRightOpenIcon aria-hidden />
+											// undocked: its arrow points right, where Settings docks; docked, up to the dropdown it returns to
+											<PanelRightCloseIcon aria-hidden />
 										)}
 									</DropdownMenuItem>
 								)}
