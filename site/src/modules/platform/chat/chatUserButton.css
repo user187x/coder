@@ -1,0 +1,26 @@
+/* Admin > Accounts: a row's Chat button while that user has written and the admin has not read it yet - its border
+   pulses in the link colour until the conversation is opened. Steady (no pulse) without animations. */
+.chat-user-button[data-unread] {
+	border-color: hsl(var(--content-link));
+	animation: chat-user-button-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes chat-user-button-pulse {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 hsl(var(--content-link) / 0.55);
+	}
+	50% {
+		box-shadow: 0 0 0 4px hsl(var(--content-link) / 0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.chat-user-button[data-unread] {
+		animation: none;
+	}
+}
+
+html[data-animations="off"] .chat-user-button[data-unread] {
+	animation: none;
+}

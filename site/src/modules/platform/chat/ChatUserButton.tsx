@@ -10,6 +10,7 @@ import {
 } from "#/components/DropdownMenu/DropdownMenu";
 import { openChatWith, useChatSnapshot } from "./chatStore";
 import { ForcedFocusDialog } from "./ForcedFocusDialog";
+import "./chatUserButton.css";
 
 type ChatUserButtonProps = {
 	user: Pick<
@@ -24,7 +25,9 @@ type ChatUserButtonProps = {
  * suspended users, and not in your own row.
  */
 export const ChatUserButton: React.FC<ChatUserButtonProps> = ({ user }) => {
-	const { me } = useChatSnapshot();
+	const { me, conversations } = useChatSnapshot();
+	// What this user wrote that the admin has not read: the button pulses until the conversation is opened.
+	const unread = conversations.get(user.id)?.unread ?? 0;
 	const [forcing, setForcing] = useState(false);
 
 	if (!me?.admin || me.id === user.id) return null;
@@ -45,12 +48,15 @@ export const ChatUserButton: React.FC<ChatUserButtonProps> = ({ user }) => {
 	const peer = { id: user.id, username: user.username, name: user.name ?? "" };
 
 	return (
-		<span className="inline-flex h-7 shrink-0 items-stretch rounded-md border border-solid border-border-default bg-transparent focus-within:ring-2 focus-within:ring-content-link">
+		<span
+			className="chat-user-button inline-flex h-7 shrink-0 items-stretch rounded-md border border-solid border-border-default bg-transparent focus-within:ring-2 focus-within:ring-content-link"
+			data-unread={unread > 0 || undefined}
+		>
 			<Button
 				size="sm"
 				variant="subtle"
 				className="h-full min-w-0 rounded-r-none px-2"
-				aria-label={`Chat with ${user.username}`}
+				aria-label={`Chat with ${user.username}${unread > 0 ? `, ${unread} unread` : ""}`}
 				onClick={(event) => {
 					// The row itself opens the user's workspace.
 					event.stopPropagation();
