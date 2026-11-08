@@ -10,8 +10,20 @@ import {
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import { SERIES_WINDOW_MS } from "./dashboardModel";
 
+/** A card's icon tile tints, after the Cloud Drive's. */
+const TONES = {
+	sky: "bg-surface-sky text-highlight-sky",
+	purple: "bg-surface-purple text-highlight-purple",
+	green: "bg-surface-green text-highlight-green",
+	orange: "bg-surface-orange text-highlight-orange",
+	magenta: "bg-surface-magenta text-highlight-magenta",
+} as const;
+
 type DashboardCardProps = {
 	title: string;
+	/** The icon in a tinted tile before the title. */
+	icon?: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+	tone?: keyof typeof TONES;
 	actions?: React.ReactNode;
 	className?: string;
 	children: React.ReactNode;
@@ -20,6 +32,8 @@ type DashboardCardProps = {
 /** A titled card of the Dashboard: an uppercase header with optional actions on the right. */
 export const DashboardCard: React.FC<DashboardCardProps> = ({
 	title,
+	icon: Icon,
+	tone = "sky",
 	actions,
 	className,
 	children,
@@ -34,9 +48,21 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 			)}
 		>
 			<header className="mb-3 flex items-center justify-between gap-2">
-				<h2 className="m-0 text-[13px] font-bold uppercase tracking-wide text-content-primary">
-					{title}
-				</h2>
+				<span className="flex min-w-0 items-center gap-3">
+					{Icon && (
+						<span
+							className={cn(
+								"flex size-10 shrink-0 items-center justify-center rounded-xl",
+								TONES[tone],
+							)}
+						>
+							<Icon aria-hidden className="size-5" />
+						</span>
+					)}
+					<h2 className="m-0 truncate text-[13px] font-bold uppercase tracking-wide text-content-primary">
+						{title}
+					</h2>
+				</span>
 				{actions}
 			</header>
 			{children}

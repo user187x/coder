@@ -1,4 +1,4 @@
-import { CloudIcon, CpuIcon, LockIcon } from "lucide-react";
+import { LockIcon } from "lucide-react";
 import type { CloudDriveSettings, SafeSummary } from "#/api/platform";
 import {
 	StatusIndicator,
@@ -54,9 +54,6 @@ export const CloudDriveCardBody: React.FC<{
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center gap-3">
-				<span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-sky text-highlight-sky">
-					<CloudIcon aria-hidden className="size-5" />
-				</span>
 				<div className="flex min-w-0 flex-1 flex-col">
 					<span className="flex items-center gap-1.5 truncate text-sm font-medium text-content-primary">
 						{settings?.bucket || "Cloud Drive"}
@@ -142,9 +139,6 @@ export const GpuCardBody: React.FC<{
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center gap-3">
-				<span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-green text-content-success">
-					<CpuIcon aria-hidden className="size-5" />
-				</span>
 				<span className="flex flex-col">
 					<span className="text-2xl font-semibold tabular-nums text-content-primary">
 						{known ? formatQuotaNumber(claimed) : "N/A"}

@@ -1,4 +1,14 @@
 import { cn } from "cn";
+import {
+	CircuitBoardIcon,
+	CloudIcon,
+	CpuIcon,
+	GaugeIcon,
+	HardDriveIcon,
+	MemoryStickIcon,
+	MonitorIcon,
+	NetworkIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { useQueries, useQuery } from "react-query";
 import { PlatformError } from "#/api/platform";
@@ -151,7 +161,12 @@ const DashboardPage: React.FC = () => {
 			: histories.length > 0 && histories.every((h) => h.isLoading));
 
 	const usageCard = (resource: "cpu" | "memory", title: string) => (
-		<DashboardCard title={title} actions={<RangePill />}>
+		<DashboardCard
+			title={title}
+			icon={resource === "cpu" ? CpuIcon : MemoryStickIcon}
+			tone={resource === "cpu" ? "sky" : "purple"}
+			actions={<RangePill />}
+		>
 			<CardState
 				isLoading={trendLoading}
 				error={scopeError ?? (cluster && !live ? trend.error : undefined)}
@@ -236,7 +251,7 @@ const DashboardPage: React.FC = () => {
 				    four columns, which the cards always fill, so a wide window centres them instead of leaving empty columns on
 				    the right. */}
 				<div className="[column-gap:16px] [columns:20rem_4] [&>*]:mb-4 [&>*]:break-inside-avoid">
-					<DashboardCard title="Summary">
+					<DashboardCard title="Summary" icon={GaugeIcon} tone="purple">
 						<CardState isLoading={scopeQuery.isLoading} error={scopeError}>
 							{scope && (
 								<SummaryCardBody
@@ -251,7 +266,7 @@ const DashboardPage: React.FC = () => {
 							)}
 						</CardState>
 					</DashboardCard>
-					<DashboardCard title="Workspaces">
+					<DashboardCard title="Workspaces" icon={MonitorIcon} tone="green">
 						<CardState
 							isLoading={scopeQuery.isLoading}
 							error={scopeError}
@@ -274,6 +289,8 @@ const DashboardPage: React.FC = () => {
 					{/* Always there; greyed out while no workspace has a GPU. */}
 					<DashboardCard
 						title="GPU"
+						icon={CircuitBoardIcon}
+						tone="magenta"
 						className={cn(!gpus && "opacity-50 grayscale")}
 					>
 						<GpuCardBody
@@ -281,7 +298,7 @@ const DashboardPage: React.FC = () => {
 							known={!cluster}
 						/>
 					</DashboardCard>
-					<DashboardCard title="Cloud Drive">
+					<DashboardCard title="Cloud Drive" icon={CloudIcon}>
 						<CardState
 							isLoading={drive.isLoading}
 							error={driveMissing || drive.data ? undefined : drive.error}
@@ -299,7 +316,7 @@ const DashboardPage: React.FC = () => {
 						</CardState>
 					</DashboardCard>
 					{usageCard("memory", "Memory")}
-					<DashboardCard title="Disks">
+					<DashboardCard title="Disks" icon={HardDriveIcon} tone="green">
 						<CardState
 							isLoading={scopeQuery.isLoading}
 							error={scopeError}
@@ -318,7 +335,12 @@ const DashboardPage: React.FC = () => {
 					</DashboardCard>
 					{usageCard("cpu", "Processor")}
 					{networkTargets.length > 0 && (
-						<DashboardCard title="Network" actions={<RangePill />}>
+						<DashboardCard
+							title="Network"
+							icon={NetworkIcon}
+							tone="orange"
+							actions={<RangePill />}
+						>
 							<CardState
 								isLoading={networkLoading && !network}
 								error={network ? undefined : networkError}
