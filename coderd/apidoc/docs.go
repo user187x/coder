@@ -15576,6 +15576,11 @@ const docTemplate = `{
                     "description": "AgentAPIVersion is the current version of the Agent API (back versions\nMAY still be supported).",
                     "type": "string"
                 },
+                "build_time": {
+                    "description": "BuildTime is when the build's source was committed: the release's date. Absent when the build does not\nrecord it (a development build from a dirty tree).",
+                    "type": "string",
+                    "format": "date-time"
+                },
                 "dashboard_url": {
                     "description": "DashboardURL is the URL to hit the deployment's dashboard.\nFor external workspace proxies, this is the coderd they are connected\nto.",
                     "type": "string"

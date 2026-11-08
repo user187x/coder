@@ -7,7 +7,6 @@ import {
 	CopyIcon,
 	LogOutIcon,
 	PaletteIcon,
-	TerminalIcon,
 } from "lucide-react";
 import { useId, useState } from "react";
 import { Link } from "react-router";
@@ -66,12 +65,6 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 			)}
 			{profileExtra}
 			<DropdownMenuSeparator />
-			<DropdownMenuItem asChild title="Install CLI">
-				<Link to="/install">
-					<TerminalIcon />
-					<span className={compact ? "sr-only" : undefined}>Install CLI</span>
-				</Link>
-			</DropdownMenuItem>
 			<DropdownMenuItem asChild title="Account">
 				<Link to="/settings/account">
 					<CircleUserIcon />

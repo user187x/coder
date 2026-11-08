@@ -714,6 +714,7 @@ func New(options *Options) *API {
 	buildInfo := codersdk.BuildInfoResponse{
 		ExternalURL:           buildinfo.ExternalURL(),
 		Version:               buildinfo.Version(),
+		BuildTime:             buildTime(),
 		AgentAPIVersion:       AgentAPIVersionREST,
 		ProvisionerAPIVersion: proto.CurrentVersion.String(),
 		DashboardURL:          api.AccessURL.String(),
@@ -2394,4 +2395,13 @@ func singleSlashMW(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(fn)
+}
+
+// buildTime is the build's commit time for the build info, or nil when the build does not record one.
+func buildTime() *time.Time {
+	t, ok := buildinfo.Time()
+	if !ok {
+		return nil
+	}
+	return &t
 }

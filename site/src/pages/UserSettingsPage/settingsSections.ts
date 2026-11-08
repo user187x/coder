@@ -7,6 +7,7 @@ import {
 	KeySquareIcon,
 	LockIcon,
 	PaletteIcon,
+	PlugIcon,
 	TicketIcon,
 	VaultIcon,
 } from "lucide-react";
@@ -19,6 +20,7 @@ export const settingsSections = {
 	security: { label: "Security", icon: LockIcon },
 	"ssh-keys": { label: "SSH Keys", icon: KeySquareIcon },
 	tokens: { label: "Tokens", icon: TicketIcon },
+	integration: { label: "Integration", icon: PlugIcon },
 	secrets: { label: "Secrets", icon: VaultIcon },
 	certificates: { label: "Certificates", icon: FileKeyIcon },
 	notifications: { label: "Notifications", icon: BellIcon },

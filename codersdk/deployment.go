@@ -4238,6 +4238,9 @@ type BuildInfoResponse struct {
 	ExternalURL string `json:"external_url"`
 	// Version returns the semantic version of the build.
 	Version string `json:"version"`
+	// BuildTime is when the build's source was committed: the release's date. Absent when the build does not
+	// record it (a development build from a dirty tree).
+	BuildTime *time.Time `json:"build_time,omitempty" format:"date-time"`
 	// DashboardURL is the URL to hit the deployment's dashboard.
 	// For external workspace proxies, this is the coderd they are connected
 	// to.

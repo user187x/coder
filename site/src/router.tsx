@@ -48,6 +48,9 @@ const OrganizationSettingsLayout = lazy(
 	() => import("./modules/management/OrganizationSettingsLayout"),
 );
 const CliAuthPage = lazy(() => import("./pages/CliAuthPage/CliAuthPage"));
+const IntegrationPage = lazy(
+	() => import("./pages/UserSettingsPage/IntegrationPage/IntegrationPage"),
+);
 const CliInstallPage = lazy(
 	() => import("./pages/CliInstallPage/CliInstallPage"),
 );
@@ -641,6 +644,7 @@ export const router = createBrowserRouter(
 							<Route path="new" element={<CreateTokenPage />} />
 						</Route>
 						<Route path="secrets" element={<SecretsPage />} />
+						<Route path="integration" element={<IntegrationPage />} />
 						<Route path="certificates" element={<CertificatesPage />} />
 						<Route path="notifications" element={<UserNotificationsPage />} />
 					</Route>

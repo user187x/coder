@@ -1026,6 +1026,11 @@ export interface BuildInfoResponse {
 	 */
 	readonly version: string;
 	/**
+	 * BuildTime is when the build's source was committed: the release's date. Absent when the build does not
+	 * record it (a development build from a dirty tree).
+	 */
+	readonly build_time?: string;
+	/**
 	 * DashboardURL is the URL to hit the deployment's dashboard.
 	 * For external workspace proxies, this is the coderd they are connected
 	 * to.

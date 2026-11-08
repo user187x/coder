@@ -1229,6 +1229,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 ```json
 {
   "agent_api_version": "string",
+  "build_time": "2019-08-24T14:15:22Z",
   "dashboard_url": "string",
   "deployment_id": "string",
   "external_url": "string",
@@ -1246,6 +1247,7 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | Name                      | Type    | Required | Restrictions | Description                                                                                                                                                         |
 |---------------------------|---------|----------|--------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `agent_api_version`       | string  | false    |              | Agent api version is the current version of the Agent API (back versions MAY still be supported).                                                                   |
+| `build_time`              | string  | false    |              | Build time is when the build's source was committed: the release's date. Absent when the build does not record it (a development build from a dirty tree).          |
 | `dashboard_url`           | string  | false    |              | Dashboard URL is the URL to hit the deployment's dashboard. For external workspace proxies, this is the coderd they are connected to.                               |
 | `deployment_id`           | string  | false    |              | Deployment ID is the unique identifier for this deployment.                                                                                                         |
 | `external_url`            | string  | false    |              | External URL references the current Coder version. For production builds, this will link directly to a release. For development builds, this will link to a commit. |
