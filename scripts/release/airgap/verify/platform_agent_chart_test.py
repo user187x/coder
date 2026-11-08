@@ -18,7 +18,10 @@ class PlatformAgentChartTest(unittest.TestCase):
 
     def test_native_agent_manifest_and_startup_shell(self):
         config = json.loads(self.docs[("ConfigMap", "coder-platform-agent")]["data"]["agent.json"])
-        self.assertEqual({s["display_name"] for s in config["scripts"]}, {"Lock Down", "Cloud Drive"})
+        self.assertEqual({s["display_name"] for s in config["scripts"]}, {"Workspace setup", "Lock Down", "Cloud Drive"})
+        # The agent runs its own setup in place of this exact script (agent/agent.go nativeSetupScripts).
+        setup = next(s for s in config["scripts"] if s["display_name"] == "Workspace setup")
+        self.assertEqual(setup["script"], "coder-platform-setup")
         self.assertEqual(len({m["key"] for m in config["metadata"]}), 10)
         for script in config["scripts"]:
             with self.subTest(script=script["display_name"]):

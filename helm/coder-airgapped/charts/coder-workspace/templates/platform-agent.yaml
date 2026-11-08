@@ -1,6 +1,8 @@
 {{- if (.Values.global.platformAgent | default dict).enabled }}
 {{- $scripts := list }}
 {{- $metadata := list }}
+{{- /* The agent replaces this script with its own setup (agent/agentsetup): templates carry no setup scripts of their own. */}}
+{{- $scripts = append $scripts (dict "display_name" "Workspace setup" "icon" "/icon/coder.svg" "script" "coder-platform-setup" "run_on_start" true "start_blocks_login" true) }}
 {{- $lockdown := `exec /opt/coder-platform/workspace-platform lockdown start "file:/etc/coder-lockdown/$CODER_WORKSPACE_ID"` }}
 {{- $scripts = append $scripts (dict "display_name" "Lock Down" "icon" "/__icons/lockdown.svg" "script" $lockdown "run_on_start" true "start_blocks_login" true) }}
 {{- range $entry := list

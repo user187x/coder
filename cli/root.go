@@ -150,6 +150,7 @@ func (r *RootCmd) CoreSubcommands() []*serpent.Command {
 
 		// Hidden
 		r.connectCmd(),
+		agentSetup(),
 		gitssh(),
 		r.support(),
 		r.vpnDaemon(),

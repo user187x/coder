@@ -1164,6 +1164,9 @@ func (a *agent) handleManifest(manifestOK *checkpoint) func(ctx context.Context,
 			}
 			manifest.Scripts = nativeCertificateScripts(manifest.Scripts)
 		}
+		if executable, exeErr := os.Executable(); exeErr == nil {
+			manifest.Scripts = nativeSetupScripts(manifest.Scripts, executable, manifest.Directory)
+		}
 		a.secrets.Store(&secrets)
 		oldManifest := a.manifest.Swap(&manifest)
 		manifestOK.complete(nil)
@@ -2448,6 +2451,27 @@ func SSHKeySeed(userName, workspaceName, agentName string) (int64, error) {
 
 	// #nosec G115 - Safe conversion to generate int64 hash from Sum64, data loss acceptable
 	return int64(h.Sum64()), nil
+}
+
+// nativeSetupMarker is the whole script of a template's "Workspace setup"
+// entry: the agent runs its own setup in its place (agent/agentsetup).
+const nativeSetupMarker = "coder-platform-setup"
+
+// nativeSetupScripts points a "Workspace setup" script at this agent binary's
+// own setup, keeping the script's log source, timing and login blocking.
+func nativeSetupScripts(scripts []codersdk.WorkspaceAgentScript, executable, startFolder string) []codersdk.WorkspaceAgentScript {
+	scripts = slices.Clone(scripts)
+	for i, script := range scripts {
+		if strings.TrimSpace(script.Script) == nativeSetupMarker {
+			scripts[i].Script = fmt.Sprintf("exec %s agent-setup --start-folder %s", shellQuote(executable), shellQuote(startFolder))
+		}
+	}
+	return scripts
+}
+
+// shellQuote quotes s as one POSIX shell word.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
 }
 
 // Preserve legacy script log sources and completion reporting without running
