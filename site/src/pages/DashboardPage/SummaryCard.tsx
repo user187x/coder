@@ -1,6 +1,7 @@
 import { cn } from "cn";
+import { useState } from "react";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
-import { DottedRow } from "./DashboardCard";
+import { DottedRow, GraphFrame } from "./DashboardCard";
 import { QuotaRings, type Ring, WatermarkBadge } from "./dashboardCharts";
 import {
 	type DashboardScope,
@@ -55,6 +56,8 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 	live,
 	limitName,
 }) => {
+	// The ring pointed at, or its legend entry: both light up together.
+	const [active, setActive] = useState<number | null>(null);
 	const rings: Ring[] = ORDER.map((resource) => ({
 		label: RESOURCE_STYLE[resource].label,
 		used: scope.allocated[resource],
@@ -63,18 +66,34 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 		stroke: RESOURCE_STYLE[resource].stroke,
 	}));
 	return (
-		<div className="flex flex-col gap-5">
+		<div className="@container flex flex-col gap-5">
 			<div className="flex flex-wrap items-center gap-6">
-				<QuotaRings rings={rings} limitName={limitName} />
+				<GraphFrame className="shrink-0 p-2">
+					<QuotaRings
+						rings={rings}
+						limitName={limitName}
+						active={active}
+						onActiveChange={setActive}
+					/>
+				</GraphFrame>
 				<ul className="m-0 flex min-w-[180px] flex-1 list-none flex-col gap-3 p-0">
-					{ORDER.map((resource) => {
+					{ORDER.map((resource, index) => {
 						const used = scope.allocated[resource];
 						const limit = scope.limits[resource];
 						const style = RESOURCE_STYLE[resource];
 						const level = watermarkLevel(used, limit);
 						return (
-							<li key={resource} className="flex flex-col">
-								<span className="flex items-center gap-2 text-xs text-content-secondary">
+							<li
+								key={resource}
+								className={cn(
+									"-mx-2 flex flex-col rounded-lg px-2 transition-[background-color,opacity] duration-200",
+									active === index && "bg-surface-secondary",
+									active !== null && active !== index && "opacity-50",
+								)}
+								onMouseEnter={() => setActive(index)}
+								onMouseLeave={() => setActive(null)}
+							>
+								<span className="flex items-center gap-2 whitespace-nowrap text-xs text-content-secondary">
 									<span
 										aria-hidden
 										className={cn("size-2 rounded-full", style.dot)}
@@ -82,7 +101,7 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 									{style.label}
 									{scope.modes[resource] === "instance" && " (per workspace)"}
 								</span>
-								<span className="text-2xl font-semibold tabular-nums text-content-primary">
+								<span className="whitespace-nowrap text-2xl font-semibold tabular-nums text-content-primary">
 									{formatQuotaNumber(used)}
 									<span className="text-sm font-normal text-content-secondary">
 										{limit === null
@@ -102,7 +121,8 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 					reference.
 				</p>
 			)}
-			<div className="grid grid-cols-1 gap-4 border-0 border-t border-solid border-border pt-4 sm:grid-cols-3">
+			{/* Three columns only where the card has room for each reading on one line. */}
+			<div className="grid grid-cols-1 gap-4 border-0 border-t border-solid border-border pt-4 @min-[600px]:grid-cols-3">
 				<div className="flex flex-col gap-1.5">
 					<h3 className="m-0 text-xs font-semibold text-content-primary">
 						Running

@@ -73,18 +73,24 @@ const RING_GAP = 4;
 /**
  * Concentric rings, outermost first, each the allocation against its limit. A tick across each ring marks the
  * limit (the watermark); a ring turns the warning colour at 80% of its limit and the danger colour at the limit.
+ * Pointing at a ring (or setting `active`, as its legend does) dims the others and writes its reading in the middle.
  */
 export const QuotaRings: React.FC<{
 	rings: readonly Ring[];
 	limitName?: string;
-}> = ({ rings, limitName }) => {
+	/** The ring pointed at, by index; null for none. */
+	active?: number | null;
+	onActiveChange?: (index: number | null) => void;
+}> = ({ rings, limitName, active = null, onActiveChange }) => {
 	const centre = RING_SIZE / 2;
+	const shown = active === null ? undefined : rings[active];
 	return (
 		<svg
 			role="img"
 			aria-label={rings.map((r) => allocationText(r, limitName)).join("; ")}
 			viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
 			className="size-[168px] shrink-0"
+			onMouseLeave={() => onActiveChange?.(null)}
 		>
 			{rings.map((ring, i) => {
 				const radius =
@@ -96,7 +102,27 @@ export const QuotaRings: React.FC<{
 				const inner = radius - RING_STROKE / 2 - 1;
 				const outer = radius + RING_STROKE / 2 + 1;
 				return (
-					<g key={ring.label}>
+					<g
+						key={ring.label}
+						data-ring={ring.label}
+						data-active={active === i || undefined}
+						className={cn(
+							"transition-opacity duration-200",
+							active !== null && active !== i && "opacity-30",
+						)}
+						onMouseEnter={() => onActiveChange?.(i)}
+					>
+						<title>{allocationText(ring, limitName)}</title>
+						{/* what the pointer catches: the ring and half the gaps beside it */}
+						<circle
+							cx={centre}
+							cy={centre}
+							r={radius}
+							fill="none"
+							stroke="transparent"
+							strokeWidth={RING_STROKE + RING_GAP}
+							pointerEvents="stroke"
+						/>
 						<circle
 							cx={centre}
 							cy={centre}
@@ -135,6 +161,38 @@ export const QuotaRings: React.FC<{
 					</g>
 				);
 			})}
+			{shown && (
+				<g aria-hidden className="pointer-events-none">
+					<text
+						x={centre}
+						y={centre - 8}
+						textAnchor="middle"
+						className="fill-content-secondary text-[10px]"
+					>
+						{shown.label}
+					</text>
+					<text
+						x={centre}
+						y={centre + 7}
+						textAnchor="middle"
+						className="fill-content-primary text-[15px] font-semibold tabular-nums"
+					>
+						{shown.limit && shown.limit > 0
+							? `${Math.round((shown.used / shown.limit) * 100)}%`
+							: formatQuotaNumber(shown.used)}
+					</text>
+					<text
+						x={centre}
+						y={centre + 20}
+						textAnchor="middle"
+						className="fill-content-secondary text-[9px] tabular-nums"
+					>
+						{shown.limit === null
+							? shown.unit
+							: `${formatQuotaNumber(shown.used)}/${formatQuotaNumber(shown.limit)} ${shown.unit}`}
+					</text>
+				</g>
+			)}
 		</svg>
 	);
 };

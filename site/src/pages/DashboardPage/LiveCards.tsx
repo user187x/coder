@@ -1,14 +1,7 @@
 import { cn } from "cn";
-import { ChevronDownIcon } from "lucide-react";
-import { useState } from "react";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "#/components/Collapsible/Collapsible";
 import { formatRate } from "#/modules/platform/networkLeds/NetworkHistogram";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
-import { DottedRow } from "./DashboardCard";
+import { GraphFrame, ShowWorkspaces } from "./DashboardCard";
 import { type BarSegment, QuotaBar, Sparkline } from "./dashboardCharts";
 import {
 	type DashboardScope,
@@ -78,7 +71,6 @@ export const UsageCardBody: React.FC<UsageCardBodyProps> = ({
 	perWorkspace,
 	limitName,
 }) => {
-	const [open, setOpen] = useState(false);
 	const style = RESOURCE_STYLE[resource];
 	const unit = RESOURCE_UNIT[resource];
 	const limit = scope.limits[resource];
@@ -120,7 +112,7 @@ export const UsageCardBody: React.FC<UsageCardBodyProps> = ({
 					</ul>
 				)}
 			</div>
-			<div className="flex flex-col gap-1">
+			<GraphFrame className="flex flex-col gap-1">
 				<div className="flex items-baseline justify-between text-xs">
 					<span className="font-semibold text-content-primary">In use</span>
 					<span className="tabular-nums text-content-secondary">
@@ -144,44 +136,36 @@ export const UsageCardBody: React.FC<UsageCardBodyProps> = ({
 						{formatQuotaNumber(limit)} {unit}
 					</span>
 				)}
-			</div>
+			</GraphFrame>
 			{perWorkspace.length > 0 && (
-				<Collapsible open={open} onOpenChange={setOpen}>
-					<CollapsibleTrigger className="flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-xs font-medium text-content-link">
-						{open ? "Hide workspaces" : "Show workspaces"}
-						<ChevronDownIcon
-							aria-hidden
-							className={cn(
-								"size-3.5 transition-transform",
-								open && "rotate-180",
-							)}
-						/>
-					</CollapsibleTrigger>
-					<CollapsibleContent asChild>
-						<dl className="m-0 mt-2 flex flex-col gap-1.5">
-							{perWorkspace.map((w) => (
-								<DottedRow
-									key={w.id}
-									label={w.name}
-									value={
-										w.value === null
-											? "N/A"
-											: `${formatQuotaNumber(w.value)} ${unit}`
-									}
-								/>
-							))}
-						</dl>
-					</CollapsibleContent>
-				</Collapsible>
+				<ShowWorkspaces
+					rows={perWorkspace.map((w) => ({
+						id: w.id,
+						label: w.name,
+						value:
+							w.value === null
+								? "N/A"
+								: `${formatQuotaNumber(w.value)} ${unit}`,
+					}))}
+				/>
 			)}
 		</div>
 	);
 };
 
+/** Received and sent now, for one workspace; null where it has no reading. */
+export type NetworkReading = {
+	id: string;
+	name: string;
+	rx: number | null;
+	tx: number | null;
+};
+
 export const NetworkCardBody: React.FC<{
 	rx: Series;
 	tx: Series;
-}> = ({ rx, tx }) => {
+	perWorkspace: readonly NetworkReading[];
+}> = ({ rx, tx, perWorkspace }) => {
 	const rows = [
 		{
 			label: "Received",
@@ -198,33 +182,47 @@ export const NetworkCardBody: React.FC<{
 	];
 	return (
 		<div className="flex flex-col gap-4">
-			{rows.map((row) => {
-				const now = row.series.latest;
-				const peak = Math.max(0, ...row.series.points.map((p) => p ?? 0));
-				return (
-					<div key={row.label} className="flex flex-col gap-1">
-						<div className="flex items-baseline justify-between text-xs">
-							<span className="font-semibold text-content-primary">
-								{row.label}
-							</span>
-							<span className="tabular-nums text-content-secondary">
-								{now === null ? "N/A" : formatRate(now)}
-							</span>
+			<GraphFrame className="flex flex-col gap-4">
+				{rows.map((row) => {
+					const now = row.series.latest;
+					const peak = Math.max(0, ...row.series.points.map((p) => p ?? 0));
+					return (
+						<div key={row.label} className="flex flex-col gap-1">
+							<div className="flex items-baseline justify-between text-xs">
+								<span className="font-semibold text-content-primary">
+									{row.label}
+								</span>
+								<span className="tabular-nums text-content-secondary">
+									{now === null ? "N/A" : formatRate(now)}
+								</span>
+							</div>
+							<Sparkline
+								label={
+									now === null
+										? `${row.label}: no readings in the last 5 minutes`
+										: `${row.label} over the last 5 minutes: now ${formatRate(now)}, peak ${formatRate(peak)}`
+								}
+								points={row.series.points}
+								limit={null}
+								stroke={row.stroke}
+								fill={row.fill}
+							/>
 						</div>
-						<Sparkline
-							label={
-								now === null
-									? `${row.label}: no readings in the last 5 minutes`
-									: `${row.label} over the last 5 minutes: now ${formatRate(now)}, peak ${formatRate(peak)}`
-							}
-							points={row.series.points}
-							limit={null}
-							stroke={row.stroke}
-							fill={row.fill}
-						/>
-					</div>
-				);
-			})}
+					);
+				})}
+			</GraphFrame>
+			{perWorkspace.length > 0 && (
+				<ShowWorkspaces
+					rows={perWorkspace.map((w) => ({
+						id: w.id,
+						label: w.name,
+						value:
+							w.rx === null && w.tx === null
+								? "N/A"
+								: `${w.rx === null ? "N/A" : formatRate(w.rx)} in · ${w.tx === null ? "N/A" : formatRate(w.tx)} out`,
+					}))}
+				/>
+			)}
 		</div>
 	);
 };

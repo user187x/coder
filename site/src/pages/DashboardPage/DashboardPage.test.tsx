@@ -117,3 +117,40 @@ it("stops refreshing while Live is switched off", async () => {
 	expect(quota).toHaveBeenCalledTimes(quotaCalls);
 	expect(history).toHaveBeenCalledTimes(historyCalls);
 });
+
+it("writes a ring's reading in the middle while its legend is pointed at", async () => {
+	setup();
+	const user = userEvent.setup();
+	const rings = await screen.findByRole("img", { name: /CPU: 6 of 8 cores/ });
+	expect(within(rings).queryByText("6/8 cores")).toBeNull();
+	const cpu = within(summary())
+		.getAllByRole("listitem")
+		.find((item) => item.textContent?.startsWith("CPU"));
+	if (!cpu) {
+		throw new Error("no CPU legend entry");
+	}
+	await user.hover(cpu);
+	expect(within(rings).getByText("6/8 cores")).toHaveTextContent("6/8 cores");
+	await user.unhover(cpu);
+	expect(within(rings).queryByText("6/8 cores")).toBeNull();
+});
+
+it.each(["Workspaces", "Disks"])(
+	"folds the %s card's workspaces behind Show workspaces",
+	async (title) => {
+		setup();
+		const user = userEvent.setup();
+		const card = await screen.findByRole("region", { name: title });
+		const toggle = await within(card).findByRole("button", {
+			name: "Show workspaces",
+		});
+		expect(toggle).toHaveAttribute("aria-expanded", "false");
+		await user.click(toggle);
+		expect(
+			within(card).getByRole("button", { name: "Hide workspaces" }),
+		).toHaveAttribute("aria-expanded", "true");
+		expect(
+			within(card).getByText(MockQuotaMeResources.workspaces[0].name),
+		).toHaveTextContent(MockQuotaMeResources.workspaces[0].name);
+	},
+);

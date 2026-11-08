@@ -6,7 +6,7 @@ import {
 } from "#/components/StatusIndicator/StatusIndicator";
 import { formatBytes } from "#/modules/platform/cloudDrive/drivePaths";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
-import { DottedRow } from "./DashboardCard";
+import { DottedRow, GraphFrame } from "./DashboardCard";
 import { QuotaBar, WatermarkBadge } from "./dashboardCharts";
 import { type DashboardWorkspace, watermarkLevel } from "./dashboardModel";
 
@@ -81,40 +81,45 @@ export const CloudDriveCardBody: React.FC<{
 					)}
 				</div>
 			</div>
-			<QuotaBar
-				label="Cloud Drive used"
-				unit="bytes"
-				format={formatBytes}
-				limit={limit}
-				segments={[
-					{
-						label: "Your files",
-						value: drive.usedBytes,
-						fill: "bg-highlight-sky",
-					},
-					{
-						label: "Shared with you",
-						value: sharedUsed,
-						fill: "bg-highlight-purple",
-					},
-				]}
-			/>
-			<div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-content-secondary">
-				<span className="flex items-center gap-1.5">
-					<span aria-hidden className="size-2 rounded-full bg-highlight-sky" />
-					Your files {formatBytes(drive.usedBytes)}
-				</span>
-				{shared.length > 0 && (
+			<GraphFrame className="flex flex-col gap-3">
+				<QuotaBar
+					label="Cloud Drive used"
+					unit="bytes"
+					format={formatBytes}
+					limit={limit}
+					segments={[
+						{
+							label: "Your files",
+							value: drive.usedBytes,
+							fill: "bg-highlight-sky",
+						},
+						{
+							label: "Shared with you",
+							value: sharedUsed,
+							fill: "bg-highlight-purple",
+						},
+					]}
+				/>
+				<div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-content-secondary">
 					<span className="flex items-center gap-1.5">
 						<span
 							aria-hidden
-							className="size-2 rounded-full bg-highlight-purple"
+							className="size-2 rounded-full bg-highlight-sky"
 						/>
-						Shared with you {formatBytes(sharedUsed)}
+						Your files {formatBytes(drive.usedBytes)}
 					</span>
-				)}
-				<WatermarkBadge level={level} />
-			</div>
+					{shared.length > 0 && (
+						<span className="flex items-center gap-1.5">
+							<span
+								aria-hidden
+								className="size-2 rounded-full bg-highlight-purple"
+							/>
+							Shared with you {formatBytes(sharedUsed)}
+						</span>
+					)}
+					<WatermarkBadge level={level} />
+				</div>
+			</GraphFrame>
 			<dl className="m-0 flex flex-col gap-1.5 border-0 border-t border-solid border-border pt-3">
 				<DottedRow label="Files" value={drive.files.toLocaleString("en-US")} />
 				<DottedRow label="Mounted at" value={drive.mountPath || "N/A"} />

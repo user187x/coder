@@ -10,6 +10,7 @@ import {
 import { StatusIndicatorDot } from "#/components/StatusIndicator/StatusIndicator";
 import { UsageBar } from "#/components/UsageBar/UsageBar";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
+import { GraphFrame, ShowWorkspaces } from "./DashboardCard";
 import { QuotaBar } from "./dashboardCharts";
 import {
 	type DashboardScope,
@@ -130,42 +131,85 @@ export const WorkspacesCardBody: React.FC<{
 			Number(b.running) - Number(a.running) ||
 			b.cpu + b.memory - (a.cpu + a.memory),
 	);
+	const running = rows.filter((w) => w.status === "running").length;
+	const stopped = rows.filter(
+		(w) => w.status === "stopped" || w.status === "deleted",
+	).length;
+	const other = rows.length - running - stopped;
+	const states = [
+		{ label: "Running", value: running, fill: "bg-highlight-green" },
+		{ label: "Stopped", value: stopped, fill: "bg-content-secondary" },
+		{ label: "Other", value: other, fill: "bg-highlight-orange" },
+	].filter((s) => s.value > 0);
 	return (
-		<Drawer
-			items={rows}
-			noun="workspaces"
-			render={(w) => (
-				<li key={w.id} className="flex items-center gap-3">
-					<StatusIndicatorDot
-						size="sm"
-						variant={statusVariant(w.status)}
-						aria-hidden
-					/>
-					<div className="flex min-w-0 flex-1 flex-col">
-						<Link
-							to={workspaceHref(w, me)}
-							className="truncate text-sm font-medium text-content-primary no-underline hover:underline"
-						>
-							{w.owner ? `${w.owner}/${w.name}` : w.name}
-						</Link>
-						<span className="text-xs text-content-secondary">
-							{statusText(w.status)}
-							{w.template ? ` · ${w.template}` : ""}
-						</span>
-					</div>
-					<span className="text-right text-xs tabular-nums text-content-secondary">
-						{formatQuotaNumber(w.cpu)} {w.cpu === 1 ? "core" : "cores"}
-						<br />
-						{formatQuotaNumber(w.memory)} GB · {formatQuotaNumber(w.disk)} GB
+		<div className="flex flex-col gap-4">
+			<GraphFrame className="flex flex-col gap-2">
+				<div className="flex items-baseline justify-between text-xs">
+					<span className="font-semibold text-content-primary">Status</span>
+					<span className="whitespace-nowrap tabular-nums text-content-secondary">
+						{rows.length} {rows.length === 1 ? "workspace" : "workspaces"}
 					</span>
-					<ShareBars
-						workspace={w}
-						limits={scope.limits}
-						limitName={limitName}
-					/>
-				</li>
-			)}
-		/>
+				</div>
+				<QuotaBar
+					label="Workspaces by status"
+					unit="workspaces"
+					limit={null}
+					segments={states}
+				/>
+				<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-content-secondary">
+					{states.map((s) => (
+						<span
+							key={s.label}
+							className="flex items-center gap-1.5 whitespace-nowrap"
+						>
+							<span aria-hidden className={cn("size-2 rounded-full", s.fill)} />
+							{s.label}
+							<span className="tabular-nums text-content-primary">
+								{s.value}
+							</span>
+						</span>
+					))}
+				</div>
+			</GraphFrame>
+			<ShowWorkspaces>
+				<Drawer
+					items={rows}
+					noun="workspaces"
+					render={(w) => (
+						<li key={w.id} className="flex items-center gap-3">
+							<StatusIndicatorDot
+								size="sm"
+								variant={statusVariant(w.status)}
+								aria-hidden
+							/>
+							<div className="flex min-w-0 flex-1 flex-col">
+								<Link
+									to={workspaceHref(w, me)}
+									className="truncate text-sm font-medium text-content-primary no-underline hover:underline"
+								>
+									{w.owner ? `${w.owner}/${w.name}` : w.name}
+								</Link>
+								<span className="text-xs text-content-secondary">
+									{statusText(w.status)}
+									{w.template ? ` · ${w.template}` : ""}
+								</span>
+							</div>
+							<span className="text-right text-xs tabular-nums text-content-secondary">
+								{formatQuotaNumber(w.cpu)} {w.cpu === 1 ? "core" : "cores"}
+								<br />
+								{formatQuotaNumber(w.memory)} GB · {formatQuotaNumber(w.disk)}{" "}
+								GB
+							</span>
+							<ShareBars
+								workspace={w}
+								limits={scope.limits}
+								limitName={limitName}
+							/>
+						</li>
+					)}
+				/>
+			</ShowWorkspaces>
+		</div>
 	);
 };
 
@@ -179,43 +223,7 @@ export const DisksCardBody: React.FC<{
 	const rows = [...scope.workspaces].sort((a, b) => b.disk - a.disk);
 	return (
 		<div className="flex flex-col gap-4">
-			<Drawer
-				items={rows}
-				noun="volumes"
-				render={(w) => {
-					const reading = disks.get(w.id) ?? null;
-					const size = reading?.total || w.disk;
-					const level = reading ? watermarkLevel(reading.used, size) : "none";
-					return (
-						<li key={w.id} className="flex flex-col gap-1">
-							<div className="flex items-baseline justify-between gap-2 text-xs">
-								<span className="truncate font-medium text-content-primary">
-									{w.owner ? `${w.owner}/${w.name}` : w.name}
-								</span>
-								<span className="tabular-nums text-content-secondary">
-									{reading
-										? `${formatQuotaNumber(reading.used)} / ${formatQuotaNumber(size)} GB`
-										: `${formatQuotaNumber(size)} GB${w.running ? "" : ", not running"}`}
-								</span>
-							</div>
-							{reading && (
-								<UsageBar
-									percent={size > 0 ? (reading.used / size) * 100 : 0}
-									severity={
-										level === "danger"
-											? "exceeded"
-											: level === "warning"
-												? "warning"
-												: "normal"
-									}
-									ariaLabel={`${w.name} disk: ${formatQuotaNumber(reading.used)} of ${formatQuotaNumber(size)} GB used, ${WATERMARK_TEXT[level].toLowerCase().replace("quota", "size")}`}
-								/>
-							)}
-						</li>
-					);
-				}}
-			/>
-			<div className="flex flex-col gap-2 border-0 border-t border-solid border-border pt-4">
+			<GraphFrame className="flex flex-col gap-2">
 				<div className="flex items-baseline justify-between text-xs">
 					<span className="font-semibold text-content-primary">
 						Total allocated
@@ -245,7 +253,45 @@ export const DisksCardBody: React.FC<{
 						},
 					]}
 				/>
-			</div>
+			</GraphFrame>
+			<ShowWorkspaces>
+				<Drawer
+					items={rows}
+					noun="volumes"
+					render={(w) => {
+						const reading = disks.get(w.id) ?? null;
+						const size = reading?.total || w.disk;
+						const level = reading ? watermarkLevel(reading.used, size) : "none";
+						return (
+							<li key={w.id} className="flex flex-col gap-1">
+								<div className="flex items-baseline justify-between gap-2 text-xs">
+									<span className="truncate font-medium text-content-primary">
+										{w.owner ? `${w.owner}/${w.name}` : w.name}
+									</span>
+									<span className="tabular-nums text-content-secondary">
+										{reading
+											? `${formatQuotaNumber(reading.used)} / ${formatQuotaNumber(size)} GB`
+											: `${formatQuotaNumber(size)} GB${w.running ? "" : ", not running"}`}
+									</span>
+								</div>
+								{reading && (
+									<UsageBar
+										percent={size > 0 ? (reading.used / size) * 100 : 0}
+										severity={
+											level === "danger"
+												? "exceeded"
+												: level === "warning"
+													? "warning"
+													: "normal"
+										}
+										ariaLabel={`${w.name} disk: ${formatQuotaNumber(reading.used)} of ${formatQuotaNumber(size)} GB used, ${WATERMARK_TEXT[level].toLowerCase().replace("quota", "size")}`}
+									/>
+								)}
+							</li>
+						);
+					}}
+				/>
+			</ShowWorkspaces>
 		</div>
 	);
 };

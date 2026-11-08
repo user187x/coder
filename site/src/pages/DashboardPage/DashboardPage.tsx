@@ -25,7 +25,11 @@ import {
 	scopeFromCluster,
 	scopeFromMine,
 } from "./dashboardModel";
-import { NetworkCardBody, UsageCardBody } from "./LiveCards";
+import {
+	NetworkCardBody,
+	type NetworkReading,
+	UsageCardBody,
+} from "./LiveCards";
 import { CloudDriveCardBody, GpuCardBody } from "./StorageCards";
 import { SummaryCardBody } from "./SummaryCard";
 import {
@@ -114,6 +118,17 @@ const DashboardPage: React.FC = () => {
 	const network = cluster
 		? null
 		: networkSeries(networks.map((n) => n.data?.agents));
+	const networkPerWorkspace: NetworkReading[] = cluster
+		? []
+		: running.map((w, i) => {
+				const own = networkSeries([networks[i]?.data?.agents]);
+				return {
+					id: w.id,
+					name: w.name,
+					rx: own?.rx.latest ?? null,
+					tx: own?.tx.latest ?? null,
+				};
+			});
 	const networkLoading = networks.some((n) => n.isLoading);
 	const networkError = networks.find((n) => n.error)?.error;
 	const gpuWorkspaces = (mine.data?.workspaces ?? []).filter(
@@ -292,7 +307,13 @@ const DashboardPage: React.FC = () => {
 								isLoading={networkLoading && !network}
 								error={network ? undefined : networkError}
 							>
-								{network && <NetworkCardBody rx={network.rx} tx={network.tx} />}
+								{network && (
+									<NetworkCardBody
+										rx={network.rx}
+										tx={network.tx}
+										perWorkspace={networkPerWorkspace}
+									/>
+								)}
 							</CardState>
 						</DashboardCard>
 					)}

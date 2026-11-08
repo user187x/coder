@@ -1,5 +1,12 @@
 import { cn } from "cn";
+import { ChevronDownIcon } from "lucide-react";
+import { useState } from "react";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "#/components/Collapsible/Collapsible";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 
 type DashboardCardProps = {
@@ -69,23 +76,73 @@ export const CardState: React.FC<CardStateProps> = ({
 	return children;
 };
 
-/** A label and its value with a dotted guide line between them, as in the template's breakdowns. */
+/**
+ * A label and its value with a dotted guide line between them, as in the template's breakdowns. Each stays on one
+ * line: the value never wraps, and a long label is cut short with an ellipsis instead.
+ */
 export const DottedRow: React.FC<{
 	label: React.ReactNode;
 	value: React.ReactNode;
 }> = ({ label, value }) => {
 	return (
 		<div className="flex items-baseline gap-2 text-xs">
-			<dt className="flex flex-1 items-baseline gap-2 text-content-secondary">
-				{label}
+			<dt className="flex min-w-0 flex-1 items-baseline gap-2 text-content-secondary">
+				<span className="truncate">{label}</span>
 				<span
 					aria-hidden
-					className="flex-1 border-0 border-b border-dotted border-border"
+					className="min-w-2 flex-1 border-0 border-b border-dotted border-border"
 				/>
 			</dt>
-			<dd className="m-0 font-medium tabular-nums text-content-primary">
+			<dd className="m-0 whitespace-nowrap font-medium tabular-nums text-content-primary">
 				{value}
 			</dd>
 		</div>
+	);
+};
+
+/** A faint squircle round a card's bottom graph (rounded corners where the browser has no squircle corner shape). */
+export const GraphFrame: React.FC<{
+	className?: string;
+	children: React.ReactNode;
+}> = ({ className, children }) => (
+	<div
+		className={cn(
+			"rounded-[18px] border border-solid border-border/60 bg-surface-secondary/40 px-3 py-2.5",
+			"supports-[corner-shape:squircle]:rounded-[28px] supports-[corner-shape:squircle]:[corner-shape:squircle]",
+			className,
+		)}
+	>
+		{children}
+	</div>
+);
+
+/**
+ * "Show workspaces": a card's reading for each workspace, folded away until asked for. Rows are dotted label and
+ * value pairs by default; `children` replaces them with the card's own list.
+ */
+export const ShowWorkspaces: React.FC<{
+	rows?: readonly { id: string; label: string; value: React.ReactNode }[];
+	children?: React.ReactNode;
+}> = ({ rows = [], children }) => {
+	const [open, setOpen] = useState(false);
+	return (
+		<Collapsible open={open} onOpenChange={setOpen}>
+			<CollapsibleTrigger className="flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-xs font-medium text-content-link">
+				{open ? "Hide workspaces" : "Show workspaces"}
+				<ChevronDownIcon
+					aria-hidden
+					className={cn("size-3.5 transition-transform", open && "rotate-180")}
+				/>
+			</CollapsibleTrigger>
+			<CollapsibleContent className="mt-2">
+				{children ?? (
+					<dl className="m-0 flex flex-col gap-1.5">
+						{rows.map((row) => (
+							<DottedRow key={row.id} label={row.label} value={row.value} />
+						))}
+					</dl>
+				)}
+			</CollapsibleContent>
+		</Collapsible>
 	);
 };
