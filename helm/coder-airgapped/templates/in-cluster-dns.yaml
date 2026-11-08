@@ -13,7 +13,8 @@
 {{- $coder := include "platform.coderHost" . | trim }}
 {{- $base := include "platform.wildcardHost" . | trim | trimPrefix "*." }}
 {{- $rules := list (printf "rewrite name regex ^%s\\.?$ %s answer auto" (regexQuoteMeta $coder) $target) (printf "rewrite name regex ^(.+)\\.%s\\.?$ %s answer auto" (regexQuoteMeta $base) $target) }}
-{{- $hash := printf "%s%s" (join "\n" $rules) (.Files.Get "files/hooks/coredns_rewrite.py") | sha256sum | trunc 8 }}
+{{- /* A Job's pod template cannot change: anything in it (the rules, the script, the node affinity) names a new Job. */}}
+{{- $hash := printf "%s%s%s" (join "\n" $rules) (.Files.Get "files/hooks/coredns_rewrite.py") (toJson .Values.controlPlaneNodeAffinity) | sha256sum | trunc 8 }}
 {{- $dnsNs := $d.namespace | default "kube-system" }}
 apiVersion: v1
 kind: ServiceAccount

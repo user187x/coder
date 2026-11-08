@@ -10,7 +10,7 @@
 {{- $name := printf "%s-apply" $db.name }}
 {{- $cluster := include "platform.dbCluster" . | fromYaml | toJson }}
 {{- $pooler := ternary (include "platform.dbPooler" . | fromYaml | toJson) "" $db.pooler.enabled }}
-{{- $hash := printf "%s%s%s" $cluster $pooler (.Files.Get "files/hooks/apply_database.py") | sha256sum | trunc 8 }}
+{{- $hash := printf "%s%s%s%s" $cluster $pooler (.Files.Get "files/hooks/apply_database.py") (toJson .Values.controlPlaneNodeAffinity) | sha256sum | trunc 8 }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
