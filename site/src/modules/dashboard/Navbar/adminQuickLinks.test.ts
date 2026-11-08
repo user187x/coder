@@ -174,6 +174,7 @@ it("offers personal destinations to members and restores their saved quick links
 	});
 	expect(ids(addableAdminPages([], pages))).toEqual([
 		"dashboard",
+		"traffic-control",
 		"workspaces",
 		"templates",
 		"chat",

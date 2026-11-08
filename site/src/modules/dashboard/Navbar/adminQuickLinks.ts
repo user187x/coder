@@ -20,6 +20,7 @@ import {
 	PaletteIcon,
 	TagIcon,
 	UsersIcon,
+	WaypointsIcon,
 } from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import type { Permissions } from "#/modules/permissions";
@@ -180,6 +181,12 @@ const WORKSPACE_PAGES: readonly AdminPage[] = [
 		label: "Dashboard",
 		icon: LayoutDashboardIcon,
 		path: "/dashboard",
+	},
+	{
+		id: "traffic-control",
+		label: "Traffic Control",
+		icon: WaypointsIcon,
+		path: "/traffic-control",
 	},
 	{
 		id: "workspaces",

@@ -25,10 +25,11 @@ describe("DeploymentSidebarView", () => {
 
 		const links = await screen.findAllByRole("link");
 		// Online Users (a card of the Chat page) and Overview (its rows in Network) are gone; Quick Menu,
-		// Dashboard, Templates and Workspaces are new
-		expect(links).toHaveLength(18);
+		// Dashboard, Templates, Traffic Control and Workspaces are new
+		expect(links).toHaveLength(19);
 		for (const [name, href] of [
 			["Dashboard", "/dashboard"],
+			["Traffic Control", "/traffic-control"],
 			["Images", "/images"],
 			["Templates", "/templates"],
 			["Workspaces", "/workspaces"],

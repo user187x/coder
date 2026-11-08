@@ -89,6 +89,9 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 					<Link to="/dashboard">Dashboard</Link>
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild className={itemStyles.default}>
+					<Link to="/traffic-control">Traffic Control</Link>
+				</DropdownMenuItem>
+				<DropdownMenuItem asChild className={itemStyles.default}>
 					<Link to="/workspaces">Workspaces</Link>
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild className={itemStyles.default}>

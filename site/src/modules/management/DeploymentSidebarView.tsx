@@ -120,6 +120,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		permissions.viewDeploymentConfig &&
 			item("security", "/deployment/security", "Security"),
 		item("templates", "/templates", "Templates"),
+		item("traffic-control", "/traffic-control", "Traffic Control"),
 		item("workspaces", "/workspaces", "Workspaces"),
 	];
 	const categories = candidates.filter((c): c is SidebarCategory => Boolean(c));

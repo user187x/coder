@@ -3,6 +3,7 @@ import {
 	LayoutDashboardIcon,
 	LayoutTemplateIcon,
 	MonitorIcon,
+	WaypointsIcon,
 } from "lucide-react";
 import { Link } from "react-router";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
@@ -50,6 +51,12 @@ export const WorkspacesDropdown: React.FC<{ images?: boolean }> = ({
 						<Link to="/dashboard">
 							<LayoutDashboardIcon aria-hidden />
 							Dashboard
+						</Link>
+					</DropdownMenuItem>
+					<DropdownMenuItem asChild>
+						<Link to="/traffic-control">
+							<WaypointsIcon aria-hidden />
+							Traffic Control
 						</Link>
 					</DropdownMenuItem>
 					<DropdownMenuItem asChild>

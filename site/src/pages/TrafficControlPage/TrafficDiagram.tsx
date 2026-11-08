@@ -1,0 +1,539 @@
+import { cn } from "cn";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
+import type {
+	PortOrb,
+	TrafficColumn,
+	TrafficTopology,
+	TunnelRate,
+} from "./trafficModel";
+
+const MARGIN = 40;
+const GAP = 90;
+const PORT_W = 124;
+const WS_W = 220;
+const TOP = 44;
+const LABEL_H = 56;
+const DOT_R = 24;
+
+/** The orbs' and columns' colours, as in the tunnel visualizer: blue in, green out, pink workspaces. */
+const PALETTE = {
+	input: {
+		fill: "#75bdca",
+		stroke: "#4f9aa6",
+		text: "#0f2e33",
+		tag: "#1c4c54",
+	},
+	output: {
+		fill: "#cfe17a",
+		stroke: "#8a9a46",
+		text: "#283011",
+		tag: "#434f20",
+	},
+	workspace: "#dc352e",
+	active: "#dc352e",
+	forward: "#ec4899",
+	back: "#38bdf8",
+} as const;
+
+type Point = { x: number; y: number; r: number; workspace: boolean };
+
+type Placed = {
+	column: TrafficColumn;
+	x: number;
+	w: number;
+	top: number;
+	h: number;
+};
+
+const columnHeight = (column: TrafficColumn) =>
+	column.kind === "workspace"
+		? Math.max(220, column.workspaces.length * 120 + 40)
+		: Math.max(220, column.orbs.length * 96 + 36);
+
+/** Where every column, orb and workspace sits; the diagram's size. */
+const layout = (topology: TrafficTopology) => {
+	const height = Math.max(...topology.columns.map(columnHeight));
+	const centre = TOP + height / 2;
+	const nodes = new Map<string, Point>();
+	const placed: Placed[] = [];
+	let x = MARGIN;
+	for (const column of topology.columns) {
+		const w = column.kind === "workspace" ? WS_W : PORT_W;
+		const h = columnHeight(column);
+		const top = centre - h / 2;
+		const cx = x + w / 2;
+		if (column.kind === "workspace") {
+			const k = column.workspaces.length;
+			const pad = DOT_R + 30;
+			const step = k > 1 ? (h - 2 * pad) / (k - 1) : 0;
+			column.workspaces.forEach((ws, i) => {
+				nodes.set(ws.id, {
+					x: cx,
+					y: k > 1 ? top + pad + i * step : centre,
+					r: DOT_R,
+					workspace: true,
+				});
+			});
+		} else {
+			const n = column.orbs.length;
+			const available = h - 34;
+			const r =
+				n === 1 ? 40 : Math.max(15, Math.min(40, (available / n) * 0.4));
+			const step = n > 1 ? (available - 2 * r) / (n - 1) : 0;
+			const start = n > 1 ? centre - (step * (n - 1)) / 2 : centre;
+			column.orbs.forEach((orb, i) => {
+				nodes.set(orb.key, { x: cx, y: start + i * step, r, workspace: false });
+			});
+		}
+		placed.push({ column, x, w, top, h });
+		x += w + GAP;
+	}
+	return {
+		width: Math.max(x - GAP + MARGIN, 320),
+		height: TOP + height + LABEL_H,
+		nodes,
+		placed,
+	};
+};
+
+/** An arrow's ends: from a workspace's rim toward its target, or an orb's right edge to the next one's left. */
+const ends = (from: Point, to: Point) => {
+	const angle = Math.atan2(to.y - from.y, to.x - from.x);
+	const start = from.workspace
+		? {
+				x: from.x + Math.cos(angle) * from.r,
+				y: from.y + Math.sin(angle) * from.r,
+			}
+		: { x: from.x + from.r, y: from.y };
+	const back = Math.atan2(to.y - start.y, to.x - start.x);
+	const end = to.workspace
+		? {
+				x: to.x - Math.cos(back) * (to.r + 3),
+				y: to.y - Math.sin(back) * (to.r + 3),
+			}
+		: { x: to.x - to.r - 2, y: to.y };
+	return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
+};
+
+const columnLabel = (column: TrafficColumn) => {
+	switch (column.kind) {
+		case "input":
+			return "Input Ports";
+		case "output":
+			return "Output Ports";
+		case "ports":
+			return "Ports";
+		default:
+			return column.workspaces.length === 1
+				? column.workspaces[0].label
+				: "Workspaces";
+	}
+};
+
+const columnStroke = (column: TrafficColumn) =>
+	column.kind === "workspace"
+		? PALETTE.workspace
+		: column.kind === "ports"
+			? "hsl(var(--content-secondary))"
+			: PALETTE[column.kind].stroke;
+
+const short = (text: string, max: number) =>
+	text.length > max ? `${text.slice(0, max - 1)}…` : text;
+
+/** How often a tunnel sends a particle: busier tunnels more often; none without traffic. */
+const period = (rate: number | null) =>
+	rate && rate > 0
+		? Math.min(1600, Math.max(260, 1600 - 260 * Math.log10(rate)))
+		: null;
+
+const LEG_MS = 420;
+
+/**
+ * Particles along each tunnel's links as fast as its traffic goes: pink forward (source, port, target), blue back.
+ * Drawn straight into the SVG every frame, outside React.
+ */
+const Pulses: React.FC<{
+	topology: TrafficTopology;
+	nodes: ReadonlyMap<string, Point>;
+	rates: ReadonlyMap<string, TunnelRate>;
+}> = ({ topology, nodes, rates }) => {
+	const layer = useRef<SVGGElement>(null);
+	const animations = useAnimationsEnabled();
+	// The rates change with every refresh; read them live so particles in flight keep going.
+	const live = useRef(rates);
+	useEffect(() => {
+		live.current = rates;
+	}, [rates]);
+	useEffect(() => {
+		const g = layer.current;
+		if (!g || !animations) {
+			return;
+		}
+		const routes = topology.tunnels.map((t) => ({
+			tunnel: t,
+			orbs: topology.links
+				.filter((l) => l.tunnelId === t.id && l.from === t.source_workspace_id)
+				.map((l) => l.to),
+		}));
+		const next = new Map<string, number>();
+		type Particle = {
+			el: SVGCircleElement;
+			path: Point[];
+			born: number;
+		};
+		let particles: Particle[] = [];
+		let turn = 0;
+		let frame = 0;
+		const tick = (now: number) => {
+			for (const { tunnel, orbs } of routes) {
+				const rate = live.current.get(tunnel.id);
+				if (tunnel.status !== "ready" || !rate || orbs.length === 0) {
+					continue;
+				}
+				for (const [way, value] of [
+					["forward", rate.forward],
+					["back", rate.back],
+				] as const) {
+					const every = period(value);
+					const key = `${tunnel.id}:${way}`;
+					if (every === null || now < (next.get(key) ?? 0)) {
+						continue;
+					}
+					next.set(key, now + every);
+					const orb = nodes.get(orbs[turn++ % orbs.length]);
+					const source = nodes.get(tunnel.source_workspace_id);
+					const target = nodes.get(tunnel.target_workspace_id);
+					if (!orb || !source || !target) {
+						continue;
+					}
+					const el = document.createElementNS(
+						"http://www.w3.org/2000/svg",
+						"circle",
+					);
+					el.setAttribute("r", "5");
+					el.setAttribute(
+						"fill",
+						way === "forward" ? PALETTE.forward : PALETTE.back,
+					);
+					el.setAttribute("stroke", "white");
+					el.setAttribute("stroke-width", "1.5");
+					g.appendChild(el);
+					particles.push({
+						el,
+						path:
+							way === "forward" ? [source, orb, target] : [target, orb, source],
+						born: now,
+					});
+				}
+			}
+			particles = particles.filter((p) => {
+				const t = (now - p.born) / LEG_MS;
+				const leg = Math.floor(t);
+				if (leg >= p.path.length - 1) {
+					p.el.remove();
+					return false;
+				}
+				const a = p.path[leg];
+				const b = p.path[leg + 1];
+				const f = t - leg;
+				const ease = f < 0.5 ? 4 * f * f * f : 1 - (-2 * f + 2) ** 3 / 2;
+				p.el.setAttribute("cx", String(a.x + (b.x - a.x) * ease));
+				p.el.setAttribute("cy", String(a.y + (b.y - a.y) * ease));
+				return true;
+			});
+			frame = requestAnimationFrame(tick);
+		};
+		frame = requestAnimationFrame(tick);
+		return () => {
+			cancelAnimationFrame(frame);
+			for (const p of particles) {
+				p.el.remove();
+			}
+		};
+	}, [topology, nodes, animations]);
+	return <g ref={layer} aria-hidden className="pointer-events-none" />;
+};
+
+const Orb: React.FC<{
+	orb: PortOrb;
+	at: Point;
+	hovered: boolean;
+	onHover: (key: string | null) => void;
+}> = ({ orb, at, hovered, onHover }) => {
+	const colors = PALETTE[orb.kind];
+	const twoLines = at.r >= 24 && orb.tag.length > 0;
+	const portSize = Math.max(8.5, Math.min(14.5, at.r * 0.34));
+	const tagSize = Math.max(7.5, Math.min(11.5, at.r * 0.27));
+	return (
+		<g
+			data-orb={orb.key}
+			className={cn("cursor-default", !orb.ready && "opacity-50")}
+			onMouseEnter={() => onHover(orb.key)}
+			onMouseLeave={() => onHover(null)}
+		>
+			<title>{orb.title}</title>
+			<circle
+				cx={at.x}
+				cy={at.y}
+				r={at.r}
+				fill={colors.fill}
+				stroke={colors.stroke}
+				strokeWidth={hovered ? 3.5 : 1.8}
+				style={{ filter: "drop-shadow(0 3px 6px rgb(0 0 0 / 0.18))" }}
+			/>
+			<text
+				x={at.x}
+				y={twoLines ? at.y - tagSize * 0.32 : at.y + portSize * 0.35}
+				textAnchor="middle"
+				fill={colors.text}
+				fontSize={portSize}
+				fontWeight={800}
+				className="pointer-events-none font-mono"
+			>
+				{orb.port}
+			</text>
+			{twoLines && (
+				<text
+					x={at.x}
+					y={at.y + portSize * 0.85}
+					textAnchor="middle"
+					fill={colors.tag}
+					fontSize={tagSize}
+					fontWeight={700}
+					className="pointer-events-none"
+				>
+					{orb.tag}
+				</text>
+			)}
+		</g>
+	);
+};
+
+/**
+ * One Traffic Control diagram: port and workspace columns with an arrow for every link, the links of whatever is
+ * pointed at in red, and particles along the tunnels as their traffic flows. It only shows what the workspaces'
+ * own configuration (their shared ports and tunnels) makes of it: there is nothing to change here.
+ */
+export const TrafficDiagram: React.FC<{
+	topology: TrafficTopology;
+	rates: ReadonlyMap<string, TunnelRate>;
+}> = ({ topology, rates }) => {
+	const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+	const [hovered, setHovered] = useState<string | null>(null);
+	const { width, height, nodes, placed } = useMemo(
+		() => layout(topology),
+		[topology],
+	);
+	const arrow = `traffic-arrow-${id}`;
+	const arrowActive = `traffic-arrow-active-${id}`;
+	const dot = `traffic-dot-${id}`;
+	const label = topology.columns
+		.map((c) =>
+			c.kind === "workspace"
+				? c.workspaces.map((w) => w.label).join(", ")
+				: `${columnLabel(c)} ${c.orbs.map((o) => `${o.port} ${o.tag}`).join(", ")}`,
+		)
+		.join(" → ");
+	return (
+		<svg
+			role="img"
+			aria-label={`Traffic: ${label}`}
+			viewBox={`0 0 ${width} ${height}`}
+			width={width}
+			className="block h-auto max-w-full select-none overflow-visible"
+		>
+			<defs>
+				<marker
+					id={arrow}
+					viewBox="0 0 10 10"
+					refX="8.5"
+					refY="5"
+					markerWidth="6"
+					markerHeight="6"
+					orient="auto-start-reverse"
+				>
+					<path
+						d="M 0 1.2 L 9 5 L 0 8.8 L 2.2 5 z"
+						className="fill-content-secondary"
+					/>
+				</marker>
+				<marker
+					id={arrowActive}
+					viewBox="0 0 10 10"
+					refX="8.5"
+					refY="5"
+					markerWidth="6.5"
+					markerHeight="6.5"
+					orient="auto-start-reverse"
+				>
+					<path d="M 0 1 L 9.5 5 L 0 9 L 2.2 5 z" fill={PALETTE.active} />
+				</marker>
+				<radialGradient id={dot} cx="35%" cy="30%" r="65%">
+					<stop offset="0%" stopColor="#ff99cc" />
+					<stop offset="55%" stopColor="#ff5ca8" />
+					<stop offset="100%" stopColor="#ec4899" />
+				</radialGradient>
+			</defs>
+
+			{placed.map(({ column, x, w, top, h }) => {
+				const stroke = columnStroke(column);
+				const cx = x + w / 2;
+				return (
+					<g key={column.key}>
+						<rect
+							x={x}
+							y={top}
+							width={w}
+							height={h}
+							rx={14}
+							fill={
+								column.kind === "workspace" ? "rgb(255 255 255 / 0.03)" : "none"
+							}
+							stroke={stroke}
+							strokeWidth={3}
+						/>
+						{column.kind !== "workspace" && (
+							<g>
+								<rect
+									x={cx - 34}
+									y={top - 30}
+									width={68}
+									height={20}
+									rx={10}
+									className="fill-surface-primary"
+									stroke={stroke}
+									strokeWidth={1.5}
+								/>
+								<text
+									x={cx}
+									y={top - 16}
+									textAnchor="middle"
+									fontSize={11}
+									fontWeight={700}
+									className="fill-content-primary tabular-nums"
+								>
+									{column.orbs.length}{" "}
+									{column.orbs.length === 1 ? "port" : "ports"}
+								</text>
+							</g>
+						)}
+						<text
+							x={cx}
+							y={top + h + 34}
+							textAnchor="middle"
+							fill={stroke}
+							fontSize={column.kind === "workspace" ? 18 : 16}
+							fontWeight={800}
+						>
+							{short(
+								columnLabel(column),
+								column.kind === "workspace" ? 22 : 14,
+							)}
+						</text>
+					</g>
+				);
+			})}
+
+			{topology.links.map((link) => {
+				const from = nodes.get(link.from);
+				const to = nodes.get(link.to);
+				if (!from || !to) {
+					return null;
+				}
+				const { x1, y1, x2, y2 } = ends(from, to);
+				const active = hovered === link.from || hovered === link.to;
+				return (
+					<line
+						key={`${link.from}>${link.to}`}
+						x1={x1}
+						y1={y1}
+						x2={x2}
+						y2={y2}
+						stroke={active ? PALETTE.active : "hsl(var(--content-secondary))"}
+						strokeWidth={active ? 3.3 : 2.2}
+						strokeDasharray={link.ready ? undefined : "6 5"}
+						markerEnd={`url(#${active ? arrowActive : arrow})`}
+					/>
+				);
+			})}
+
+			<Pulses topology={topology} nodes={nodes} rates={rates} />
+
+			{placed.map(({ column }) =>
+				column.kind === "workspace"
+					? column.workspaces.map((ws) => {
+							const at = nodes.get(ws.id);
+							if (!at) {
+								return null;
+							}
+							const lit = hovered === ws.id;
+							return (
+								<g
+									key={ws.id}
+									data-workspace={ws.id}
+									onMouseEnter={() => setHovered(ws.id)}
+									onMouseLeave={() => setHovered(null)}
+								>
+									<title>
+										{ws.label}
+										{ws.running ? "" : " (not running)"}
+									</title>
+									<circle
+										cx={at.x}
+										cy={at.y}
+										r={at.r + (lit ? 15 : 10)}
+										fill={
+											ws.running
+												? "rgb(255 92 168 / 0.22)"
+												: "rgb(148 163 184 / 0.18)"
+										}
+										className="transition-[r] duration-150"
+									/>
+									<circle
+										cx={at.x}
+										cy={at.y}
+										r={at.r}
+										fill={ws.running ? `url(#${dot})` : "#94a3b8"}
+										stroke="white"
+										strokeWidth={2.5}
+										style={
+											ws.running
+												? {
+														filter:
+															"drop-shadow(0 0 12px rgb(236 72 153 / 0.7))",
+													}
+												: undefined
+										}
+									/>
+									{column.workspaces.length > 1 && (
+										<text
+											x={at.x}
+											y={at.y + at.r + 18}
+											textAnchor="middle"
+											fontSize={12}
+											fontWeight={700}
+											className="fill-content-primary"
+										>
+											{short(ws.label, 26)}
+										</text>
+									)}
+								</g>
+							);
+						})
+					: column.orbs.map((orb) => {
+							const at = nodes.get(orb.key);
+							return at ? (
+								<Orb
+									key={orb.key}
+									orb={orb}
+									at={at}
+									hovered={hovered === orb.key}
+									onHover={setHovered}
+								/>
+							) : null;
+						}),
+			)}
+		</svg>
+	);
+};
