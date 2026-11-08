@@ -253,11 +253,14 @@ export const QuotaBar: React.FC<{
 					/>
 				))}
 			</div>
-			{limit !== null && (
+			{/* The combined allocation's end: where the segments together stop */}
+			{total > 0 && (
 				<div
 					aria-hidden
-					className="absolute -top-1 -bottom-1 w-0.5 rounded-full bg-content-primary"
-					style={{ left: `${WATERMARK_WARNING * 100}%` }}
+					className="absolute -top-1 -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-content-primary"
+					style={{
+						left: `${top > 0 ? Math.min(100, (total / top) * 100) : 0}%`,
+					}}
 				/>
 			)}
 		</div>

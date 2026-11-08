@@ -24,14 +24,22 @@ import {
 } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { formatBytes } from "#/modules/platform/cloudDrive/drivePaths";
+import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
 import { pageTitle } from "#/utils/page";
-import { CardState, DashboardCard, RangePill } from "./DashboardCard";
+import {
+	CardState,
+	DashboardCard,
+	RangePill,
+	SuppliedBadge,
+} from "./DashboardCard";
 import {
 	type DashboardScope,
 	diskFromHistory,
 	liveFromHistories,
 	liveFromHud,
 	networkSeries,
+	RESOURCE_UNIT,
 	scopeFromCluster,
 	scopeFromMine,
 } from "./dashboardModel";
@@ -160,11 +168,33 @@ const DashboardPage: React.FC = () => {
 			? trend.isLoading
 			: histories.length > 0 && histories.every((h) => h.isLoading));
 
+	// What each card's resource the account was given: its quota (the cluster's capacity, for the whole cluster).
+	const suppliedWhat = cluster ? "Cluster capacity" : "Your quota";
+	const supplied = (resource: "cpu" | "memory" | "disk") => {
+		const limit = scope?.limits[resource];
+		return limit === null || limit === undefined ? undefined : (
+			<SuppliedBadge
+				value={`${formatQuotaNumber(limit)} ${RESOURCE_UNIT[resource]}`}
+				what={suppliedWhat}
+			/>
+		);
+	};
+	const driveQuotas = drive.data
+		? [
+				drive.data.quotaBytes,
+				...(drive.data.shared ?? []).map((d) => d.quotaBytes),
+			]
+		: [];
+	const driveCapacity =
+		driveQuotas.length > 0 && driveQuotas.every((q) => q !== null)
+			? driveQuotas.reduce<number>((sum, q) => sum + (q ?? 0), 0)
+			: null;
 	const usageCard = (resource: "cpu" | "memory", title: string) => (
 		<DashboardCard
 			title={title}
 			icon={resource === "cpu" ? CpuIcon : MemoryStickIcon}
 			tone={resource === "cpu" ? "sky" : "purple"}
+			badge={supplied(resource)}
 			actions={<RangePill />}
 		>
 			<CardState
@@ -266,7 +296,19 @@ const DashboardPage: React.FC = () => {
 							)}
 						</CardState>
 					</DashboardCard>
-					<DashboardCard title="Workspaces" icon={MonitorIcon} tone="green">
+					<DashboardCard
+						title="Workspaces"
+						icon={MonitorIcon}
+						tone="green"
+						badge={
+							scope?.workspaceLimit != null && (
+								<SuppliedBadge
+									value={`${scope.workspaceLimit} ${scope.workspaceLimit === 1 ? "workspace" : "workspaces"}`}
+									what={suppliedWhat}
+								/>
+							)
+						}
+					>
 						<CardState
 							isLoading={scopeQuery.isLoading}
 							error={scopeError}
@@ -298,7 +340,18 @@ const DashboardPage: React.FC = () => {
 							known={!cluster}
 						/>
 					</DashboardCard>
-					<DashboardCard title="Cloud Drive" icon={CloudIcon}>
+					<DashboardCard
+						title="Cloud Drive"
+						icon={CloudIcon}
+						badge={
+							driveCapacity !== null && (
+								<SuppliedBadge
+									value={formatBytes(driveCapacity)}
+									what="Your Cloud Drive's capacity, with the drives shared with you"
+								/>
+							)
+						}
+					>
 						<CardState
 							isLoading={drive.isLoading}
 							error={driveMissing || drive.data ? undefined : drive.error}
@@ -316,7 +369,12 @@ const DashboardPage: React.FC = () => {
 						</CardState>
 					</DashboardCard>
 					{usageCard("memory", "Memory")}
-					<DashboardCard title="Disks" icon={HardDriveIcon} tone="green">
+					<DashboardCard
+						title="Disks"
+						icon={HardDriveIcon}
+						tone="green"
+						badge={supplied("disk")}
+					>
 						<CardState
 							isLoading={scopeQuery.isLoading}
 							error={scopeError}

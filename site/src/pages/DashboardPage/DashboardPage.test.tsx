@@ -154,3 +154,12 @@ it.each(["Workspaces", "Disks"])(
 		).toHaveTextContent(MockQuotaMeResources.workspaces[0].name);
 	},
 );
+
+it("badges each card with what the account was given", async () => {
+	setup();
+	const memory = await screen.findByRole("region", { name: "Memory" });
+	expect(within(memory).getByText("16 GB")).toHaveTextContent("16 GB");
+	expect(
+		within(screen.getByRole("region", { name: "Disks" })).getByText("50 GB"),
+	).toHaveTextContent("50 GB");
+});

@@ -24,6 +24,8 @@ type DashboardCardProps = {
 	/** The icon in a tinted tile before the title. */
 	icon?: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 	tone?: keyof typeof TONES;
+	/** Beside the title: the total of the card's resource supplied to the account (its quota, or the capacity). */
+	badge?: React.ReactNode;
 	actions?: React.ReactNode;
 	className?: string;
 	children: React.ReactNode;
@@ -34,6 +36,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 	title,
 	icon: Icon,
 	tone = "sky",
+	badge,
 	actions,
 	className,
 	children,
@@ -62,6 +65,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 					<h2 className="m-0 truncate text-[13px] font-bold uppercase tracking-wide text-content-primary">
 						{title}
 					</h2>
+					{badge}
 				</span>
 				{actions}
 			</header>
@@ -186,3 +190,17 @@ export const RangePill: React.FC = () => {
 		</span>
 	);
 };
+
+/** A card heading's badge: the total supplied to the account, labelled by what it is. */
+export const SuppliedBadge: React.FC<{ value: string; what: string }> = ({
+	value,
+	what,
+}) => (
+	<span
+		className="whitespace-nowrap rounded-full bg-surface-tertiary px-2 text-[11px] font-semibold leading-5 tabular-nums text-content-primary"
+		title={what}
+	>
+		<span className="sr-only">{what}: </span>
+		{value}
+	</span>
+);

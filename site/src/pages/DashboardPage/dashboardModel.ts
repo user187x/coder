@@ -52,6 +52,8 @@ export type DashboardWorkspace = QuotaMeResources["workspaces"][number] & {
 export type DashboardScope = {
 	kind: "mine" | "cluster";
 	limits: Record<Resource, number | null>;
+	/** How many workspaces the account may have; null without a limit (and for the whole cluster). */
+	workspaceLimit: number | null;
 	/** What counts against each limit. */
 	allocated: Amounts;
 	running: Amounts;
@@ -83,6 +85,7 @@ export const scopeFromMine = (data: QuotaMeResources): DashboardScope => ({
 		memory: data.limits.memory,
 		disk: data.limits.disk,
 	},
+	workspaceLimit: data.limits.workspaces ?? null,
 	allocated: {
 		cpu: data.usage.cpu,
 		memory: data.usage.memory,
@@ -122,6 +125,7 @@ export const scopeFromCluster = (
 			memory: cluster?.memory ?? null,
 			disk: diskTotal,
 		},
+		workspaceLimit: null,
 		allocated: amounts(workspaces),
 		running: amounts(workspaces.filter((w) => w.running)),
 		stopped: amounts(workspaces.filter((w) => !w.running)),
