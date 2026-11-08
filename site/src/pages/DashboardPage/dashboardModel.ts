@@ -39,7 +39,7 @@ type Amounts = Record<Resource, number>;
 
 export const RESOURCE_UNIT: Record<Resource, string> = {
 	cpu: "cores",
-	memory: "GiB",
+	memory: "GB",
 	disk: "GB",
 };
 

@@ -92,7 +92,7 @@ describe("WorkspaceQuotaPillView", () => {
 			"(6 Cores available)",
 		);
 		expect(screen.getByTestId("quota-memory")).toHaveTextContent(
-			"(10 GiB available)",
+			"(10 GB available)",
 		);
 		expect(screen.getByTestId("quota-disk")).toHaveTextContent(
 			"(1 GB available)",

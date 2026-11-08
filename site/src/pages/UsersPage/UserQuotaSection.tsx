@@ -52,14 +52,14 @@ const RESOURCE_ICONS = {
 const LABELS: Record<QuotaKey, string> = {
 	workspaces: "Workspaces",
 	cpu: "CPU cores",
-	memory: "Memory (GiB)",
+	memory: "Memory (GB)",
 	disk: "Disk (GB)",
 };
 
 const UNITS: Record<QuotaKey, string> = {
 	workspaces: "",
 	cpu: "cores",
-	memory: "GiB",
+	memory: "GB",
 	disk: "GB",
 };
 

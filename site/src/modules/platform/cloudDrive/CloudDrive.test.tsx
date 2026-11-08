@@ -353,7 +353,7 @@ describe("CloudDrive", () => {
 		const capacity = await screen.findByTestId("cloud-drive-capacity");
 		expect(within(capacity).getByRole("slider")).toBeInTheDocument();
 		fireEvent.change(
-			within(capacity).getByLabelText("Capacity per account, in GiB"),
+			within(capacity).getByLabelText("Capacity per account, in GB"),
 			{ target: { value: "250" } },
 		);
 		fireEvent.click(

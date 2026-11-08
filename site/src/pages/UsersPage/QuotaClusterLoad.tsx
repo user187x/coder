@@ -47,7 +47,7 @@ export const QuotaClusterLoad: React.FC<{ report: QuotaReport }> = ({
 		{
 			kind: "memory" as const,
 			label: "Memory",
-			unit: "GiB",
+			unit: "GB",
 			total: cluster.memory,
 			requested: cluster.requestedMemory,
 			used: cluster.usedMemory,

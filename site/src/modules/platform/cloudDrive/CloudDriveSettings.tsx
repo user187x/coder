@@ -376,7 +376,7 @@ const CapacitySection: React.FC<{ settings: Settings }> = ({ settings }) => {
 				<h3 className="m-0 text-base font-semibold">Capacity</h3>
 				<span className="text-xs text-content-secondary">
 					{quota.custom
-						? `Set here (the chart's: ${quota.chartGib} GiB)`
+						? `Set here (the chart's: ${quota.chartGib} GB)`
 						: "The chart's (userStorage.quotaGiB)"}
 				</span>
 			</div>
@@ -399,7 +399,7 @@ const CapacitySection: React.FC<{ settings: Settings }> = ({ settings }) => {
 						/>
 						<div className="flex items-center gap-1.5">
 							<Input
-								aria-label="Capacity per account, in GiB"
+								aria-label="Capacity per account, in GB"
 								type="number"
 								min={quota.min}
 								max={quota.max}
@@ -413,7 +413,7 @@ const CapacitySection: React.FC<{ settings: Settings }> = ({ settings }) => {
 					</div>
 					{!valid && (
 						<p className="m-0 text-xs text-content-destructive">
-							A whole number of {quota.min} to {quota.max} GiB.
+							A whole number of {quota.min} to {quota.max} GB.
 						</p>
 					)}
 					{save.error ? (
@@ -437,7 +437,7 @@ const CapacitySection: React.FC<{ settings: Settings }> = ({ settings }) => {
 								disabled={save.isPending}
 								onClick={() => save.mutate({ reset: true })}
 							>
-								Use the chart's ({quota.chartGib} GiB)
+								Use the chart's ({quota.chartGib} GB)
 							</Button>
 						)}
 					</div>
@@ -446,7 +446,7 @@ const CapacitySection: React.FC<{ settings: Settings }> = ({ settings }) => {
 				<p className="m-0 text-sm text-content-secondary">
 					Each account's Cloud Drive holds up to{" "}
 					<span className="font-semibold text-content-primary">
-						{quota.gib} GiB
+						{quota.gib} GB
 					</span>
 					.
 				</p>

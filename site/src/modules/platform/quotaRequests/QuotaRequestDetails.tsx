@@ -37,7 +37,7 @@ export const QuotaRequestDetails: React.FC<Props> = ({
 			? `+${request.resources.disk.toLocaleString("en-US")} GB disk`
 			: "",
 		request.resources.memory > 0
-			? `+${request.resources.memory.toLocaleString("en-US")} GiB memory`
+			? `+${request.resources.memory.toLocaleString("en-US")} GB memory`
 			: null,
 		request.resources.workspaces > 0
 			? `+${request.resources.workspaces.toLocaleString("en-US")} ${request.resources.workspaces === 1 ? "workspace" : "workspaces"}`

@@ -39,8 +39,8 @@ const PARTS: {
 	{
 		key: "memory",
 		label: "Memory",
-		unit: " GiB",
-		amount: (n) => `${num(n)} GiB`,
+		unit: " GB",
+		amount: (n) => `${num(n)} GB`,
 		icon: MemoryStickIcon,
 	},
 	{

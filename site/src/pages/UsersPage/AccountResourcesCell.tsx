@@ -28,7 +28,7 @@ export const AccountResourcesCell: React.FC<{
 	const titleId = useId();
 	const entry = quota?.report?.users.find((item) => item.id === user.id);
 	const summary = entry
-		? `${formatQuotaNumber(entry.usage.workspaces)} workspaces · CPU ${formatQuotaNumber(entry.usage.cpu)} · MEM ${formatQuotaNumber(entry.usage.memory)} GiB`
+		? `${formatQuotaNumber(entry.usage.workspaces)} workspaces · CPU ${formatQuotaNumber(entry.usage.cpu)} · MEM ${formatQuotaNumber(entry.usage.memory)} GB`
 		: quota?.error
 			? "Quota unavailable"
 			: quota?.report
@@ -56,7 +56,7 @@ export const AccountResourcesCell: React.FC<{
 										{formatQuotaNumber(entry.usage.cpu)}
 										<span aria-hidden>·</span>
 										<span className="text-content-primary">MEM</span>{" "}
-										{formatQuotaNumber(entry.usage.memory)} GiB
+										{formatQuotaNumber(entry.usage.memory)} GB
 									</>
 								) : (
 									summary
@@ -89,7 +89,7 @@ export const AccountResourcesCell: React.FC<{
 								<TableRow>
 									<TableHead>Workspaces</TableHead>
 									<TableHead>CPU cores</TableHead>
-									<TableHead>Memory (GiB)</TableHead>
+									<TableHead>Memory (GB)</TableHead>
 									<TableHead>Disk (GB)</TableHead>
 								</TableRow>
 							</TableHeader>

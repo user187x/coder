@@ -51,7 +51,7 @@ it("shows each allocation against the quota", async () => {
 	setup();
 	const rings = await screen.findByRole("img", { name: /CPU: 6 of 8 cores/ });
 	expect(rings).toHaveAccessibleName(
-		"Memory: 12 of 16 GiB allocated (75% of quota), within quota; " +
+		"Memory: 12 of 16 GB allocated (75% of quota), within quota; " +
 			"CPU: 6 of 8 cores allocated (75% of quota), within quota; " +
 			"Disk: 30 of 50 GB allocated (60% of quota), within quota",
 	);
