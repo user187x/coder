@@ -28,7 +28,7 @@ type Draft = Pick<WorkspaceNote, "text" | "color" | "x" | "y">;
 /**
  * Post-it notes on a workspace's page: admins stick them on any user's
  * workspace - to guide, remind, give a short how-to or a "don't forget" - and
- * they lie over everything else on the page (the highest z-index), hanging a
+ * they lie over everything else on the page but an admin's forced message, hanging a
  * little crooked, where the admin put them. Admins add them on other users'
  * workspaces (the sticky-note button in the page's sidebar,
  * WorkspaceNotesButton), drag, edit (double-click or the pencil) and delete

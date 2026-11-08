@@ -1,6 +1,6 @@
 /*
- * Post-it notes on a workspace's page (WorkspaceNotes): squares of coloured paper over everything else (the highest
- * z-index), each hanging a little crooked (--note-tilt), with a strip of tape, a soft shadow and a slightly curled
+ * Post-it notes on a workspace's page (WorkspaceNotes): squares of coloured paper over everything else, one below the
+ * highest z-index (an admin's forced message, ChatFocusOverlay, takes that), each hanging a little crooked (--note-tilt), with a strip of tape, a soft shadow and a slightly curled
  * corner. Handwriting-like system fonts only (nothing is downloaded).
  */
 .workspace-notes {

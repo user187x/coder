@@ -29,9 +29,10 @@ export const ChatFocusOverlay: React.FC<{ onReply?: () => void }> = ({
 	return (
 		<DialogPrimitive.Root open>
 			<DialogPrimitive.Portal>
-				<DialogPrimitive.Overlay className="fixed inset-0 z-[1000] bg-overlay" />
+				{/* Above everything, the notes too (which lie at 2147483646): an admin's forced message comes first */}
+				<DialogPrimitive.Overlay className="fixed inset-0 z-[2147483647] bg-overlay" />
 				<DialogPrimitive.Content
-					className="fixed left-1/2 top-1/2 z-[1001] w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 outline-none"
+					className="fixed left-1/2 top-1/2 z-[2147483647] w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 outline-none"
 					onEscapeKeyDown={keep}
 					onPointerDownOutside={keep}
 					onInteractOutside={keep}
