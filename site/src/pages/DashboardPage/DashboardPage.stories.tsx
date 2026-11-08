@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
 import {
+	cloudDriveConnections,
 	cloudDriveSettings,
 	hudHistory,
 	quotaMeResources,
@@ -42,6 +43,15 @@ const meta: Meta<typeof DashboardPage> = {
 			{ key: workspaceNetwork(dev.id).queryKey, data: MockDashboardNetwork },
 			{ key: safe().queryKey, data: MockSafeSummary },
 			{ key: cloudDriveSettings().queryKey, data: MockCloudDriveSettings },
+			{
+				key: cloudDriveConnections().queryKey,
+				data: {
+					disconnected: [data.id],
+					shared: [],
+					older: [],
+					workspaceConnections: [],
+				},
+			},
 		],
 	},
 };

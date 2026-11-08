@@ -24,6 +24,10 @@ import {
 } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import {
+	isLinked,
+	useCloudDriveLinks,
+} from "#/modules/platform/cloudDrive/CloudDriveSocket";
 import { formatBytes } from "#/modules/platform/cloudDrive/drivePaths";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
 import { pageTitle } from "#/utils/page";
@@ -180,6 +184,23 @@ const DashboardPage: React.FC = () => {
 			/>
 		);
 	};
+	// The Cloud Drive's connections: every one of the account's own workspaces has it unless disconnected.
+	const links = useCloudDriveLinks();
+	const ownWorkspaces = mine.data?.workspaces ?? [];
+	const driveWorkspaces = links.ready
+		? ownWorkspaces.map((w) => ({
+				id: w.id,
+				label: w.name,
+				value: !isLinked(links, w.id)
+					? "Disconnected"
+					: links.attaching.has(w.id)
+						? "Connecting"
+						: "Connected",
+			}))
+		: [];
+	const driveConnected = driveWorkspaces.filter(
+		(w) => w.value !== "Disconnected",
+	).length;
 	const driveQuotas = drive.data
 		? [
 				drive.data.quotaBytes,
@@ -352,6 +373,16 @@ const DashboardPage: React.FC = () => {
 								/>
 							)
 						}
+						actions={
+							driveWorkspaces.length > 0 && (
+								<span
+									className="whitespace-nowrap rounded-full border border-solid border-border bg-surface-secondary px-1.5 text-[10px] leading-4 tabular-nums text-content-secondary"
+									title="Your workspaces with the Cloud Drive connected, of all your workspaces"
+								>
+									{driveConnected} of {driveWorkspaces.length} connected
+								</span>
+							)
+						}
 					>
 						<CardState
 							isLoading={drive.isLoading}
@@ -365,6 +396,7 @@ const DashboardPage: React.FC = () => {
 								<CloudDriveCardBody
 									drive={drive.data}
 									settings={driveSettings.data}
+									workspaces={driveWorkspaces}
 								/>
 							)}
 						</CardState>

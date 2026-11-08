@@ -163,3 +163,24 @@ it("badges each card with what the account was given", async () => {
 		within(screen.getByRole("region", { name: "Disks" })).getByText("50 GB"),
 	).toHaveTextContent("50 GB");
 });
+
+it("counts the workspaces with the Cloud Drive connected and lists each", async () => {
+	vi.spyOn(PlatformAPI, "getCloudDriveConnections").mockResolvedValue({
+		disconnected: ["ws-data"],
+		shared: [],
+		older: [],
+		workspaceConnections: [],
+	});
+	setup();
+	const user = userEvent.setup();
+	const card = await screen.findByRole("region", { name: "Cloud Drive" });
+	expect(await within(card).findByText("1 of 2 connected")).toHaveTextContent(
+		"1 of 2 connected",
+	);
+	await user.click(
+		within(card).getByRole("button", { name: "Show workspaces" }),
+	);
+	expect(within(card).getByText("data").closest("div")).toHaveTextContent(
+		"dataDisconnected",
+	);
+});

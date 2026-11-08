@@ -6,7 +6,7 @@ import {
 } from "#/components/StatusIndicator/StatusIndicator";
 import { formatBytes } from "#/modules/platform/cloudDrive/drivePaths";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
-import { DottedRow, GraphFrame } from "./DashboardCard";
+import { DottedRow, GraphFrame, ShowWorkspaces } from "./DashboardCard";
 import { QuotaBar, WatermarkBadge } from "./dashboardCharts";
 import { type DashboardWorkspace, watermarkLevel } from "./dashboardModel";
 
@@ -41,7 +41,9 @@ const connection = (
 export const CloudDriveCardBody: React.FC<{
 	drive: SafeSummary;
 	settings: CloudDriveSettings | undefined;
-}> = ({ drive, settings }) => {
+	/** The account's workspaces and whether each has the drive connected (a workspace can be disconnected). */
+	workspaces?: readonly { id: string; label: string; value: string }[];
+}> = ({ drive, settings, workspaces = [] }) => {
 	const shared = drive.shared ?? [];
 	const sharedUsed = shared.reduce((sum, s) => sum + (s.usedBytes ?? 0), 0);
 	const quotas = [drive.quotaBytes, ...shared.map((s) => s.quotaBytes)];
@@ -124,6 +126,7 @@ export const CloudDriveCardBody: React.FC<{
 					<DottedRow label="Drives shared with you" value={shared.length} />
 				)}
 			</dl>
+			{workspaces.length > 0 && <ShowWorkspaces rows={workspaces} />}
 		</div>
 	);
 };
