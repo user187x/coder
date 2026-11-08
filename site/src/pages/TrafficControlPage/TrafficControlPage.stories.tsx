@@ -136,3 +136,24 @@ export const NoWorkspaces: Story = {
 		],
 	},
 };
+
+// The notebook is stopped while its tunnel to postgres still expects it: a grey orb with a dead face.
+export const DeadWorkspace: Story = {
+	parameters: {
+		queries: [
+			{
+				key: workspacesKey({ q: "owner:me" }),
+				data: {
+					workspaces: [
+						workspace("frontend"),
+						workspace("api"),
+						workspace("postgres"),
+						workspace("notebook", false),
+					],
+					count: 4,
+				},
+			},
+			...(meta.parameters?.queries ?? []).slice(1),
+		],
+	},
+};

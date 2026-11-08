@@ -36,10 +36,12 @@ const workspace = (id: string, name: string): Workspace => ({
 	},
 });
 
-const setup = () => {
+const setup = (
+	workspaces: Workspace[] = [workspace("web", "web"), workspace("db", "db")],
+) => {
 	const list = vi.spyOn(API, "getWorkspaces").mockResolvedValue({
-		workspaces: [workspace("web", "web"), workspace("db", "db")],
-		count: 2,
+		workspaces,
+		count: workspaces.length,
 	});
 	vi.spyOn(PlatformAPI, "getWorkspaceTunnels").mockResolvedValue({
 		tunnels: [
@@ -175,4 +177,14 @@ it("opens a workspace from its menu", async () => {
 			`/@${MockWorkspace.owner_name}/db`,
 		),
 	);
+});
+
+it("marks a connected workspace that went down: grey, with a dead face", async () => {
+	const db = workspace("db", "db");
+	setup([
+		workspace("web", "web"),
+		{ ...db, latest_build: { ...db.latest_build, status: "stopped" } },
+	]);
+	await screen.findByRole("group", { name: /Traffic:/ });
+	expect(screen.getAllByTestId("dead-workspace-face")).toHaveLength(1);
 });

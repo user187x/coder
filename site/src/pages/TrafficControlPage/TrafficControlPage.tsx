@@ -264,6 +264,11 @@ const TrafficControlPage: React.FC = () => {
 				id: w.id,
 				label: cluster ? `${w.owner_name}/${w.name}` : w.name,
 				running: w.latest_build.status === "running",
+				offline:
+					w.latest_build.status === "running" &&
+					!w.latest_build.resources.some((res) =>
+						(res.agents ?? []).some((a) => a.status === "connected"),
+					),
 				href: `/@${encodeURIComponent(w.owner_name)}/${encodeURIComponent(w.name)}`,
 				agentIds: w.latest_build.resources.flatMap((res) =>
 					(res.agents ?? []).map((a) => a.id),

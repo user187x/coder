@@ -324,6 +324,43 @@ const Pulses: React.FC<{
 	return <g ref={layer} aria-hidden className="pointer-events-none" />;
 };
 
+/** A workspace that died under its connections: X eyes, a frown and its tongue out, drawn on its grey orb. */
+const DeadFace: React.FC<{ x: number; y: number; r: number }> = ({
+	x,
+	y,
+	r,
+}) => {
+	const eye = r * 0.16;
+	const eyeY = y - r * 0.2;
+	const cross = (cx: number) =>
+		`M${cx - eye} ${eyeY - eye}L${cx + eye} ${eyeY + eye}M${cx + eye} ${eyeY - eye}L${cx - eye} ${eyeY + eye}`;
+	const mouthY = y + r * 0.38;
+	const mouthW = r * 0.36;
+	return (
+		<g
+			data-testid="dead-workspace-face"
+			aria-hidden
+			pointerEvents="none"
+			fill="none"
+			stroke="#1e293b"
+			strokeWidth={Math.max(2, r * 0.08)}
+			strokeLinecap="round"
+		>
+			<path d={`${cross(x - r * 0.32)}${cross(x + r * 0.32)}`} />
+			{/* The tongue, under the frown's middle */}
+			<path
+				d={`M${x - r * 0.12} ${mouthY - r * 0.1}v${r * 0.16}a${r * 0.12} ${r * 0.12} 0 0 0 ${r * 0.24} 0v${-r * 0.16}z`}
+				fill="#f472b6"
+				stroke="#1e293b"
+				strokeWidth={Math.max(1.5, r * 0.05)}
+			/>
+			<path
+				d={`M${x - mouthW} ${mouthY}Q${x} ${mouthY - r * 0.3} ${x + mouthW} ${mouthY}`}
+			/>
+		</g>
+	);
+};
+
 const Orb: React.FC<{
 	orb: PortOrb;
 	at: Point;
@@ -610,6 +647,11 @@ export const TrafficDiagram: React.FC<{
 								return null;
 							}
 							const lit = hovered === ws.id || selected === ws.id;
+							// Off or offline while its tunnels still expect it: grey, with a dead face.
+							const alive = ws.running && !ws.offline;
+							const dead =
+								!alive &&
+								topology.links.some((l) => l.from === ws.id || l.to === ws.id);
 							return (
 								<ContextMenu key={ws.id}>
 									<ContextMenuTrigger asChild>
@@ -634,14 +676,19 @@ export const TrafficDiagram: React.FC<{
 										>
 											<title>
 												{ws.label}
-												{ws.running ? "" : " (not running)"}
+												{!ws.running
+													? " (not running)"
+													: ws.offline
+														? " (offline)"
+														: ""}
+												{dead ? ": its connections are down" : ""}
 											</title>
 											<circle
 												cx={at.x}
 												cy={at.y}
 												r={at.r + (lit ? 15 : 10)}
 												fill={
-													ws.running
+													alive
 														? "rgb(255 92 168 / 0.22)"
 														: "rgb(148 163 184 / 0.18)"
 												}
@@ -651,11 +698,11 @@ export const TrafficDiagram: React.FC<{
 												cx={at.x}
 												cy={at.y}
 												r={at.r}
-												fill={ws.running ? `url(#${dot})` : "#94a3b8"}
+												fill={alive ? `url(#${dot})` : "#94a3b8"}
 												stroke="white"
 												strokeWidth={2.5}
 												style={
-													ws.running
+													alive
 														? {
 																filter:
 																	"drop-shadow(0 0 12px rgb(236 72 153 / 0.7))",
@@ -663,6 +710,7 @@ export const TrafficDiagram: React.FC<{
 														: undefined
 												}
 											/>
+											{dead && <DeadFace x={at.x} y={at.y} r={at.r} />}
 											{column.workspaces.length > 1 && (
 												<text
 													x={at.x}

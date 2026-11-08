@@ -7,6 +7,8 @@ export type TrafficWorkspace = {
 	/** Its name, with its owner's in the whole-cluster view. */
 	label: string;
 	running: boolean;
+	/** Its build is running but none of its agents is connected. */
+	offline?: boolean;
 	/** Its page: /@owner/name. */
 	href: string;
 	/** Its agents, whose listening ports are its open ports. */
