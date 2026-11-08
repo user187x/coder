@@ -15,6 +15,7 @@ import {
 import { OnlineUsersCard } from "#/pages/DeploymentSettingsPage/OnlineUsersPage/OnlineUsersPage";
 import { ChatConsole } from "./ChatConsole";
 import {
+	ChatEnabledCard,
 	DiscoveryCard,
 	PairsCard,
 	PeersCard,
@@ -128,6 +129,7 @@ const ConsoleSettings = () => {
 	return (
 		<div className="flex flex-col gap-4">
 			{query.isError && <ErrorAlert error={query.error} />}
+			<ChatEnabledCard enabled={query.data.enabled !== false} />
 			<PeersCard settings={query.data} />
 			<DiscoveryCard settings={query.data} />
 			<ScreenSharingCard settings={query.data} />

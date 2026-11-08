@@ -8,6 +8,7 @@ import {
 } from "#/contexts/platformBoot";
 import { PlatformBackground } from "./background/PlatformBackground";
 import { ChatDock } from "./chat/ChatDock";
+import { ChatGate } from "./chat/useChatEnabled";
 import { ScreenShareController } from "./screenShare/ScreenShareController";
 
 /**
@@ -42,7 +43,9 @@ export const DashboardAddons: React.FC = () => {
 	return (
 		<>
 			<PlatformBackground slot="dashboard" />
-			<ChatDock />
+			<ChatGate>
+				<ChatDock />
+			</ChatGate>
 			<ScreenShareController />
 		</>
 	);

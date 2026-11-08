@@ -411,3 +411,51 @@ export const ScreenSharingCard = ({ settings }: { settings: ChatSettings }) => {
 		</section>
 	);
 };
+
+/**
+ * The deployment's chat switch: off, chat is gone for everyone (the dock, its windows and console, the inbox, the
+ * Settings menu's chat, forced messages), and the server answers every chat request but this setting with 404.
+ */
+export const ChatEnabledCard: React.FC<{ enabled: boolean }> = ({
+	enabled,
+}) => {
+	const id = useId();
+	const client = useQueryClient();
+	const save = useMutation(saveChatSettings(client));
+	return (
+		<section className={card} aria-label="Chat for everyone">
+			<div className="flex items-center gap-3">
+				<Switch
+					id={id}
+					checked={enabled}
+					disabled={save.isPending}
+					onCheckedChange={(on) =>
+						save.mutate(
+							{ enabled: on },
+							{
+								onSuccess: () =>
+									toast.success(
+										on
+											? "Chat is on for everyone."
+											: "Chat is off for everyone.",
+									),
+								onError: (error) =>
+									toast.error(
+										getErrorMessage(error, "Chat could not be switched."),
+									),
+							},
+						)
+					}
+				/>
+				<Label htmlFor={id} className="text-base font-semibold">
+					Chat
+				</Label>
+			</div>
+			<p className="m-0 text-sm text-content-secondary">
+				Off, chat is gone for everyone at once: its bar, windows, console, inbox
+				and forced messages, wherever they are. The server refuses every chat
+				request but this switch, so nothing of it is left to reach.
+			</p>
+		</section>
+	);
+};

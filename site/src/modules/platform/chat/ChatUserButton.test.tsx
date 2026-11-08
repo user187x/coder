@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { MockUserMember } from "#/testHelpers/entities";
-import { renderComponent } from "#/testHelpers/renderHelpers";
+import { render } from "#/testHelpers/renderHelpers";
 import { ChatUserButton } from "./ChatUserButton";
 import type * as ChatStore from "./chatStore";
 
@@ -17,20 +17,20 @@ afterEach(() => {
 	chat.unread = 0;
 });
 
-it("says how many of the user's messages are unread, while any are", () => {
+it("says how many of the user's messages are unread, while any are", async () => {
 	chat.unread = 2;
-	renderComponent(<ChatUserButton user={MockUserMember} />);
+	render(<ChatUserButton user={MockUserMember} />);
 	expect(
-		screen.getByRole("button", {
+		await screen.findByRole("button", {
 			name: `Chat with ${MockUserMember.username}, 2 unread`,
 		}),
 	).toHaveTextContent("Chat");
 });
 
-it("is the plain Chat button with nothing unread", () => {
-	renderComponent(<ChatUserButton user={MockUserMember} />);
+it("is the plain Chat button with nothing unread", async () => {
+	render(<ChatUserButton user={MockUserMember} />);
 	expect(
-		screen.getByRole("button", {
+		await screen.findByRole("button", {
 			name: `Chat with ${MockUserMember.username}`,
 		}),
 	).toHaveTextContent("Chat");

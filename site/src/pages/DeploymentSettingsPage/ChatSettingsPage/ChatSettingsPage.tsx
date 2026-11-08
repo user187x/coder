@@ -1,10 +1,13 @@
 import { ChatConsoleCard } from "#/modules/platform/chat/ChatConsoleCard";
+import { ChatConsoleWhenOn } from "#/modules/platform/chat/ChatOffConsole";
 import { pageTitle } from "#/utils/page";
 
 const ChatSettingsPage = () => (
 	<>
 		<title>{pageTitle("Chat")}</title>
-		<ChatConsoleCard />
+		<ChatConsoleWhenOn>
+			<ChatConsoleCard />
+		</ChatConsoleWhenOn>
 	</>
 );
 

@@ -34,6 +34,10 @@ import {
 	PlatformAPI,
 	PlatformError,
 } from "#/api/platform";
+
+/** Fired when a chat request finds chat turned off for the deployment (useChatEnabled re-checks at once). */
+export const CHAT_OFF_EVENT = "coder-chat-off";
+
 import {
 	pageLeaving,
 	startPresence,
@@ -780,6 +784,11 @@ const poll = async () => {
 				signedOut();
 				return;
 			}
+			if (statusOf(error) === 404) {
+				// An admin turned chat off for everyone: say so, and stop.
+				window.dispatchEvent(new Event(CHAT_OFF_EVENT));
+				break;
+			}
 			await sleep(backoff);
 			backoff = Math.min(backoff * 2, 30_000);
 		}
@@ -793,6 +802,9 @@ const boot = async () => {
 		try {
 			state = await PlatformAPI.getChatState(TAB_ID);
 		} catch (error) {
+			if (statusOf(error) === 404) {
+				window.dispatchEvent(new Event(CHAT_OFF_EVENT));
+			}
 			await sleep(
 				statusOf(error) === 401 ? SIGNED_OUT_RETRY_MS : UNAVAILABLE_RETRY_MS,
 			);

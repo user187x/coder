@@ -10,6 +10,7 @@ import {
 } from "#/components/DropdownMenu/DropdownMenu";
 import { openChatWith, useChatSnapshot } from "./chatStore";
 import { ForcedFocusDialog } from "./ForcedFocusDialog";
+import { useChatEnabled } from "./useChatEnabled";
 import "./chatUserButton.css";
 
 type ChatUserButtonProps = {
@@ -30,7 +31,8 @@ export const ChatUserButton: React.FC<ChatUserButtonProps> = ({ user }) => {
 	const unread = conversations.get(user.id)?.unread ?? 0;
 	const [forcing, setForcing] = useState(false);
 
-	if (!me?.admin || me.id === user.id) return null;
+	const chatOn = useChatEnabled();
+	if (!chatOn || !me?.admin || me.id === user.id) return null;
 	if (user.is_service_account || user.status === "suspended")
 		return (
 			<span

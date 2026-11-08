@@ -13,6 +13,10 @@ import { MockGroup, MockWorkspaceQuota } from "./entities";
 import { MockGlobalLockdownState } from "./globalLockdown";
 
 export const handlers = [
+	// Platform: the deployment has chat (Admin Controls > Chat > Settings can turn it off).
+	http.get("/__coder-ui/api/chat/enabled", () =>
+		HttpResponse.json({ enabled: true }),
+	),
 	http.get("/api/v2/global-lockdown", () =>
 		HttpResponse.json(MockGlobalLockdownState),
 	),

@@ -8,6 +8,7 @@ import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
+import { ChatGate } from "#/modules/platform/chat/useChatEnabled";
 import { NavbarArrange } from "#/modules/platform/navbarOrder/NavbarArrange";
 import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
 import type {
@@ -158,7 +159,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 									})
 								}
 							/>
-							<ChatInboxIndicator />
+							<ChatGate>
+								<ChatInboxIndicator />
+							</ChatGate>
 						</div>
 					),
 					account: (
@@ -203,7 +206,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 									})
 								}
 							/>
-							<ChatInboxIndicator />
+							<ChatGate>
+								<ChatInboxIndicator />
+							</ChatGate>
 						</div>
 						<MobileMenu
 							proxyContextValue={proxyContextValue}

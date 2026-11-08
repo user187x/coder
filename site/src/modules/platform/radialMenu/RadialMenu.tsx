@@ -16,6 +16,7 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { setDrawerOpen, useChatSnapshot } from "../chat/chatStore";
 import { CHAT_CONSOLE_PAGE } from "../chat/consolePlaces";
+import { useChatEnabled } from "../chat/useChatEnabled";
 import { useQuickMenu } from "./quickMenu";
 import { DEFAULT_QUICK_MENU_SHORTCUT, matchesShortcut } from "./shortcut";
 import { Wheel, type WheelItem } from "./Wheel";
@@ -116,7 +117,9 @@ const RadialMenuContent = ({
 		permissions,
 		oauth2Provider: Boolean(build.data?.oauth2_provider),
 	};
-	const choices = wheelOf(settings?.items);
+	// Chat turned off for the deployment: its wedge is gone, not disabled.
+	const chatOn = useChatEnabled();
+	const choices = wheelOf(settings?.items).filter((c) => !c.chat || chatOn);
 	const items: WheelItem[] = choices.map((choice) => ({
 		id: choice.id,
 		name: choice.label,

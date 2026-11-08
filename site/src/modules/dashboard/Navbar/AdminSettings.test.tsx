@@ -14,7 +14,7 @@ import { AdminSettingsItems } from "./AdminSettings";
 import { adminPagesFor } from "./adminQuickLinks";
 
 describe("Admin menu", () => {
-	it("puts an icon before every item", () => {
+	it("puts an icon before every item", async () => {
 		const pages = adminPagesFor({
 			permissions: MockPermissions,
 			oauth2Provider: true,
@@ -39,6 +39,8 @@ describe("Admin menu", () => {
 				</MemoryRouter>
 			</QueryClientProvider>,
 		);
+		// the chat entry once the server says the deployment has chat
+		await screen.findByRole("menuitem", { name: "Chat" });
 		const items = screen.getAllByRole("menuitem");
 		const labels = items.map((item) => item.textContent?.trim());
 		expect(labels).toEqual([

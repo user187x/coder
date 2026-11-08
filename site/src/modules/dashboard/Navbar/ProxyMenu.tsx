@@ -33,6 +33,7 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
+import { ChatGate } from "#/modules/platform/chat/useChatEnabled";
 import { WorkspaceGrid } from "#/modules/platform/workspaceGrid/WorkspaceGrid";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
@@ -582,7 +583,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									/>
 								)}
 								{chatExpanded && (
-									<SettingsChatPanel onClose={() => setChatExpanded(false)} />
+									<ChatGate>
+										<SettingsChatPanel onClose={() => setChatExpanded(false)} />
+									</ChatGate>
 								)}
 							</>
 						)}

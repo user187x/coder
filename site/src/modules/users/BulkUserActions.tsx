@@ -20,6 +20,7 @@ import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { startGroupChat } from "#/modules/platform/chat/chatStore";
+import { useChatEnabled } from "#/modules/platform/chat/useChatEnabled";
 
 type BulkAction = "roles" | "suspend" | "delete";
 
@@ -82,6 +83,8 @@ export const BulkUserActions: React.FC<BulkUserActionsProps> = ({
 	const [action, setAction] = useState<BulkAction>();
 	const [busy, setBusy] = useState(false);
 	const others = selected.filter((u) => u.id !== me);
+	// Chat turned off for the deployment: no group chat to start.
+	const chatOn = useChatEnabled();
 	const refresh = () =>
 		queryClient.invalidateQueries({ queryKey: usersQueryKey });
 
@@ -161,17 +164,19 @@ export const BulkUserActions: React.FC<BulkUserActionsProps> = ({
 				<Trash2Icon />
 				{others.length > 1 ? "Delete accounts" : "Delete account"}
 			</Button>
-			<Button
-				size="sm"
-				variant="outline"
-				disabled={busy || others.length === 0}
-				onClick={() => void chat()}
-			>
-				<Spinner loading={busy && !action}>
-					<MessageSquareIcon />
-				</Spinner>
-				Chat
-			</Button>
+			{chatOn && (
+				<Button
+					size="sm"
+					variant="outline"
+					disabled={busy || others.length === 0}
+					onClick={() => void chat()}
+				>
+					<Spinner loading={busy && !action}>
+						<MessageSquareIcon />
+					</Spinner>
+					Chat
+				</Button>
+			)}
 			<Button
 				size="sm"
 				variant="subtle"

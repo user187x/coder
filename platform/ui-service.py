@@ -5628,6 +5628,14 @@ CHAT_GROUP_RE = re.compile(r"^g:[0-9a-f]{32}$")
 CHAT_GROUP_MAX = 200  # people in one group chat
 
 
+CHAT_OFF = {"error": "Chat is turned off."}
+
+
+def chat_enabled():
+    """Admin Controls > Chat > Settings: chat for the deployment at all (on unless an admin turned it off)."""
+    return CHAT.settings.get("enabled", True) is not False
+
+
 def chat_peer_id_ok(peer_id):
     """A user's id, or a group chat's."""
     return bool(UUID_RE.match(peer_id) or CHAT_GROUP_RE.match(peer_id))
@@ -5683,6 +5691,9 @@ class ChatStore:
         # Admin Controls > Chat: peer-to-peer chat, the retention, and a version bumped by each purge (so every open
         # tab reloads its conversations). Who is invisible; when each user's tabs last polled (online).
         self.settings = {
+            # Admin Controls > Chat > Settings: off, chat is gone for everyone - every chat route but its own
+            # settings (admins) answers 404, as if the deployment had none.
+            "enabled": True,
             "peers": False,
             "discoverAll": False,
             "screenSharing": False,
@@ -9431,6 +9442,10 @@ class Handler(BaseHTTPRequestHandler):
         if err:
             return
         admin = bool(set(user["roles"]) & ADMIN_ROLES)
+        if what == "enabled":  # every page: whether to have chat at all
+            return self.send_json(200, {"enabled": chat_enabled()})
+        if not chat_enabled() and not (admin and what == "settings"):
+            return self.send_json(404, CHAT_OFF)
         tab = (q.get("tab") or [""])[0]
         tab = tab if CHAT_TAB_RE.match(tab) else ""
         if what == "state":
@@ -9639,6 +9654,8 @@ class Handler(BaseHTTPRequestHandler):
         user, err = self.user()
         if err:
             return
+        if not chat_enabled():
+            return self.send_json(404, CHAT_OFF)
         admin = bool(set(user["roles"]) & ADMIN_ROLES)
         q = urllib.parse.parse_qs(query or "")
         peer_id = (q.get("to") or [""])[0]
@@ -9678,6 +9695,8 @@ class Handler(BaseHTTPRequestHandler):
         if err:
             return
         admin = bool(set(user["roles"]) & ADMIN_ROLES)
+        if not chat_enabled() and not (admin and what == "settings"):
+            return self.send_json(404, CHAT_OFF)
         if what == "availability":  # an admin's own on/off switch
             if not admin:
                 return self.send_json(
@@ -9718,6 +9737,10 @@ class Handler(BaseHTTPRequestHandler):
                 log(event="chat-purged", user=user["username"], messages=n)
                 return self.send_json(200, {"ok": True, "deleted": n, "stats": CHAT.stats()})
             changes = {}
+            if "enabled" in payload:
+                if not isinstance(payload["enabled"], bool):
+                    return self.send_json(400, {"error": "enabled must be true or false."})
+                changes["enabled"] = payload["enabled"]
             if "peers" in payload:
                 if not isinstance(payload["peers"], bool):
                     return self.send_json(400, {"error": "peers must be true or false."})
@@ -9739,7 +9762,7 @@ class Handler(BaseHTTPRequestHandler):
                     )
                 changes["keepDays"] = days
             if not changes:
-                return self.send_json(400, {"error": "Nothing to change (peers, keepDays)."})
+                return self.send_json(400, {"error": "Nothing to change (enabled, peers, keepDays)."})
             saved = CHAT.put_settings(changes, user["username"])
             log(event="chat-settings", user=user["username"], **changes)
             return self.send_json(

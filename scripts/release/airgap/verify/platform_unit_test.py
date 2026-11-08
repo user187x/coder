@@ -4877,5 +4877,41 @@ class LogoVisibilityTest(unittest.TestCase):
         self.assertEqual(ui.clean_bg_settings({"opacity": 1})["opacity"], 1)
 
 
+class ChatOffTest(unittest.TestCase):
+    """Admin Controls > Chat > Settings off: every chat route answers 404 but whether chat is on, and its settings
+    for admins (to switch it back on)."""
+
+    def call(self, method, what, *, admin, enabled=False, payload=None):
+        handler = mock.Mock()
+        roles = ["owner"] if admin else []
+        handler.user.return_value = ({"id": "u1", "username": "u", "roles": roles}, None)
+        chat = mock.Mock(settings={"enabled": enabled})
+        chat.put_settings.side_effect = lambda changes, by: {**chat.settings, **changes}
+        with mock.patch.object(ui, "CHAT", chat), mock.patch.object(ui, "ADMIN_ROLES", {"owner"}):
+            if method == "GET":
+                ui.Handler.chat_get(handler, what, {})
+            else:
+                ui.Handler.chat_post(handler, what, payload or {})
+        return handler.send_json.call_args.args
+
+    def test_everything_but_its_own_switch_is_gone(self):
+        for what in ("state", "poll", "people", "messages", "admins", "export"):
+            self.assertEqual(self.call("GET", what, admin=False)[0], 404, what)
+            self.assertEqual(self.call("GET", what, admin=True)[0], 404, what)
+        for what in ("send", "focus/force", "groups", "typing", "presence", "availability"):
+            self.assertEqual(self.call("POST", what, admin=True, payload={"to": "x"})[0], 404, what)
+        self.assertEqual(self.call("GET", "enabled", admin=False), (200, {"enabled": False}))
+
+    def test_only_admins_reach_the_settings_to_switch_it_back_on(self):
+        self.assertEqual(self.call("POST", "settings", admin=False, payload={"enabled": True})[0], 404)
+        status, body = self.call("POST", "settings", admin=True, payload={"enabled": True})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.call("POST", "settings", admin=True, payload={"enabled": "on"})[0], 400)
+
+    def test_on_by_default(self):
+        self.assertEqual(self.call("GET", "enabled", admin=False, enabled=True), (200, {"enabled": True}))
+
+
 if __name__ == "__main__":
     unittest.main()
+

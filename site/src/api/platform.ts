@@ -1327,6 +1327,8 @@ export type ChatPerson = ChatPeer & {
 
 /** Admin Controls > Chat. */
 export type ChatSettings = {
+	/** Chat for the deployment at all: off, it is gone for everyone (on unless an admin turned it off). */
+	enabled?: boolean;
 	screenSharing?: boolean;
 	discoverAll?: boolean;
 	peers: boolean;
@@ -2852,9 +2854,14 @@ export const PlatformAPI = {
 	setChatInvisible: (invisible: boolean) =>
 		post<{ invisible: boolean }>(chat("presence"), { invisible }),
 	getChatSettings: () => get<ChatSettings>(chat("settings")),
+	/** Whether the deployment has chat at all (every other chat route answers 404 while it is off). */
+	getChatEnabled: () => get<{ enabled: boolean }>(chat("enabled")),
 	saveChatSettings: (
 		change: Partial<
-			Pick<ChatSettings, "peers" | "keepDays" | "discoverAll" | "screenSharing">
+			Pick<
+				ChatSettings,
+				"enabled" | "peers" | "keepDays" | "discoverAll" | "screenSharing"
+			>
 		>,
 	) => post<ChatSettings>(chat("settings"), change),
 	purgeChats: () =>

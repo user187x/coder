@@ -15,9 +15,10 @@ import {
 	unreadTotal,
 	useChatSnapshot,
 } from "#/modules/platform/chat/chatStore";
+import { useChatEnabled } from "#/modules/platform/chat/useChatEnabled";
 
 /** The navbar's recovery control for a hidden chat dock. */
-export const ChatMenuItem = ({
+const ChatMenuItemBody = ({
 	admin = false,
 	className,
 	expanded,
@@ -131,3 +132,8 @@ export const ChatMenuItem = ({
 		</>
 	);
 };
+
+/** The Settings menu's Chat entry; nothing at all while chat is turned off for the deployment. */
+export const ChatMenuItem = (
+	props: React.ComponentProps<typeof ChatMenuItemBody>,
+) => (useChatEnabled() ? <ChatMenuItemBody {...props} /> : null);

@@ -517,6 +517,13 @@ export const chatPeople = (
 });
 
 const chatSettingsKey = [...platformKey, "chat", "settings"] as const;
+const chatEnabledKey = [...platformKey, "chat", "enabled"] as const;
+/** Whether the deployment has chat at all; re-checked often, and at once when a chat request finds it off. */
+export const chatEnabled = () => ({
+	queryKey: chatEnabledKey,
+	queryFn: PlatformAPI.getChatEnabled,
+	refetchInterval: 15_000,
+});
 export const chatSettings = () => ({
 	queryKey: chatSettingsKey,
 	queryFn: PlatformAPI.getChatSettings,
@@ -529,6 +536,7 @@ export const saveChatSettings = (queryClient: QueryClient) => ({
 		settings: Awaited<ReturnType<typeof PlatformAPI.getChatSettings>>,
 	) => {
 		queryClient.setQueryData(chatSettingsKey, settings);
+		return queryClient.invalidateQueries({ queryKey: chatEnabledKey });
 	},
 });
 
