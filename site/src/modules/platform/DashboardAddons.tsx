@@ -9,11 +9,12 @@ import {
 import { PlatformBackground } from "./background/PlatformBackground";
 import { ChatDock } from "./chat/ChatDock";
 import { ChatGate } from "./chat/useChatEnabled";
+import { PanelAccent } from "./panelAccent/PanelAccent";
 import { ScreenShareController } from "./screenShare/ScreenShareController";
 
 /**
  * What the platform adds to every signed-in dashboard page: the chat, the
- * background image, the list of users who get the default avatar, and
+ * background image, the panel accent colour, the list of users who get the default avatar, and
  * navigation for dashboard pages embedded in this one (they navigate this
  * page, not their frame).
  */
@@ -43,6 +44,7 @@ export const DashboardAddons: React.FC = () => {
 	return (
 		<>
 			<PlatformBackground slot="dashboard" />
+			<PanelAccent />
 			<ChatGate>
 				<ChatDock />
 			</ChatGate>

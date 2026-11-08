@@ -11,6 +11,7 @@ import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { usePreferredColorScheme } from "#/theme/usePreferredColorScheme";
 import { AppearanceForm } from "./AppearanceForm";
 import { CompactAppearanceForm } from "./CompactAppearanceForm";
+import { PanelAccentSection } from "./PanelAccentSection";
 
 type MutateAppearanceSettings = (
 	values: UpdateUserAppearanceSettingsRequest,
@@ -79,13 +80,16 @@ const AppearancePage: React.FC<{ compact?: boolean }> = ({
 
 	const Form = compact ? CompactAppearanceForm : AppearanceForm;
 	return (
-		<Form
-			isUpdating={updateAppearanceSettingsMutation.isPending}
-			error={updateAppearanceSettingsMutation.error}
-			initialValues={appearanceSettingsQuery.data}
-			activeScheme={osColorScheme}
-			onSubmit={submitAppearanceSettings}
-		/>
+		<>
+			<Form
+				isUpdating={updateAppearanceSettingsMutation.isPending}
+				error={updateAppearanceSettingsMutation.error}
+				initialValues={appearanceSettingsQuery.data}
+				activeScheme={osColorScheme}
+				onSubmit={submitAppearanceSettings}
+			/>
+			<PanelAccentSection />
+		</>
 	);
 };
 

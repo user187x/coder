@@ -1459,7 +1459,12 @@ export type UserUIPreferences = {
 	quota_seen?: string[];
 	people_order?: string[];
 	people_sort?: "manual" | "name";
+	/** Accent colour on the inner containers of the Settings menu and panel and of the chat: the theme's accent,
+	 * or a colour of the user's own (#rrggbb). None: the plain surfaces. */
+	panel_accent?: PanelAccent | null;
 };
+
+export type PanelAccent = { mode: "theme" } | { mode: "custom"; color: string };
 
 type WorkspaceNetwork = {
 	windowSeconds: number;

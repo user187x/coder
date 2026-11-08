@@ -1,0 +1,16 @@
+/*
+ * Appearance > Panel accents: the inner containers (cards, rows, pills and fields drawn with a border) of the
+ * Settings menu, its docked side panel and the chat (floating or docked) take a tint and border of the accent.
+ * PanelAccent sets data-panel-accent and --panel-accent on the document.
+ */
+:root[data-panel-accent] {
+	--panel-accent-fill: color-mix(in srgb, var(--panel-accent) 12%, transparent);
+	--panel-accent-edge: color-mix(in srgb, var(--panel-accent) 50%, transparent);
+}
+
+:root[data-panel-accent]
+	:is(.settings-menu-surface, [data-chat-panel], .chat-side-panel)
+	:is([class*="border-solid"], .chat-card, input, textarea) {
+	background-color: var(--panel-accent-fill);
+	border-color: var(--panel-accent-edge);
+}

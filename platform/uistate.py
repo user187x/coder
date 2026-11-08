@@ -215,7 +215,7 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent'}:
                 raise ValueError('Unsupported preference.')
             if 'admin_notes_tray_target' in changes and changes['admin_notes_tray_target'] not in ('chat', 'notes'):
                 raise ValueError('Invalid admin notes tray target.')
@@ -230,6 +230,13 @@ class UIState(threading.Thread):
                     raise ValueError('Invalid panel position.')
             if 'chat_keep_open' in changes and type(changes['chat_keep_open']) is not bool:
                 raise ValueError('Invalid chat pin preference.')
+            if changes.get('panel_accent') is not None:
+                accent = changes['panel_accent']
+                if not isinstance(accent, dict) or accent.get('mode') not in ('theme', 'custom') or (
+                        accent['mode'] == 'theme' and set(accent) != {'mode'}) or (
+                        accent['mode'] == 'custom' and (set(accent) != {'mode', 'color'} or not isinstance(accent['color'], str)
+                                                        or not re.fullmatch(r'#[0-9a-fA-F]{6}', accent['color']))):
+                    raise ValueError('Invalid panel accent.')
             if 'chat_hidden' in changes and type(changes['chat_hidden']) is not bool:
                 raise ValueError('Invalid chat visibility.')
             if 'chat_size' in changes and changes['chat_size'] is not None:
