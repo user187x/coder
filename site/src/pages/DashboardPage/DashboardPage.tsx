@@ -168,7 +168,7 @@ const DashboardPage: React.FC = () => {
 	return (
 		<div className="min-h-full bg-surface-secondary">
 			<title>{pageTitle("Dashboard")}</title>
-			<div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-5 md:px-6">
+			<div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-5 md:px-6">
 				<header className="flex flex-wrap items-center justify-between gap-3">
 					<h1 className="m-0 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-content-primary">
 						<span
@@ -228,8 +228,10 @@ const DashboardPage: React.FC = () => {
 					</div>
 				</header>
 				{/* The cards flow through as many columns as the window holds (each card kept whole), so the first view fits one
-				    screen: Summary first, so it is always the top-left card, and the others packed by height around it. */}
-				<div className="[column-gap:16px] [column-width:20rem] [&>*]:mb-4 [&>*]:break-inside-avoid">
+				    screen: Summary first, so it is always the top-left card, and the others packed by height around it. At most
+				    four columns, which the cards always fill, so a wide window centres them instead of leaving empty columns on
+				    the right. */}
+				<div className="[column-gap:16px] [columns:20rem_4] [&>*]:mb-4 [&>*]:break-inside-avoid">
 					<DashboardCard title="Summary">
 						<CardState isLoading={scopeQuery.isLoading} error={scopeError}>
 							{scope && (
