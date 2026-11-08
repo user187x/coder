@@ -149,7 +149,7 @@ const DashboardPage: React.FC = () => {
 	return (
 		<div className="min-h-full bg-surface-secondary">
 			<title>{pageTitle("Dashboard")}</title>
-			<div className="mx-auto flex w-full max-w-[960px] flex-col gap-[22px] px-4 py-8">
+			<div className="mx-auto flex w-full max-w-[1920px] flex-col gap-4 px-4 py-5 md:px-6">
 				<header className="flex flex-wrap items-center justify-between gap-3">
 					<h1 className="m-0 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-content-primary">
 						<span
@@ -208,98 +208,94 @@ const DashboardPage: React.FC = () => {
 						</Button>
 					</div>
 				</header>
-				<div className="grid grid-cols-1 items-start gap-[22px] min-[780px]:grid-cols-2">
-					<div className="flex min-w-0 flex-col gap-[22px]">
-						<DashboardCard title="Summary">
-							<CardState isLoading={scopeQuery.isLoading} error={scopeError}>
-								{scope && (
-									<SummaryCardBody
-										scope={scope}
-										limitName={limitName}
-										live={{
-											cpu: live?.cpu.latest ?? null,
-											memory: live?.memory.latest ?? null,
-										}}
-									/>
-								)}
-							</CardState>
+				{/* The cards flow through as many columns as the window holds (each card kept whole), so the first view fits one
+				    screen: Summary first, so it is always the top-left card, and the others packed by height around it. */}
+				<div className="[column-gap:16px] [column-width:20rem] [&>*]:mb-4 [&>*]:break-inside-avoid">
+					<DashboardCard title="Summary">
+						<CardState isLoading={scopeQuery.isLoading} error={scopeError}>
+							{scope && (
+								<SummaryCardBody
+									scope={scope}
+									limitName={limitName}
+									live={{
+										cpu: live?.cpu.latest ?? null,
+										memory: live?.memory.latest ?? null,
+									}}
+								/>
+							)}
+						</CardState>
+					</DashboardCard>
+					<DashboardCard title="Workspaces">
+						<CardState
+							isLoading={scopeQuery.isLoading}
+							error={scopeError}
+							empty={
+								scope?.workspaces.length === 0 &&
+								(cluster
+									? "No workspaces in the cluster yet."
+									: "You have no workspaces yet. Create one from a template to see its resources here.")
+							}
+						>
+							{scope && (
+								<WorkspacesCardBody
+									scope={scope}
+									me={user.username}
+									limitName={limitName}
+								/>
+							)}
+						</CardState>
+					</DashboardCard>
+					{!cluster && gpuWorkspaces.length > 0 && (
+						<DashboardCard title="GPU">
+							<GpuCardBody workspaces={gpuWorkspaces} />
 						</DashboardCard>
-						<DashboardCard title="Workspaces">
+					)}
+					<DashboardCard title="Cloud Drive">
+						<CardState
+							isLoading={drive.isLoading}
+							error={driveMissing || drive.data ? undefined : drive.error}
+							empty={
+								(driveMissing || drive.data?.enabled === false) &&
+								"Cloud Drive is not available on this deployment."
+							}
+						>
+							{drive.data && (
+								<CloudDriveCardBody
+									drive={drive.data}
+									settings={driveSettings.data}
+								/>
+							)}
+						</CardState>
+					</DashboardCard>
+					{usageCard("memory", "Memory")}
+					<DashboardCard title="Disks">
+						<CardState
+							isLoading={scopeQuery.isLoading}
+							error={scopeError}
+							empty={
+								scope?.workspaces.length === 0 && "No workspace volumes yet."
+							}
+						>
+							{scope && (
+								<DisksCardBody
+									scope={scope}
+									disks={disks}
+									limitName={limitName}
+								/>
+							)}
+						</CardState>
+					</DashboardCard>
+					{usageCard("cpu", "Processor")}
+					{!cluster && running.length > 0 && (
+						<DashboardCard title="Network">
 							<CardState
-								isLoading={scopeQuery.isLoading}
-								error={scopeError}
-								empty={
-									scope?.workspaces.length === 0 &&
-									(cluster
-										? "No workspaces in the cluster yet."
-										: "You have no workspaces yet. Create one from a template to see its resources here.")
-								}
+								isLoading={networkLoading && !network}
+								error={network ? undefined : networkError}
 							>
-								{scope && (
-									<WorkspacesCardBody
-										scope={scope}
-										me={user.username}
-										limitName={limitName}
-									/>
-								)}
+								{network && <NetworkCardBody rx={network.rx} tx={network.tx} />}
 							</CardState>
 						</DashboardCard>
-						{!cluster && gpuWorkspaces.length > 0 && (
-							<DashboardCard title="GPU">
-								<GpuCardBody workspaces={gpuWorkspaces} />
-							</DashboardCard>
-						)}
-						<DashboardCard title="Cloud Drive">
-							<CardState
-								isLoading={drive.isLoading}
-								error={driveMissing || drive.data ? undefined : drive.error}
-								empty={
-									(driveMissing || drive.data?.enabled === false) &&
-									"Cloud Drive is not available on this deployment."
-								}
-							>
-								{drive.data && (
-									<CloudDriveCardBody
-										drive={drive.data}
-										settings={driveSettings.data}
-									/>
-								)}
-							</CardState>
-						</DashboardCard>
-					</div>
-					<div className="flex min-w-0 flex-col gap-[22px]">
-						{usageCard("memory", "Memory")}
-						<DashboardCard title="Disks">
-							<CardState
-								isLoading={scopeQuery.isLoading}
-								error={scopeError}
-								empty={
-									scope?.workspaces.length === 0 && "No workspace volumes yet."
-								}
-							>
-								{scope && (
-									<DisksCardBody
-										scope={scope}
-										disks={disks}
-										limitName={limitName}
-									/>
-								)}
-							</CardState>
-						</DashboardCard>
-						{usageCard("cpu", "Processor")}
-						{!cluster && running.length > 0 && (
-							<DashboardCard title="Network">
-								<CardState
-									isLoading={networkLoading && !network}
-									error={network ? undefined : networkError}
-								>
-									{network && (
-										<NetworkCardBody rx={network.rx} tx={network.tx} />
-									)}
-								</CardState>
-							</DashboardCard>
-						)}
-					</div>
+					)}
 				</div>
 			</div>
 		</div>

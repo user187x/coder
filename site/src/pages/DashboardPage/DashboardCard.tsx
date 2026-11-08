@@ -20,12 +20,12 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 		<section
 			aria-label={title}
 			className={cn(
-				"rounded-[20px] border border-solid border-border bg-surface-primary px-6 py-[22px]",
+				"rounded-[20px] border border-solid border-border bg-surface-primary px-5 py-4",
 				"shadow-sm transition-shadow hover:shadow-md",
 				className,
 			)}
 		>
-			<header className="mb-4 flex items-center justify-between gap-2">
+			<header className="mb-3 flex items-center justify-between gap-2">
 				<h2 className="m-0 text-[13px] font-bold uppercase tracking-wide text-content-primary">
 					{title}
 				</h2>
