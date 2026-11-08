@@ -20,7 +20,10 @@ import {
 	updateMedia,
 	useShareMedia,
 } from "./media";
-import { SharedDashboardView } from "./SharedDashboardView";
+import {
+	DashboardControlButton,
+	SharedDashboardView,
+} from "./SharedDashboardView";
 import { SupportWorkspaceSearch } from "./SupportWorkspaceSearch";
 import { WorkspaceControlScreen } from "./WorkspaceControlScreen";
 import "./screenShare.css";
@@ -40,8 +43,14 @@ export const ScreenShareCard = ({
 	const [fullscreenError, setFullscreenError] = useState("");
 	const [fill, setFill] = useState(false);
 	const [paused, setPaused] = useState(false);
+	// Control taken in one session never carries into the next.
+	const [controlFor, setControlFor] = useState<string | null>(null);
+	const controlButton = useRef<HTMLButtonElement>(null);
 	const client = useQueryClient();
 	const media = useShareMedia();
+	const control = controlFor !== null && controlFor === media.id;
+	const setControl = (on: boolean) => setControlFor(on ? media.id : null);
+	const controlling = Boolean(media.dashboard && media.remote);
 	const selected = overview?.users
 		.flatMap(({ instances }) => instances)
 		.find((w) => w.workspaceId === workspace);
@@ -97,6 +106,14 @@ export const ScreenShareCard = ({
 					role="group"
 					aria-label="Support monitor controls"
 				>
+					{controlling && !fullscreen && (
+						<DashboardControlButton
+							enabled={control}
+							onEnabledChange={setControl}
+							paused={paused}
+							buttonRef={controlButton}
+						/>
+					)}
 					<Button size="sm" variant="outline" onClick={toggleFullscreen}>
 						<MaximizeIcon />
 						Fullscreen
@@ -159,6 +176,15 @@ export const ScreenShareCard = ({
 					data-live={media.remote || directWorkspace ? "" : undefined}
 				>
 					<CRTShutdown />
+					{fullscreen && controlling && (
+						<DashboardControlButton
+							enabled={control}
+							onEnabledChange={setControl}
+							paused={paused}
+							buttonRef={controlButton}
+							className="absolute left-3 top-3 z-10"
+						/>
+					)}
 					{fullscreen && (
 						<Button
 							size="sm"
@@ -199,6 +225,9 @@ export const ScreenShareCard = ({
 							paused={paused}
 							fill={fill}
 							className="support-monitor-video"
+							enabled={control}
+							onEnabledChange={setControl}
+							controlButtonRef={controlButton}
 						/>
 					) : (
 						<div className="flex min-h-64 flex-col items-center justify-center gap-3 p-8 text-center font-mono">

@@ -15,6 +15,8 @@ type MediaState = {
 	error: string | null;
 	dashboard: boolean;
 	controlReady: boolean;
+	/** The connection's round-trip time in milliseconds, once measured. */
+	latency: number | null;
 };
 let state: MediaState = {
 	id: null,
@@ -24,6 +26,7 @@ let state: MediaState = {
 	error: null,
 	dashboard: false,
 	controlReady: false,
+	latency: null,
 };
 const listeners = new Set<() => void>();
 type PointerPosition = { x: number; y: number } | null;
@@ -93,7 +96,29 @@ export const stopMedia = (error: string | null = null) => {
 		error,
 		dashboard: false,
 		controlReady: false,
+		latency: null,
 	});
+};
+/** The round-trip time of the connection's selected candidate pair, in milliseconds. */
+export const measureLatency = async (pc: {
+	getStats: () => Promise<Pick<RTCStatsReport, "values">>;
+}): Promise<number | null> => {
+	const stats = await pc.getStats();
+	let selected: string | undefined;
+	for (const report of stats.values())
+		if (report.type === "transport" && report.selectedCandidatePairId)
+			selected = report.selectedCandidatePairId;
+	for (const report of stats.values()) {
+		const chosen = selected
+			? report.id === selected
+			: report.type === "candidate-pair" &&
+				report.nominated &&
+				report.state === "succeeded";
+		const rtt = chosen ? report.currentRoundTripTime : undefined;
+		if (typeof rtt === "number" && Number.isFinite(rtt))
+			return Math.round(rtt * 1000);
+	}
+	return null;
 };
 /** Native resolution up to 1080p at 30 fps; larger displays are downscaled. */
 const SHARE_CAPTURE = {

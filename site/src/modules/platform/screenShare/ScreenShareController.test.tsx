@@ -1,4 +1,10 @@
-import { act, renderHook, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	renderHook,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ScreenShareAPI } from "#/api/screenShare";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
@@ -71,6 +77,33 @@ it.each(["sharer", "viewer"] as const)(
 		);
 	},
 );
+
+it("moves a live session into a pill with Stop beside the monitoring badge", async () => {
+	const session = {
+		...MockScreenShare,
+		status: "sharing" as const,
+		admin_viewer: true,
+	};
+	vi.spyOn(ScreenShareAPI, "state").mockResolvedValue({
+		sessions: [session],
+		iceServers: [],
+	});
+	const signal = vi
+		.spyOn(ScreenShareAPI, "update")
+		.mockResolvedValue({ session });
+	renderWithAuth(<ScreenShareController />);
+	await screen.findByRole("button", { name: "Share screen" });
+	act(() => media.updateMedia({ id: session.id, status: "Live" }));
+	const pill = await screen.findByRole("status", { name: "Support session" });
+	expect(pill).toHaveTextContent("Viewing: Live");
+	expect(
+		screen.queryByRole("complementary", { name: "Desktop support session" }),
+	).toBeNull();
+	await userEvent.click(within(pill).getByRole("button", { name: "Stop" }));
+	await waitFor(() =>
+		expect(signal).toHaveBeenCalledWith({ action: "end", id: session.id }),
+	);
+});
 
 it("dismisses a failed session without signaling or leaving a stale error", async () => {
 	vi.spyOn(ScreenShareAPI, "state").mockResolvedValue({

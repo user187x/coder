@@ -105,3 +105,27 @@ it("sends at most one normalized pointer move per frame while in control", async
 	expect(send).toHaveBeenLastCalledWith({ type: "move", x: 0.25, y: 0.5 });
 	expect(send).toHaveBeenCalledTimes(1);
 });
+
+it("shows the live view's latency on the control button", () => {
+	media.updateMedia({
+		id: "dashboard",
+		dashboard: true,
+		controlReady: true,
+		latency: 42,
+	});
+	render(<SharedDashboardView stream={null} />);
+	expect(
+		screen.getByRole("button", { name: /Control dashboard.*42 milliseconds/ }),
+	).toBeEnabled();
+});
+
+it("measures latency from the connection's selected candidate pair", async () => {
+	const reports = new Map<string, Record<string, unknown>>([
+		["T1", { id: "T1", type: "transport", selectedCandidatePairId: "P2" }],
+		["P1", { id: "P1", type: "candidate-pair", currentRoundTripTime: 0.5 }],
+		["P2", { id: "P2", type: "candidate-pair", currentRoundTripTime: 0.0374 }],
+	]);
+	expect(await media.measureLatency({ getStats: async () => reports })).toBe(
+		37,
+	);
+});

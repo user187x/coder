@@ -16,6 +16,7 @@ import {
 	addShareTracks,
 	bindDashboardChannel,
 	completeDescription,
+	measureLatency,
 	shareDashboard,
 	shareScreen,
 	stopMedia,
@@ -114,12 +115,22 @@ export const ScreenShareController = () => {
 				if (!disposed) await signal({ action: "answer", id, sdp });
 			}
 		};
+		// The live view's latency, from the connection's own round-trip measurements.
+		const latencyTimer = setInterval(() => {
+			if (pc.connectionState !== "connected") return;
+			void measureLatency(pc)
+				.then((latency) => {
+					if (!disposed && latency !== null) updateMedia({ latency });
+				})
+				.catch(() => {});
+		}, 2000);
 		void negotiate().catch((error) => {
 			if (!disposed)
 				stopMedia(getErrorMessage(error, "Could not connect screen share."));
 		});
 		return () => {
 			disposed = true;
+			clearInterval(latencyTimer);
 			pc.close();
 			pcRef.current = null;
 		};
@@ -221,115 +232,168 @@ export const ScreenShareController = () => {
 		action.reset();
 		if (pending) action.mutate({ action: "end", id: pending.id });
 	};
+	const monitored = query.data?.sessions.some(
+		(s) =>
+			s.admin_viewer &&
+			s.status === "sharing" &&
+			Date.parse(s.expires_at) > Date.now(),
+	);
+	const viewingHere =
+		Boolean(media.id && media.remote) &&
+		location.pathname !== "/deployment/monitoring";
+	// Once connected, the session is a pill by the monitoring badge; the panel stays only for what still needs attention.
+	const panel =
+		!media.id ||
+		viewingHere ||
+		Boolean(mediaError || captureError || actionError);
 	return (
-		<aside
-			aria-label="Desktop support session"
-			data-dashboard-support-ignore
-			className="fixed left-1/2 top-20 z-[70] w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border border-solid border-border bg-surface-primary p-3 shadow-xl"
-		>
-			{query.data?.sessions.some(
-				(s) =>
-					s.admin_viewer &&
-					s.status === "sharing" &&
-					Date.parse(s.expires_at) > Date.now(),
-			) &&
+		<>
+			{(media.id || monitored) &&
 				createPortal(
 					<div
-						role="status"
 						data-dashboard-support-ignore
-						className="pointer-events-none fixed bottom-[calc(var(--coder-classification-h,0px)+0.75rem)] left-3 z-[100] rounded-md bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
+						className="pointer-events-none fixed bottom-[calc(var(--coder-classification-h,0px)+0.75rem)] left-3 z-[100] flex flex-col items-start gap-1.5"
 					>
-						Monitoring In Progress
+						{media.id && (
+							<div
+								role="status"
+								aria-label="Support session"
+								className="pointer-events-auto flex items-center gap-2 rounded-full border border-solid border-border bg-surface-primary/90 py-0.5 pl-3 pr-0.5 text-xs font-semibold shadow-lg"
+							>
+								<span
+									aria-hidden
+									className={
+										media.status === "Live"
+											? "size-2 rounded-full bg-content-success"
+											: "size-2 rounded-full bg-content-warning"
+									}
+								/>
+								{media.local
+									? media.dashboard
+										? "Dashboard control"
+										: "Sharing screen"
+									: "Viewing"}
+								: {media.status}
+								<Button
+									size="xs"
+									variant="outline"
+									className="rounded-full"
+									onClick={end}
+								>
+									Stop
+								</Button>
+							</div>
+						)}
+						{monitored && (
+							<div
+								role="status"
+								className="rounded-md bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
+							>
+								Monitoring In Progress
+							</div>
+						)}
 					</div>,
 					overlayHost,
 				)}
-			<div className="flex items-center justify-between gap-3">
-				<strong className="text-sm">
-					{media.id
-						? `${media.local ? (media.dashboard ? "Dashboard control" : "Sharing screen") : "Viewing"}: ${media.status}`
-						: mediaError
-							? "Screen sharing stopped"
-							: connectedElsewhere
-								? "Screen share active in another tab"
-								: "Desktop support request"}
-				</strong>
-				<Button size="sm" variant="outline" onClick={end}>
-					{media.id
-						? "Stop"
-						: !pending
-							? "Dismiss"
-							: connectedElsewhere
-								? "End session"
-								: "Decline"}
-				</Button>
-			</div>
-			{pending && (
-				<p className="my-2 text-xs text-content-secondary">
-					{pending.sharer === user?.id
-						? `Share with ${pending.viewer_name}`
-						: `Viewing ${pending.sharer_name}`}{" "}
-					· {pending.label} ·{" "}
-					{pending.mode === "dashboard"
-						? "Mouse and keyboard control"
-						: "View only"}{" "}
-					· Ends after one hour
-				</p>
-			)}
-			{pending?.mode === "dashboard" && pending.sharer === user?.id && (
-				<p className="my-2 text-xs text-content-secondary">
-					Allow {pending.viewer_name} to see and operate this Coder dashboard
-					tab. You can stop at any time with Stop or Ctrl+Alt+Escape. Other
-					tabs, password fields, and workspace windows are excluded.
-				</p>
-			)}
 			{media.dashboard &&
 				media.local &&
 				media.controlReady &&
 				createPortal(<SupportPointer />, overlayHost)}
-			{connectedElsewhere && (
-				<p className="my-2 text-xs text-content-secondary">
-					Continue in the browser or tab where you connected. End this session
-					before starting another.
-				</p>
-			)}
-			{!media.id && pending && (
-				<Button
-					size="sm"
-					disabled={capture.isPending || connectedElsewhere}
-					onClick={() =>
-						pending.sharer === user?.id
-							? capture.mutate(pending)
-							: updateMedia({
-									id: pending.id,
-									error: null,
-									status: "Waiting for screen",
-								})
-					}
+			{panel && (
+				<aside
+					aria-label="Desktop support session"
+					data-dashboard-support-ignore
+					className="fixed left-1/2 top-20 z-[70] w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border border-solid border-border bg-surface-primary p-3 shadow-xl"
 				>
-					{pending.sharer === user?.id
-						? pending.mode === "dashboard"
-							? "Allow dashboard control"
-							: "Share screen"
-						: pending.mode === "dashboard"
-							? "View dashboard"
-							: "View screen"}
-				</Button>
-			)}
-			{media.id &&
-				media.remote &&
-				location.pathname !== "/deployment/monitoring" && (
-					<SharedDashboardView stream={media.remote} className="max-h-[60vh]" />
-				)}
-			{(mediaError || captureError || actionError) && (
-				<p role="alert" className="text-xs text-content-destructive">
-					{mediaError ||
-						getErrorMessage(
-							captureError || actionError,
-							"Could not update support session.",
+					<div className="flex items-center justify-between gap-3">
+						<strong className="text-sm">
+							{media.id
+								? `${media.local ? (media.dashboard ? "Dashboard control" : "Sharing screen") : "Viewing"}: ${media.status}`
+								: mediaError
+									? "Screen sharing stopped"
+									: connectedElsewhere
+										? "Screen share active in another tab"
+										: "Desktop support request"}
+						</strong>
+						<Button size="sm" variant="outline" onClick={end}>
+							{media.id
+								? "Stop"
+								: !pending
+									? "Dismiss"
+									: connectedElsewhere
+										? "End session"
+										: "Decline"}
+						</Button>
+					</div>
+					{pending && !media.id && (
+						<p className="my-2 text-xs text-content-secondary">
+							{pending.sharer === user?.id
+								? `Share with ${pending.viewer_name}`
+								: `Viewing ${pending.sharer_name}`}{" "}
+							· {pending.label} ·{" "}
+							{pending.mode === "dashboard"
+								? "Mouse and keyboard control"
+								: "View only"}{" "}
+							· Ends after one hour
+						</p>
+					)}
+					{!media.id &&
+						pending?.mode === "dashboard" &&
+						pending.sharer === user?.id && (
+							<p className="my-2 text-xs text-content-secondary">
+								Allow {pending.viewer_name} to see and operate this Coder
+								dashboard tab. You can stop at any time with Stop or
+								Ctrl+Alt+Escape. Other tabs, password fields, and workspace
+								windows are excluded.
+							</p>
 						)}
-				</p>
+					{connectedElsewhere && (
+						<p className="my-2 text-xs text-content-secondary">
+							Continue in the browser or tab where you connected. End this
+							session before starting another.
+						</p>
+					)}
+					{!media.id && pending && (
+						<Button
+							size="sm"
+							disabled={capture.isPending || connectedElsewhere}
+							onClick={() =>
+								pending.sharer === user?.id
+									? capture.mutate(pending)
+									: updateMedia({
+											id: pending.id,
+											error: null,
+											status: "Waiting for screen",
+										})
+							}
+						>
+							{pending.sharer === user?.id
+								? pending.mode === "dashboard"
+									? "Allow dashboard control"
+									: "Share screen"
+								: pending.mode === "dashboard"
+									? "View dashboard"
+									: "View screen"}
+						</Button>
+					)}
+					{viewingHere && (
+						<SharedDashboardView
+							stream={media.remote}
+							className="max-h-[60vh]"
+						/>
+					)}
+					{(mediaError || captureError || actionError) && (
+						<p role="alert" className="text-xs text-content-destructive">
+							{mediaError ||
+								getErrorMessage(
+									captureError || actionError,
+									"Could not update support session.",
+								)}
+						</p>
+					)}
+				</aside>
 			)}
-		</aside>
+		</>
 	);
 };
 

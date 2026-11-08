@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { spyOn, userEvent, within } from "storybook/test";
 import { ScreenShareAPI } from "#/api/screenShare";
+import { MockUserOwner } from "#/testHelpers/entities";
 import { MockMonitoringOverview } from "#/testHelpers/platform";
+import { withAuthProvider } from "#/testHelpers/storybook";
 import { stopMedia, updateMedia } from "./media";
 import { ScreenShareCard } from "./ScreenShareCard";
 
@@ -9,6 +11,9 @@ const meta: Meta<typeof ScreenShareCard> = {
 	title: "modules/platform/ScreenShareCard",
 	component: ScreenShareCard,
 	args: { overview: MockMonitoringOverview },
+	// The workspace search leaves out the signed-in admin's own workspaces.
+	decorators: [withAuthProvider],
+	parameters: { user: MockUserOwner },
 	beforeEach: () => {
 		stopMedia();
 		return () => stopMedia();
@@ -97,5 +102,18 @@ export const FailedRequest: Story = {
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Request dashboard control" }),
 		);
+	},
+};
+export const DashboardControlLive: Story = {
+	beforeEach: () => {
+		updateMedia({
+			id: "support-preview",
+			status: "Live",
+			dashboard: true,
+			controlReady: true,
+			latency: 38,
+			remote: new MediaStream(),
+		});
+		return () => stopMedia();
 	},
 };

@@ -1,26 +1,96 @@
-import { PointerIcon } from "lucide-react";
+import { MousePointerClickIcon, PointerIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Button } from "#/components/Button/Button";
 import { sendDashboardInput, useRemotePointer, useShareMedia } from "./media";
 import { ShareVideo } from "./ShareVideo";
 
+/**
+ * Takes or releases the shared dashboard's keyboard and mouse, showing the
+ * live view's latency.
+ */
+export const DashboardControlButton = ({
+	enabled,
+	onEnabledChange,
+	paused = false,
+	buttonRef,
+	className,
+}: {
+	enabled: boolean;
+	onEnabledChange: (enabled: boolean) => void;
+	paused?: boolean;
+	buttonRef?: React.Ref<HTMLButtonElement>;
+	className?: string;
+}) => {
+	const media = useShareMedia();
+	const active = media.dashboard && media.controlReady && enabled && !paused;
+	return (
+		<Button
+			ref={buttonRef}
+			size="sm"
+			disabled={!media.controlReady || paused}
+			aria-pressed={active}
+			title={
+				media.controlReady
+					? "Click the view to focus. Escape releases input."
+					: "Waiting for the user's consent and control connection."
+			}
+			className={className}
+			onClick={() => onEnabledChange(!enabled)}
+		>
+			<MousePointerClickIcon />
+			{active ? "Release keyboard and mouse" : "Control dashboard"}
+			{media.latency !== null && (
+				<>
+					<span
+						aria-hidden
+						className="rounded-full bg-surface-primary/20 px-1.5 text-2xs tabular-nums"
+					>
+						{media.latency} ms
+					</span>
+					<span className="sr-only">
+						, latency {media.latency} milliseconds
+					</span>
+				</>
+			)}
+		</Button>
+	);
+};
+
+/**
+ * The shared dashboard's live view and its input surface. Without
+ * `onEnabledChange` it shows its own control button above the view;
+ * with it, the caller places a DashboardControlButton.
+ */
 export const SharedDashboardView = ({
 	stream,
 	paused = false,
 	fill = false,
 	className,
+	enabled: controlledEnabled,
+	onEnabledChange,
+	controlButtonRef,
 }: {
 	stream: MediaStream | null;
 	paused?: boolean;
 	fill?: boolean;
 	className?: string;
+	enabled?: boolean;
+	onEnabledChange?: (enabled: boolean) => void;
+	controlButtonRef?: React.RefObject<HTMLButtonElement | null>;
 }) => {
 	const media = useShareMedia();
-	const [enabled, setEnabled] = useState(false);
+	const [ownEnabled, setOwnEnabled] = useState(false);
+	const enabled = controlledEnabled ?? ownEnabled;
+	const setEnabled = onEnabledChange ?? setOwnEnabled;
 	const video = useRef<HTMLVideoElement>(null);
 	const surface = useRef<HTMLDivElement>(null);
-	const controlButton = useRef<HTMLButtonElement>(null);
+	const ownButton = useRef<HTMLButtonElement>(null);
+	const controlButton = controlButtonRef ?? ownButton;
 	const active = media.dashboard && media.controlReady && enabled && !paused;
+	// Taking control moves keyboard focus to the view, wherever the button is.
+	useEffect(() => {
+		if (active) surface.current?.focus();
+	}, [active]);
 	const coordinates = (x: number, y: number) => {
 		const box = contentBox(video.current);
 		if (!box) return null;
@@ -77,26 +147,14 @@ export const SharedDashboardView = ({
 	};
 	return (
 		<div data-dashboard-support-ignore className="flex min-h-0 flex-1 flex-col">
-			{media.dashboard && (
-				<div className="my-2 flex flex-wrap items-center gap-2 text-xs">
-					<Button
-						ref={controlButton}
-						size="sm"
-						variant="outline"
-						disabled={!media.controlReady || paused}
-						aria-pressed={active}
-						onClick={() => {
-							setEnabled(!enabled);
-							if (!enabled) surface.current?.focus();
-						}}
-					>
-						{active ? "Release keyboard and mouse" : "Control dashboard"}
-					</Button>
-					<span className="text-content-secondary">
-						{media.controlReady
-							? "Click the view to focus. Escape releases input."
-							: "Waiting for the user's consent and control connection."}
-					</span>
+			{media.dashboard && !onEnabledChange && (
+				<div className="my-2 flex flex-wrap items-center gap-2">
+					<DashboardControlButton
+						enabled={enabled}
+						onEnabledChange={setEnabled}
+						paused={paused}
+						buttonRef={controlButton}
+					/>
 				</div>
 			)}
 			<div className="relative min-h-0 flex-1">
