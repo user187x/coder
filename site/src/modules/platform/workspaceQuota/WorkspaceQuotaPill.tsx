@@ -18,15 +18,43 @@ const PARTS: {
 	key: QuotaKey;
 	label: string;
 	unit: string;
+	/** What is left, with its unit: "6 Cores". */
+	amount: (n: number) => string;
 	icon: typeof CpuIcon;
 }[] = [
-	{ key: "workspaces", label: "Workspaces", unit: "", icon: MonitorIcon },
-	{ key: "cpu", label: "CPU", unit: " cores", icon: CpuIcon },
-	{ key: "memory", label: "Memory", unit: " GiB", icon: MemoryStickIcon },
-	{ key: "disk", label: "Disk", unit: " GB", icon: HardDriveIcon },
+	{
+		key: "workspaces",
+		label: "Workspaces",
+		unit: "",
+		amount: (n) => `${num(n)} ${n === 1 ? "workspace" : "workspaces"}`,
+		icon: MonitorIcon,
+	},
+	{
+		key: "cpu",
+		label: "CPU",
+		unit: " cores",
+		amount: (n) => `${num(n)} ${n === 1 ? "Core" : "Cores"}`,
+		icon: CpuIcon,
+	},
+	{
+		key: "memory",
+		label: "Memory",
+		unit: " GiB",
+		amount: (n) => `${num(n)} GiB`,
+		icon: MemoryStickIcon,
+	},
+	{
+		key: "disk",
+		label: "Disk",
+		unit: " GB",
+		amount: (n) => `${num(n)} GB`,
+		icon: HardDriveIcon,
+	},
 ];
 
-const num = (v: number) => `${Math.round(v * 100) / 100}`;
+function num(v: number) {
+	return `${Math.round(v * 100) / 100}`;
+}
 
 /** Where a part stands: fine, near (80% or more), or at its limit. */
 export const quotaLevel = (used: number, limit: number) =>
@@ -118,7 +146,7 @@ export const WorkspaceQuotaPillView: React.FC<{
 										level === "near" && "text-content-warning",
 									)}
 								>
-									({num(p.left)} left)
+									({p.amount(p.left)} available)
 								</span>
 							</div>
 							<div

@@ -108,7 +108,7 @@ describe("CloudDrive", () => {
 		expect(screen.getByTestId("cloud-drive-usage")).toHaveTextContent(
 			"1.5 GB/10 GB",
 		);
-		expect(button).toHaveTextContent("(8.5 GB left)");
+		expect(button).toHaveTextContent("(8.5 GB available)");
 		expect(screen.queryByTestId("cloud-drive-ropes")).toBeNull();
 		await user.click(button);
 		expect(await screen.findByRole("dialog")).toHaveAccessibleName(

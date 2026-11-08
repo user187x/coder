@@ -310,7 +310,7 @@ export const CloudDrive: React.FC<{
 								>
 									(
 									{formatBytes(Math.max(space.quotaBytes - space.usedBytes, 0))}{" "}
-									left)
+									available)
 								</span>
 							)}
 						</span>

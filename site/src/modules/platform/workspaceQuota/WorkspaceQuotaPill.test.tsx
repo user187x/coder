@@ -28,11 +28,11 @@ describe("WorkspaceQuotaPillView", () => {
 		);
 		const ws = screen.getByTestId("quota-workspaces");
 		expect(ws).toHaveTextContent("3/3");
-		expect(ws).toHaveTextContent("(0 left)");
+		expect(ws).toHaveTextContent("(0 workspaces available)");
 		expect(ws).toHaveAttribute("data-level", "full");
 		const cpu = screen.getByTestId("quota-cpu");
 		expect(cpu).toHaveTextContent("6.5/8 cores");
-		expect(cpu).toHaveTextContent("(1.5 left)");
+		expect(cpu).toHaveTextContent("(1.5 Cores available)");
 		expect(cpu).toHaveAttribute("data-level", "near");
 		expect(screen.queryByTestId("quota-memory")).toBeNull();
 	});
@@ -70,6 +70,33 @@ describe("WorkspaceQuotaPillView", () => {
 		).toHaveTextContent("Quota");
 		expect(screen.queryByTestId("quota-workspaces")).toBeNull();
 		expect(screen.getByTestId("quota-cloud-drive")).toHaveTextContent("drive");
+	});
+
+	it("names each part's unit in what is available", () => {
+		render(
+			<WorkspaceQuotaPillView
+				quota={{
+					limited: true,
+					exempt: false,
+					limits: { workspaces: 2, cpu: 8, memory: 12, disk: 50 },
+					usage: { workspaces: 1, cpu: 2, memory: 2, disk: 49 },
+					left: { workspaces: 1, cpu: 6, memory: 10, disk: 1 },
+					atLimit: false,
+				}}
+			/>,
+		);
+		expect(screen.getByTestId("quota-workspaces")).toHaveTextContent(
+			"(1 workspace available)",
+		);
+		expect(screen.getByTestId("quota-cpu")).toHaveTextContent(
+			"(6 Cores available)",
+		);
+		expect(screen.getByTestId("quota-memory")).toHaveTextContent(
+			"(10 GiB available)",
+		);
+		expect(screen.getByTestId("quota-disk")).toHaveTextContent(
+			"(1 GB available)",
+		);
 	});
 
 	it("levels: fine under 80%, near from 80%, full at the limit", () => {
