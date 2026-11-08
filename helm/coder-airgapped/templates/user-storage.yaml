@@ -100,6 +100,10 @@ spec:
         app.kubernetes.io/name: coder-user-storage-minio
         app.kubernetes.io/part-of: coder
     spec:
+      {{- with include "ca.controlPlaneNodeAffinity" $ }}
+      affinity:
+        {{- . | nindent 8 }}
+      {{- end }}
       {{- with $.Values.uiUpdates.imagePullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}
       {{- end }}

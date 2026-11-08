@@ -167,7 +167,8 @@ global:
 # ---------------------------------------------------------------------------------------------------------------
 # Coder server: the upstream coder chart 2.37.3 (+ platform patch) running the fork's image. (Argo CD app argocd/coder)
 # ---------------------------------------------------------------------------------------------------------------
-# Nodes the Coder server and the platform's control plane (webhook, ui-updates, relays) never run on: an external
+# Nodes the Coder server and the platform's control plane (webhook, ui-updates, relays, the image registry, the Cloud
+# Drive's MinIO, the code-server replicator) never run on: an external
 # node joined over a single cable (label coder-ha-lab/external=true) would put them behind that cable and its relay.
 # Workspaces may still run there. NotIn matches nodes without the label too.
 controlPlaneNodeAffinity: &controlPlaneNodeAffinity

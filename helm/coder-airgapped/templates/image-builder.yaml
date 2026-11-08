@@ -54,6 +54,10 @@ spec:
         app.kubernetes.io/name: coder-image-registry
         app.kubernetes.io/part-of: coder
     spec:
+      {{- with include "ca.controlPlaneNodeAffinity" $ }}
+      affinity:
+        {{- . | nindent 8 }}
+      {{- end }}
       {{- with $ui.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
