@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
@@ -19,7 +19,21 @@ const workspace = (id: string, name: string): Workspace => ({
 	...MockWorkspace,
 	id,
 	name,
-	latest_build: { ...MockWorkspace.latest_build, status: "running" },
+	latest_build: {
+		...MockWorkspace.latest_build,
+		status: "running",
+		resources: [
+			{
+				...MockWorkspace.latest_build.resources[0],
+				agents: [
+					{
+						...(MockWorkspace.latest_build.resources[0].agents ?? [])[0],
+						id: `${id}-agent`,
+					},
+				],
+			},
+		],
+	},
 });
 
 const setup = () => {
@@ -55,8 +69,8 @@ const setup = () => {
 					: [],
 		}),
 	);
-	render(<TrafficControlPage />);
-	return { list };
+	const { router } = render(<TrafficControlPage />);
+	return { list, router };
 };
 
 afterEach(() => {
@@ -66,7 +80,7 @@ afterEach(() => {
 
 it("draws the workspaces' shared ports and tunnels, source to target", async () => {
 	setup();
-	const diagram = await screen.findByRole("img", {
+	const diagram = await screen.findByRole("group", {
 		name: /Traffic: .*:3000 public.*web.*Output Ports :5432 tcp.*db/,
 	});
 	expect(diagram).toHaveAccessibleName(
@@ -91,4 +105,74 @@ it("lets an admin switch to every workspace in the cluster", async () => {
 	await screen.findByRole("region", { name: "web → db" });
 	await user.click(screen.getByRole("button", { name: "Whole cluster" }));
 	await waitFor(() => expect(list).toHaveBeenCalledWith({ q: "" }));
+});
+
+it("counts the open ports of the workspace clicked on", async () => {
+	setup();
+	vi.spyOn(API, "getAgentListeningPorts").mockResolvedValue({
+		ports: [
+			{ process_name: "node", network: "tcp", port: 3000 },
+			{ process_name: "node", network: "tcp", port: 3000 },
+			{ process_name: "sshd", network: "tcp", port: 22 },
+		],
+	});
+	const user = userEvent.setup();
+	// once the tunnels are in: until then web is drawn among the standalone workspaces
+	const chain = await screen.findByRole("region", { name: "web → db" });
+	await user.click(
+		within(chain).getByRole("button", { name: "web: show its open ports" }),
+	);
+	expect(
+		await screen.findByRole("status", { name: "web: 2 open ports" }),
+	).toHaveTextContent("web · 2 open ports");
+});
+
+it("stops sharing an input port, or narrows it, from its menu", async () => {
+	setup();
+	const remove = vi
+		.spyOn(API, "deleteWorkspaceAgentSharedPort")
+		.mockResolvedValue({ shares: [] });
+	const upsert = vi
+		.spyOn(API, "upsertWorkspaceAgentSharedPort")
+		.mockResolvedValue({ shares: [] });
+	const user = userEvent.setup();
+	const diagram = await screen.findByRole("group", { name: /:3000 public/ });
+	const orb = within(diagram).getByText(":3000");
+	fireEvent.contextMenu(orb);
+	await user.click(await screen.findByRole("menuitem", { name: /Terminate/ }));
+	await waitFor(() =>
+		expect(remove).toHaveBeenCalledWith("web", {
+			agent_name: "main",
+			port: 3000,
+		}),
+	);
+	fireEvent.contextMenu(orb);
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Restrict to owner only" }),
+	);
+	await waitFor(() =>
+		expect(upsert).toHaveBeenCalledWith("web", {
+			agent_name: "main",
+			port: 3000,
+			protocol: "http",
+			share_level: "owner",
+		}),
+	);
+});
+
+it("opens a workspace from its menu", async () => {
+	const { router } = setup();
+	const user = userEvent.setup();
+	const chain = await screen.findByRole("region", { name: "web → db" });
+	fireEvent.contextMenu(
+		within(chain).getByRole("button", { name: "db: show its open ports" }),
+	);
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Open workspace" }),
+	);
+	await waitFor(() =>
+		expect(router.state.location.pathname).toBe(
+			`/@${MockWorkspace.owner_name}/db`,
+		),
+	);
 });

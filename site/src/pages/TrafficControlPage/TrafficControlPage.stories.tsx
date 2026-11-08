@@ -18,10 +18,18 @@ const workspace = (id: string, running = true): Workspace => ({
 	},
 });
 
-const live = (tx: number, rx: number) => ({
+const live = (
+	tx: number,
+	rx: number,
+	ports: [local_port: number, remote_port: number][] = [],
+) => ({
 	updated_at: 0,
 	stale: false,
-	ports: [],
+	ports: ports.map(([local_port, remote_port]) => ({
+		protocol: "tcp" as const,
+		local_port,
+		remote_port,
+	})),
 	series: [{ timestamp: 0, rx_bytes_per_second: rx, tx_bytes_per_second: tx }],
 });
 
@@ -77,11 +85,14 @@ const meta: Meta<typeof TrafficControlPage> = {
 								{ protocol: "tcp", port: 8080 },
 								{ protocol: "tcp", port: 50051 },
 							],
-							source_stats: live(48_000, 9_000),
+							source_stats: live(48_000, 9_000, [
+								[51_734, 8080],
+								[51_802, 50051],
+							]),
 						}),
 						tunnel("t2", "api", "postgres", {
 							ports: [{ protocol: "tcp", port: 5432 }],
-							source_stats: live(2_000, 120_000),
+							source_stats: live(2_000, 120_000, [[40_112, 5432]]),
 						}),
 						tunnel("t3", "notebook", "postgres", {
 							ports: null,

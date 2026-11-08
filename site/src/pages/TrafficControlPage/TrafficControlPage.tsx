@@ -1,16 +1,32 @@
 import { useMemo, useState } from "react";
-import { type UseQueryResult, useQueries, useQuery } from "react-query";
+import {
+	type UseQueryResult,
+	useMutation,
+	useQueries,
+	useQuery,
+	useQueryClient,
+} from "react-query";
+import { toast } from "sonner";
+import { API } from "#/api/api";
+import { getErrorMessage } from "#/api/errors";
 import type { WorkspaceTunnel } from "#/api/platform";
 import { workspacePortShares } from "#/api/queries/workspaceportsharing";
-import { workspaces as workspacesQuery } from "#/api/queries/workspaces";
+import {
+	agentListeningPorts,
+	workspaces as workspacesQuery,
+} from "#/api/queries/workspaces";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
-import type { WorkspaceAgentPortShare } from "#/api/typesGenerated";
+import type {
+	WorkspaceAgentListeningPortsResponse,
+	WorkspaceAgentPortShare,
+	WorkspaceAgentPortShareLevel,
+} from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
-import { TrafficDiagram } from "./TrafficDiagram";
+import { type ShareChange, TrafficDiagram } from "./TrafficDiagram";
 import {
 	type TrafficTopology,
 	type TrafficWorkspace,
@@ -19,6 +35,57 @@ import {
 } from "./trafficModel";
 
 const WORKSPACES_REFRESH_MS = 10_000;
+const OPEN_PORTS_REFRESH_MS = 10_000;
+
+/** Every agent's listening ports of one workspace, each port once. */
+const combineOpenPorts = (
+	results: UseQueryResult<WorkspaceAgentListeningPortsResponse>[],
+) => ({
+	ports: [
+		...new Set(
+			results.flatMap((r) => (r.data?.ports ?? []).map((p) => p.port)),
+		),
+	].sort((a, b) => a - b),
+	loading: results.some((r) => r.isLoading),
+	failed: results.length > 0 && results.every((r) => r.error),
+});
+
+/** The pill under the tunnels one: how many ports the workspace clicked on has open. */
+const OpenPortsPill: React.FC<{ workspace: TrafficWorkspace }> = ({
+	workspace,
+}) => {
+	const open = useQueries({
+		queries: workspace.running
+			? workspace.agentIds.map((id) => ({
+					...agentListeningPorts(id),
+					refetchInterval: OPEN_PORTS_REFRESH_MS,
+				}))
+			: [],
+		combine: combineOpenPorts,
+	});
+	const text = !workspace.running
+		? "not running"
+		: open.loading
+			? "counting open ports…"
+			: open.failed
+				? "open ports unavailable"
+				: `${open.ports.length} open ${open.ports.length === 1 ? "port" : "ports"}`;
+	return (
+		<span
+			role="status"
+			aria-label={`${workspace.label}: ${text}`}
+			title={
+				open.ports.length ? `Listening: ${open.ports.join(", ")}` : undefined
+			}
+			className="whitespace-nowrap rounded-full border border-solid border-[#dc352e]/60 bg-surface-secondary px-2 text-[11px] leading-5 tabular-nums text-content-secondary"
+		>
+			<span className="font-medium text-content-primary">
+				{workspace.label}
+			</span>{" "}
+			· {text}
+		</span>
+	);
+};
 const SHARES_REFRESH_MS = 15_000;
 
 /** Every organization's tunnels in one list (useQueries' combine: kept stable, so its result is too). */
@@ -76,7 +143,12 @@ const Legend: React.FC = () => (
 const TopologyCard: React.FC<{
 	topology: TrafficTopology;
 	rates: ReadonlyMap<string, ReturnType<typeof tunnelRate>>;
-}> = ({ topology, rates }) => {
+	onShareChange: ShareChange;
+}> = ({ topology, rates, onShareChange }) => {
+	const [selected, setSelected] = useState<string | null>(null);
+	const picked = topology.columns
+		.flatMap((c) => (c.kind === "workspace" ? c.workspaces : []))
+		.find((w) => w.id === selected);
 	const count = (kind: "input" | "output") =>
 		topology.columns.reduce(
 			(n, c) =>
@@ -99,15 +171,24 @@ const TopologyCard: React.FC<{
 				<h2 className="m-0 truncate text-[13px] font-bold uppercase tracking-wide text-content-primary">
 					{topology.title}
 				</h2>
-				{topology.tunnels.length > 0 && (
-					<span className="whitespace-nowrap rounded-full border border-solid border-border bg-surface-secondary px-2 text-[11px] leading-5 tabular-nums text-content-secondary">
-						{ready} of {topology.tunnels.length}{" "}
-						{topology.tunnels.length === 1 ? "tunnel" : "tunnels"} connected
-					</span>
-				)}
+				<div className="flex flex-col items-end gap-1">
+					{topology.tunnels.length > 0 && (
+						<span className="whitespace-nowrap rounded-full border border-solid border-border bg-surface-secondary px-2 text-[11px] leading-5 tabular-nums text-content-secondary">
+							{ready} of {topology.tunnels.length}{" "}
+							{topology.tunnels.length === 1 ? "tunnel" : "tunnels"} connected
+						</span>
+					)}
+					{picked && <OpenPortsPill workspace={picked} />}
+				</div>
 			</header>
 			<div className="flex justify-center overflow-x-auto py-2">
-				<TrafficDiagram topology={topology} rates={rates} />
+				<TrafficDiagram
+					topology={topology}
+					rates={rates}
+					selected={picked ? picked.id : null}
+					onSelect={setSelected}
+					onShareChange={onShareChange}
+				/>
 			</div>
 			<footer className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border pt-3 text-xs text-content-secondary">
 				<span>
@@ -170,6 +251,10 @@ const TrafficControlPage: React.FC = () => {
 				id: w.id,
 				label: cluster ? `${w.owner_name}/${w.name}` : w.name,
 				running: w.latest_build.status === "running",
+				href: `/@${encodeURIComponent(w.owner_name)}/${encodeURIComponent(w.name)}`,
+				agentIds: w.latest_build.resources.flatMap((res) =>
+					(res.agents ?? []).map((a) => a.id),
+				),
 			}),
 		);
 		const shares = new Map<string, WorkspaceAgentPortShare[]>();
@@ -185,6 +270,46 @@ const TrafficControlPage: React.FC = () => {
 		tunnelResult.tunnels.map((t) => [t.id, tunnelRate(t)] as const),
 	);
 	const tunnelError = tunnelResult.error;
+	const queryClient = useQueryClient();
+	const changeShare = useMutation({
+		mutationFn: ({
+			share,
+			level,
+		}: {
+			share: WorkspaceAgentPortShare;
+			level: WorkspaceAgentPortShareLevel | null;
+		}) =>
+			level
+				? API.upsertWorkspaceAgentSharedPort(share.workspace_id, {
+						agent_name: share.agent_name,
+						port: share.port,
+						protocol: share.protocol,
+						share_level: level,
+					})
+				: API.deleteWorkspaceAgentSharedPort(share.workspace_id, {
+						agent_name: share.agent_name,
+						port: share.port,
+					}),
+		onSuccess: (_result, { share, level }) => {
+			toast.success(
+				level
+					? `Port ${share.port} is now shared with ${level === "owner" ? "its owner only" : level === "organization" ? "the organization" : "signed-in users"}.`
+					: `Port ${share.port} is no longer shared.`,
+			);
+			return queryClient.invalidateQueries({
+				queryKey: workspacePortShares(share.workspace_id).queryKey,
+			});
+		},
+		onError: (error, { share }) =>
+			toast.error(
+				getErrorMessage(error, `Port ${share.port} could not be changed.`),
+			),
+	});
+	const onShareChange: ShareChange = (orb, level) => {
+		if (orb.share) {
+			changeShare.mutate({ share: orb.share, level });
+		}
+	};
 
 	return (
 		<div className="min-h-full bg-surface-secondary">
@@ -242,6 +367,7 @@ const TrafficControlPage: React.FC = () => {
 									key={topology.key}
 									topology={topology}
 									rates={rates}
+									onShareChange={onShareChange}
 								/>
 							))}
 						</div>

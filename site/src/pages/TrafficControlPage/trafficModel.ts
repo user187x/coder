@@ -7,6 +7,10 @@ export type TrafficWorkspace = {
 	/** Its name, with its owner's in the whole-cluster view. */
 	label: string;
 	running: boolean;
+	/** Its page: /@owner/name. */
+	href: string;
+	/** Its agents, whose listening ports are its open ports. */
+	agentIds: readonly string[];
 };
 
 /** A port orb: a shared port into a workspace (input), or a port a tunnel opens to its target (output). */
@@ -21,6 +25,10 @@ export type PortOrb = {
 	title: string;
 	/** The tunnel it belongs to (output orbs). */
 	tunnelId?: string;
+	/** The port share it is (input orbs). */
+	share?: WorkspaceAgentPortShare;
+	/** The connections the tunnel carries through it now: each one's port on the source and on the target. */
+	established?: EstablishedPort[];
 	/** False for a tunnel that is not carrying traffic yet (pending, failed, disconnecting). */
 	ready: boolean;
 };
@@ -67,9 +75,43 @@ const shareOrb = (
 	kind: "input",
 	port: `:${share.port}`,
 	tag: SHARE_LEVEL_TAG[share.share_level] ?? share.share_level,
+	share,
 	title: `${workspace.label} shares port ${share.port} (${share.protocol}) with ${share.share_level === "owner" ? "its owner" : share.share_level === "public" ? "everyone" : share.share_level === "organization" ? "its organization" : "signed-in users"}`,
 	ready: workspace.running,
 });
+
+/** A connection a tunnel carries: its protocol and its port on each side. */
+type EstablishedPort = {
+	protocol: "tcp" | "udp";
+	source: number;
+	target: number;
+};
+
+/**
+ * The connections both ends of a tunnel observe, as source and target ports: each side reports its own port as
+ * local and its peer's as remote.
+ */
+export const establishedPorts = (
+	tunnel: WorkspaceTunnel,
+): EstablishedPort[] => {
+	const seen = new Map<string, EstablishedPort>();
+	const add = (p: EstablishedPort) =>
+		seen.set(`${p.protocol}:${p.source}:${p.target}`, p);
+	for (const p of tunnel.source_stats?.ports ?? []) {
+		add({ protocol: p.protocol, source: p.local_port, target: p.remote_port });
+	}
+	for (const p of tunnel.target_stats?.ports ?? []) {
+		add({ protocol: p.protocol, source: p.remote_port, target: p.local_port });
+	}
+	return [...seen.values()].sort(
+		(a, b) => a.target - b.target || a.source - b.source,
+	);
+};
+
+const describe = (established: readonly EstablishedPort[]) =>
+	established.length
+		? `; connected: ${established.map((e) => `${e.protocol} :${e.source} ⇄ :${e.target}`).join(", ")}`
+		: "";
 
 const tunnelOrbs = (
 	tunnel: WorkspaceTunnel,
@@ -79,6 +121,13 @@ const tunnelOrbs = (
 	const ready = tunnel.status === "ready";
 	const state = ready ? "" : ` (${tunnel.error || tunnel.status})`;
 	const rules = tunnel.ports ?? [];
+	const established = ready ? establishedPorts(tunnel) : [];
+	// A connection belongs to the allowed port it reaches on either side.
+	const through = (protocol: string, port: number) =>
+		established.filter(
+			(e) =>
+				e.protocol === protocol && (e.target === port || e.source === port),
+		);
 	if (rules.length === 0) {
 		return [
 			{
@@ -86,21 +135,26 @@ const tunnelOrbs = (
 				kind: "output",
 				port: "all",
 				tag: "tcp+udp",
-				title: `${source.label} → ${target.label}: every port${state}`,
+				title: `${source.label} → ${target.label}: every port${state}${describe(established)}`,
 				tunnelId: tunnel.id,
 				ready,
+				established,
 			},
 		];
 	}
-	return rules.map((rule) => ({
-		key: `tunnel:${tunnel.id}:${rule.protocol}:${rule.port}`,
-		kind: "output",
-		port: `:${rule.port}`,
-		tag: rule.protocol,
-		title: `${source.label} → ${target.label}: ${rule.protocol} port ${rule.port}${state}`,
-		tunnelId: tunnel.id,
-		ready,
-	}));
+	return rules.map((rule) => {
+		const own = through(rule.protocol, rule.port);
+		return {
+			key: `tunnel:${tunnel.id}:${rule.protocol}:${rule.port}`,
+			kind: "output",
+			port: `:${rule.port}`,
+			tag: rule.protocol,
+			title: `${source.label} → ${target.label}: ${rule.protocol} port ${rule.port}${state}${describe(own)}`,
+			tunnelId: tunnel.id,
+			ready,
+			established: own,
+		};
+	});
 };
 
 /**

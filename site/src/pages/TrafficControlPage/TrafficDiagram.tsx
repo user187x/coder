@@ -1,5 +1,14 @@
 import { cn } from "cn";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import type { WorkspaceAgentPortShareLevel } from "#/api/typesGenerated";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import type {
 	PortOrb,
@@ -138,6 +147,49 @@ const columnStroke = (column: TrafficColumn) =>
 			? "hsl(var(--content-secondary))"
 			: PALETTE[column.kind].stroke;
 
+/** ":5432", ":5432 :5433", or ":5432 :5433 +2": a side's ports, at most two written out. */
+const portList = (ports: readonly number[]) => {
+	const unique = [...new Set(ports)];
+	const shown = unique
+		.slice(0, 2)
+		.map((p) => `:${p}`)
+		.join(" ");
+	return unique.length > 2 ? `${shown} +${unique.length - 2}` : shown;
+};
+
+/** A side's established ports on a tunnel link, near the workspace end it belongs to. */
+const PortLabel: React.FC<{ x: number; y: number; text: string }> = ({
+	x,
+	y,
+	text,
+}) => {
+	const width = text.length * 6.2 + 10;
+	return (
+		<g aria-hidden className="pointer-events-none">
+			<rect
+				x={x - width / 2}
+				y={y - 9}
+				width={width}
+				height={16}
+				rx={8}
+				className="fill-surface-primary"
+				stroke={PALETTE.output.stroke}
+				strokeWidth={1}
+			/>
+			<text
+				x={x}
+				y={y + 3}
+				textAnchor="middle"
+				fontSize={10}
+				fontWeight={700}
+				className="fill-content-primary font-mono"
+			>
+				{text}
+			</text>
+		</g>
+	);
+};
+
 const short = (text: string, max: number) =>
 	text.length > max ? `${text.slice(0, max - 1)}…` : text;
 
@@ -148,6 +200,23 @@ const period = (rate: number | null) =>
 		: null;
 
 const LEG_MS = 420;
+
+/** Share levels from the narrowest (only the owner) to the widest (anyone). */
+const SHARE_LEVELS: readonly {
+	level: WorkspaceAgentPortShareLevel;
+	label: string;
+}[] = [
+	{ level: "owner", label: "Owner only" },
+	{ level: "organization", label: "Organization" },
+	{ level: "authenticated", label: "Signed-in users" },
+	{ level: "public", label: "Everyone (public)" },
+];
+
+/** A shared port's change from its menu: a narrower share level, or null to stop sharing it. */
+export type ShareChange = (
+	orb: PortOrb,
+	level: WorkspaceAgentPortShareLevel | null,
+) => void;
 
 /**
  * Particles along each tunnel's links as fast as its traffic goes: pink forward (source, port, target), blue back.
@@ -260,12 +329,13 @@ const Orb: React.FC<{
 	at: Point;
 	hovered: boolean;
 	onHover: (key: string | null) => void;
-}> = ({ orb, at, hovered, onHover }) => {
+	onShareChange?: ShareChange;
+}> = ({ orb, at, hovered, onHover, onShareChange }) => {
 	const colors = PALETTE[orb.kind];
 	const twoLines = at.r >= 24 && orb.tag.length > 0;
 	const portSize = Math.max(8.5, Math.min(14.5, at.r * 0.34));
 	const tagSize = Math.max(7.5, Math.min(11.5, at.r * 0.27));
-	return (
+	const body = (
 		<g
 			data-orb={orb.key}
 			className={cn("cursor-default", !orb.ready && "opacity-50")}
@@ -308,6 +378,34 @@ const Orb: React.FC<{
 			)}
 		</g>
 	);
+	const share = orb.share;
+	if (!share || !onShareChange) {
+		return body;
+	}
+	// A shared port's menu: stop sharing it, or narrow who may reach it.
+	const current = SHARE_LEVELS.findIndex((l) => l.level === share.share_level);
+	return (
+		<ContextMenu>
+			<ContextMenuTrigger asChild>{body}</ContextMenuTrigger>
+			<ContextMenuContent>
+				<ContextMenuItem
+					className="text-content-destructive"
+					onSelect={() => onShareChange(orb, null)}
+				>
+					Terminate (stop sharing port {share.port})
+				</ContextMenuItem>
+				{current > 0 && <ContextMenuSeparator />}
+				{SHARE_LEVELS.slice(0, Math.max(0, current)).map((l) => (
+					<ContextMenuItem
+						key={l.level}
+						onSelect={() => onShareChange(orb, l.level)}
+					>
+						Restrict to {l.label.toLowerCase()}
+					</ContextMenuItem>
+				))}
+			</ContextMenuContent>
+		</ContextMenu>
+	);
 };
 
 /**
@@ -318,11 +416,25 @@ const Orb: React.FC<{
 export const TrafficDiagram: React.FC<{
 	topology: TrafficTopology;
 	rates: ReadonlyMap<string, TunnelRate>;
-}> = ({ topology, rates }) => {
+	/** The workspace clicked on, whose open ports the card shows. */
+	selected?: string | null;
+	onSelect?: (workspaceId: string | null) => void;
+	onShareChange?: ShareChange;
+}> = ({ topology, rates, selected = null, onSelect, onShareChange }) => {
+	const navigate = useNavigate();
 	const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 	const [hovered, setHovered] = useState<string | null>(null);
 	const { width, height, nodes, placed } = useMemo(
 		() => layout(topology),
+		[topology],
+	);
+	const orbs = useMemo(
+		() =>
+			new Map(
+				topology.columns.flatMap((c) =>
+					c.kind === "workspace" ? [] : c.orbs.map((o) => [o.key, o] as const),
+				),
+			),
 		[topology],
 	);
 	const arrow = `traffic-arrow-${id}`;
@@ -337,7 +449,8 @@ export const TrafficDiagram: React.FC<{
 		.join(" → ");
 	return (
 		<svg
-			role="img"
+			// a group, not an image: its workspaces and shared ports are interactive
+			role="group"
 			aria-label={`Traffic: ${label}`}
 			viewBox={`0 0 ${width} ${height}`}
 			width={width}
@@ -454,6 +567,35 @@ export const TrafficDiagram: React.FC<{
 						strokeWidth={active ? 3.3 : 2.2}
 						strokeDasharray={link.ready ? undefined : "6 5"}
 						markerEnd={`url(#${active ? arrowActive : arrow})`}
+						// a tunnel carries traffic both ways; a shared port only lets it in
+						markerStart={
+							link.tunnelId
+								? `url(#${active ? arrowActive : arrow})`
+								: undefined
+						}
+					/>
+				);
+			})}
+
+			{/* Each tunnel's established ports on both sides: the source's beside it, the target's beside it. */}
+			{topology.links.map((link) => {
+				const from = nodes.get(link.from);
+				const to = nodes.get(link.to);
+				const orb = orbs.get(link.to) ?? orbs.get(link.from);
+				if (!from || !to || !link.tunnelId || !orb?.established?.length) {
+					return null;
+				}
+				const { x1, y1, x2, y2 } = ends(from, to);
+				const sourceSide = orb.key === link.to;
+				const t = sourceSide ? 0.3 : 0.7;
+				return (
+					<PortLabel
+						key={`ports:${link.from}>${link.to}`}
+						x={x1 + (x2 - x1) * t}
+						y={y1 + (y2 - y1) * t - 12}
+						text={portList(
+							orb.established.map((e) => (sourceSide ? e.source : e.target)),
+						)}
 					/>
 				);
 			})}
@@ -467,58 +609,100 @@ export const TrafficDiagram: React.FC<{
 							if (!at) {
 								return null;
 							}
-							const lit = hovered === ws.id;
+							const lit = hovered === ws.id || selected === ws.id;
 							return (
-								<g
-									key={ws.id}
-									data-workspace={ws.id}
-									onMouseEnter={() => setHovered(ws.id)}
-									onMouseLeave={() => setHovered(null)}
-								>
-									<title>
-										{ws.label}
-										{ws.running ? "" : " (not running)"}
-									</title>
-									<circle
-										cx={at.x}
-										cy={at.y}
-										r={at.r + (lit ? 15 : 10)}
-										fill={
-											ws.running
-												? "rgb(255 92 168 / 0.22)"
-												: "rgb(148 163 184 / 0.18)"
-										}
-										className="transition-[r] duration-150"
-									/>
-									<circle
-										cx={at.x}
-										cy={at.y}
-										r={at.r}
-										fill={ws.running ? `url(#${dot})` : "#94a3b8"}
-										stroke="white"
-										strokeWidth={2.5}
-										style={
-											ws.running
-												? {
-														filter:
-															"drop-shadow(0 0 12px rgb(236 72 153 / 0.7))",
-													}
-												: undefined
-										}
-									/>
-									{column.workspaces.length > 1 && (
-										<text
-											x={at.x}
-											y={at.y + at.r + 18}
-											textAnchor="middle"
-											fontSize={12}
-											fontWeight={700}
-											className="fill-content-primary"
+								<ContextMenu key={ws.id}>
+									<ContextMenuTrigger asChild>
+										<g
+											data-workspace={ws.id}
+											role="button"
+											tabIndex={0}
+											aria-label={`${ws.label}: show its open ports`}
+											aria-pressed={selected === ws.id}
+											className="cursor-pointer outline-none"
+											onMouseEnter={() => setHovered(ws.id)}
+											onMouseLeave={() => setHovered(null)}
+											onClick={() =>
+												onSelect?.(selected === ws.id ? null : ws.id)
+											}
+											onKeyDown={(event) => {
+												if (event.key === "Enter" || event.key === " ") {
+													event.preventDefault();
+													onSelect?.(selected === ws.id ? null : ws.id);
+												}
+											}}
 										>
-											{short(ws.label, 26)}
-										</text>
-									)}
-								</g>
+											<title>
+												{ws.label}
+												{ws.running ? "" : " (not running)"}
+											</title>
+											<circle
+												cx={at.x}
+												cy={at.y}
+												r={at.r + (lit ? 15 : 10)}
+												fill={
+													ws.running
+														? "rgb(255 92 168 / 0.22)"
+														: "rgb(148 163 184 / 0.18)"
+												}
+												className="transition-[r] duration-150"
+											/>
+											<circle
+												cx={at.x}
+												cy={at.y}
+												r={at.r}
+												fill={ws.running ? `url(#${dot})` : "#94a3b8"}
+												stroke="white"
+												strokeWidth={2.5}
+												style={
+													ws.running
+														? {
+																filter:
+																	"drop-shadow(0 0 12px rgb(236 72 153 / 0.7))",
+															}
+														: undefined
+												}
+											/>
+											{column.workspaces.length > 1 && (
+												<text
+													x={at.x}
+													y={at.y + at.r + 18}
+													textAnchor="middle"
+													fontSize={12}
+													fontWeight={700}
+													className="fill-content-primary"
+												>
+													{short(ws.label, 26)}
+												</text>
+											)}
+											{selected === ws.id && (
+												<circle
+													cx={at.x}
+													cy={at.y}
+													r={at.r + 6}
+													fill="none"
+													stroke="white"
+													strokeWidth={2}
+													strokeDasharray="4 3"
+												/>
+											)}
+										</g>
+									</ContextMenuTrigger>
+									<ContextMenuContent>
+										<ContextMenuItem onSelect={() => navigate(ws.href)}>
+											Open workspace
+										</ContextMenuItem>
+										<ContextMenuItem
+											onSelect={() =>
+												onSelect?.(selected === ws.id ? null : ws.id)
+											}
+										>
+											{selected === ws.id
+												? "Hide open ports"
+												: "Show open ports"}
+										</ContextMenuItem>
+									</ContextMenuContent>
+								</ContextMenu>
 							);
 						})
 					: column.orbs.map((orb) => {
@@ -530,6 +714,7 @@ export const TrafficDiagram: React.FC<{
 									at={at}
 									hovered={hovered === orb.key}
 									onHover={setHovered}
+									onShareChange={onShareChange}
 								/>
 							) : null;
 						}),

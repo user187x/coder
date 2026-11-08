@@ -1,6 +1,7 @@
 import type { WorkspaceTunnel } from "#/api/platform";
 import type { WorkspaceAgentPortShare } from "#/api/typesGenerated";
 import {
+	establishedPorts,
 	type TrafficWorkspace,
 	trafficTopologies,
 	tunnelRate,
@@ -10,6 +11,8 @@ const ws = (id: string, running = true): TrafficWorkspace => ({
 	id,
 	label: id,
 	running,
+	href: `/@me/${id}`,
+	agentIds: [],
 });
 
 const tunnel = (
@@ -161,5 +164,59 @@ describe("tunnelRate", () => {
 		expect(
 			tunnelRate(tunnel("t", "a", "b", { source_stats: stats(1, 1, true) })),
 		).toEqual({ forward: null, back: null });
+	});
+});
+
+describe("establishedPorts", () => {
+	const side = (ports: [number, number][]) => ({
+		updated_at: 0,
+		stale: false,
+		series: [],
+		ports: ports.map(([local_port, remote_port]) => ({
+			protocol: "tcp" as const,
+			local_port,
+			remote_port,
+		})),
+	});
+
+	it("puts each connection's ports on their sides, whichever end reported it", () => {
+		expect(
+			establishedPorts(
+				tunnel("t", "a", "b", {
+					source_stats: side([[51000, 5432]]),
+					target_stats: side([
+						[5432, 51000],
+						[8080, 52000],
+					]),
+				}),
+			),
+		).toEqual([
+			{ protocol: "tcp", source: 51000, target: 5432 },
+			{ protocol: "tcp", source: 52000, target: 8080 },
+		]);
+	});
+
+	it("files the connections under the allowed port they reach", () => {
+		const [chain] = trafficTopologies(
+			[ws("a"), ws("b")],
+			[
+				tunnel("t", "a", "b", {
+					ports: [
+						{ protocol: "tcp", port: 5432 },
+						{ protocol: "tcp", port: 22 },
+					],
+					source_stats: side([[51000, 5432]]),
+				}),
+			],
+			new Map(),
+		);
+		const ports = chain.columns.find((c) => c.kind === "output");
+		expect(
+			ports?.kind === "output" &&
+				ports.orbs.map((o) => [o.port, o.established]),
+		).toEqual([
+			[":5432", [{ protocol: "tcp", source: 51000, target: 5432 }]],
+			[":22", []],
+		]);
 	});
 });
