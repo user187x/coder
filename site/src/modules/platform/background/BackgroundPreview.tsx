@@ -6,6 +6,7 @@ import type {
 	BackgroundSlot,
 	NavbarStyle,
 } from "#/api/platform";
+import { navbarStripColor } from "#/modules/dashboard/Navbar/navbarStrip";
 import { HtmlPreviewFrame } from "./HtmlBackgroundControls";
 import { backgroundStyle } from "./PlatformBackground";
 /** A small page with the background as it will be: same strength, fit and layer. */
@@ -73,7 +74,10 @@ export const BackgroundPreview: React.FC<{
 											borderBottomColor: navbarStyle.wireframe
 												? undefined
 												: "transparent",
-											backgroundColor: `hsl(var(--surface-primary) / ${1 - navbarStyle.transparency / 100})`,
+											backgroundColor: navbarStripColor(
+												navbarStyle.color,
+												navbarStyle.transparency,
+											),
 										}
 							}
 						>

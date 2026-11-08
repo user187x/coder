@@ -60,6 +60,7 @@ export const Navbar: React.FC<{ actionRef?: React.Ref<HTMLDivElement> }> = ({
 			actionRef={actionRef}
 			defaultLayout={navbar?.defaultLayout}
 			transparency={navbar?.transparency}
+			stripColor={navbar?.color}
 			scale={navbar?.scale}
 			wireframe={navbar?.wireframe}
 			user={me}

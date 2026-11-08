@@ -17,6 +17,7 @@ import type {
 import { addableAdminPages } from "./adminQuickLinks";
 import { MobileMenu } from "./MobileMenu";
 import { NavbarLogo } from "./NavbarLogo";
+import { navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
 import { UserDropdown } from "./UserDropdown/UserDropdown";
@@ -27,6 +28,8 @@ type NavbarViewProps = {
 	actionRef?: React.Ref<HTMLDivElement>;
 	defaultLayout?: NavbarLayout;
 	transparency?: number;
+	/** The backstrip's own colour (#rrggbb); the theme's without one. */
+	stripColor?: string | null;
 	scale?: number;
 	wireframe?: boolean;
 	user: TypesGen.User;
@@ -43,6 +46,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	actionRef,
 	defaultLayout,
 	transparency = 0,
+	stripColor,
 	scale = 100,
 	wireframe = true,
 	user,
@@ -95,7 +99,8 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					"--navbar-zoom": `var(--navbar-preview-scale, ${scale / 100})`,
 					zoom: "var(--navbar-zoom)",
 					borderBottomColor: `var(--navbar-preview-border, ${wireframe ? "hsl(var(--border-default))" : "transparent"})`,
-					"--navbar-strip-bg": `hsl(var(--surface-primary) / var(--navbar-preview-alpha, ${1 - transparency / 100}))`,
+					// the Appearance page's unsaved choice, while it previews one
+					"--navbar-strip-bg": `var(--navbar-preview-strip, ${navbarStripColor(stripColor, transparency)})`,
 				} as React.CSSProperties
 			}
 			className="navbar-soft sticky top-0 z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"

@@ -678,6 +678,8 @@ export type NavbarStyle = {
 	transparency: number;
 	scale: number;
 	wireframe: boolean;
+	/** The backstrip's own colour (#rrggbb); null or absent for the theme's surface. */
+	color?: string | null;
 };
 
 export type HudStorage = {

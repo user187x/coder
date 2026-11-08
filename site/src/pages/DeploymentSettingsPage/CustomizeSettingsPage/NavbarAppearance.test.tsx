@@ -21,9 +21,9 @@ it("previews the background locally and persists only the saved percentage", asy
 		name: "Navbar transparency",
 	});
 	const preview = () =>
-		document.documentElement.style.getPropertyValue("--navbar-preview-alpha");
+		document.documentElement.style.getPropertyValue("--navbar-preview-strip");
 	fireEvent.change(slider, { target: { value: "100" } });
-	expect(preview()).toBe("0");
+	expect(preview()).toBe("hsl(var(--surface-primary) / 0)");
 	await user.click(screen.getByRole("button", { name: "Discard changes" }));
 	expect(preview()).toBe("");
 	expect(save).not.toHaveBeenCalled();
@@ -45,4 +45,35 @@ it("previews the background locally and persists only the saved percentage", asy
 		}),
 	);
 	await waitFor(() => expect(preview()).toBe(""));
+});
+
+it("previews and saves a backstrip colour, and goes back to the theme's", async () => {
+	vi.spyOn(PlatformAPI, "getNavbarAppearance").mockResolvedValue({
+		transparency: 50,
+		scale: 100,
+		wireframe: true,
+		color: "#102030",
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "setNavbarAppearance")
+		.mockResolvedValue({ transparency: 50, scale: 100, wireframe: true });
+	const user = userEvent.setup();
+	render(<NavbarAppearance />);
+	const picker = await screen.findByLabelText("Navbar backstrip color");
+	fireEvent.change(picker, { target: { value: "#ff8800" } });
+	expect(
+		document.documentElement.style.getPropertyValue("--navbar-preview-strip"),
+	).toBe("rgb(255 136 0 / 0.5)");
+	await user.click(screen.getByRole("button", { name: "Use theme color" }));
+	await user.click(
+		screen.getByRole("button", { name: "Save navbar appearance" }),
+	);
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			transparency: 50,
+			scale: 100,
+			wireframe: true,
+			color: null,
+		}),
+	);
 });

@@ -28,7 +28,12 @@ const meta: Meta<typeof CustomizeSettingsPage> = {
 			{ key: logoKey, data: MockLogo },
 			{
 				key: navbarAppearance().queryKey,
-				data: { transparency: 45, scale: 110, wireframe: false },
+				data: {
+					transparency: 45,
+					scale: 110,
+					wireframe: false,
+					color: "#1d3b5a",
+				},
 			},
 			{ key: animationPolicy().queryKey, data: DEFAULT_ANIMATION_POLICY },
 			{

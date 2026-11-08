@@ -4814,8 +4814,13 @@ class LogoVisibilityTest(unittest.TestCase):
         _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance", allowed=False)
         store.put_setting.assert_not_called()
         _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance")
-        store.put_setting.assert_called_once_with("navbar_appearance", {"transparency": 40, "scale": 100, "wireframe": True})
-        for invalid in ({"scale": 126}, {"scale": True}, {"wireframe": "false"}):
+        store.put_setting.assert_called_once_with(
+            "navbar_appearance", {"transparency": 40, "scale": 100, "wireframe": True, "color": None})
+        _, _, store = self.post({"transparency": 40, "color": "#1A2B3C"}, path="/api/navbar-appearance")
+        store.put_setting.assert_called_once_with(
+            "navbar_appearance", {"transparency": 40, "scale": 100, "wireframe": True, "color": "#1a2b3c"})
+        for invalid in ({"scale": 126}, {"scale": True}, {"wireframe": "false"}, {"color": "red"},
+                        {"color": "#12345"}, {"color": 0x123456}):
             handler, _, store = self.post({"transparency": 40, **invalid}, path="/api/navbar-appearance")
             self.assertEqual(handler.send_json.call_args.args[0], 400)
             store.put_setting.assert_not_called()

@@ -8531,7 +8531,8 @@ ANIMATION_PARTS = ("all", "effects", "gifs", "graphs", "background", "announceme
 
 def navbar_appearance():
     legacy = {"transparency": STORE.get_setting("navbar_transparency", 0), "scale": 100, "wireframe": True}
-    appearance = STORE.get_setting("navbar_appearance", legacy)
+    # color: the backstrip's own colour (#rrggbb), or None for the theme's surface
+    appearance = {"color": None, **STORE.get_setting("navbar_appearance", legacy)}
     layout = STORE.get_setting("navbar_layout_default", None)
     return {**appearance, "defaultLayout": layout} if layout is not None else appearance
 
@@ -10149,7 +10150,11 @@ class Handler(BaseHTTPRequestHandler):
             wireframe = payload.get("wireframe", previous["wireframe"])
             if type(scale) is not int or not 75 <= scale <= 125 or type(wireframe) is not bool:
                 return self.send_json(400, {"error": "Size must be 75 to 125 percent and wireframe must be on or off."})
-            appearance = {"transparency": value, "scale": scale, "wireframe": wireframe}
+            color = payload.get("color", previous["color"])
+            if color is not None and not (isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color)):
+                return self.send_json(400, {"error": "The backstrip colour must be #rrggbb, or empty for the theme's."})
+            appearance = {"transparency": value, "scale": scale, "wireframe": wireframe,
+                          "color": color.lower() if color else None}
             STORE.put_setting("navbar_appearance", appearance)
             return self.send_json(200, navbar_appearance())
         if path == BASE + "/api/animations":
