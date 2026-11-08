@@ -11,7 +11,7 @@ import { StatusIndicatorDot } from "#/components/StatusIndicator/StatusIndicator
 import { UsageBar } from "#/components/UsageBar/UsageBar";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
 import { GraphFrame, ShowWorkspaces } from "./DashboardCard";
-import { QuotaBar } from "./dashboardCharts";
+import { type BarSegment, BarSegmentFill, QuotaBar } from "./dashboardCharts";
 import {
 	type DashboardScope,
 	type DashboardWorkspace,
@@ -123,6 +123,90 @@ const ShareBars: React.FC<{
 	);
 };
 
+/** Past this many slots the ticks would run together, so the bar shows the share only. */
+const MAX_SLOT_TICKS = 50;
+
+/**
+ * The account's workspaces by status against how many it may have: the track is the allowance, with a tick between
+ * each workspace it allows (two allowed: one tick halfway). Without a limit the track holds the workspaces there are,
+ * a tick between each, and an infinity sign at its far end.
+ */
+export const WorkspaceSlotsBar: React.FC<{
+	segments: readonly BarSegment[];
+	limit: number | null;
+}> = ({ segments, limit }) => {
+	const total = segments.reduce((sum, s) => sum + s.value, 0);
+	const unbounded = limit === null;
+	// Unbounded: one empty slot after the last workspace, where the infinity sign sits.
+	const slots = Math.max(unbounded ? total + 1 : limit, total, 1);
+	const ticks =
+		slots <= MAX_SLOT_TICKS
+			? Array.from({ length: slots - 1 }, (_, i) => ((i + 1) / slots) * 100)
+			: [];
+	const full = !unbounded && total >= limit;
+	return (
+		<div
+			role="meter"
+			aria-label="Workspaces by status"
+			aria-valuemin={0}
+			aria-valuemax={unbounded ? undefined : limit}
+			aria-valuenow={total}
+			aria-valuetext={
+				unbounded
+					? `${total} ${total === 1 ? "workspace" : "workspaces"}, no limit`
+					: `${total} of ${limit} ${limit === 1 ? "workspace" : "workspaces"} allowed`
+			}
+			className="relative h-3.5 w-full rounded-full bg-surface-tertiary"
+		>
+			<div className="flex h-full overflow-hidden rounded-full">
+				{segments.map((s) => (
+					<BarSegmentFill
+						key={s.label}
+						segment={s}
+						fill={full ? "bg-highlight-red" : null}
+						width={`${(s.value / slots) * 100}%`}
+					/>
+				))}
+			</div>
+			{ticks.map((left) => (
+				<div
+					key={left}
+					aria-hidden
+					data-testid="workspace-slot-tick"
+					className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-surface-primary"
+					style={{ left: `${left}%` }}
+				/>
+			))}
+			{!unbounded && (
+				<span
+					aria-hidden
+					data-testid="workspace-slots-left"
+					className={cn(
+						"pointer-events-none absolute inset-y-0 flex items-center justify-end overflow-hidden whitespace-nowrap pr-2 text-[10px] leading-none font-medium tabular-nums",
+						total > limit
+							? "text-content-destructive"
+							: "text-content-secondary",
+					)}
+					style={{
+						left: `${(Math.min(total, slots) / slots) * 100}%`,
+						right: 0,
+					}}
+				>
+					{total > limit ? `${total - limit} over` : `${limit - total} left`}
+				</span>
+			)}
+			{unbounded && (
+				<span
+					aria-hidden
+					className="absolute inset-y-0 right-1.5 flex items-center text-[13px] leading-none font-semibold text-content-secondary"
+				>
+					∞
+				</span>
+			)}
+		</div>
+	);
+};
+
 export const WorkspacesCardBody: React.FC<{
 	scope: DashboardScope;
 	me: string;
@@ -140,7 +224,12 @@ export const WorkspacesCardBody: React.FC<{
 	const other = rows.length - running - stopped;
 	const states = [
 		{ label: "Running", value: running, fill: "bg-highlight-green" },
-		{ label: "Stopped", value: stopped, fill: "bg-content-secondary" },
+		{
+			label: "Stopped",
+			value: stopped,
+			fill: "bg-content-secondary",
+			offline: true,
+		},
 		{ label: "Other", value: other, fill: "bg-highlight-orange" },
 	].filter((s) => s.value > 0);
 	return (
@@ -149,15 +238,21 @@ export const WorkspacesCardBody: React.FC<{
 				<div className="flex items-baseline justify-between text-xs">
 					<span className="font-semibold text-content-primary">Status</span>
 					<span className="whitespace-nowrap tabular-nums text-content-secondary">
-						{rows.length} {rows.length === 1 ? "workspace" : "workspaces"}
+						{scope.kind === "mine"
+							? `${rows.length} of ${scope.workspaceLimit ?? "∞"} ${(scope.workspaceLimit ?? 2) === 1 ? "workspace" : "workspaces"}`
+							: `${rows.length} ${rows.length === 1 ? "workspace" : "workspaces"}`}
 					</span>
 				</div>
-				<QuotaBar
-					label="Workspaces by status"
-					unit="workspaces"
-					limit={null}
-					segments={states}
-				/>
+				{scope.kind === "mine" ? (
+					<WorkspaceSlotsBar segments={states} limit={scope.workspaceLimit} />
+				) : (
+					<QuotaBar
+						label="Workspaces by status"
+						unit="workspaces"
+						limit={null}
+						segments={states}
+					/>
+				)}
 				<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-content-secondary">
 					{states.map((s) => (
 						<span
@@ -252,6 +347,7 @@ export const DisksCardBody: React.FC<{
 							label: "Stopped",
 							value: scope.stopped.disk,
 							fill: "bg-highlight-grey",
+							offline: true,
 						},
 					]}
 				/>

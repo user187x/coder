@@ -202,7 +202,34 @@ export type BarSegment = {
 	value: number;
 	/** Background class of the segment's colour. */
 	fill: string;
+	/** Claimed by workspaces that are not running: drawn as a dotted line, not a solid fill. */
+	offline?: boolean;
 };
+
+/** One segment of a bar: solid while its workspaces run, a dotted line through the track while they are offline. */
+export const BarSegmentFill: React.FC<{
+	segment: BarSegment;
+	width: string;
+	fill?: string | null;
+}> = ({ segment, width, fill }) =>
+	segment.offline ? (
+		<div
+			data-testid="bar-segment-offline"
+			title={`${segment.label}: claimed, not running`}
+			className="flex h-full shrink-0 items-center border-0 border-r border-solid border-surface-primary px-0.5 transition-[width] duration-500"
+			style={{ width }}
+		>
+			<div className="w-full border-0 border-t-2 border-dotted border-content-secondary" />
+		</div>
+	) : (
+		<div
+			className={cn(
+				"h-full shrink-0 transition-[width] duration-500",
+				fill ?? segment.fill,
+			)}
+			style={{ width }}
+		/>
+	);
 
 /**
  * A horizontal bar of segments against a limit, with the limit drawn as a watermark line at 80% of the track. The
@@ -220,6 +247,17 @@ export const QuotaBar: React.FC<{
 	const total = segments.reduce((sum, s) => sum + s.value, 0);
 	const level = watermarkLevel(total, limit);
 	const top = limit && limit > 0 ? limit * HEADROOM : total;
+	const usedEnd = top > 0 ? Math.min(100, (total / top) * 100) : 0;
+	const amount = (value: number) =>
+		format ? format(value) : `${formatQuotaNumber(value)} ${unit}`;
+	// What is left under the limit, written in the track's empty part (over the limit: by how much).
+	const over = limit !== null && limit > 0 && total > limit;
+	const left =
+		limit && limit > 0
+			? over
+				? `${amount(total - limit)} over`
+				: `${amount(limit - total)} left`
+			: null;
 	return (
 		<div
 			role="meter"
@@ -235,24 +273,34 @@ export const QuotaBar: React.FC<{
 				.replace(`${label}: `, "")
 				.replace("allocated", "used")}
 			className={cn(
-				"relative h-2.5 w-full overflow-visible rounded-full bg-surface-tertiary",
+				"relative w-full overflow-visible rounded-full bg-surface-tertiary",
+				left ? "h-4" : "h-2.5",
 				className,
 			)}
 		>
 			<div className="flex h-full overflow-hidden rounded-full">
 				{segments.map((s) => (
-					<div
+					<BarSegmentFill
 						key={s.label}
-						className={cn(
-							"h-full transition-[width] duration-500",
-							LEVEL_FILL[level] ?? s.fill,
-						)}
-						style={{
-							width: `${top > 0 ? Math.min(100, (s.value / top) * 100) : 0}%`,
-						}}
+						segment={s}
+						fill={LEVEL_FILL[level]}
+						width={`${top > 0 ? Math.min(100, (s.value / top) * 100) : 0}%`}
 					/>
 				))}
 			</div>
+			{left && (
+				<span
+					aria-hidden
+					data-testid="quota-bar-left"
+					className={cn(
+						"pointer-events-none absolute inset-y-0 flex items-center justify-end overflow-hidden whitespace-nowrap pr-2 text-[10px] leading-none font-medium tabular-nums",
+						over ? "text-content-destructive" : "text-content-secondary",
+					)}
+					style={{ left: `${usedEnd}%`, right: 0 }}
+				>
+					{left}
+				</span>
+			)}
 			{/* The combined allocation's end: where the segments together stop */}
 			{total > 0 && (
 				<div

@@ -29,27 +29,34 @@ const allocationSegments = (
 	scope: DashboardScope,
 	resource: "cpu" | "memory",
 ): BarSegment[] => {
+	// Running workspaces first (solid), then the ones claiming without running (dotted), each by size.
 	const rows = [...scope.workspaces]
 		.filter((w) => w[resource] > 0)
-		.sort((a, b) => b[resource] - a[resource]);
+		.sort(
+			(a, b) =>
+				Number(b.running) - Number(a.running) || b[resource] - a[resource],
+		);
 	const top = rows.slice(0, SEGMENT_FILLS.length - 1);
 	const rest = rows.slice(SEGMENT_FILLS.length - 1);
-	const segments = top.map((w, i) => ({
+	const segments: BarSegment[] = top.map((w, i) => ({
 		label: w.owner ? `${w.owner}/${w.name}` : w.name,
 		value: w[resource],
 		fill: SEGMENT_FILLS[i],
+		offline: !w.running,
 	}));
-	const other = rest.reduce((sum, w) => sum + w[resource], 0);
-	return other > 0
-		? [
-				...segments,
-				{
-					label: "Other",
-					value: other,
-					fill: SEGMENT_FILLS[SEGMENT_FILLS.length - 1],
-				},
-			]
-		: segments;
+	const fill = SEGMENT_FILLS[SEGMENT_FILLS.length - 1];
+	const others = [
+		{ label: "Other", running: true },
+		{ label: "Other, not running", running: false },
+	].map(({ label, running }) => ({
+		label,
+		value: rest
+			.filter((w) => w.running === running)
+			.reduce((sum, w) => sum + w[resource], 0),
+		fill,
+		offline: !running,
+	}));
+	return [...segments, ...others.filter((o) => o.value > 0)];
 };
 
 type WorkspaceReading = {
