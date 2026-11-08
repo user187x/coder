@@ -174,6 +174,19 @@ const GpuStrip: React.FC<{ params: ParameterControls; saving: boolean }> = ({
 	);
 };
 
+/** Where the home is kept, by the platform's label on its volume, never by storage class names. */
+const homeStorageText = (volume: NonNullable<WorkspaceVolume["volume"]>) => {
+	if (volume.homeStorage === "ha") {
+		return "On High availability storage. Follows the workspace to any node.";
+	}
+	if (volume.homeStorage === "node") {
+		return volume.node
+			? `On Node storage (${volume.node}).`
+			: "On Node storage.";
+	}
+	return `On ${volume.storageClass || "the default storage class"}.`;
+};
+
 /** The home disk: its size now (the parameter is only the size it was made with), and Expand disk. */
 const DiskStrip: React.FC<{
 	workspace: Workspace;
@@ -192,7 +205,7 @@ const DiskStrip: React.FC<{
 				</div>
 				<p className="ws-desc">
 					{volume
-						? `On ${volume.storageClass || "the default storage class"}. ${
+						? `${homeStorageText(volume)} ${
 								volume.expandable
 									? "Expanding grows it in place."
 									: "Expanding copies it onto a bigger disk."

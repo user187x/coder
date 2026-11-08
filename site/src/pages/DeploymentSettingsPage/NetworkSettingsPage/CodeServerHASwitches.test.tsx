@@ -13,9 +13,14 @@ describe("CodeServerHASwitches", () => {
 	const variables = [
 		{ ...MockTemplateVersionVariable1, name: "code_server_ha", value: "false" },
 		{ ...MockTemplateVersionVariable1, name: "namespace", value: "coder" },
+		{
+			...MockTemplateVersionVariable1,
+			name: "ha_storage_class",
+			value: "coder-nfs-home",
+		},
 	];
 
-	it("switches a template's code-server HA on: a new version with the variable changed, made active", async () => {
+	it("switches a template's Workspace HA on: a new version with the variable changed, made active", async () => {
 		vi.spyOn(API, "getTemplates").mockResolvedValue([MockTemplate]);
 		vi.spyOn(API, "getTemplateVersionVariables").mockResolvedValue(variables);
 		vi.spyOn(API, "getTemplateVersion").mockImplementation(
@@ -58,6 +63,7 @@ describe("CodeServerHASwitches", () => {
 				user_variable_values: [
 					{ name: "code_server_ha", value: "true" },
 					{ name: "namespace", value: "coder" },
+					{ name: "ha_storage_class", value: "coder-nfs-home" },
 				],
 			}),
 		);
@@ -70,7 +76,7 @@ describe("CodeServerHASwitches", () => {
 		]);
 		renderWithAuth(<CodeServerHASwitches />);
 		expect(
-			await screen.findByText(/No template here has code-server HA/),
+			await screen.findByText(/No template here has Workspace HA/),
 		).toBeVisible();
 	});
 });

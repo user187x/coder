@@ -26,6 +26,33 @@ ld = load("lockdown", "lockdown.py")
 pv = load("provisioners", "provisioners.py")
 
 
+class WorkspaceHAAdmissionTest(unittest.TestCase):
+    def test_the_home_class_only_when_the_switch_is_on(self):
+        def variables(on, cls):
+            return lambda token, path, timeout=10: (200, [{"name": "code_server_ha", "value": on},
+                                                          {"name": "ha_storage_class", "value": cls}])
+        cases = [("true", "coder-nfs-home", "coder-nfs-home"), ("false", "coder-nfs-home", None),
+                 ("true", "", None)]
+        for on, cls, want in cases:
+            with mock.patch.object(ui, "_coder_get", variables(on, cls)):
+                self.assertEqual(ui.ha_home_class("tok", "v1"), want, (on, cls))
+        with mock.patch.object(ui, "_coder_get", lambda token, path, timeout=10: (403, {})):
+            self.assertIsNone(ui.ha_home_class("tok", "v1"), "unreadable variables: node storage")
+
+    def test_the_pool_left_is_its_size_less_every_volume_of_the_class(self):
+        sc = {"metadata": {"annotations": {ui.HA_POOL_ANNOTATION: "250"}}}
+        pvs = {"items": [{"spec": {"storageClassName": "coder-nfs-home", "capacity": {"storage": "20G"}}},
+                         {"spec": {"storageClassName": "coder-nfs-home", "capacity": {"storage": "30G"}}},
+                         {"spec": {"storageClassName": "local-path", "capacity": {"storage": "500G"}}}]}
+        calls = {"/apis/storage.k8s.io/v1/storageclasses/coder-nfs-home": (200, sc), "/api/v1/persistentvolumes": (200, pvs)}
+        kube = mock.MagicMock(call=lambda method, path: calls[path])
+        with mock.patch.object(ui, "KUBE", kube):
+            self.assertEqual(ui.ha_pool_remaining("coder-nfs-home"), 200.0)
+        calls["/apis/storage.k8s.io/v1/storageclasses/coder-nfs-home"] = (200, {"metadata": {}})
+        with mock.patch.object(ui, "KUBE", kube):
+            self.assertIsNone(ui.ha_pool_remaining("coder-nfs-home"), "no pool size: unchecked")
+
+
 class PlatformHTTPTest(unittest.TestCase):
     def test_delete_body_does_not_corrupt_next_request(self):
         import http.client
@@ -3761,6 +3788,9 @@ class CodeServerHATest(unittest.TestCase):
         self.assertTrue(home["spec"]["securityContext"]["runAsNonRoot"])
         self.assertEqual(home["spec"]["volumes"][0]["persistentVolumeClaim"]["claimName"], "coder-x-home")
         self.assertIn("node-a", json.dumps(home["spec"]["affinity"]))
+        shared = self.c.instance_pod(inst, 3, "tok", True, "primary", "coder", shared_home=True)
+        self.assertEqual(shared["spec"]["volumes"][0]["persistentVolumeClaim"]["claimName"], "coder-x-home")
+        self.assertNotIn("affinity", shared["spec"], "a home on HA storage: the instance runs on any node")
         away = self.c.instance_pod(inst, 4, "tok", False, "dr-site", "coder-dr")
         self.assertIn("emptyDir", away["spec"]["volumes"][0])
         self.assertNotIn("affinity", away["spec"])

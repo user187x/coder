@@ -247,9 +247,14 @@ def volume_info(wid):
     cap = ((pvc.get("status") or {}).get("capacity") or {}).get("storage")
     req = (((pvc.get("spec") or {}).get("resources") or {}).get("requests") or {}).get("storage")
     conditions = [c.get("type") for c in (pvc.get("status") or {}).get("conditions") or []]
-    return {"name": pvc["metadata"]["name"], "sizeGB": gb(cap or req), "requestedGB": gb(req),
+    meta = pvc.get("metadata") or {}
+    # Where the home is: ha (Workspace HA storage, every node reaches it; the template labels the claim when it makes
+    # it), else node, with the node a local volume is on.
+    ha = (meta.get("labels") or {}).get("platform.coder/home-storage") == "ha"
+    return {"name": meta["name"], "sizeGB": gb(cap or req), "requestedGB": gb(req),
             "storageClass": sc_name, "expandable": expandable, "phase": (pvc.get("status") or {}).get("phase"),
-            "conditions": conditions}
+            "conditions": conditions, "homeStorage": "ha" if ha else "node",
+            "node": None if ha else (meta.get("annotations") or {}).get("volume.kubernetes.io/selected-node")}
 
 
 def workspace_node(wid):

@@ -7150,9 +7150,10 @@ def workspace_admission(token, user, body):
             raise RuntimeError("Template infrastructure could not be read.")
         definitions = ({p["name"]: p.get("default_value") for p in rich}, any(
             r.get("type") in ("kubernetes_deployment", "kubernetes_deployment_v1", "kubernetes_pod",
-                              "kubernetes_pod_v1", "kubernetes_manifest") for r in resources))
+                              "kubernetes_pod_v1", "kubernetes_manifest") for r in resources),
+            ha_home_class(token, version))
         CACHE.put("workspace-admission:" + version, definitions, 60)
-    defaults, kubernetes = definitions
+    defaults, kubernetes, ha_class = definitions
     values = {**defaults, **{p["name"]: p["value"] for p in body.get("rich_parameter_values") or []}}
     parameters = [{"name": k, "value": v} for k, v in values.items()]
     result = quota_check(token, user, {**body, "rich_parameter_values": parameters}, resolved=True)
@@ -7171,7 +7172,16 @@ def workspace_admission(token, user, body):
         if st == 200:
             bound_node = (pvc.get("metadata", {}).get("annotations") or {}).get("volume.kubernetes.io/selected-node")
     nodes = workspacecapacity.available(cluster_snapshot(), template["name"], current, quantity, WORKSPACE_NAMESPACE, bound_node)
-    if not current and "home_disk_size" in values:
+    ha_disk = None
+    if not current and ha_class and "home_disk_size" in values:
+        # Workspace HA: the new home goes to the shared pool, not a node's disk.
+        ha_disk = ha_pool_remaining(ha_class)
+        if ha_disk is not None:
+            result = {**result, "remaining": {**(result.get("remaining") or {}), "ha_disk": ha_disk}}
+            if result["allowed"] and float(values.get("home_disk_size") or 0) > ha_disk:
+                result = {**result, "allowed": False,
+                          "message": "The high availability storage has %g GB left for new homes." % ha_disk}
+    elif not current and "home_disk_size" in values:
         # The bundled local-path provisioner creates homes on the chosen node's filesystem.
         st, classes = KUBE.call("GET", "/apis/storage.k8s.io/v1/storageclasses")
         default = next((c for c in classes.get("items", []) if
@@ -7187,7 +7197,40 @@ def workspace_admission(token, user, body):
     issue = workspacecapacity.check_size(values, nodes)
     if result["allowed"] and issue:
         result = {**result, "allowed": False, "message": issue}
-    return {**result, "nodes": nodes}
+    return {**result, "nodes": nodes, "haStorage": bool(ha_class and not current)}
+
+
+# Workspace HA (the template's code_server_ha with the chart's haStorageClass): new homes go to a StorageClass every
+# node reaches. Its capacity for homes is the class's annotation platform.coder/pool-gb (none: unchecked).
+HA_POOL_ANNOTATION = "platform.coder/pool-gb"
+
+
+def ha_home_class(token, version):
+    """The StorageClass a template version puts new homes on when Workspace HA is on for it, else None."""
+    st, variables = _coder_get(token, "/api/v2/templateversions/" + version + "/variables")
+    if st != 200 or not isinstance(variables, list):
+        return None
+    by_name = {v.get("name"): str(v.get("value") or "") for v in variables}
+    if by_name.get("code_server_ha", "").lower() != "true":
+        return None
+    return by_name.get("ha_storage_class") or None
+
+
+def ha_pool_remaining(class_name):
+    """GB left in the HA storage pool: its size (the class's annotation) less every volume of the class."""
+    st, sc = KUBE.call("GET", "/apis/storage.k8s.io/v1/storageclasses/" + urllib.parse.quote(class_name, safe=""))
+    if st != 200:
+        return None
+    try:
+        pool = float((sc["metadata"].get("annotations") or {})[HA_POOL_ANNOTATION])
+    except (KeyError, TypeError, ValueError):
+        return None
+    st, pvs = KUBE.call("GET", "/api/v1/persistentvolumes")
+    if st != 200:
+        raise RuntimeError("The high availability storage's use could not be read.")
+    used = sum((quantity((pv["spec"].get("capacity") or {}).get("storage")) or 0) / 1e9
+               for pv in pvs.get("items", []) if pv["spec"].get("storageClassName") == class_name)
+    return max(0.0, round(pool - used, 1))
 
 
 # --------------------------------------------------------------------------- Global Workspace Scheduler (Health > User Quota)

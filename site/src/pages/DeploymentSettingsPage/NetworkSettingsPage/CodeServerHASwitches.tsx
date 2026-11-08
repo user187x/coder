@@ -8,12 +8,16 @@ import { Switch } from "#/components/Switch/Switch";
 
 /** The template variable that runs a template's code-server as an HA instance (charts/coder-workspace main.tf). */
 const CODE_SERVER_HA_VARIABLE = "code_server_ha";
+/** The StorageClass of homes every node reaches (the chart's haStorageClass); empty: no HA storage in this cluster. */
+const HA_STORAGE_CLASS_VARIABLE = "ha_storage_class";
 const IMPORT_POLL_MS = 2000;
 const IMPORT_TIMEOUT_MS = 10 * 60 * 1000;
 
 type HATemplate = {
 	template: Template;
 	on: boolean;
+	/** The cluster has HA storage for this template's homes, not only the editor's HA. */
+	sharedStorage: boolean;
 	variables: readonly TemplateVersionVariable[];
 };
 
@@ -28,8 +32,16 @@ const haTemplates = async (): Promise<HATemplate[]> => {
 				template.active_version_id,
 			).catch(() => []);
 			const ha = variables.find((v) => v.name === CODE_SERVER_HA_VARIABLE);
+			const storage = variables.find(
+				(v) => v.name === HA_STORAGE_CLASS_VARIABLE,
+			);
 			return ha
-				? { template, on: ha.value.toLowerCase() === "true", variables }
+				? {
+						template,
+						on: ha.value.toLowerCase() === "true",
+						sharedStorage: Boolean(storage?.value),
+						variables,
+					}
 				: null;
 		}),
 	);
@@ -59,7 +71,7 @@ const switchCodeServerHA = async ({
 		storage_method: "file",
 		provisioner: "terraform",
 		tags: active.job.tags,
-		message: `code-server HA ${on ? "on" : "off"} (Settings › Network)`,
+		message: `Workspace HA ${on ? "on" : "off"} (Settings › Network)`,
 		user_variable_values: variables.map((v) => ({
 			name: v.name,
 			value: v.name === CODE_SERVER_HA_VARIABLE ? String(on) : v.value,
@@ -84,23 +96,27 @@ const switchCodeServerHA = async ({
 };
 
 /**
- * Platform: code-server HA on or off for each template that has it (its code_server_ha variable) - in this cluster
- * too: the replicator here runs each such workspace's code-server as an instance of its own, beside a relay in the
- * workspace. A switch makes a new version of the template with the variable changed, the active one; the template's
- * workspaces follow at their next start. The chart's template push keeps the setting (charts/coder-workspace job).
+ * Platform: Workspace HA on or off for each template that has it (its code_server_ha variable). On: the replicator runs
+ * each workspace's code-server as an instance of its own, beside a relay in the workspace; where the cluster has HA
+ * storage (ha_storage_class), new homes go there and those workspaces leave a failed node within a minute. A switch
+ * makes a new version of the template with the variable changed, the active one; the template's workspaces follow at
+ * their next start. The chart's template push keeps the setting (charts/coder-workspace job).
  */
 export const CodeServerHASwitches: React.FC = () => {
 	const queryClient = useQueryClient();
 	const query = useQuery({ queryKey: haTemplatesKey, queryFn: haTemplates });
 	const change = useMutation({
 		mutationFn: switchCodeServerHA,
-		onSuccess: (_, { template, on }) => {
+		onSuccess: (_, { template, on, sharedStorage }) => {
+			const name = template.display_name || template.name;
 			toast.success(
-				`code-server HA ${on ? "on" : "off"} for ${template.display_name || template.name}: its workspaces follow at their next start.`,
+				on && sharedStorage
+					? `Workspace HA on for ${name}: new workspaces get HA storage; running ones follow at their next start.`
+					: `Workspace HA ${on ? "on" : "off"} for ${name}: its workspaces follow at their next start.`,
 			);
 		},
 		onError: (error) =>
-			toast.error(getErrorMessage(error, "code-server HA was not changed.")),
+			toast.error(getErrorMessage(error, "Workspace HA was not changed.")),
 		onSettled: () =>
 			queryClient.invalidateQueries({ queryKey: haTemplatesKey }),
 	});
@@ -111,7 +127,7 @@ export const CodeServerHASwitches: React.FC = () => {
 	if (!query.data?.length) {
 		return (
 			<p className="m-0 text-xs text-content-secondary">
-				No template here has code-server HA (a code_server_ha variable).
+				No template here has Workspace HA (a code_server_ha variable).
 			</p>
 		);
 	}
@@ -120,7 +136,7 @@ export const CodeServerHASwitches: React.FC = () => {
 			className="m-0 flex list-none flex-wrap gap-2 p-0"
 			data-testid="ha-templates"
 		>
-			{query.data.map(({ template, on, variables }) => {
+			{query.data.map(({ template, on, sharedStorage, variables }) => {
 				const name = template.display_name || template.name;
 				const busy =
 					change.isPending && change.variables?.template.id === template.id;
@@ -134,9 +150,9 @@ export const CodeServerHASwitches: React.FC = () => {
 						<Switch
 							checked={on}
 							disabled={change.isPending}
-							aria-label={`code-server HA for ${name}`}
+							aria-label={`Workspace HA for ${name}`}
 							onCheckedChange={(next) =>
-								change.mutate({ template, variables, on: next })
+								change.mutate({ template, variables, sharedStorage, on: next })
 							}
 							data-testid={`ha-template-switch-${template.name}`}
 						/>
@@ -144,9 +160,11 @@ export const CodeServerHASwitches: React.FC = () => {
 						<span className="text-content-secondary">
 							{busy
 								? "making a new version…"
-								: on
-									? "on: its workspaces run code-server HA from their next start"
-									: "off"}
+								: !on
+									? "off"
+									: sharedStorage
+										? "on: HA editor, new homes on HA storage, node failover"
+										: "on: HA editor only (no shared storage for homes here)"}
 						</span>
 						{busy && <Spinner loading size="sm" />}
 					</li>

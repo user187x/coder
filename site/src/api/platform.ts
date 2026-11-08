@@ -851,11 +851,14 @@ export type WorkspaceAdmissionRequest = {
 	owner: string;
 	rich_parameter_values: { name: string; value: string }[];
 };
-type WorkspaceAdmission = {
+export type WorkspaceAdmission = {
 	allowed: boolean;
 	message: string;
-	remaining?: QuotaLimits;
+	/** ha_disk: GB left in the high availability storage, where a Workspace HA template puts new homes. */
+	remaining?: QuotaLimits & { ha_disk?: number };
 	nodes?: { cpu: number; memory: number; gpus: number; disk?: number }[];
+	/** The new home goes to high availability storage (the template's Workspace HA), not a node's disk. */
+	haStorage?: boolean;
 };
 
 export type QuotaMe = {

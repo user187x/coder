@@ -270,6 +270,8 @@ spec:
                 --variable default_memory=6 \
                 {{- end }}
                 --variable home_storage_class="{{ $.Values.storageClass | default "" }}" \
+                --variable ha_storage_class="{{ $.Values.haStorageClass | default "" }}" \
+                --variable failover_seconds="{{ $.Values.failoverSeconds | default 30 }}" \
                 {{- with $.Values.codeServerHA }}{{ if .image }}
                 --variable code_server_ha_image="{{ .image }}" \
                 --variable code_server_ha_db_ca_secret="{{ .dbCaSecret }}" \

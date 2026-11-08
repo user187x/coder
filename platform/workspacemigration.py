@@ -168,6 +168,8 @@ def plan(ws):
     pvc = volumes.get_pvc(volumes.pvc_name(ws['id']))
     if not pvc or pvc.get('status', {}).get('phase') != 'Bound' or pvc.get('metadata', {}).get('deletionTimestamp'):
         raise ValueError('The workspace must have a bound native home volume.')
+    if (pvc['metadata'].get('labels') or {}).get('platform.coder/home-storage') == 'ha':
+        raise ValueError('This home is on high availability storage: it follows the workspace to any node.')
     pv = api('GET', path('persistentvolumes', pvc['spec']['volumeName']))
     sc = pvc['spec'].get('storageClassName')
     storage_class = api('GET', '/apis/storage.k8s.io/v1/storageclasses/' + urllib.parse.quote(sc or '', safe=''))

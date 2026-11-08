@@ -41,6 +41,10 @@ export type WorkspaceVolume = {
 		conditions: string[];
 		runtime?: "vm";
 		offlineExpansion?: boolean;
+		/** ha: Workspace HA storage, which follows the workspace to any node; node: one node's disk. */
+		homeStorage?: "ha" | "node";
+		/** The node a node-storage home is on. */
+		node?: string | null;
 	} | null;
 	running: boolean;
 	busy: boolean;

@@ -1097,6 +1097,53 @@ describe("CreateWorkspacePage", () => {
 			},
 		);
 
+		it("bounds a Workspace HA template's new home by the HA storage left", async () => {
+			vi.mocked(PlatformAPI.checkWorkspaceAdmission).mockResolvedValue({
+				allowed: true,
+				message: "Within quota.",
+				remaining: {
+					cpu: null,
+					memory: null,
+					disk: 50,
+					workspaces: null,
+					ha_disk: 20,
+				},
+				nodes: [{ cpu: 8, memory: 16, gpus: 0 }],
+				haStorage: true,
+			});
+			const disk: PreviewParameter = {
+				...cpu,
+				name: "home_disk_size",
+				display_name: "Home disk",
+				type: "number",
+				form_type: "input",
+				mutable: true,
+				options: [],
+				value: { value: "10", valid: true },
+				default_value: { value: "10", valid: true },
+				validations: [
+					{
+						validation_error: "",
+						validation_min: 1,
+						validation_max: 100,
+						validation_monotonic: null,
+						validation_regex: null,
+					},
+				],
+			};
+			const { mockPublisher } = await renderPageWithSocket();
+			await expectSocketHandshake({ mockPublisher, parameters: [disk] });
+			await waitForLoaderToBeRemoved();
+			await waitFor(() =>
+				expect(
+					screen.getByRole("spinbutton", { name: "Home disk" }),
+				).toHaveAttribute("max", "20"),
+			);
+			expect(screen.getByTestId("at-a-glance")).toHaveTextContent(
+				"10 GB · High availability",
+			);
+		});
+
 		it("shows the parameters as the workspace settings page's cards, immutable ones settable", async () => {
 			const { mockPublisher, mockSocket } = await renderPageWithSocket();
 			await expectSocketHandshake({ mockPublisher, parameters: [cpu, theme] });

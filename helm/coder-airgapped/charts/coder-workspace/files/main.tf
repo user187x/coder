@@ -30,6 +30,20 @@ variable "home_storage_class" {
   default     = ""
 }
 
+# Workspace HA (the chart's haStorageClass): a StorageClass every node reaches (e.g. NFS). With code_server_ha on, new
+# homes go there, and a workspace whose home is there leaves a failed node after failover_seconds. "": editor HA only.
+variable "ha_storage_class" {
+  type        = string
+  description = "StorageClass of highly available homes, reachable from every node (empty: none in this cluster)."
+  default     = ""
+}
+
+variable "failover_seconds" {
+  type        = number
+  description = "How long a workspace on HA storage waits for a failed (not ready or unreachable) node before moving."
+  default     = 30
+}
+
 variable "namespace" {
   type        = string
   description = "The Kubernetes namespace to create workspaces in: the platform's own (the template push sets it)."
@@ -456,6 +470,8 @@ variable "code_server_ha_db_ca_secret" {
 
 locals {
   code_server_ha = !var.workspace_vm_enabled && var.code_server_ha && var.code_server_ha_image != ""
+  # Where a NEW home goes; an existing home keeps its class (the claim's lifecycle).
+  new_home_ha = local.code_server_ha && var.ha_storage_class != ""
 }
 
 resource "coder_agent" "main" {
@@ -567,6 +583,9 @@ resource "kubernetes_persistent_volume_claim_v1" "home" {
       "com.coder.workspace.name"   = data.coder_workspace.me.name
       "com.coder.user.id"          = data.coder_workspace_owner.me.id
       "com.coder.user.username"    = data.coder_workspace_owner.me.name
+      # Where the home was made (ha: shared storage that follows the workspace to any node; node: one node's disk).
+      # Set once: the class never changes, so neither does this.
+      "platform.coder/home-storage" = local.new_home_ha ? "ha" : "node"
     }
     annotations = {
       "com.coder.user.email" = data.coder_workspace_owner.me.email
@@ -576,7 +595,7 @@ resource "kubernetes_persistent_volume_claim_v1" "home" {
 
   spec {
     access_modes       = ["ReadWriteOnce"]
-    storage_class_name = var.home_storage_class != "" ? var.home_storage_class : null
+    storage_class_name = local.new_home_ha ? var.ha_storage_class : (var.home_storage_class != "" ? var.home_storage_class : null)
     resources {
       requests = {
         storage = "${data.coder_parameter.home_disk_size.value}G"
@@ -588,8 +607,13 @@ resource "kubernetes_persistent_volume_claim_v1" "home" {
   # Expand disk, done by the platform service), so later builds leave the volume's size alone. The storage class
   # is fixed when the volume is made: a change of home_storage_class must never replace (empty) existing homes.
   lifecycle {
-    ignore_changes = [spec[0].resources, spec[0].storage_class_name]
+    ignore_changes = [spec[0].resources, spec[0].storage_class_name, metadata[0].labels["platform.coder/home-storage"]]
   }
+}
+
+locals {
+  # The home as it is: the claim's class in the state (refreshed from the cluster; the config's for a new claim).
+  home_ha = var.ha_storage_class != "" && try(kubernetes_persistent_volume_claim_v1.home[0].spec[0].storage_class_name, "") == var.ha_storage_class
 }
 
 locals {
@@ -826,6 +850,18 @@ resource "kubernetes_deployment_v1" "main" {
         volume {
           name = "ca-bundle"
           empty_dir {}
+        }
+
+        # A home on HA storage follows the workspace: leave a failed node after failover_seconds, not the default 300.
+        # A node-storage home cannot move, so its pod keeps waiting for the node.
+        dynamic "toleration" {
+          for_each = local.home_ha ? ["node.kubernetes.io/not-ready", "node.kubernetes.io/unreachable"] : []
+          content {
+            key                = toleration.value
+            operator           = "Exists"
+            effect             = "NoExecute"
+            toleration_seconds = var.failover_seconds
+          }
         }
 
         affinity {

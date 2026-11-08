@@ -12,7 +12,7 @@ import {
 import { useQuery } from "react-query";
 import { Link as RouterLink } from "react-router";
 import * as Yup from "yup";
-import { PlatformError } from "#/api/platform";
+import { PlatformError, type WorkspaceAdmission } from "#/api/platform";
 import { workspaceAdmission } from "#/api/queries/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import type {
@@ -75,6 +75,15 @@ import { ExternalAuthButton } from "./ExternalAuthButton";
 import type { CreateWorkspacePermissions } from "./permissions";
 
 const FORM_ID = "create-workspace-form";
+
+/** The most GB a new home may take: the owner's disk quota, and what HA storage has left when the home goes there. */
+const diskLimit = (report: WorkspaceAdmission | undefined) => {
+	const limits = [
+		report?.remaining?.disk,
+		report?.haStorage ? report.remaining?.ha_disk : undefined,
+	].filter((n): n is number => n != null);
+	return limits.length ? Math.min(...limits) : undefined;
+};
 
 type CreateWorkspacePageViewProps = {
 	autofillParameters: AutofillBuildParameter[];
@@ -444,6 +453,9 @@ export const CreateWorkspacePageView: React.FC<
 		if (key !== "cpu" && key !== "memory" && key !== "disk" && key !== "gpus")
 			return true;
 		const left = admission.data?.remaining;
+		const haDisk = admission.data?.haStorage ? left?.ha_disk : undefined;
+		if (key === "disk" && haDisk != null && Number(value) > haDisk)
+			return false;
 		if (
 			left?.workspaces === 0 ||
 			(left &&
@@ -523,7 +535,7 @@ export const CreateWorkspacePageView: React.FC<
 		disabled: false,
 		creating: true,
 		canSelect,
-		diskLimit: admission.data?.remaining?.disk ?? undefined,
+		diskLimit: diskLimit(admission.data),
 		locked: (name) => presetParameterNames.includes(name) || lockedByLink(name),
 	};
 	// Keep explicit selections and presets. An untouched default may no longer fit on any one node.
@@ -541,7 +553,7 @@ export const CreateWorkspacePageView: React.FC<
 		const number = (name: string) => Number(controls.value(name) || 0);
 		const disk = number("home_disk_size");
 		const gpu = number("gpus");
-		if (disk > (report.remaining?.disk ?? Number.POSITIVE_INFINITY)) return;
+		if (disk > (diskLimit(report) ?? Number.POSITIVE_INFINITY)) return;
 		const options = (name: "cpu" | "memory") => {
 			const current = number(name);
 			const p = controls.parameter(name);
@@ -691,7 +703,9 @@ export const CreateWorkspacePageView: React.FC<
 			? [
 					{
 						label: "Disk",
-						value: `${controls.value("home_disk_size")} GB`,
+						value: admission.data?.haStorage
+							? `${controls.value("home_disk_size")} GB · High availability`
+							: `${controls.value("home_disk_size")} GB`,
 						mono: true,
 					},
 				]

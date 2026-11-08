@@ -34,7 +34,7 @@ import { EntityContextMenu } from "./EntityActions";
 import { useOpenEntity } from "./EntityDetails";
 
 /**
- * Settings > Network, the code-server HA and storage card: the pieces that
+ * Settings > Network, the Workspace HA and storage card: the pieces that
  * keep a workspace's code-server up and its files kept, as they are now -
  * the code-server-replicator (its replicas, which one holds this cluster's
  * operator lock), each workspace's active instance with its lease, the
@@ -55,7 +55,7 @@ export const CodeServerHACard: React.FC<{ paused: boolean }> = ({ paused }) => {
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id="cluster-ha" className="m-0 text-base font-semibold">
-					code-server HA and storage
+					Workspace HA and storage
 				</h2>
 				<LiveStatus paused={paused} updatedAt={query.dataUpdatedAt} />
 			</div>
@@ -144,7 +144,7 @@ const HAPart: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 	if (!ha.installed) {
 		return (
 			<div className="flex flex-col gap-2">
-				<Sub id="ha-code-server">code-server HA</Sub>
+				<Sub id="ha-code-server">Workspace HA</Sub>
 				<p className="m-0 text-sm text-content-secondary">
 					Not installed in this cluster: no code-server-replicator runs here and
 					Coder's database has no code_server_ha schema (the chart's
@@ -161,11 +161,17 @@ const HAPart: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<Sub id="ha-code-server">code-server HA</Sub>
+			<Sub id="ha-code-server">Workspace HA</Sub>
 			{/* Platform: switched on or off per template, here (CodeServerHASwitches) */}
 			<div className="flex flex-col gap-2">
+				<p className="m-0 text-xs text-content-secondary">
+					Keeps the editor running, stores new workspaces' homes where any node
+					can reach them, and restarts a workspace on another node within a
+					minute if its node fails. Homes on shared storage are a little slower
+					for heavy disk work.
+				</p>
 				<span className="text-xs font-medium text-content-secondary">
-					Templates (code-server HA on for their workspaces)
+					Templates (Workspace HA on for their workspaces)
 				</span>
 				<CodeServerHASwitches />
 			</div>
@@ -505,7 +511,7 @@ const Instances: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 							<TableEmpty
 								message={
 									ha.schema
-										? "No workspace runs code-server HA now: switch it on for a template above (its workspaces follow at their next start)."
+										? "No workspace runs Workspace HA now: switch it on for a template above (its workspaces follow at their next start)."
 										: "The replicator has not created its schema yet."
 								}
 							/>

@@ -33,6 +33,13 @@ vmPublication:
 # StorageClass of workspaces' home volumes ("" = the cluster's default; EKS may have none: e.g. gp3). New volumes only.
 storageClass: ""
 
+# Workspace HA (a template's Settings > Network > Workspace HA switch): the StorageClass of homes every node reaches
+# (e.g. NFS with per-home quotas). New homes of a template with the switch on go there, and those workspaces move off a
+# failed node after failoverSeconds. "": the switch keeps the editor available only.
+haStorageClass: ""
+failoverSeconds: 30
+# The create form checks new HA homes against the class's annotation platform.coder/pool-gb (its capacity in GB).
+
 imagePullSecrets: []    # e.g. [{name: registry-pull}], for the push Job and the icons Deployment
 
 # Secrets the template and the push Job read (they must exist in `namespace`).

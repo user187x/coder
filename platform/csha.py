@@ -67,6 +67,8 @@ USER_DATA = os.environ.get("CSHA_USER_DATA", "/home/coder/.local/share/code-serv
 POD_PREFIX = "coder-cs-"
 LABEL = "coder.code-server/workspace"
 GEN_LABEL = "coder.code-server/generation"
+# On a workspace's home claim: ha (Workspace HA storage, every node reaches it) or node (one node's disk).
+HOME_STORAGE_LABEL = "platform.coder/home-storage"
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
@@ -322,10 +324,10 @@ def external_endpoint(workspace_id, namespace=NAMESPACE, pattern=ENDPOINT_EXTERN
                           port=STATION_PORT)
 
 
-def instance_pod(inst, generation, token, home, cluster=CLUSTER, namespace=NAMESPACE):
+def instance_pod(inst, generation, token, home, cluster=CLUSTER, namespace=NAMESPACE, shared_home=False):
     """An instance: code-server (the workspace's image) on 127.0.0.1 beside its station relay, the workspace's own
-    home volume where this is its cluster (on its node: the volume is ReadWriteOnce), else a folder of its own - the
-    user's state from Postgres either way."""
+    home volume where this is its cluster (on its node: the volume is ReadWriteOnce, unless it is on HA storage that
+    every node reaches, shared_home), else a folder of its own - the user's state from Postgres either way."""
     ws = inst["workspace_id"]
     labels = {"app.kubernetes.io/name": "coder-code-server", "app.kubernetes.io/part-of": "coder",
               LABEL: ws, GEN_LABEL: str(generation)}
@@ -361,7 +363,7 @@ def instance_pod(inst, generation, token, home, cluster=CLUSTER, namespace=NAMES
         "volumes": [{"name": "home", "persistentVolumeClaim": {"claimName": inst["home_pvc"]}} if home
                     else {"name": "home", "emptyDir": {"sizeLimit": "5Gi"}}],
     }
-    if home and inst.get("home_node"):
+    if home and inst.get("home_node") and not shared_home:
         spec["affinity"] = {"nodeAffinity": {"requiredDuringSchedulingIgnoredDuringExecution": {"nodeSelectorTerms": [
             {"matchExpressions": [{"key": "kubernetes.io/hostname", "operator": "In",
                                    "values": [inst["home_node"]]}]}]}}}
@@ -459,6 +461,16 @@ class Operator:
             return True
         return status == 200 and isinstance(out, dict) and bool(out["metadata"].get("deletionTimestamp"))
 
+    def home_on_ha_storage(self, inst):
+        """The home volume is on Workspace HA storage (the template labels its claim platform.coder/home-storage=ha
+        when it makes it): every node reaches it, so the instance need not run on the workspace's node."""
+        if not inst.get("home_pvc"):
+            return False
+        status, out = self.kube.call("GET", "/api/v1/namespaces/%s/persistentvolumeclaims/%s" % (
+            inst["home_namespace"], inst["home_pvc"]))
+        return status == 200 and isinstance(out, dict) and \
+            (out["metadata"].get("labels") or {}).get(HOME_STORAGE_LABEL) == "ha"
+
     def reconcile_one(self, inst, healthy):
         ws = inst["workspace_id"]
         home = inst["home_cluster"] == self.cluster
@@ -525,7 +537,8 @@ class Operator:
         if status == 404:
             self.kube.call("POST", "/api/v1/namespaces/%s/services" % self.ns, instance_service(ws, self.ns))
         status, out = self.kube.call("POST", "/api/v1/namespaces/%s/pods" % self.ns,
-                                     instance_pod(inst, inst["generation"], inst["token"], home, self.cluster, self.ns))
+                                     instance_pod(inst, inst["generation"], inst["token"], home, self.cluster, self.ns,
+                                                  shared_home=home and self.home_on_ha_storage(inst)))
         if status not in (200, 201, 409):
             raise RuntimeError("the instance's pod was refused: HTTP %s %s" % (status, str(out)[:200]))
         self.event(ws, "start", "%s (%s)" % (pod_name(ws, inst["generation"]),
