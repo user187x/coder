@@ -456,7 +456,7 @@ describe("lease token sign-in", () => {
 		await user.type(field, leaseToken);
 		await user.click(screen.getByRole("button", { name: "Sign In" }));
 
-		await waitFor(() => expect(assign).toHaveBeenCalledWith("/workspaces"));
+		await waitFor(() => expect(assign).toHaveBeenCalledWith("/"));
 		expect(body).toEqual({ token: leaseToken });
 		expect(requestUrl).not.toContain(leaseToken);
 		expect(assign.mock.calls.flat().join()).not.toContain(leaseToken);
