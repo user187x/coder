@@ -33,9 +33,13 @@ export const ToastComposer = ({ canEdit }: { canEdit: boolean }) => {
 		onSuccess: (_result, sent) => {
 			setRequest(null);
 			toast.success(
-				`Notification queued for ${sent.user_ids?.length ?? 0} selected users.`,
+				`Toast sent to ${sent.user_ids?.length ?? 0} selected users: it pops up for them as it arrives.`,
 			);
 		},
+		onError: (error) =>
+			toast.error("The toast was not sent.", {
+				description: getErrorDetail(error),
+			}),
 	});
 	const sendTest = useMutation({
 		mutationFn: API.postTestNotification,

@@ -84,4 +84,52 @@ describe("NotificationsInbox live channel", () => {
 		act(() => sockets[4].emit("open"));
 		expect(toast.dismiss).toHaveBeenCalledWith("inbox-watch-unavailable");
 	});
+
+	it("pops up an admin's Toast as it arrives, once however many inboxes hear it", () => {
+		const info = vi.spyOn(toast, "info");
+		const client = new QueryClient();
+		const inbox = (
+			<NotificationsInbox
+				fetchNotifications={async () => ({
+					notifications: [],
+					unread_count: 0,
+				})}
+				markAllAsRead={async () => {}}
+				markNotificationAsRead={async () => ({}) as never}
+			/>
+		);
+		render(
+			<QueryClientProvider client={client}>
+				{inbox}
+				{inbox}
+			</QueryClientProvider>,
+		);
+		const notification = {
+			id: "n1",
+			user_id: "u1",
+			template_id: "39b1e189-c857-4b0c-877a-511144c18516",
+			targets: [],
+			title: "Maintenance tonight",
+			content: "Save your work by 22:00.",
+			icon: "",
+			actions: [],
+			read_at: null,
+			created_at: new Date().toISOString(),
+		};
+		for (const socket of sockets) {
+			act(() =>
+				socket.emit("message", {
+					parsedMessage: { notification, unread_count: 1 },
+				}),
+			);
+		}
+		expect(info).toHaveBeenCalledWith("Maintenance tonight", {
+			id: "inbox-toast-n1",
+			description: "Save your work by 22:00.",
+		});
+		// The same ID each time: sonner shows it once.
+		expect(new Set(info.mock.calls.map(([, options]) => options?.id))).toEqual(
+			new Set(["inbox-toast-n1"]),
+		);
+	});
 });

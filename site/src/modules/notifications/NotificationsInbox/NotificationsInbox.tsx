@@ -30,6 +30,8 @@ type NotificationsInboxProps = InboxSource & {
 };
 
 const WATCH_FAILURES_BEFORE_WARNING = 3;
+/** Coder's "Custom Notification" template (coderd/notifications/events.go): what an admin sends as a Toast. */
+const CUSTOM_NOTIFICATION_TEMPLATE_ID = "39b1e189-c857-4b0c-877a-511144c18516";
 const WATCH_TOAST_ID = "inbox-watch-unavailable";
 
 /**
@@ -132,6 +134,17 @@ export const useNotificationsInbox = ({
 				}
 
 				const msg = e.parsedMessage;
+				// An admin's Toast (Notifications › Toast) also pops up as a toast, bottom left, as it arrives. Every
+				// inbox on the page hears it; the notification's ID keeps it to one toast.
+				if (
+					msg.notification.template_id === CUSTOM_NOTIFICATION_TEMPLATE_ID &&
+					msg.notification.read_at === null
+				) {
+					toast.info(msg.notification.title || "New notification", {
+						id: `inbox-toast-${msg.notification.id}`,
+						description: msg.notification.content,
+					});
+				}
 				updateNotificationsCache((current) => {
 					return {
 						unread_count: msg.unread_count,
