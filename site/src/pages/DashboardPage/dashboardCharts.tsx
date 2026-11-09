@@ -7,21 +7,8 @@ import {
 	watermarkLevel,
 } from "./dashboardModel";
 
-/** A bar or ring spans this multiple of its limit, so the limit's watermark sits at 80% and overruns stay visible. */
+/** A bar spans this multiple of its limit, so the limit's watermark sits at 80% and overruns stay visible. */
 const HEADROOM = 1 / WATERMARK_WARNING;
-
-/** The share of a track (0-1) a value takes; the limit lands at WATERMARK_WARNING. */
-const trackShare = (value: number, limit: number | null) => {
-	const top = limit && limit > 0 ? limit * HEADROOM : value;
-	return top > 0 ? Math.min(1, Math.max(0, value / top)) : 0;
-};
-
-const LEVEL_STROKE: Record<WatermarkLevel, string | null> = {
-	none: null,
-	ok: null,
-	warning: "stroke-content-warning",
-	danger: "stroke-content-destructive",
-};
 
 const LEVEL_FILL: Record<WatermarkLevel, string | null> = {
 	none: null,
@@ -70,9 +57,14 @@ const RING_SIZE = 168;
 const RING_STROKE = 12;
 const RING_GAP = 4;
 
+/** The share of a ring (0-1) a value takes: the whole ring is the limit; none without a limit. */
+const ringShare = (value: number, limit: number | null) =>
+	limit && limit > 0 ? Math.min(1, Math.max(0, value / limit)) : 0;
+
 /**
- * Concentric rings, outermost first, each the allocation against its limit. A tick across each ring marks the
- * limit (the watermark); a ring turns the warning colour at 80% of its limit and the danger colour at the limit.
+ * Concentric rings, outermost first, each in its own colour: the allocation against its limit, the whole ring being
+ * the limit (50% of it: half way round; nothing: empty). Each starts and ends at 12 o'clock, where a white tick marks
+ * 0% and 100%.
  * Pointing at a ring (or setting `active`, as its legend does) dims the others and writes its reading in the middle.
  */
 export const QuotaRings: React.FC<{
@@ -96,9 +88,8 @@ export const QuotaRings: React.FC<{
 				const radius =
 					centre - RING_STROKE / 2 - i * (RING_STROKE + RING_GAP) - 2;
 				const length = 2 * Math.PI * radius;
-				const level = watermarkLevel(ring.used, ring.limit);
-				const share = trackShare(ring.used, ring.limit);
-				const tickAngle = 2 * Math.PI * WATERMARK_WARNING - Math.PI / 2;
+				const share = ringShare(ring.used, ring.limit);
+				const tickAngle = -Math.PI / 2;
 				const inner = radius - RING_STROKE / 2 - 1;
 				const outer = radius + RING_STROKE / 2 + 1;
 				return (
@@ -138,12 +129,11 @@ export const QuotaRings: React.FC<{
 								r={radius}
 								fill="none"
 								strokeWidth={RING_STROKE}
-								strokeLinecap="round"
 								strokeDasharray={`${length * share} ${length}`}
 								transform={`rotate(-90 ${centre} ${centre})`}
 								className={cn(
 									"transition-[stroke-dasharray] duration-500 ease-out",
-									LEVEL_STROKE[level] ?? ring.stroke,
+									ring.stroke,
 								)}
 							/>
 						)}
