@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { MonitorIcon } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { WorkspaceAgentPortShareLevel } from "#/api/typesGenerated";
@@ -543,6 +544,28 @@ export const TrafficDiagram: React.FC<{
 							stroke={stroke}
 							strokeWidth={3}
 						/>
+						{column.kind === "workspace" && (
+							// The workspaces' badge on the box's top left corner
+							<g aria-hidden data-testid="workspace-column-badge">
+								<rect
+									x={x - 14}
+									y={top - 14}
+									width={30}
+									height={30}
+									rx={9}
+									className="fill-surface-primary"
+									stroke={stroke}
+									strokeWidth={2}
+								/>
+								<MonitorIcon
+									x={x - 7}
+									y={top - 7}
+									width={16}
+									height={16}
+									color={stroke}
+								/>
+							</g>
+						)}
 						{column.kind !== "workspace" && (
 							<g>
 								<rect
@@ -638,6 +661,44 @@ export const TrafficDiagram: React.FC<{
 			})}
 
 			<Pulses topology={topology} nodes={nodes} rates={rates} />
+
+			{/* A tunnel's badge on its line, halfway: the Workspace page's tunnel icon */}
+			{topology.links.map((link) => {
+				const from = nodes.get(link.from);
+				const to = nodes.get(link.to);
+				if (!from || !to || !link.tunnelId) {
+					return null;
+				}
+				const { x1, y1, x2, y2 } = ends(from, to);
+				const mx = (x1 + x2) / 2;
+				const my = (y1 + y2) / 2;
+				return (
+					<g
+						key={`tunnel:${link.from}>${link.to}`}
+						aria-hidden
+						data-testid="tunnel-badge"
+						pointerEvents="none"
+					>
+						<circle
+							cx={mx}
+							cy={my}
+							r={11}
+							fill="#1e293b"
+							stroke={link.ready ? "white" : "hsl(var(--content-secondary))"}
+							strokeWidth={1.5}
+						/>
+						<image
+							href="/icon/workspace-tunnel.svg"
+							x={mx - 7}
+							y={my - 7}
+							width={14}
+							height={14}
+							style={{ filter: "invert(1)" }}
+							opacity={link.ready ? 1 : 0.6}
+						/>
+					</g>
+				);
+			})}
 
 			{placed.map(({ column }) =>
 				column.kind === "workspace"
