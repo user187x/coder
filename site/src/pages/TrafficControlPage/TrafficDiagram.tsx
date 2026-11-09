@@ -1,7 +1,9 @@
 import { cn } from "cn";
 import { MonitorIcon } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
 import type { WorkspaceAgentPortShareLevel } from "#/api/typesGenerated";
 import {
 	ContextMenu,
@@ -10,11 +12,24 @@ import {
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
+import { ProxyContext } from "#/contexts/ProxyContext";
 import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
+import { portForwardURL } from "#/utils/portForward";
+import {
+	startShareEmit,
+	startTest,
+	stopShareEmit,
+	stopTest,
+	type TestKind,
+	useConnectivityTests,
+} from "./connectivityTests";
+import "./connectivityTests.css";
+import { TestPortDialog } from "./TestPortDialog";
 import type {
 	PortOrb,
 	TrafficColumn,
 	TrafficTopology,
+	TrafficWorkspace,
 	TunnelRate,
 } from "./trafficModel";
 
@@ -381,7 +396,10 @@ const Orb: React.FC<{
 	hovered: boolean;
 	onHover: (key: string | null) => void;
 	onShareChange?: ShareChange;
-}> = ({ orb, at, hovered, onHover, onShareChange }) => {
+	/** Starts or stops the browser's test emitter on this shared port. */
+	onTestEmit?: (orb: PortOrb) => void;
+	emitting?: boolean;
+}> = ({ orb, at, hovered, onHover, onShareChange, onTestEmit, emitting }) => {
 	const colors = PALETTE[orb.kind];
 	const twoLines = at.r >= 24 && orb.tag.length > 0;
 	const portSize = Math.max(8.5, Math.min(14.5, at.r * 0.34));
@@ -427,33 +445,42 @@ const Orb: React.FC<{
 					{orb.tag}
 				</text>
 			)}
+			{emitting && <EmitChevrons x={at.x} y={at.y} r={at.r} direction={1} />}
 		</g>
 	);
 	const share = orb.share;
-	if (!share || !onShareChange) {
+	if (!share) {
 		return body;
 	}
-	// A shared port's menu: stop sharing it, or narrow who may reach it.
+	// A shared port's menu: its connectivity test, stop sharing it, or narrow who may reach it.
 	const current = SHARE_LEVELS.findIndex((l) => l.level === share.share_level);
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger asChild>{body}</ContextMenuTrigger>
 			<ContextMenuContent>
-				<ContextMenuItem
-					className="text-content-destructive"
-					onSelect={() => onShareChange(orb, null)}
-				>
-					Terminate (stop sharing port {share.port})
+				<ContextMenuItem onSelect={() => onTestEmit?.(orb)}>
+					{emitting ? `Stop test emit (:${share.port})` : "Test Emit"}
 				</ContextMenuItem>
-				{current > 0 && <ContextMenuSeparator />}
-				{SHARE_LEVELS.slice(0, Math.max(0, current)).map((l) => (
-					<ContextMenuItem
-						key={l.level}
-						onSelect={() => onShareChange(orb, l.level)}
-					>
-						Restrict to {l.label.toLowerCase()}
-					</ContextMenuItem>
-				))}
+				{onShareChange && (
+					<>
+						<ContextMenuSeparator />
+						<ContextMenuItem
+							className="text-content-destructive"
+							onSelect={() => onShareChange(orb, null)}
+						>
+							Terminate (stop sharing port {share.port})
+						</ContextMenuItem>
+						{current > 0 && <ContextMenuSeparator />}
+						{SHARE_LEVELS.slice(0, Math.max(0, current)).map((l) => (
+							<ContextMenuItem
+								key={l.level}
+								onSelect={() => onShareChange(orb, l.level)}
+							>
+								Restrict to {l.label.toLowerCase()}
+							</ContextMenuItem>
+						))}
+					</>
+				)}
 			</ContextMenuContent>
 		</ContextMenu>
 	);
@@ -484,6 +511,55 @@ export const TrafficDiagram: React.FC<{
 	const navigate = useNavigate();
 	const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 	const [hovered, setHovered] = useState<string | null>(null);
+	const tests = useConnectivityTests();
+	const proxy = useContext(ProxyContext);
+	// A workspace's test asking for its port
+	const [prompt, setPrompt] = useState<{
+		kind: TestKind;
+		workspace: TrafficWorkspace;
+	} | null>(null);
+	// The other ends of a workspace's tunnels, where it emits.
+	const peers = (workspaceId: string) =>
+		topology.tunnels.flatMap((t) =>
+			t.source_workspace_id === workspaceId && t.target_address
+				? [{ id: t.target_workspace_id, address: t.target_address }]
+				: t.target_workspace_id === workspaceId && t.source_address
+					? [{ id: t.source_workspace_id, address: t.source_address }]
+					: [],
+		);
+	const toggleTest = (kind: TestKind, ws: TrafficWorkspace) => {
+		if (tests.tests.get(ws.id)?.[kind]) stopTest(ws.id, kind);
+		else setPrompt({ kind, workspace: ws });
+	};
+	const shareEmit = (orb: PortOrb) => {
+		const share = orb.share;
+		if (!share) return;
+		if (tests.shareEmits.has(orb.key)) {
+			stopShareEmit(orb.key);
+			return;
+		}
+		const owner = topology.columns
+			.flatMap((c) => (c.kind === "workspace" ? c.workspaces : []))
+			.find((w) => w.id === share.workspace_id);
+		const [, user, name] = owner?.href.match(/^\/@([^/]+)\/([^/]+)/) ?? [];
+		const host = proxy?.proxy.preferredWildcardHostname;
+		if (!user || !name || !host) {
+			toast.error("This port's address is unknown: no wildcard host for apps.");
+			return;
+		}
+		startShareEmit(
+			orb.key,
+			portForwardURL(
+				host,
+				share.port,
+				share.agent_name,
+				decodeURIComponent(name),
+				decodeURIComponent(user),
+				share.protocol,
+			),
+			share.port,
+		);
+	};
 	const { width, height, nodes, placed } = useMemo(
 		() => layout(topology),
 		[topology],
@@ -508,357 +584,477 @@ export const TrafficDiagram: React.FC<{
 		)
 		.join(" → ");
 	return (
-		<svg
-			// a group, not an image: its workspaces and shared ports are interactive
-			role="group"
-			aria-label={`Traffic: ${label}`}
-			viewBox={`0 0 ${width} ${height}`}
-			width={width}
-			className="block h-auto max-w-full select-none overflow-visible"
-		>
-			<defs>
-				<marker
-					id={arrow}
-					viewBox="0 0 10 10"
-					refX="8.5"
-					refY="5"
-					markerWidth="6"
-					markerHeight="6"
-					orient="auto-start-reverse"
-				>
-					<path
-						d="M 0 1.2 L 9 5 L 0 8.8 L 2.2 5 z"
-						className="fill-content-secondary"
-					/>
-				</marker>
-				<marker
-					id={arrowActive}
-					viewBox="0 0 10 10"
-					refX="8.5"
-					refY="5"
-					markerWidth="6.5"
-					markerHeight="6.5"
-					orient="auto-start-reverse"
-				>
-					<path d="M 0 1 L 9.5 5 L 0 9 L 2.2 5 z" fill={PALETTE.active} />
-				</marker>
-				<radialGradient id={dot} cx="35%" cy="30%" r="65%">
-					<stop offset="0%" stopColor={WORKSPACE.orbLight} />
-					<stop offset="55%" stopColor={WORKSPACE.orb} />
-					<stop offset="100%" stopColor={WORKSPACE.orbDark} />
-				</radialGradient>
-			</defs>
-
-			{placed.map(({ column, x, w, top, h }) => {
-				const stroke = columnStroke(column);
-				const cx = x + w / 2;
-				return (
-					<g key={column.key}>
-						<rect
-							x={x}
-							y={top}
-							width={w}
-							height={h}
-							rx={14}
-							fill={
-								column.kind === "workspace" ? "rgb(255 255 255 / 0.03)" : "none"
-							}
-							stroke={stroke}
-							strokeWidth={3}
-						/>
-						{column.kind === "workspace" && (
-							// The workspaces' badge on the box's top left corner
-							<g aria-hidden data-testid="workspace-column-badge">
-								<rect
-									x={x - 14}
-									y={top - 14}
-									width={30}
-									height={30}
-									rx={9}
-									className="fill-surface-primary"
-									stroke={stroke}
-									strokeWidth={2}
-								/>
-								<MonitorIcon
-									x={x - 7}
-									y={top - 7}
-									width={16}
-									height={16}
-									color={stroke}
-								/>
-							</g>
-						)}
-						{column.kind !== "workspace" && (
-							<g>
-								<rect
-									x={cx - 34}
-									y={top - 30}
-									width={68}
-									height={20}
-									rx={10}
-									className="fill-surface-primary"
-									stroke={stroke}
-									strokeWidth={1.5}
-								/>
-								<text
-									x={cx}
-									y={top - 16}
-									textAnchor="middle"
-									fontSize={11}
-									fontWeight={700}
-									className="fill-content-primary tabular-nums"
-								>
-									{column.orbs.length}{" "}
-									{column.orbs.length === 1 ? "port" : "ports"}
-								</text>
-							</g>
-						)}
-						<text
-							x={cx}
-							y={top + h + 34}
-							textAnchor="middle"
-							fill={column.kind === "workspace" ? WORKSPACE.text : stroke}
-							fontSize={column.kind === "workspace" ? 18 : 16}
-							fontWeight={800}
-						>
-							{short(
-								columnLabel(column),
-								column.kind === "workspace" ? 22 : 14,
-							)}
-						</text>
-					</g>
-				);
-			})}
-
-			{topology.links.map((link) => {
-				const from = nodes.get(link.from);
-				const to = nodes.get(link.to);
-				if (!from || !to) {
-					return null;
-				}
-				const { x1, y1, x2, y2 } = ends(from, to);
-				const active = hovered === link.from || hovered === link.to;
-				return (
-					<line
-						key={`${link.from}>${link.to}`}
-						x1={x1}
-						y1={y1}
-						x2={x2}
-						y2={y2}
-						stroke={active ? PALETTE.active : "hsl(var(--content-secondary))"}
-						strokeWidth={active ? 3.3 : 2.2}
-						strokeDasharray={link.ready ? undefined : "6 5"}
-						markerEnd={`url(#${active ? arrowActive : arrow})`}
-						// a tunnel carries traffic both ways; a shared port only lets it in
-						markerStart={
-							link.tunnelId
-								? `url(#${active ? arrowActive : arrow})`
-								: undefined
-						}
-					/>
-				);
-			})}
-
-			{/* Each tunnel's established ports on both sides: the source's beside it, the target's beside it. */}
-			{topology.links.map((link) => {
-				const from = nodes.get(link.from);
-				const to = nodes.get(link.to);
-				const orb = orbs.get(link.to) ?? orbs.get(link.from);
-				if (!from || !to || !link.tunnelId || !orb?.established?.length) {
-					return null;
-				}
-				const { x1, y1, x2, y2 } = ends(from, to);
-				const sourceSide = orb.key === link.to;
-				const t = sourceSide ? 0.3 : 0.7;
-				return (
-					<PortLabel
-						key={`ports:${link.from}>${link.to}`}
-						x={x1 + (x2 - x1) * t}
-						y={y1 + (y2 - y1) * t - 12}
-						text={portList(
-							orb.established.map((e) => (sourceSide ? e.source : e.target)),
-						)}
-					/>
-				);
-			})}
-
-			<Pulses topology={topology} nodes={nodes} rates={rates} />
-
-			{/* A tunnel's badge on its line, halfway: the Workspace page's tunnel icon */}
-			{topology.links.map((link) => {
-				const from = nodes.get(link.from);
-				const to = nodes.get(link.to);
-				if (!from || !to || !link.tunnelId) {
-					return null;
-				}
-				const { x1, y1, x2, y2 } = ends(from, to);
-				const mx = (x1 + x2) / 2;
-				const my = (y1 + y2) / 2;
-				return (
-					<g
-						key={`tunnel:${link.from}>${link.to}`}
-						data-testid="tunnel-badge"
-						role="button"
-						tabIndex={0}
-						aria-label="Tunnel ports"
-						className="cursor-pointer outline-none"
-						onClick={() => link.tunnelId && onTunnelOpen?.(link.tunnelId)}
-						onKeyDown={(event) => {
-							if (event.key === "Enter" || event.key === " ") {
-								event.preventDefault();
-								if (link.tunnelId) onTunnelOpen?.(link.tunnelId);
-							}
-						}}
+		<>
+			<svg
+				// a group, not an image: its workspaces and shared ports are interactive
+				role="group"
+				aria-label={`Traffic: ${label}`}
+				viewBox={`0 0 ${width} ${height}`}
+				width={width}
+				className="block h-auto max-w-full select-none overflow-visible"
+			>
+				<defs>
+					<marker
+						id={arrow}
+						viewBox="0 0 10 10"
+						refX="8.5"
+						refY="5"
+						markerWidth="6"
+						markerHeight="6"
+						orient="auto-start-reverse"
 					>
-						<title>
-							Tunnel ports: click to map input ports to output ports
-						</title>
-						<circle
-							cx={mx}
-							cy={my}
-							r={11}
-							fill="#1e293b"
-							stroke={link.ready ? "white" : "hsl(var(--content-secondary))"}
-							strokeWidth={1.5}
+						<path
+							d="M 0 1.2 L 9 5 L 0 8.8 L 2.2 5 z"
+							className="fill-content-secondary"
 						/>
-						<image
-							href="/icon/workspace-tunnel.svg"
-							x={mx - 7}
-							y={my - 7}
-							width={14}
-							height={14}
-							style={{ filter: "invert(1)" }}
-							opacity={link.ready ? 1 : 0.6}
-						/>
-					</g>
-				);
-			})}
+					</marker>
+					<marker
+						id={arrowActive}
+						viewBox="0 0 10 10"
+						refX="8.5"
+						refY="5"
+						markerWidth="6.5"
+						markerHeight="6.5"
+						orient="auto-start-reverse"
+					>
+						<path d="M 0 1 L 9.5 5 L 0 9 L 2.2 5 z" fill={PALETTE.active} />
+					</marker>
+					<radialGradient id={dot} cx="35%" cy="30%" r="65%">
+						<stop offset="0%" stopColor={WORKSPACE.orbLight} />
+						<stop offset="55%" stopColor={WORKSPACE.orb} />
+						<stop offset="100%" stopColor={WORKSPACE.orbDark} />
+					</radialGradient>
+				</defs>
 
-			{placed.map(({ column }) =>
-				column.kind === "workspace"
-					? column.workspaces.map((ws) => {
-							const at = nodes.get(ws.id);
-							if (!at) {
-								return null;
+				{placed.map(({ column, x, w, top, h }) => {
+					const stroke = columnStroke(column);
+					const cx = x + w / 2;
+					return (
+						<g key={column.key}>
+							<rect
+								x={x}
+								y={top}
+								width={w}
+								height={h}
+								rx={14}
+								fill={
+									column.kind === "workspace"
+										? "rgb(255 255 255 / 0.03)"
+										: "none"
+								}
+								stroke={stroke}
+								strokeWidth={3}
+							/>
+							{column.kind === "workspace" && (
+								// The workspaces' badge on the box's top left corner
+								<g aria-hidden data-testid="workspace-column-badge">
+									<rect
+										x={x - 14}
+										y={top - 14}
+										width={30}
+										height={30}
+										rx={9}
+										className="fill-surface-primary"
+										stroke={stroke}
+										strokeWidth={2}
+									/>
+									<MonitorIcon
+										x={x - 7}
+										y={top - 7}
+										width={16}
+										height={16}
+										color={stroke}
+									/>
+								</g>
+							)}
+							{column.kind !== "workspace" && (
+								<g>
+									<rect
+										x={cx - 34}
+										y={top - 30}
+										width={68}
+										height={20}
+										rx={10}
+										className="fill-surface-primary"
+										stroke={stroke}
+										strokeWidth={1.5}
+									/>
+									<text
+										x={cx}
+										y={top - 16}
+										textAnchor="middle"
+										fontSize={11}
+										fontWeight={700}
+										className="fill-content-primary tabular-nums"
+									>
+										{column.orbs.length}{" "}
+										{column.orbs.length === 1 ? "port" : "ports"}
+									</text>
+								</g>
+							)}
+							<text
+								x={cx}
+								y={top + h + 34}
+								textAnchor="middle"
+								fill={column.kind === "workspace" ? WORKSPACE.text : stroke}
+								fontSize={column.kind === "workspace" ? 18 : 16}
+								fontWeight={800}
+							>
+								{short(
+									columnLabel(column),
+									column.kind === "workspace" ? 22 : 14,
+								)}
+							</text>
+						</g>
+					);
+				})}
+
+				{topology.links.map((link) => {
+					const from = nodes.get(link.from);
+					const to = nodes.get(link.to);
+					if (!from || !to) {
+						return null;
+					}
+					const { x1, y1, x2, y2 } = ends(from, to);
+					const active = hovered === link.from || hovered === link.to;
+					return (
+						<line
+							key={`${link.from}>${link.to}`}
+							x1={x1}
+							y1={y1}
+							x2={x2}
+							y2={y2}
+							stroke={active ? PALETTE.active : "hsl(var(--content-secondary))"}
+							strokeWidth={active ? 3.3 : 2.2}
+							strokeDasharray={link.ready ? undefined : "6 5"}
+							markerEnd={`url(#${active ? arrowActive : arrow})`}
+							// a tunnel carries traffic both ways; a shared port only lets it in
+							markerStart={
+								link.tunnelId
+									? `url(#${active ? arrowActive : arrow})`
+									: undefined
 							}
-							const lit = hovered === ws.id || selected === ws.id;
-							// Off or offline while its tunnels still expect it: grey, with a dead face.
-							const alive = ws.running && !ws.offline;
-							const dead =
-								!alive &&
-								topology.links.some((l) => l.from === ws.id || l.to === ws.id);
-							return (
-								<ContextMenu key={ws.id}>
-									<ContextMenuTrigger asChild>
-										<g
-											data-workspace={ws.id}
-											role="button"
-											tabIndex={0}
-											aria-label={`${ws.label}: show its open ports`}
-											aria-pressed={selected === ws.id}
-											className="cursor-pointer outline-none"
-											onMouseEnter={() => setHovered(ws.id)}
-											onMouseLeave={() => setHovered(null)}
-											onClick={() =>
-												onSelect?.(selected === ws.id ? null : ws.id)
-											}
-											onKeyDown={(event) => {
-												if (event.key === "Enter" || event.key === " ") {
-													event.preventDefault();
-													onSelect?.(selected === ws.id ? null : ws.id);
+						/>
+					);
+				})}
+
+				{/* Each tunnel's established ports on both sides: the source's beside it, the target's beside it. */}
+				{topology.links.map((link) => {
+					const from = nodes.get(link.from);
+					const to = nodes.get(link.to);
+					const orb = orbs.get(link.to) ?? orbs.get(link.from);
+					if (!from || !to || !link.tunnelId || !orb?.established?.length) {
+						return null;
+					}
+					const { x1, y1, x2, y2 } = ends(from, to);
+					const sourceSide = orb.key === link.to;
+					const t = sourceSide ? 0.3 : 0.7;
+					return (
+						<PortLabel
+							key={`ports:${link.from}>${link.to}`}
+							x={x1 + (x2 - x1) * t}
+							y={y1 + (y2 - y1) * t - 12}
+							text={portList(
+								orb.established.map((e) => (sourceSide ? e.source : e.target)),
+							)}
+						/>
+					);
+				})}
+
+				<Pulses topology={topology} nodes={nodes} rates={rates} />
+
+				{/* A tunnel's badge on its line, halfway: the Workspace page's tunnel icon */}
+				{topology.links.map((link) => {
+					const from = nodes.get(link.from);
+					const to = nodes.get(link.to);
+					if (!from || !to || !link.tunnelId) {
+						return null;
+					}
+					const { x1, y1, x2, y2 } = ends(from, to);
+					const mx = (x1 + x2) / 2;
+					const my = (y1 + y2) / 2;
+					return (
+						<g
+							key={`tunnel:${link.from}>${link.to}`}
+							data-testid="tunnel-badge"
+							role="button"
+							tabIndex={0}
+							aria-label="Tunnel ports"
+							className="cursor-pointer outline-none"
+							onClick={() => link.tunnelId && onTunnelOpen?.(link.tunnelId)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									if (link.tunnelId) onTunnelOpen?.(link.tunnelId);
+								}
+							}}
+						>
+							<title>
+								Tunnel ports: click to map input ports to output ports
+							</title>
+							<circle
+								cx={mx}
+								cy={my}
+								r={11}
+								fill="#1e293b"
+								stroke={link.ready ? "white" : "hsl(var(--content-secondary))"}
+								strokeWidth={1.5}
+							/>
+							<image
+								href="/icon/workspace-tunnel.svg"
+								x={mx - 7}
+								y={my - 7}
+								width={14}
+								height={14}
+								style={{ filter: "invert(1)" }}
+								opacity={link.ready ? 1 : 0.6}
+							/>
+						</g>
+					);
+				})}
+
+				{placed.map(({ column }) =>
+					column.kind === "workspace"
+						? column.workspaces.map((ws) => {
+								const at = nodes.get(ws.id);
+								if (!at) {
+									return null;
+								}
+								const lit = hovered === ws.id || selected === ws.id;
+								// Off or offline while its tunnels still expect it: grey, with a dead face.
+								const alive = ws.running && !ws.offline;
+								const dead =
+									!alive &&
+									topology.links.some(
+										(l) => l.from === ws.id || l.to === ws.id,
+									);
+								return (
+									<ContextMenu key={ws.id}>
+										<ContextMenuTrigger asChild>
+											<g
+												data-workspace={ws.id}
+												role="button"
+												tabIndex={0}
+												aria-label={`${ws.label}: show its open ports`}
+												aria-pressed={selected === ws.id}
+												className="cursor-pointer outline-none"
+												onMouseEnter={() => setHovered(ws.id)}
+												onMouseLeave={() => setHovered(null)}
+												onClick={() =>
+													onSelect?.(selected === ws.id ? null : ws.id)
 												}
-											}}
-										>
-											<title>
-												{ws.label}
-												{!ws.running
-													? " (not running)"
-													: ws.offline
-														? " (offline)"
-														: ""}
-												{dead ? ": its connections are down" : ""}
-											</title>
-											<circle
-												cx={at.x}
-												cy={at.y}
-												r={at.r + (lit ? 15 : 10)}
-												fill={
-													alive ? WORKSPACE.halo : "rgb(148 163 184 / 0.18)"
-												}
-												className="transition-[r] duration-150"
-											/>
-											<circle
-												cx={at.x}
-												cy={at.y}
-												r={at.r}
-												fill={alive ? `url(#${dot})` : "#94a3b8"}
-												stroke="white"
-												strokeWidth={2.5}
-												style={
-													alive
-														? {
-																filter: WORKSPACE.glow,
-															}
-														: undefined
-												}
-											/>
-											{dead && <DeadFace x={at.x} y={at.y} r={at.r} />}
-											{column.workspaces.length > 1 && (
-												<text
-													x={at.x}
-													y={at.y + at.r + 18}
-													textAnchor="middle"
-													fontSize={12}
-													fontWeight={700}
-													className="fill-content-primary"
-												>
-													{short(ws.label, 26)}
-												</text>
-											)}
-											{selected === ws.id && (
+												onKeyDown={(event) => {
+													if (event.key === "Enter" || event.key === " ") {
+														event.preventDefault();
+														onSelect?.(selected === ws.id ? null : ws.id);
+													}
+												}}
+											>
+												<title>
+													{ws.label}
+													{!ws.running
+														? " (not running)"
+														: ws.offline
+															? " (offline)"
+															: ""}
+													{dead ? ": its connections are down" : ""}
+												</title>
 												<circle
 													cx={at.x}
 													cy={at.y}
-													r={at.r + 6}
-													fill="none"
-													stroke="white"
-													strokeWidth={2}
-													strokeDasharray="4 3"
+													r={at.r + (lit ? 15 : 10)}
+													fill={
+														alive ? WORKSPACE.halo : "rgb(148 163 184 / 0.18)"
+													}
+													className="transition-[r] duration-150"
 												/>
-											)}
-										</g>
-									</ContextMenuTrigger>
-									<ContextMenuContent>
-										<ContextMenuItem onSelect={() => navigate(ws.href)}>
-											Open workspace
-										</ContextMenuItem>
-										<ContextMenuItem
-											onSelect={() =>
-												onSelect?.(selected === ws.id ? null : ws.id)
-											}
-										>
-											{selected === ws.id
-												? "Hide open ports"
-												: "Show open ports"}
-										</ContextMenuItem>
-									</ContextMenuContent>
-								</ContextMenu>
-							);
-						})
-					: column.orbs.map((orb) => {
-							const at = nodes.get(orb.key);
-							return at ? (
-								<Orb
-									key={orb.key}
-									orb={orb}
-									at={at}
-									hovered={hovered === orb.key}
-									onHover={setHovered}
-									onShareChange={onShareChange}
-								/>
-							) : null;
-						}),
+												<circle
+													cx={at.x}
+													cy={at.y}
+													r={at.r}
+													fill={alive ? `url(#${dot})` : "#94a3b8"}
+													stroke="white"
+													strokeWidth={2.5}
+													style={
+														alive
+															? {
+																	filter: WORKSPACE.glow,
+																}
+															: undefined
+													}
+												/>
+												{dead && <DeadFace x={at.x} y={at.y} r={at.r} />}
+												<TestMarks
+													x={at.x}
+													y={at.y}
+													r={at.r}
+													received={tests.received.get(ws.id) ?? 0}
+													emitting={Boolean(tests.tests.get(ws.id)?.emit)}
+													direction={
+														(peers(ws.id)
+															.map((p) => nodes.get(p.id)?.x ?? at.x)
+															.reduce((sum, x) => sum + x - at.x, 0) || 1) > 0
+															? 1
+															: -1
+													}
+												/>
+												{column.workspaces.length > 1 && (
+													<text
+														x={at.x}
+														y={at.y + at.r + 18}
+														textAnchor="middle"
+														fontSize={12}
+														fontWeight={700}
+														className="fill-content-primary"
+													>
+														{short(ws.label, 26)}
+													</text>
+												)}
+												{selected === ws.id && (
+													<circle
+														cx={at.x}
+														cy={at.y}
+														r={at.r + 6}
+														fill="none"
+														stroke="white"
+														strokeWidth={2}
+														strokeDasharray="4 3"
+													/>
+												)}
+											</g>
+										</ContextMenuTrigger>
+										<ContextMenuContent>
+											<ContextMenuItem onSelect={() => navigate(ws.href)}>
+												Open workspace
+											</ContextMenuItem>
+											<ContextMenuItem
+												onSelect={() =>
+													onSelect?.(selected === ws.id ? null : ws.id)
+												}
+											>
+												{selected === ws.id
+													? "Hide open ports"
+													: "Show open ports"}
+											</ContextMenuItem>
+											<ContextMenuSeparator />
+											<ContextMenuItem
+												disabled={!ws.agentIds.length}
+												onSelect={() => toggleTest("emit", ws)}
+											>
+												{tests.tests.get(ws.id)?.emit
+													? `Stop test emit (:${tests.tests.get(ws.id)?.emit?.port})`
+													: "Test Emit…"}
+											</ContextMenuItem>
+											<ContextMenuItem
+												disabled={!ws.agentIds.length}
+												onSelect={() => toggleTest("listen", ws)}
+											>
+												{tests.tests.get(ws.id)?.listen
+													? `Stop test listen (:${tests.tests.get(ws.id)?.listen?.port})`
+													: "Test Listen…"}
+											</ContextMenuItem>
+										</ContextMenuContent>
+									</ContextMenu>
+								);
+							})
+						: column.orbs.map((orb) => {
+								const at = nodes.get(orb.key);
+								return at ? (
+									<Orb
+										key={orb.key}
+										orb={orb}
+										at={at}
+										hovered={hovered === orb.key}
+										onHover={setHovered}
+										onShareChange={onShareChange}
+										onTestEmit={shareEmit}
+										emitting={tests.shareEmits.has(orb.key)}
+									/>
+								) : null;
+							}),
+				)}
+			</svg>
+			{prompt && (
+				<TestPortDialog
+					kind={prompt.kind}
+					workspace={prompt.workspace.label}
+					peers={peers(prompt.workspace.id).length}
+					onCancel={() => setPrompt(null)}
+					onStart={(port) => {
+						const ws = prompt.workspace;
+						setPrompt(null);
+						startTest(
+							prompt.kind,
+							ws.id,
+							ws.agentIds[0],
+							port,
+							peers(ws.id).map((p) => p.address),
+						).catch((error) =>
+							toast.error(getErrorMessage(error, "The test did not start.")),
+						);
+					}}
+				/>
 			)}
-		</svg>
+		</>
+	);
+};
+
+/** A test's marks on a workspace orb: a green ripple for each ACK received, a chevron pulsing where it emits. */
+const TestMarks: React.FC<{
+	x: number;
+	y: number;
+	r: number;
+	received: number;
+	emitting: boolean;
+	direction: 1 | -1;
+}> = ({ x, y, r, received, emitting, direction }) => (
+	<g aria-hidden pointerEvents="none">
+		{received > 0 && (
+			<circle
+				key={received}
+				data-testid="ack-ripple"
+				className="traffic-ack-ripple"
+				cx={x}
+				cy={y}
+				r={r}
+				fill="rgb(34 197 94 / 0.35)"
+				stroke="#22c55e"
+				strokeWidth={3}
+			/>
+		)}
+		{emitting && <EmitChevrons x={x} y={y} r={r} direction={direction} />}
+	</g>
+);
+
+/** Two chevrons pulsing across an orb toward where it sends its test payloads. */
+const EmitChevrons: React.FC<{
+	x: number;
+	y: number;
+	r: number;
+	direction: 1 | -1;
+}> = ({ x, y, r, direction }) => {
+	const h = r * 0.42;
+	const w = r * 0.26;
+	const chevron = (cx: number) =>
+		`M${cx - (w / 2) * direction} ${y - h}L${cx + (w / 2) * direction} ${y}L${cx - (w / 2) * direction} ${y + h}`;
+	return (
+		<g
+			data-testid="emit-chevrons"
+			fill="none"
+			stroke="white"
+			strokeWidth={Math.max(2.5, r * 0.12)}
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			style={{ "--emit-dir": direction, fontSize: r } as React.CSSProperties}
+		>
+			<path
+				className="traffic-emit-chevron"
+				d={chevron(x - r * 0.18 * direction)}
+			/>
+			<path
+				className="traffic-emit-chevron"
+				d={chevron(x + r * 0.18 * direction)}
+			/>
+		</g>
 	);
 };

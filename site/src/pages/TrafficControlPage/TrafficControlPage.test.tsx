@@ -230,3 +230,40 @@ it("maps a tunnel's input port to another output port from its badge", async () 
 		]),
 	);
 });
+
+it("listens on a workspace's port and ripples its orb at each ACK", async () => {
+	const user = userEvent.setup();
+	const sockets: FakeSocket[] = [];
+	class FakeSocket extends EventTarget {
+		readyState = 1;
+		binaryType = "blob";
+		constructor(readonly url: string) {
+			super();
+			sockets.push(this);
+		}
+		send() {}
+		close() {}
+	}
+	vi.stubGlobal("WebSocket", Object.assign(FakeSocket, { OPEN: 1 }));
+	setup();
+	const chain = await screen.findByRole("region", { name: "web → db" });
+	fireEvent.contextMenu(
+		within(chain).getByRole("button", { name: "db: show its open ports" }),
+	);
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Test Listen…" }),
+	);
+	const dialog = await screen.findByRole("dialog", { name: /Test Listen: db/ });
+	await user.click(
+		within(dialog).getByRole("button", { name: "Start listening" }),
+	);
+	await waitFor(() => expect(sockets).toHaveLength(1));
+	expect(decodeURIComponent(sockets[0].url)).toContain("7777");
+	sockets[0].dispatchEvent(
+		new MessageEvent("message", {
+			data: "LISTEN 7777\r\nRECV 10.253.0.35\r\n",
+		}),
+	);
+	expect(await screen.findByTestId("ack-ripple")).toBeTruthy();
+	vi.unstubAllGlobals();
+});

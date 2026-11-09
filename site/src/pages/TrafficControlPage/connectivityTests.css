@@ -1,0 +1,42 @@
+/* Traffic Control's connectivity tests: an ACK received ripples its orb green; an emitter's orb shows a chevron
+   pulsing toward where it sends. */
+@keyframes traffic-ack-ripple {
+	from {
+		opacity: 0.95;
+		transform: scale(1);
+	}
+	to {
+		opacity: 0;
+		transform: scale(1.9);
+	}
+}
+.traffic-ack-ripple {
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: traffic-ack-ripple 900ms ease-out forwards;
+}
+@keyframes traffic-emit-chevron {
+	0% {
+		opacity: 0;
+		transform: translateX(calc(-0.35em * var(--emit-dir, 1)));
+	}
+	45% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+		transform: translateX(calc(0.35em * var(--emit-dir, 1)));
+	}
+}
+.traffic-emit-chevron {
+	animation: traffic-emit-chevron 1s ease-in-out infinite;
+}
+.traffic-emit-chevron:nth-child(2) {
+	animation-delay: 0.33s;
+}
+@media (prefers-reduced-motion: reduce) {
+	.traffic-ack-ripple,
+	.traffic-emit-chevron {
+		animation: none;
+	}
+}
