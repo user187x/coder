@@ -9,6 +9,7 @@ import {
 } from "#/components/Collapsible/Collapsible";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import { SERIES_WINDOW_MS } from "./dashboardModel";
+import { useCardHandle } from "./SortableCards";
 
 /** A card's icon tile tints, after the Cloud Drive's. */
 const TONES = {
@@ -41,6 +42,8 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 	className,
 	children,
 }) => {
+	// A card that can be moved (SortableCards) is dragged by its header.
+	const handle = useCardHandle();
 	return (
 		<section
 			aria-label={title}
@@ -50,8 +53,16 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 				className,
 			)}
 		>
-			<header className="mb-3 flex items-center justify-between gap-2">
+			<header
+				{...handle?.headerProps}
+				className={cn(
+					"group/handle mb-3 flex items-center justify-between gap-2",
+					handle && "cursor-grab",
+					handle?.dragging && "cursor-grabbing",
+				)}
+			>
 				<span className="flex min-w-0 items-center gap-3">
+					{handle?.grip(title)}
 					{Icon && (
 						<span
 							className={cn(

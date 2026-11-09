@@ -1462,6 +1462,8 @@ export type UserUIPreferences = {
 	/** Accent colour on the inner containers of the Settings menu and panel and of the chat: the theme's accent,
 	 * or a colour of the user's own (#rrggbb). None: the plain surfaces. */
 	panel_accent?: PanelAccent | null;
+	/** The Dashboard's cards after Summary, in the order the user dragged them into (card IDs). */
+	dashboard_card_order?: string[];
 };
 
 export type PanelAccent = { mode: "theme" } | { mode: "custom"; color: string };

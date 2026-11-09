@@ -10,8 +10,10 @@ import {
 	NetworkIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { useQueries, useQuery } from "react-query";
-import { PlatformError } from "#/api/platform";
+import { useMutation, useQueries, useQuery, useQueryClient } from "react-query";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
+import { PlatformError, type UserUIPreferences } from "#/api/platform";
 import {
 	cloudDriveSettings,
 	HUD_REFRESH_MS,
@@ -19,6 +21,8 @@ import {
 	quotaMeResources,
 	quotaReport,
 	safe,
+	updateUserUIPreferences,
+	userUIPreferences,
 	workspaceNetwork,
 	workspaceResourceHistory,
 } from "#/api/queries/platform";
@@ -53,6 +57,7 @@ import {
 	type NetworkReading,
 	UsageCardBody,
 } from "./LiveCards";
+import { orderCards, type SortableCard, SortableCards } from "./SortableCards";
 import { CloudDriveCardBody, GpuCardBody } from "./StorageCards";
 import { SummaryCardBody } from "./SummaryCard";
 import {
@@ -77,6 +82,9 @@ const DashboardPage: React.FC = () => {
 	const cluster = isAdmin && view === "cluster";
 	const refetchInterval = paused ? (false as const) : HUD_REFRESH_MS;
 
+	const queryClient = useQueryClient();
+	const preferences = useQuery({ ...userUIPreferences(), retry: false });
+	const savePreferences = useMutation(updateUserUIPreferences(queryClient));
 	const mine = useQuery(quotaMeResources(paused));
 	const report = useQuery({
 		...quotaReport(),
@@ -245,6 +253,198 @@ const DashboardPage: React.FC = () => {
 		</DashboardCard>
 	);
 
+	const cardOrder = preferences.data?.dashboard_card_order ?? [];
+	const saveCardOrder = (ids: string[]) => {
+		// The cards move at once; a failed save puts back what the server has.
+		queryClient.setQueryData<UserUIPreferences>(
+			userUIPreferences().queryKey,
+			(old) => ({ ...old, dashboard_card_order: ids }),
+		);
+		savePreferences.mutate(
+			{ dashboard_card_order: ids },
+			{
+				onError: (error) => {
+					void queryClient.invalidateQueries({
+						queryKey: userUIPreferences().queryKey,
+					});
+					toast.error(
+						getErrorMessage(error, "Could not save the cards' order."),
+					);
+				},
+			},
+		);
+	};
+
+	// Every card after Summary, in the order the user dragged them into (SortableCards).
+	const cards: SortableCard[] = [
+		{
+			id: "workspaces",
+			label: "Workspaces",
+			node: (
+				<DashboardCard
+					title="Workspaces"
+					icon={MonitorIcon}
+					tone="green"
+					badge={
+						scope?.workspaceLimit != null && (
+							<SuppliedBadge
+								value={`${scope.workspaceLimit} ${scope.workspaceLimit === 1 ? "workspace" : "workspaces"}`}
+								what={suppliedWhat}
+							/>
+						)
+					}
+				>
+					<CardState
+						isLoading={scopeQuery.isLoading}
+						error={scopeError}
+						empty={
+							scope?.workspaces.length === 0 &&
+							(cluster
+								? "No workspaces in the cluster yet."
+								: "You have no workspaces yet. Create one from a template to see its resources here.")
+						}
+					>
+						{scope && (
+							<WorkspacesCardBody
+								scope={scope}
+								me={user.username}
+								limitName={limitName}
+							/>
+						)}
+					</CardState>
+				</DashboardCard>
+			),
+		},
+		{
+			id: "gpu",
+			label: "GPU",
+			node: (
+				// Always there; greyed out while no workspace has a GPU.
+				<DashboardCard
+					title="GPU"
+					icon={CircuitBoardIcon}
+					tone="magenta"
+					className={cn(!gpus && "opacity-50 grayscale")}
+				>
+					<GpuCardBody
+						workspaces={cluster ? [] : gpuWorkspaces}
+						known={!cluster}
+					/>
+				</DashboardCard>
+			),
+		},
+		{
+			id: "cloud-drive",
+			label: "Cloud Drive",
+			node: (
+				<DashboardCard
+					title="Cloud Drive"
+					icon={CloudIcon}
+					badge={
+						driveCapacity !== null && (
+							<SuppliedBadge
+								value={formatBytes(driveCapacity)}
+								what="Your Cloud Drive's capacity, with the drives shared with you"
+							/>
+						)
+					}
+					actions={
+						driveWorkspaces.length > 0 && (
+							<span
+								className="whitespace-nowrap rounded-full border border-solid border-border bg-surface-secondary px-1.5 text-[10px] leading-4 tabular-nums text-content-secondary"
+								title="Your workspaces with the Cloud Drive connected, of all your workspaces"
+							>
+								{driveConnected} of {driveWorkspaces.length} connected
+							</span>
+						)
+					}
+				>
+					<CardState
+						isLoading={drive.isLoading}
+						error={driveMissing || drive.data ? undefined : drive.error}
+						empty={
+							(driveMissing || drive.data?.enabled === false) &&
+							"Cloud Drive is not available on this deployment."
+						}
+					>
+						{drive.data && (
+							<CloudDriveCardBody
+								drive={drive.data}
+								settings={driveSettings.data}
+								workspaces={driveWorkspaces}
+							/>
+						)}
+					</CardState>
+				</DashboardCard>
+			),
+		},
+		{
+			id: "memory",
+			label: "Memory",
+			node: usageCard("memory", "Memory"),
+		},
+		{
+			id: "disks",
+			label: "Disks",
+			node: (
+				<DashboardCard
+					title="Disks"
+					icon={HardDriveIcon}
+					tone="green"
+					badge={supplied("disk")}
+				>
+					<CardState
+						isLoading={scopeQuery.isLoading}
+						error={scopeError}
+						empty={
+							scope?.workspaces.length === 0 && "No workspace volumes yet."
+						}
+					>
+						{scope && (
+							<DisksCardBody
+								scope={scope}
+								disks={disks}
+								limitName={limitName}
+							/>
+						)}
+					</CardState>
+				</DashboardCard>
+			),
+		},
+		{
+			id: "processor",
+			label: "Processor",
+			node: usageCard("cpu", "Processor"),
+		},
+		{
+			id: "network",
+			label: "Network",
+			node: (
+				// Always there: without a running workspace it says so rather than leaving a gap.
+				<DashboardCard
+					title="Network"
+					icon={NetworkIcon}
+					tone="orange"
+					actions={networkTargets.length > 0 && <RangePill />}
+				>
+					<CardState
+						isLoading={networkTargets.length > 0 && networkLoading && !network}
+						error={network ? undefined : networkError}
+						empty={networkEmpty}
+					>
+						{network && (
+							<NetworkCardBody
+								rx={network.rx}
+								tx={network.tx}
+								perWorkspace={networkPerWorkspace}
+							/>
+						)}
+					</CardState>
+				</DashboardCard>
+			),
+		},
+	];
+
 	return (
 		<div className="min-h-full bg-surface-secondary">
 			<title>{pageTitle("Dashboard")}</title>
@@ -327,136 +527,10 @@ const DashboardPage: React.FC = () => {
 							)}
 						</CardState>
 					</DashboardCard>
-					<DashboardCard
-						title="Workspaces"
-						icon={MonitorIcon}
-						tone="green"
-						badge={
-							scope?.workspaceLimit != null && (
-								<SuppliedBadge
-									value={`${scope.workspaceLimit} ${scope.workspaceLimit === 1 ? "workspace" : "workspaces"}`}
-									what={suppliedWhat}
-								/>
-							)
-						}
-					>
-						<CardState
-							isLoading={scopeQuery.isLoading}
-							error={scopeError}
-							empty={
-								scope?.workspaces.length === 0 &&
-								(cluster
-									? "No workspaces in the cluster yet."
-									: "You have no workspaces yet. Create one from a template to see its resources here.")
-							}
-						>
-							{scope && (
-								<WorkspacesCardBody
-									scope={scope}
-									me={user.username}
-									limitName={limitName}
-								/>
-							)}
-						</CardState>
-					</DashboardCard>
-					{/* Always there; greyed out while no workspace has a GPU. */}
-					<DashboardCard
-						title="GPU"
-						icon={CircuitBoardIcon}
-						tone="magenta"
-						className={cn(!gpus && "opacity-50 grayscale")}
-					>
-						<GpuCardBody
-							workspaces={cluster ? [] : gpuWorkspaces}
-							known={!cluster}
-						/>
-					</DashboardCard>
-					<DashboardCard
-						title="Cloud Drive"
-						icon={CloudIcon}
-						badge={
-							driveCapacity !== null && (
-								<SuppliedBadge
-									value={formatBytes(driveCapacity)}
-									what="Your Cloud Drive's capacity, with the drives shared with you"
-								/>
-							)
-						}
-						actions={
-							driveWorkspaces.length > 0 && (
-								<span
-									className="whitespace-nowrap rounded-full border border-solid border-border bg-surface-secondary px-1.5 text-[10px] leading-4 tabular-nums text-content-secondary"
-									title="Your workspaces with the Cloud Drive connected, of all your workspaces"
-								>
-									{driveConnected} of {driveWorkspaces.length} connected
-								</span>
-							)
-						}
-					>
-						<CardState
-							isLoading={drive.isLoading}
-							error={driveMissing || drive.data ? undefined : drive.error}
-							empty={
-								(driveMissing || drive.data?.enabled === false) &&
-								"Cloud Drive is not available on this deployment."
-							}
-						>
-							{drive.data && (
-								<CloudDriveCardBody
-									drive={drive.data}
-									settings={driveSettings.data}
-									workspaces={driveWorkspaces}
-								/>
-							)}
-						</CardState>
-					</DashboardCard>
-					{usageCard("memory", "Memory")}
-					<DashboardCard
-						title="Disks"
-						icon={HardDriveIcon}
-						tone="green"
-						badge={supplied("disk")}
-					>
-						<CardState
-							isLoading={scopeQuery.isLoading}
-							error={scopeError}
-							empty={
-								scope?.workspaces.length === 0 && "No workspace volumes yet."
-							}
-						>
-							{scope && (
-								<DisksCardBody
-									scope={scope}
-									disks={disks}
-									limitName={limitName}
-								/>
-							)}
-						</CardState>
-					</DashboardCard>
-					{usageCard("cpu", "Processor")}
-					{/* Always there: without a running workspace it says so rather than leaving a gap. */}
-					<DashboardCard
-						title="Network"
-						icon={NetworkIcon}
-						tone="orange"
-						actions={networkTargets.length > 0 && <RangePill />}
-					>
-						<CardState
-							isLoading={
-								networkTargets.length > 0 && networkLoading && !network
-							}
-							error={network ? undefined : networkError}
-							empty={networkEmpty}
-						>
-							{network && (
-								<NetworkCardBody
-									rx={network.rx}
-									tx={network.tx}
-									perWorkspace={networkPerWorkspace}
-								/>
-							)}
-						</CardState>
-					</DashboardCard>
+					<SortableCards
+						cards={orderCards(cards, cardOrder)}
+						onReorder={saveCardOrder}
+					/>
 				</div>
 			</div>
 		</div>

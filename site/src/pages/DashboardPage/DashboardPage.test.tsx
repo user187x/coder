@@ -214,3 +214,22 @@ it("measures a per-workspace disk limit against every workspace the account may 
 		/Disk: 30 of 75 GB allocated \(40% of quota\), within quota/,
 	);
 });
+
+it("lays out the cards after Summary in the order the user dragged them into", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+		dashboard_card_order: ["network", "memory"],
+	});
+	setup();
+	await screen.findByRole("region", { name: "Network" });
+	const titles = screen
+		.getAllByRole("region")
+		.map((r) => r.getAttribute("aria-label"))
+		.filter((t) =>
+			["Summary", "Network", "Memory", "Workspaces"].includes(t ?? ""),
+		);
+	expect(titles).toEqual(["Summary", "Network", "Memory", "Workspaces"]);
+	expect(screen.getByRole("button", { name: "Move Network" })).toHaveAttribute(
+		"aria-roledescription",
+		"sortable",
+	);
+});
