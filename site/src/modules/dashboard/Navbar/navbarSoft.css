@@ -193,9 +193,12 @@ html[data-settings-side="compact"] {
 	overflow: clip;
 	border-radius: var(--dock-radius);
 }
+/* The Quick links scroll on their own (AdminQuickLinksMenu), so Controls below them stays in view. */
 .settings-menu[data-settings-docked] nav[aria-label="Settings"] {
 	min-height: 0;
-	overflow-y: auto;
+	overflow: hidden;
+}
+.admin-quick-links-scroll {
 	overscroll-behavior: contain;
 	scrollbar-width: none;
 }

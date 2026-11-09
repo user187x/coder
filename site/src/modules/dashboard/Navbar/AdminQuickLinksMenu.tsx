@@ -118,55 +118,63 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 
 	return (
 		<>
-			<DndContext
-				sensors={sensors}
-				collisionDetection={closestCenter}
-				modifiers={[({ transform }) => ({ ...transform, x: 0 })]}
-				onDragEnd={onDragEnd}
+			{/* The links scroll on their own, above Controls, which always stays in view */}
+			<div
+				className="admin-quick-links-scroll min-h-0 flex-1 overflow-y-auto"
+				data-testid="quick-links-scroll"
 			>
-				<SortableContext items={ids} strategy={verticalListSortingStrategy}>
-					{links.map((link, index) => (
-						<QuickLinkRow
-							key={link.id}
-							link={link}
-							admin={admin}
-							editable={Boolean(onChange)}
-							chatExpanded={chatExpanded}
-							onChatToggle={onChatToggle}
-							itemClassName={itemClassName}
-							moving={moving === link.id}
-							handleRef={(node) => {
-								if (node) {
-									handles.current.set(link.id, node);
-								} else {
-									handles.current.delete(link.id);
-								}
-							}}
-							onRemove={() => {
-								setMoving(undefined);
-								onChange?.(ids.filter((id) => id !== link.id));
-								setAnnouncement(`${link.label} removed from the quick links.`);
-							}}
-							onToggleMoving={() => {
-								const next = moving === link.id ? undefined : link.id;
-								setMoving(next);
-								setAnnouncement(
-									next
-										? `Moving ${link.label}, position ${index + 1} of ${ids.length}. Use the up and down arrow keys, then Enter.`
-										: `${link.label} dropped at position ${index + 1} of ${ids.length}.`,
-								);
-							}}
-							onStopMoving={() => setMoving(undefined)}
-							onMove={(by) => move(link.id, index + by)}
-						/>
-					))}
-				</SortableContext>
-			</DndContext>
+				<DndContext
+					sensors={sensors}
+					collisionDetection={closestCenter}
+					modifiers={[({ transform }) => ({ ...transform, x: 0 })]}
+					onDragEnd={onDragEnd}
+				>
+					<SortableContext items={ids} strategy={verticalListSortingStrategy}>
+						{links.map((link, index) => (
+							<QuickLinkRow
+								key={link.id}
+								link={link}
+								admin={admin}
+								editable={Boolean(onChange)}
+								chatExpanded={chatExpanded}
+								onChatToggle={onChatToggle}
+								itemClassName={itemClassName}
+								moving={moving === link.id}
+								handleRef={(node) => {
+									if (node) {
+										handles.current.set(link.id, node);
+									} else {
+										handles.current.delete(link.id);
+									}
+								}}
+								onRemove={() => {
+									setMoving(undefined);
+									onChange?.(ids.filter((id) => id !== link.id));
+									setAnnouncement(
+										`${link.label} removed from the quick links.`,
+									);
+								}}
+								onToggleMoving={() => {
+									const next = moving === link.id ? undefined : link.id;
+									setMoving(next);
+									setAnnouncement(
+										next
+											? `Moving ${link.label}, position ${index + 1} of ${ids.length}. Use the up and down arrow keys, then Enter.`
+											: `${link.label} dropped at position ${index + 1} of ${ids.length}.`,
+									);
+								}}
+								onStopMoving={() => setMoving(undefined)}
+								onMove={(by) => move(link.id, index + by)}
+							/>
+						))}
+					</SortableContext>
+				</DndContext>
+			</div>
 
 			<Collapsible
 				open={expanded}
 				onOpenChange={setExpanded}
-				className="mt-auto"
+				className="shrink-0"
 			>
 				<DropdownMenuItem
 					{...controlsMenu.trigger}

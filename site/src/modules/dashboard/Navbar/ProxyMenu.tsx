@@ -33,7 +33,6 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
-import { ChatGate } from "#/modules/platform/chat/useChatEnabled";
 import { WorkspaceGrid } from "#/modules/platform/workspaceGrid/WorkspaceGrid";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
@@ -46,7 +45,7 @@ import {
 import type { AdminPage } from "./adminQuickLinks";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
-import { SettingsChatPanel } from "./SettingsChatPanel";
+import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
@@ -90,7 +89,15 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	controls,
 }) => {
 	const [open, setOpen] = useState(false);
-	const [chatExpanded, setChatExpanded] = useState(false);
+	// The bottom panel's face (SettingsFacePanel); chat open is its Chat face.
+	const [face, setFace] = useState<SettingsFace>("metrics");
+	const chatExpanded = face === "chat";
+	const setChatExpanded = (next: boolean | ((open: boolean) => boolean)) => {
+		setFace((current) => {
+			const open = typeof next === "function" ? next(current === "chat") : next;
+			return open ? "chat" : current === "chat" ? "metrics" : current;
+		});
+	};
 	// Each entry's right-click options (InlineMenu).
 	const hudMenu = useInlineMenu();
 	const dockMenu = useInlineMenu();
@@ -599,18 +606,19 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										/>
 									</nav>
 								)}
-								{controls && canViewAdminSettings(controls.permissions) && (
-									<SettingsMetricGraphs
-										anchor={setMetricsElement}
-										latency={clusterLatency}
-										chatExpanded={chatExpanded}
-									/>
-								)}
-								{chatExpanded && (
-									<ChatGate>
-										<SettingsChatPanel onClose={() => setChatExpanded(false)} />
-									</ChatGate>
-								)}
+								<SettingsFacePanel
+									face={face}
+									onFaceChange={setFace}
+									metrics={
+										controls && canViewAdminSettings(controls.permissions) ? (
+											<SettingsMetricGraphs
+												anchor={setMetricsElement}
+												latency={clusterLatency}
+												chatExpanded={false}
+											/>
+										) : null
+									}
+								/>
 							</>
 						)}
 					</div>

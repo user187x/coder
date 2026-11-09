@@ -1,0 +1,51 @@
+/* The Settings panel's bottom panel (SettingsFacePanel): two dimples at its top, just left and right of its centre,
+   turn it between its faces; each new face turns in from the side it was turned toward. */
+.settings-face-dimples {
+	display: flex;
+	justify-content: center;
+	gap: 0.75rem;
+	padding-bottom: 0.375rem;
+}
+.settings-face-dimple {
+	width: 0.875rem;
+	height: 0.875rem;
+	padding: 0;
+	border: 0;
+	border-radius: 9999px;
+	cursor: pointer;
+	background: hsl(var(--surface-tertiary));
+	box-shadow:
+		inset 0 2px 3px rgb(0 0 0 / 0.5),
+		inset 0 -1px 1px rgb(255 255 255 / 0.12);
+}
+.settings-face-dimple:hover {
+	background: hsl(var(--surface-quaternary, var(--surface-tertiary)));
+}
+.settings-face-dimple:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: 2px;
+}
+.settings-face {
+	perspective: 900px;
+	transform-origin: 50% 50%;
+}
+@media (prefers-reduced-motion: no-preference) {
+	.settings-face-turn-right {
+		animation: settings-face-in-right 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+	.settings-face-turn-left {
+		animation: settings-face-in-left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+}
+@keyframes settings-face-in-right {
+	from {
+		transform: perspective(900px) rotateY(-80deg);
+		opacity: 0;
+	}
+}
+@keyframes settings-face-in-left {
+	from {
+		transform: perspective(900px) rotateY(80deg);
+		opacity: 0;
+	}
+}
