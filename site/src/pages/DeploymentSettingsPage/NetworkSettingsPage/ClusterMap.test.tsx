@@ -244,6 +244,30 @@ describe("ClusterMap", () => {
 		expect(within(card).getByText("coder-safe-u2")).toBeInTheDocument();
 	});
 
+	it("deletes an unmounted Cloud Drive volume after confirming, never a mounted one", async () => {
+		const remove = vi
+			.spyOn(ClusterNetworkAPI, "deleteCloudDriveVolumes")
+			.mockResolvedValue({ deleted: ["coder-safe-u2"], skipped: [] });
+		renderMap();
+		const card = await screen.findByTestId("cluster-ha-card");
+		const drive = await within(card).findByTestId("cloud-drive");
+		expect(
+			within(drive).getByRole("button", {
+				name: "Delete volume coder-safe-u1",
+			}),
+		).toBeDisabled();
+		fireEvent.click(
+			within(drive).getByRole("button", {
+				name: "Delete unmounted volumes (1)",
+			}),
+		);
+		const dialog = await screen.findByRole("dialog");
+		fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+		await waitFor(() =>
+			expect(remove).toHaveBeenCalledExactlyOnceWith(["coder-safe-u2"]),
+		);
+	});
+
 	it("places every component in the node it runs on", async () => {
 		renderMap();
 		const card = await screen.findByTestId("cluster-nodes-card");

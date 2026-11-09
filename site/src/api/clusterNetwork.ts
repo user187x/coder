@@ -550,6 +550,11 @@ export const ClusterNetworkAPI = {
 	entity: (ref: EntityRef) =>
 		get<EntityDetails>(`${base}/api/network/entity?${entityQuery(ref)}`),
 	haAndStorage: () => get<HAStorageReport>(`${base}/api/network/ha`),
+	deleteCloudDriveVolumes: (names: readonly string[]) =>
+		platformRequest.post<{
+			deleted: string[];
+			skipped: { name: string; reason: string }[];
+		}>(`${base}/api/network/cloud-drive-volumes/delete`, { names }),
 	mesh: () => get<MeshReport>(`${base}/api/network/mesh`),
 };
 
@@ -689,4 +694,14 @@ export const updateNetworkNode = (client: QueryClient) => ({
 			client.invalidateQueries({ queryKey: clusterNetworkKey }),
 			client.invalidateQueries({ queryKey: networkReportKey }),
 		]),
+});
+
+/**
+ * Deletes accounts' Cloud Drive volumes (their PersistentVolume and claim). The files stay in the Cloud Drive's
+ * storage, and the volume is made again when one of the account's workspaces connects; mounted volumes are skipped.
+ */
+export const deleteCloudDriveVolumes = (client: QueryClient) => ({
+	mutationFn: (names: readonly string[]) =>
+		ClusterNetworkAPI.deleteCloudDriveVolumes(names),
+	onSettled: () => client.invalidateQueries({ queryKey: clusterHAKey }),
 });

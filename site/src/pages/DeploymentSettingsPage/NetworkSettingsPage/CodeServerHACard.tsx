@@ -1,14 +1,16 @@
 import { cn } from "cn";
 import { useState } from "react";
-import { useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
 	type CodeServerHA,
 	type CodeServerInstance,
 	clusterHA,
+	deleteCloudDriveVolumes,
 	type StorageReport,
 } from "#/api/clusterNetwork";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	Table,
@@ -671,9 +673,14 @@ const CloudDrivePart: React.FC<{
 	now: number;
 }> = ({ cd, now }) => {
 	const [all, setAll] = useState(false);
+	// The volumes awaiting the admin's confirmation to delete: one, or every unmounted one.
+	const [toDelete, setToDelete] = useState<string[]>([]);
+	const client = useQueryClient();
+	const remove = useMutation(deleteCloudDriveVolumes(client));
 	const items = all
 		? cd.volumes.items
 		: cd.volumes.items.filter((v) => v.phase === "Bound" || v.usedBy.length);
+	const unmounted = cd.volumes.items.filter((v) => !v.usedBy.length);
 	const b = cd.backend;
 	return (
 		<div className="flex flex-col gap-3" data-testid="cloud-drive">
@@ -767,6 +774,9 @@ const CloudDrivePart: React.FC<{
 											<TableHead key={h}>{h}</TableHead>
 										),
 									)}
+									<TableHead>
+										<span className="sr-only">Actions</span>
+									</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -808,6 +818,24 @@ const CloudDrivePart: React.FC<{
 													<span className="text-content-secondary">none</span>
 												)}
 											</TableCell>
+											<TableCell>
+												<Button
+													size="sm"
+													variant="subtle"
+													disabled={
+														Boolean(v.usedBy.length) || remove.isPending
+													}
+													title={
+														v.usedBy.length
+															? "Mounted by a running workspace: stop it first"
+															: undefined
+													}
+													aria-label={`Delete volume ${v.name}`}
+													onClick={() => v.name && setToDelete([v.name])}
+												>
+													Delete
+												</Button>
+											</TableCell>
 										</TableRow>
 									))
 								) : (
@@ -816,18 +844,71 @@ const CloudDrivePart: React.FC<{
 							</TableBody>
 						</Table>
 					</div>
-					{cd.volumes.items.length > items.length || all ? (
-						<Button
-							size="sm"
-							variant="outline"
-							className="self-start"
-							onClick={() => setAll(!all)}
-						>
-							{all
-								? "Show the bound ones only"
-								: `Show all ${cd.volumes.items.length} (released ones too)`}
-						</Button>
+					<div className="flex flex-wrap items-center gap-2">
+						{cd.volumes.items.length > items.length || all ? (
+							<Button size="sm" variant="outline" onClick={() => setAll(!all)}>
+								{all
+									? "Show the bound ones only"
+									: `Show all ${cd.volumes.items.length} (released ones too)`}
+							</Button>
+						) : null}
+						{unmounted.length > 0 && (
+							<Button
+								size="sm"
+								variant="outline"
+								disabled={remove.isPending}
+								onClick={() =>
+									setToDelete(
+										unmounted.flatMap((v) => (v.name ? [v.name] : [])),
+									)
+								}
+							>
+								Delete unmounted volumes ({unmounted.length})
+							</Button>
+						)}
+					</div>
+					{remove.error ? (
+						<p role="alert" className="m-0 text-xs text-content-destructive">
+							{remove.error instanceof Error
+								? remove.error.message
+								: "The volumes were not deleted."}
+						</p>
+					) : remove.data ? (
+						<p role="status" className="m-0 text-xs text-content-secondary">
+							Deleted {remove.data.deleted.length}{" "}
+							{remove.data.deleted.length === 1 ? "volume" : "volumes"}
+							{remove.data.skipped.length
+								? `; skipped ${remove.data.skipped.map((s) => `${s.name} (${s.reason})`).join(", ")}`
+								: ""}
+							.
+						</p>
 					) : null}
+					<ConfirmDialog
+						open={toDelete.length > 0}
+						onClose={() => setToDelete([])}
+						title={
+							toDelete.length === 1
+								? "Delete this volume?"
+								: `Delete ${toDelete.length} volumes?`
+						}
+						type="delete"
+						confirmText="Delete"
+						hideCancel={false}
+						disabled={remove.isPending}
+						onConfirm={() =>
+							remove.mutate(toDelete, { onSettled: () => setToDelete([]) })
+						}
+						description={
+							<p className="m-0">
+								{toDelete.length === 1
+									? toDelete[0]
+									: "Every unmounted account volume"}{" "}
+								will be deleted from Kubernetes. The accounts' files stay in the
+								Cloud Drive's storage, and a volume is made again when one of
+								that account's workspaces connects. Mounted volumes are skipped.
+							</p>
+						}
+					/>
 					{cd.libraries.length > 0 && (
 						<p className={cn("m-0 text-xs text-content-secondary")}>
 							Shared libraries:{" "}

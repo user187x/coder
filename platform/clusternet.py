@@ -1313,6 +1313,30 @@ def coder_scale(body=None):
             "automated": automated, **placement}
 
 
+def delete_cloud_drive_volumes(body, user):
+    """Delete accounts' Cloud Drive volumes (their PersistentVolume and claim; the files stay in the Cloud Drive's
+    storage, which the volumes only reach, and the platform makes the volume again when one of the account's workspaces
+    connects). Only account volumes (coder-safe-<user id>), and never one a pod mounts now. {"deleted", "skipped"}."""
+    if SAFE is None or not getattr(SAFE, "ENABLED", False):
+        raise ValueError("The Cloud Drive is off in this installation")
+    names = body.get("names")
+    if not isinstance(names, list) or not names or len(names) > 500 or not all(isinstance(n, str) for n in names):
+        raise ValueError("names: a list of 1 to 500 volume names")
+    in_use = SAFE.claims_in_use()
+    deleted, skipped = [], []
+    for name in dict.fromkeys(names):
+        if not name.startswith(SAFE.CLAIM_PREFIX) or not NAME_RE.fullmatch(name):
+            skipped.append({"name": name, "reason": "not an account volume"})
+        elif name in in_use:
+            skipped.append({"name": name, "reason": "mounted by a running workspace"})
+        else:
+            SAFE.remove_volume(name)
+            deleted.append(name)
+            if LOG:
+                LOG(event="cloud-drive-volume-deleted", volume=name, by=user.get("username") or user.get("id"))
+    return {"deleted": deleted, "skipped": skipped}
+
+
 # ---------------------------------------------------------------------------------------------------- HTTP
 def pod_reference(query):
     args = urllib.parse.parse_qs(query or "")
@@ -1525,7 +1549,8 @@ def handle(h, method, path, query):
     """True when it answered (the paths under /api/network/)."""
     if not path.startswith(BASE + "/api/network/"):
         return False
-    if method != "GET" and not (method == "POST" and path in (BASE + "/api/network/coder-scale", BASE + "/api/network/restart-pod", BASE + "/api/network/edit-node")):
+    if method != "GET" and not (method == "POST" and path in (BASE + "/api/network/coder-scale", BASE + "/api/network/restart-pod", BASE + "/api/network/edit-node",
+                                                         BASE + "/api/network/cloud-drive-volumes/delete")):
         h.send_json(405, {"error": "method not allowed"})
         return True
     user, err = h.user(admin=True)
@@ -1548,6 +1573,12 @@ def handle(h, method, path, query):
             if not h.csrf_ok():
                 return h.send_json(403, {"error": "Cross-site request refused"}) or True
             return h.send_json(202, restart_pod(h.body() or {}, user)) or True
+        if path == BASE + "/api/network/cloud-drive-volumes/delete":
+            if method != "POST":
+                return h.send_json(405, {"error": "method not allowed"}) or True
+            if not h.csrf_ok():
+                return h.send_json(403, {"error": "Cross-site request refused"}) or True
+            return h.send_json(200, delete_cloud_drive_volumes(h.body() or {}, user)) or True
         if path == BASE + "/api/network/log-targets":
             return h.send_json(200, log_targets(query)) or True
         if path == BASE + "/api/network/pod-logs":
