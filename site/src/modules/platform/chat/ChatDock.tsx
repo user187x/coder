@@ -477,12 +477,6 @@ export const ChatDock: React.FC = () => {
 					<ChatPanel
 						dock={dock}
 						size={preferences.data?.chat_size}
-						keepOpen={Boolean(preferences.data?.chat_keep_open)}
-						onToggleKeepOpen={() =>
-							savePosition.mutate({
-								chat_keep_open: !preferences.data?.chat_keep_open,
-							})
-						}
 						onResize={resize}
 						onClose={closeChat}
 					/>

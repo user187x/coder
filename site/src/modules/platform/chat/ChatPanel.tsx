@@ -1,13 +1,10 @@
 import { cn } from "cn";
 import {
 	ChevronUpIcon,
-	Maximize2Icon,
 	MessageSquareIcon,
-	Minimize2Icon,
 	MinusIcon,
-	PanelRightIcon,
 	PanelsTopLeftIcon,
-	PinIcon,
+	SquareIcon,
 	XIcon,
 } from "lucide-react";
 import { useRef } from "react";
@@ -43,9 +40,7 @@ export const ChatPanel: React.FC<{
 	size: UserUIPreferences["chat_size"];
 	onClose: () => void;
 	onResize: (size: UserUIPreferences["chat_size"]) => void;
-	keepOpen?: boolean;
-	onToggleKeepOpen?: () => void;
-}> = ({ dock, size, onResize, onClose, keepOpen, onToggleKeepOpen }) => {
+}> = ({ dock, size, onResize, onClose }) => {
 	const panel = useRef<HTMLDivElement>(null);
 	const state = useChatSnapshot();
 	const me = state.me;
@@ -120,77 +115,43 @@ export const ChatPanel: React.FC<{
 							<ChevronUpIcon className="size-3.5 shrink-0 text-content-secondary" />
 						)}
 					</button>
-					{raised ? (
-						<>
-							<Button
-								size="icon"
-								variant="subtle"
-								aria-label="Keep chat open"
-								title={
-									keepOpen
-										? "Unpin chat"
-										: "Keep chat open when clicking elsewhere"
-								}
-								aria-pressed={keepOpen}
-								onClick={onToggleKeepOpen}
-							>
-								<PinIcon
-									className={
-										keepOpen ? "fill-current text-content-link" : undefined
-									}
-								/>
-							</Button>
-							{me.admin && <ChatOnSwitch className="px-1.5" />}
-							{me.admin && <ConsoleButton />}
-							<DockButton
-								label="Attach to the right side"
-								testId="chat-mode-attach"
-								onClick={() => setDockMode("side")}
-							>
-								<PanelRightIcon />
-							</DockButton>
-							<DockButton
-								label="Full screen"
-								testId="chat-mode-fullscreen"
-								onClick={() => setDockMode("full")}
-							>
-								<Maximize2Icon />
-							</DockButton>
-							<DockButton
-								label="Minimize"
-								testId="chat-mode-minimize"
-								onClick={() => setDockMode("bar")}
-							>
-								<MinusIcon />
-							</DockButton>
-						</>
-					) : (
-						<>
-							{me.admin && (
-								<button
-									type="button"
-									onClick={() => openConsoleOverlay()}
-									aria-label="Open the chat console"
-									title="Open the chat console over this page"
-									data-testid="chat-open-console"
-									className="inline-flex h-11 shrink-0 cursor-pointer items-center border-0 bg-transparent px-1.5 text-content-secondary hover:text-content-primary"
-								>
-									<PanelsTopLeftIcon className="size-4" />
-								</button>
-							)}
-							{me.admin && <ChatOnSwitch className="pr-3.5 pl-1.5" />}
-							<DockButton
-								label="Hide chat bar"
-								testId="chat-mode-compact"
-								onClick={() => setDockMode("compact")}
-							>
-								<Minimize2Icon />
-							</DockButton>
-						</>
+					{/* The rest of the bar's controls are in the chat console's header (ChatBarControls); admins open it here */}
+					{me.admin && (
+						<button
+							type="button"
+							onClick={() => openConsoleOverlay()}
+							aria-label="Open the chat console"
+							title="Open the chat console over this page"
+							data-testid="chat-open-console"
+							className="inline-flex h-11 shrink-0 cursor-pointer items-center border-0 bg-transparent px-1.5 text-content-secondary hover:text-content-primary"
+						>
+							<PanelsTopLeftIcon className="size-4" />
+						</button>
 					)}
-					<DockButton label="Close chat" testId="chat-close" onClick={onClose}>
-						<XIcon />
-					</DockButton>
+					{/* As a window's title bar: minimize, maximize, close, each in a circle */}
+					<span className="flex shrink-0 items-center gap-1 pr-2">
+						<WindowButton
+							label={raised ? "Collapse to the chat bar" : "Hide chat bar"}
+							testId="chat-mode-minimize"
+							onClick={() => setDockMode(raised ? "bar" : "compact")}
+						>
+							<MinusIcon />
+						</WindowButton>
+						<WindowButton
+							label={raised ? "Full screen" : "Open as a window"}
+							testId={raised ? "chat-mode-fullscreen" : "chat-mode-window"}
+							onClick={() => setDockMode(raised ? "full" : "window")}
+						>
+							<SquareIcon />
+						</WindowButton>
+						<WindowButton
+							label="Close chat"
+							testId="chat-close"
+							onClick={onClose}
+						>
+							<XIcon />
+						</WindowButton>
+					</span>
 				</div>
 				<div
 					hidden={!raised}
@@ -202,6 +163,25 @@ export const ChatPanel: React.FC<{
 		</>
 	);
 };
+
+/** A chat bar control as a window's title bar has it: a glyph in a circle. */
+const WindowButton: React.FC<{
+	label: string;
+	testId: string;
+	onClick: () => void;
+	children: React.ReactNode;
+}> = ({ label, testId, onClick, children }) => (
+	<button
+		type="button"
+		aria-label={label}
+		title={label}
+		data-testid={testId}
+		onClick={onClick}
+		className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-solid border-border bg-transparent p-0 text-content-secondary hover:bg-surface-tertiary hover:text-content-primary [&_svg]:size-3"
+	>
+		{children}
+	</button>
+);
 
 const panelTitle = (state: ReturnType<typeof useChatSnapshot>) =>
 	noAdminAvailable(state)

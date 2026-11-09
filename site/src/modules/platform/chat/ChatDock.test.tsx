@@ -116,6 +116,16 @@ const raise = async (user: ReturnType<typeof userEvent.setup>) => {
 	return screen.getByTestId("chat-window-raised");
 };
 
+/** One of the chat bar's controls, which live in the chat console's header (an admin's). */
+const fromConsole = async (
+	user: ReturnType<typeof userEvent.setup>,
+	name: string,
+) => {
+	await user.click(await screen.findByTestId("chat-open-console"));
+	const dialog = await screen.findByRole("dialog", { name: "Chat console" });
+	await user.click(within(dialog).getByRole("button", { name }));
+};
+
 describe("ChatDock: the bar, the raised window, the side panel and full screen", () => {
 	afterEach(() => {
 		act(() => {
@@ -165,10 +175,14 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		await raise(user);
 		await user.click(screen.getByText("Workspaces"));
 		expect(result.current.dockMode).toBe("window");
-		await user.click(screen.getByRole("button", { name: "Minimize" }));
+		await user.click(
+			screen.getByRole("button", { name: "Collapse to the chat bar" }),
+		);
 		expect(result.current.dockMode).toBe("bar");
-		await raise(user);
-		await user.click(screen.getByRole("button", { name: "Keep chat open" }));
+		await fromConsole(user, "Keep chat open");
+		await user.click(
+			screen.getByRole("button", { name: "Back to the chat bar" }),
+		);
 		await waitFor(() =>
 			expect(save).toHaveBeenCalledWith({ chat_keep_open: false }),
 		);
@@ -303,11 +317,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 	it("the window's controls attach it to the right side and go full screen, and back", async () => {
 		const user = userEvent.setup();
 		renderDock();
-		const raised = await raise(user);
-
-		await user.click(
-			within(raised).getByRole("button", { name: "Attach to the right side" }),
-		);
+		await fromConsole(user, "Attach to the right side");
 		const side = screen.getByTestId("chat-side-panel");
 		expect(screen.queryByTestId("chat-window-raised")).toBeNull();
 
@@ -338,7 +348,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 	it("the side panel stays on clicks elsewhere; Minimize takes it down to the bar", async () => {
 		const user = userEvent.setup();
 		renderDock();
-		await user.click(within(await raise(user)).getByTestId("chat-mode-attach"));
+		await fromConsole(user, "Attach to the right side");
 		await user.click(screen.getByText("Workspaces"));
 		await user.keyboard("{Escape}");
 		const side = screen.getByTestId("chat-side-panel");
@@ -349,7 +359,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 	it("in the side panel a picked conversation opens inside it, not in a window", async () => {
 		const user = userEvent.setup();
 		renderDock();
-		await user.click(within(await raise(user)).getByTestId("chat-mode-attach"));
+		await fromConsole(user, "Attach to the right side");
 		const side = screen.getByTestId("chat-side-panel");
 
 		await user.click(within(side).getByRole("button", { name: /^ann/ }));
@@ -373,8 +383,8 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 			{ name: "Message bob" },
 		);
 
-		await user.click(within(raised).getByTestId("chat-mode-attach"));
-		const side = screen.getByTestId("chat-side-panel");
+		await fromConsole(user, "Attach to the right side");
+		const side = await screen.findByTestId("chat-side-panel");
 		within(side).getByRole("log", { name: "Messages with bob" });
 		expect(screen.queryByRole("dialog", { name: "Chat with bob" })).toBeNull();
 
@@ -389,9 +399,9 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 	it("an admin's console control brings the chat console over the page, not to its page (ChatConsoleOverlay)", async () => {
 		const user = userEvent.setup();
 		const router = renderDock();
-		const raised = await raise(user);
+		await raise(user);
 		await user.click(
-			within(raised).getByRole("button", { name: "Open in the chat console" }),
+			screen.getByRole("button", { name: "Open the chat console" }),
 		);
 		await screen.findByRole("dialog", { name: "Chat console" });
 		expect(router.state.location.pathname).toBe("/");
@@ -459,7 +469,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 
 		const user = userEvent.setup();
 		renderDock();
-		await user.click(within(await raise(user)).getByTestId("chat-mode-attach"));
+		await fromConsole(user, "Attach to the right side");
 		const side = screen.getByTestId("chat-side-panel");
 		await user.click(within(side).getByRole("button", { name: /^ann/ }));
 		await within(side).findByRole("log", { name: "Messages with ann" });

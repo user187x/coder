@@ -3,6 +3,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { useLayoutEffect, useRef } from "react";
 import { Link } from "react-router";
 import { Button } from "#/components/Button/Button";
+import { ChatBarControls } from "./ChatBarControls";
 import { ChatConsoleWorkspace } from "./ChatConsoleWorkspace";
 import { closeConsoleOverlay, useChatSnapshot } from "./chatStore";
 import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
@@ -84,6 +85,7 @@ export const ChatConsoleOverlay: React.FC = () => {
 							className="h-full rounded-[14px] max-sm:rounded-none"
 							actions={
 								<>
+									<ChatBarControls />
 									<Button asChild variant="subtle" size="icon">
 										<Link
 											to={CHAT_CONSOLE_PAGE}

@@ -42,28 +42,28 @@ describe("ChatDock: a developer's", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("raised window has no console control, and lists the admins to write to", async () => {
+	it("raised window has no console control, only collapse, window and close, and lists the admins to write to", async () => {
 		const user = userEvent.setup();
 		renderDock();
 		await user.click(
 			await screen.findByRole("button", { name: "Chat with an admin" }),
 		);
 		const raised = screen.getByTestId("chat-window-raised");
+		expect(within(raised).queryByTestId("chat-open-console")).toBeNull();
 		expect(
 			within(raised).queryByRole("button", {
-				name: "Open in the chat console",
+				name: "Attach to the right side",
 			}),
 		).toBeNull();
-		within(raised).getByRole("button", { name: "Attach to the right side" });
+		within(raised).getByRole("button", { name: "Collapse to the chat bar" });
+		within(raised).getByRole("button", { name: "Close chat" });
 
 		await user.click(
 			await within(raised).findByRole("button", { name: /^Ada/ }),
 		);
 		await within(raised).findByRole("textbox", { name: "Message Ada" });
 
-		await user.click(within(raised).getByTestId("chat-mode-attach"));
-		const side = screen.getByTestId("chat-side-panel");
-		within(side).getByRole("log", { name: "Messages with Ada" });
-		expect(within(side).queryByTestId("chat-open-console")).toBeNull();
+		await user.click(within(raised).getByTestId("chat-mode-fullscreen"));
+		screen.getByTestId("chat-fullscreen");
 	});
 });
