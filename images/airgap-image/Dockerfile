@@ -10,9 +10,19 @@ ARG GO_IMAGE=docker.io/library/golang:1.26.10-alpine
 
 FROM hashicorp/terraform:${TERRAFORM_VERSION} AS providers
 COPY template/ /template/
-RUN terraform -chdir=/template providers mirror -platform=linux_amd64 /mirror
+# Providers download from GitHub's release CDN, which answers 504 for minutes at a time: try a few times (mirroring
+# again into the same directory is safe; the checksum below still checks the result).
+RUN for try in 1 2 3 4 5; do \
+        terraform -chdir=/template providers mirror -platform=linux_amd64 /mirror && exit 0; \
+        echo "provider mirror failed (try $try), retrying in 20s"; sleep 20; \
+    done; exit 1
 COPY extra-providers/ /extra/
-RUN if ls /extra/*.tf >/dev/null 2>&1; then terraform -chdir=/extra providers mirror -platform=linux_amd64 /mirror; fi
+RUN if ls /extra/*.tf >/dev/null 2>&1; then \
+        for try in 1 2 3 4 5; do \
+            terraform -chdir=/extra providers mirror -platform=linux_amd64 /mirror && exit 0; \
+            echo "provider mirror failed (try $try), retrying in 20s"; sleep 20; \
+        done; exit 1; \
+    fi
 # Verify the approved third-party artifact independently of registry signatures.
 RUN printf '%s  %s\n' \
     'a347aebd398769c35ed2d3169025a7a11c1937d94efead7a7bee212aabba1c73' \
