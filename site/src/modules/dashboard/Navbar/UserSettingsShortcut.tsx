@@ -43,7 +43,8 @@ export const UserSettingsShortcut: React.FC<{
 						size="sm"
 						src={user.avatar_url}
 						fallback={user.username}
-						className="size-6"
+						// Round, without the avatar's own square frame: the button's circle is its edge
+						className="size-6 rounded-full border-0"
 					/>
 				</DropdownMenuItem>
 			</ContextMenuTrigger>
