@@ -236,6 +236,30 @@ describe("Default View", () => {
 		expect(await screen.findByText("Appearance page")).toBeInTheDocument();
 	});
 
+	it("moves the breadcrumb and categories to the navbar from the breadcrumb's right-click, and drops the page's list", async () => {
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockResolvedValue({ admin_nav_in_navbar: true });
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		renderWithAuth(<DeploymentSettingsLayout />, {
+			path: "/deployment",
+			route: "/deployment/users",
+			children: [{ path: "users", element: <p>Accounts page</p> }],
+		});
+		await screen.findByText("Accounts page");
+		fireEvent.contextMenu(screen.getByRole("button", { name: "Accounts" }));
+		fireEvent.click(
+			await screen.findByRole("menuitem", { name: "Move to the navbar" }),
+		);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({ admin_nav_in_navbar: true }),
+		);
+		// Moved, the page no longer lists the categories beside itself.
+		await waitFor(() =>
+			expect(screen.queryByRole("link", { name: "Accounts" })).toBeNull(),
+		);
+	});
+
 	it("rings the default view's category and says so on hover", async () => {
 		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 			settings_default_view: "/deployment/users",

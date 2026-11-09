@@ -10,6 +10,7 @@ import { Button } from "#/components/Button/Button";
 import { Label } from "#/components/Label/Label";
 import { Slider } from "#/components/Slider/Slider";
 import { Switch } from "#/components/Switch/Switch";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import {
 	NAVBAR_LABELS,
 	startNavbarArrange,
@@ -31,6 +32,8 @@ export const NavbarLayoutSection: React.FC = () => {
 	const save = useMutation(updateUserUIPreferences(client));
 	const preferences = useQuery(userUIPreferences());
 	const stripOff = Boolean(preferences.data?.navbar_strip_off);
+	const { permissions } = useAuthenticated();
+	const adminNav = Boolean(preferences.data?.admin_nav_in_navbar);
 	const savedRadius = preferences.data?.navbar_strip_radius ?? DEFAULT_RADIUS;
 	const [radius, setRadius] = useState(savedRadius);
 	useEffect(() => setRadius(savedRadius), [savedRadius]);
@@ -70,6 +73,25 @@ export const NavbarLayoutSection: React.FC = () => {
 					/>
 					<Label htmlFor={`${id}-strip`}>Backstrip</Label>
 				</div>
+				{permissions.viewDeploymentConfig && (
+					<div className="flex items-start gap-3">
+						<Switch
+							id={`${id}-admin-nav`}
+							checked={adminNav}
+							disabled={save.isPending || !preferences.isSuccess}
+							onCheckedChange={(on) => save.mutate({ admin_nav_in_navbar: on })}
+						/>
+						<span className="flex flex-col">
+							<Label htmlFor={`${id}-admin-nav`}>
+								Admin settings navigation in the navbar
+							</Label>
+							<span className="text-xs text-content-secondary">
+								The settings breadcrumb and categories in the navbar's top left,
+								the page full width. Also from a right-click on the breadcrumb.
+							</span>
+						</span>
+					</div>
+				)}
 				<div className="flex flex-col gap-2">
 					<span id={`${id}-radius`} className="text-sm font-medium">
 						Corner radius

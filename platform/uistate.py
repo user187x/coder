@@ -215,7 +215,7 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar'}:
                 raise ValueError('Unsupported preference.')
             if 'admin_notes_tray_target' in changes and changes['admin_notes_tray_target'] not in ('chat', 'notes'):
                 raise ValueError('Invalid admin notes tray target.')
@@ -245,6 +245,9 @@ class UIState(threading.Thread):
             if changes.get('navbar_strip_radius') is not None and (
                     type(changes['navbar_strip_radius']) is not int or not 0 <= changes['navbar_strip_radius'] <= 24):
                 raise ValueError('Invalid navbar strip radius.')
+            if 'admin_nav_in_navbar' in changes and changes['admin_nav_in_navbar'] is not None and \
+                    type(changes['admin_nav_in_navbar']) is not bool:
+                raise ValueError('Invalid admin navigation placement.')
             if 'navbar_strip_off' in changes and changes['navbar_strip_off'] is not None and \
                     type(changes['navbar_strip_off']) is not bool:
                 raise ValueError('Invalid navbar strip switch.')

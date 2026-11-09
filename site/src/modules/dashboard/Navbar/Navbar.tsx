@@ -19,9 +19,11 @@ import { useFeatureVisibility } from "../useFeatureVisibility";
 import { resolveAdminQuickLinks, settingsPagesFor } from "./adminQuickLinks";
 import { NavbarView } from "./NavbarView";
 
-export const Navbar: React.FC<{ actionRef?: React.Ref<HTMLDivElement> }> = ({
-	actionRef,
-}) => {
+export const Navbar: React.FC<{
+	actionRef?: React.Ref<HTMLDivElement>;
+	/** The top-left slot after the logo (NavbarStart). */
+	startRef?: React.Ref<HTMLDivElement>;
+}> = ({ actionRef, startRef }) => {
 	const { metadata } = useEmbeddedMetadata();
 	const buildInfoQuery = useQuery(buildInfo(metadata["build-info"]));
 	const { appearance, canViewOrganizationSettings } = useDashboard();
@@ -59,6 +61,7 @@ export const Navbar: React.FC<{ actionRef?: React.Ref<HTMLDivElement> }> = ({
 	return (
 		<NavbarView
 			actionRef={actionRef}
+			startRef={startRef}
 			defaultLayout={navbar?.defaultLayout}
 			transparency={navbar?.transparency}
 			stripColor={navbar?.color}

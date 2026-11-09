@@ -1,18 +1,34 @@
 import { cn } from "cn";
 import { SettingsIcon } from "lucide-react";
 import { Suspense, useId, useState } from "react";
-import { useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { INTRO_DURATION } from "#/api/platform";
-import { banner as bannerQuery } from "#/api/queries/platform";
+import {
+	banner as bannerQuery,
+	updateUserUIPreferences,
+	userUIPreferences,
+} from "#/api/queries/platform";
 import {
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "#/components/Breadcrumb/Breadcrumb";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import { PageLoader } from "#/components/Loader/Loader";
+import {
+	Popover,
+	PopoverAnchor,
+	PopoverContent,
+} from "#/components/Popover/Popover";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
+import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { useAnnounceSection } from "#/modules/platform/announcement/sectionIntroductions";
@@ -30,6 +46,12 @@ const DeploymentSettingsLayout: React.FC = () => {
 	// Shown or hidden from the breadcrumb: its toggle keeps the focus where the breadcrumb moves to.
 	const [toggled, setToggled] = useState(false);
 	const defaultView = useSettingsDefaultView();
+	// The breadcrumb and categories in the navbar's top left (the user's choice), the categories then in a popover.
+	const queryClient = useQueryClient();
+	const preferences = useQuery(userUIPreferences());
+	const placement = useMutation(updateUserUIPreferences(queryClient));
+	const inNavbar = Boolean(preferences.data?.admin_nav_in_navbar);
+	const [categoriesOpen, setCategoriesOpen] = useState(false);
 	const { data: introduction } = useQuery({
 		...bannerQuery(false),
 		enabled: !isEmbeddedFrame(),
@@ -78,6 +100,70 @@ const DeploymentSettingsLayout: React.FC = () => {
 
 	const CategoryIcon = category?.icon ?? SettingsIcon;
 
+	// Right-click on the breadcrumb, where it is: move it (and the categories) up into the navbar, or back.
+	const placementMenu = (children: React.ReactElement) => (
+		<ContextMenu>
+			<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+			<ContextMenuContent aria-label="Settings navigation placement">
+				<ContextMenuItem
+					disabled={placement.isPending}
+					onSelect={() => placement.mutate({ admin_nav_in_navbar: !inNavbar })}
+				>
+					{inNavbar ? "Move back beside the page" : "Move to the navbar"}
+				</ContextMenuItem>
+			</ContextMenuContent>
+		</ContextMenu>
+	);
+
+	const navbarBreadcrumb = (
+		<NavbarStart>
+			{placementMenu(
+				<AdminBreadcrumb
+					variant="connected"
+					inline
+					className="deployment-breadcrumb admin-navbar-breadcrumb"
+				>
+					<BreadcrumbList>
+						<BreadcrumbItem>
+							<AdminCategoryMenu />
+						</BreadcrumbItem>
+						<BreadcrumbItem>
+							<Popover open={categoriesOpen} onOpenChange={setCategoriesOpen}>
+								<PopoverAnchor asChild>
+									<span className="inline-flex">
+										<CategoryBreadcrumbButton
+											label={category?.label ?? "General"}
+											icon={CategoryIcon}
+											controls={sidebarId}
+											sidebarOpen={categoriesOpen}
+											onToggle={() => setCategoriesOpen((open) => !open)}
+										/>
+									</span>
+								</PopoverAnchor>
+								<PopoverContent
+									id={sidebarId}
+									align="start"
+									className="max-h-[70vh] w-72 overflow-y-auto p-2"
+									// A category picked from it closes it.
+									onClick={(event) => {
+										if (
+											event.target instanceof Element &&
+											event.target.closest("a")
+										) {
+											setCategoriesOpen(false);
+										}
+									}}
+								>
+									<DeploymentSidebar />
+								</PopoverContent>
+							</Popover>
+						</BreadcrumbItem>
+					</BreadcrumbList>
+				</AdminBreadcrumb>,
+			)}
+		</NavbarStart>
+	);
+
 	const breadcrumb = (inline: boolean, className?: string) => (
 		<AdminBreadcrumb
 			variant="connected"
@@ -111,14 +197,16 @@ const DeploymentSettingsLayout: React.FC = () => {
 			<div data-admin-layout="" className={chat ? "flex-1 min-h-0" : undefined}>
 				{/* With the categories open the breadcrumb heads their list, in place of its "Settings" label; collapsed
 				    (or on a small screen's Chat, where the list is hidden), it keeps a row of its own. */}
-				{!sidebarOpen
-					? breadcrumb(false)
-					: chat && breadcrumb(false, "lg:hidden")}
+				{inNavbar
+					? navbarBreadcrumb
+					: !sidebarOpen
+						? placementMenu(breadcrumb(false))
+						: chat && breadcrumb(false, "lg:hidden")}
 				<section className="max-w-[1920px] px-4 sm:px-6 lg:pr-10 lg:pl-4">
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
 						<div
 							id={sidebarId}
-							hidden={!sidebarOpen}
+							hidden={!sidebarOpen || inNavbar}
 							className={
 								sidebarOpen
 									? chat
@@ -127,7 +215,9 @@ const DeploymentSettingsLayout: React.FC = () => {
 									: undefined
 							}
 						>
-							{sidebarOpen && <DeploymentSidebar header={breadcrumb(true)} />}
+							{sidebarOpen && !inNavbar && (
+								<DeploymentSidebar header={placementMenu(breadcrumb(true))} />
+							)}
 						</div>
 						<div className="grow min-w-0">
 							<Suspense fallback={<PageLoader />}>

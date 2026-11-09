@@ -32,6 +32,8 @@ import "./navbarSoft.css";
 
 type NavbarViewProps = {
 	actionRef?: React.Ref<HTMLDivElement>;
+	/** The top-left slot after the logo, for a page's navigation moved into the navbar (NavbarStart). */
+	startRef?: React.Ref<HTMLDivElement>;
 	defaultLayout?: NavbarLayout;
 	transparency?: number;
 	/** The backstrip's own colour (#rrggbb); the theme's without one. */
@@ -50,6 +52,7 @@ type NavbarViewProps = {
 
 export const NavbarView: React.FC<NavbarViewProps> = ({
 	actionRef,
+	startRef,
 	defaultLayout,
 	transparency = 0,
 	stripColor,
@@ -130,6 +133,12 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			<div className="@[48rem]/dashboard:hidden">
 				<NavbarLogo />
 			</div>
+			{/* A page's own navigation, when its user moved it up here (the admin settings' breadcrumb and categories) */}
+			<div
+				ref={startRef}
+				data-testid="navbar-start"
+				className="navbar-start flex shrink-0 items-center empty:hidden"
+			/>
 
 			{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
 			<NavbarArrange
