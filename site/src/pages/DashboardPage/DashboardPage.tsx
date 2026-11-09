@@ -55,6 +55,7 @@ import {
 import {
 	NetworkCardBody,
 	type NetworkReading,
+	NetworkScopePill,
 	UsageCardBody,
 } from "./LiveCards";
 import { orderCards, type SortableCard, SortableCards } from "./SortableCards";
@@ -78,6 +79,7 @@ const DashboardPage: React.FC = () => {
 	const { user, permissions } = useAuthenticated();
 	const isAdmin = Boolean(permissions.viewDeploymentConfig);
 	const [paused, setPaused] = useState(false);
+	const [networkFocus, setNetworkFocus] = useState<string | null>(null);
 	const [view, setView] = useState<"mine" | "cluster">("mine");
 	const cluster = isAdmin && view === "cluster";
 	const refetchInterval = paused ? (false as const) : HUD_REFRESH_MS;
@@ -154,7 +156,13 @@ const DashboardPage: React.FC = () => {
 			? []
 			: running.map((w, i) => [w.id, diskFromHistory(histories[i]?.data)]),
 	);
-	const network = networkSeries(networks.map((n) => n.data?.agents));
+	// One workspace's traffic when the user picked it (its pill or its row), else everyone's together.
+	const focusIndex = networkTargets.findIndex((w) => w.id === networkFocus);
+	const network = networkSeries(
+		focusIndex === -1
+			? networks.map((n) => n.data?.agents)
+			: [networks[focusIndex]?.data?.agents],
+	);
 	// Never a blank card: say why there is no traffic to show.
 	const networkEmpty =
 		networkTargets.length === 0
@@ -425,7 +433,18 @@ const DashboardPage: React.FC = () => {
 					title="Network"
 					icon={NetworkIcon}
 					tone="orange"
-					actions={networkTargets.length > 0 && <RangePill />}
+					actions={
+						networkTargets.length > 0 && (
+							<span className="flex items-center gap-1.5">
+								<NetworkScopePill
+									workspaces={networkPerWorkspace}
+									selected={focusIndex === -1 ? null : networkFocus}
+									onSelect={setNetworkFocus}
+								/>
+								<RangePill />
+							</span>
+						)
+					}
 				>
 					<CardState
 						isLoading={networkTargets.length > 0 && networkLoading && !network}
@@ -437,6 +456,8 @@ const DashboardPage: React.FC = () => {
 								rx={network.rx}
 								tx={network.tx}
 								perWorkspace={networkPerWorkspace}
+								selected={focusIndex === -1 ? null : networkFocus}
+								onSelect={setNetworkFocus}
 							/>
 						)}
 					</CardState>

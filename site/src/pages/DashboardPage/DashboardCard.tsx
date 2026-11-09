@@ -56,7 +56,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 			<header
 				{...handle?.headerProps}
 				className={cn(
-					"group/handle mb-3 flex items-center justify-between gap-2",
+					"group/handle mb-3 flex flex-wrap items-center justify-between gap-2",
 					handle && "cursor-grab",
 					handle?.dragging && "cursor-grabbing",
 				)}
@@ -73,12 +73,13 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 							<Icon aria-hidden className="size-5" />
 						</span>
 					)}
-					<h2 className="m-0 truncate text-[13px] font-bold uppercase tracking-wide text-content-primary">
+					<h2 className="m-0 shrink-0 text-[13px] font-bold uppercase tracking-wide text-content-primary">
 						{title}
 					</h2>
 					{badge}
 				</span>
-				{actions}
+				{/* Beside the title while they fit, else on a line of their own: the title is never cut short for them */}
+				{actions && <span className="ml-auto flex shrink-0">{actions}</span>}
 			</header>
 			{children}
 		</section>
@@ -163,7 +164,11 @@ export const GraphFrame: React.FC<{
  * value pairs by default; `children` replaces them with the card's own list.
  */
 export const ShowWorkspaces: React.FC<{
-	rows?: readonly { id: string; label: string; value: React.ReactNode }[];
+	rows?: readonly {
+		id: string;
+		label: React.ReactNode;
+		value: React.ReactNode;
+	}[];
 	children?: React.ReactNode;
 }> = ({ rows = [], children }) => {
 	const [open, setOpen] = useState(false);

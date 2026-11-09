@@ -233,3 +233,23 @@ it("lays out the cards after Summary in the order the user dragged them into", a
 		"sortable",
 	);
 });
+
+it("shows one workspace's network activity when chosen from the Network pill", async () => {
+	setup();
+	const user = userEvent.setup();
+	const pill = await screen.findByRole("button", {
+		name: "Network activity shown: Combined Network Activity",
+	});
+	await user.click(pill);
+	const [first] = MockQuotaMeResources.workspaces.filter((w) => w.running);
+	await user.click(
+		await screen.findByRole("menuitemradio", {
+			name: `${first.name} Network Activity`,
+		}),
+	);
+	expect(
+		await screen.findByRole("button", {
+			name: `Network activity shown: ${first.name} Network Activity`,
+		}),
+	).toHaveAttribute("aria-haspopup", "menu");
+});

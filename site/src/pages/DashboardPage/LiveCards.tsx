@@ -1,4 +1,12 @@
 import { cn } from "cn";
+import { ChevronDownIcon } from "lucide-react";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
 import { formatRate } from "#/modules/platform/networkLeds/NetworkHistogram";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
 import { GraphFrame, ShowWorkspaces } from "./DashboardCard";
@@ -182,11 +190,55 @@ export type NetworkReading = {
 	tx: number | null;
 };
 
+const COMBINED = "combined";
+
+/** The Network card's header pill: whose traffic the graphs show, chosen from its menu. */
+export const NetworkScopePill: React.FC<{
+	workspaces: readonly NetworkReading[];
+	selected: string | null;
+	onSelect: (id: string | null) => void;
+}> = ({ workspaces, selected, onSelect }) => {
+	const name = workspaces.find((w) => w.id === selected)?.name;
+	const label = name ? `${name} Network Activity` : "Combined Network Activity";
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<button
+					type="button"
+					aria-label={`Network activity shown: ${label}`}
+					className="flex max-w-48 cursor-pointer items-center gap-1 rounded-full border border-solid border-border bg-surface-secondary px-1.5 text-[10px] leading-4 text-content-secondary hover:text-content-primary"
+				>
+					<span className="truncate">{label}</span>
+					<ChevronDownIcon aria-hidden className="size-3 shrink-0" />
+				</button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end">
+				<DropdownMenuRadioGroup
+					value={selected ?? COMBINED}
+					onValueChange={(value) => onSelect(value === COMBINED ? null : value)}
+				>
+					<DropdownMenuRadioItem value={COMBINED}>
+						Combined Network Activity
+					</DropdownMenuRadioItem>
+					{workspaces.map((w) => (
+						<DropdownMenuRadioItem key={w.id} value={w.id}>
+							{w.name} Network Activity
+						</DropdownMenuRadioItem>
+					))}
+				</DropdownMenuRadioGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+};
+
 export const NetworkCardBody: React.FC<{
 	rx: Series;
 	tx: Series;
 	perWorkspace: readonly NetworkReading[];
-}> = ({ rx, tx, perWorkspace }) => {
+	/** The workspace whose traffic the graphs show; none: all of them together. */
+	selected?: string | null;
+	onSelect?: (id: string | null) => void;
+}> = ({ rx, tx, perWorkspace, selected = null, onSelect }) => {
 	const rows = [
 		{
 			label: "Received",
@@ -248,7 +300,27 @@ export const NetworkCardBody: React.FC<{
 				<ShowWorkspaces
 					rows={perWorkspace.map((w) => ({
 						id: w.id,
-						label: w.name,
+						// Choosing one shows only its traffic; choosing it again, everyone's.
+						label: onSelect ? (
+							<button
+								type="button"
+								aria-pressed={selected === w.id}
+								title={
+									selected === w.id
+										? "Show the combined network activity"
+										: `Show only ${w.name}'s network activity`
+								}
+								onClick={() => onSelect(selected === w.id ? null : w.id)}
+								className={cn(
+									"cursor-pointer border-0 bg-transparent p-0 text-left text-inherit hover:underline",
+									selected === w.id && "font-semibold text-content-primary",
+								)}
+							>
+								{w.name}
+							</button>
+						) : (
+							w.name
+						),
 						value:
 							w.rx === null && w.tx === null
 								? "N/A"
