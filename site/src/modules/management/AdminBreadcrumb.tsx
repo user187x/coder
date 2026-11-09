@@ -4,8 +4,8 @@ import { Breadcrumb } from "#/components/Breadcrumb/Breadcrumb";
 
 /**
  * Keeps admin navigation below the navbar and the category rail below the breadcrumb. The connected
- * variant takes the settings page's container (its width and gutters), so the trail starts where the
- * category list does.
+ * variant takes the settings page's container (its width and gutters, held to the left of the window), so
+ * the trail starts where the category list does.
  */
 export const AdminBreadcrumb: React.FC<
 	React.ComponentProps<typeof Breadcrumb> & {
@@ -65,7 +65,7 @@ export const AdminBreadcrumb: React.FC<
 					: "sticky top-[calc(var(--dashboard-navigation-height,72px)+var(--coder-classification-h,0px)*max(1,var(--breadcrumb-scale,1)))] z-30 flow-root pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto",
 				!inline &&
 					props.variant === "connected" &&
-					"mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-10",
+					"w-full max-w-[1920px] px-4 sm:px-6 lg:pr-10 lg:pl-4",
 				className,
 			)}
 		/>

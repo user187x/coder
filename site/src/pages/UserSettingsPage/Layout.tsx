@@ -70,7 +70,7 @@ const Layout: React.FC = () => {
 				{/* As the admin settings: with the sections open the breadcrumb heads their list; hidden, it keeps a row of
 				    its own. */}
 				{!open && breadcrumb(false)}
-				<div className="mx-auto max-w-[1920px] px-4 sm:px-6 lg:px-10">
+				<div className="max-w-[1920px] px-4 sm:px-6 lg:pr-10 lg:pl-4">
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
 						<div
 							id={sidebarId}

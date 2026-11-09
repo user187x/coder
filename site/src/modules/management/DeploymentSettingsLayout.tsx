@@ -114,7 +114,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 				{!sidebarOpen
 					? breadcrumb(false)
 					: chat && breadcrumb(false, "lg:hidden")}
-				<section className="px-4 sm:px-6 lg:px-10 max-w-[1920px] mx-auto">
+				<section className="max-w-[1920px] px-4 sm:px-6 lg:pr-10 lg:pl-4">
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
 						<div
 							id={sidebarId}
