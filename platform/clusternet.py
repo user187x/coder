@@ -1154,8 +1154,94 @@ def ha_and_storage():
     return out
 
 
+def _matches(expr, labels):
+    key, op, values = expr.get("key"), expr.get("operator"), expr.get("values") or []
+    if op == "In":
+        return labels.get(key) in values
+    if op == "NotIn":
+        return labels.get(key) not in values
+    if op == "Exists":
+        return key in labels
+    if op == "DoesNotExist":
+        return key not in labels
+    return False  # Gt/Lt are not used for Coder's placement; an unknown operator never matches
+
+
+def _tolerated(taint, tolerations):
+    for t in tolerations:
+        if t.get("effect") and t["effect"] != taint.get("effect"):
+            continue
+        if t.get("operator") == "Exists" and (not t.get("key") or t["key"] == taint.get("key")):
+            return True
+        if t.get("key") == taint.get("key") and t.get("value", "") == taint.get("value", ""):
+            return True
+    return False
+
+
+def coder_placement(pod_spec):
+    """The nodes a central Coder pod can run on, one each (its required separate-node placement): every node its
+    selector, required node affinity and tolerations allow that is Ready and schedulable - those already running a
+    Coder pod, and the others its CPU and memory requests fit on now. {"maxReplicas", "nodes": [{name, coder,
+    fits, reason}]}."""
+    status, nodes = KUBE.call("GET", "/api/v1/nodes")
+    if status != 200:
+        raise RuntimeError("Cannot read the cluster's nodes")
+    status, pods = KUBE.call("GET", "/api/v1/pods?fieldSelector=" + urllib.parse.quote(
+        "status.phase!=Succeeded,status.phase!=Failed"))
+    if status != 200:
+        raise RuntimeError("Cannot read the cluster's pods")
+    selector = pod_spec.get("nodeSelector") or {}
+    terms = (((pod_spec.get("affinity") or {}).get("nodeAffinity") or {})
+             .get("requiredDuringSchedulingIgnoredDuringExecution") or {}).get("nodeSelectorTerms") or []
+    tolerations = pod_spec.get("tolerations") or []
+    container = (pod_spec.get("containers") or [{}])[0]
+    requests = (container.get("resources") or {}).get("requests") or {}
+    need = {r: QUANTITY(requests.get(r)) or 0 for r in ("cpu", "memory")}
+    used, coder_on = {}, set()
+    for pod in pods.get("items", []):
+        node = (pod.get("spec") or {}).get("nodeName")
+        if not node:
+            continue
+        labels = (pod.get("metadata") or {}).get("labels") or {}
+        if labels.get("app.kubernetes.io/name") == "coder" and labels.get("app.kubernetes.io/instance") == "coder" \
+                and not (pod.get("metadata") or {}).get("deletionTimestamp"):
+            coder_on.add(node)
+        for c in (pod.get("spec") or {}).get("containers") or []:
+            req = (c.get("resources") or {}).get("requests") or {}
+            for r in need:
+                used[(node, r)] = used.get((node, r), 0) + (QUANTITY(req.get(r)) or 0)
+    out = []
+    for node in nodes.get("items", []):
+        name = node["metadata"]["name"]
+        labels = node["metadata"].get("labels") or {}
+        ready = any(c.get("type") == "Ready" and c.get("status") == "True"
+                    for c in (node.get("status") or {}).get("conditions") or [])
+        if any(labels.get(k) != v for k, v in selector.items()):
+            continue
+        if terms and not any(all(_matches(e, labels) for e in t.get("matchExpressions") or []) for t in terms):
+            continue
+        if any(t.get("effect") in ("NoSchedule", "NoExecute") and not _tolerated(t, tolerations)
+               for t in (node.get("spec") or {}).get("taints") or []):
+            continue
+        reason = None
+        if not ready:
+            reason = "Not ready"
+        elif (node.get("spec") or {}).get("unschedulable"):
+            reason = "Cordoned"
+        elif name not in coder_on:
+            free = {r: (QUANTITY(((node.get("status") or {}).get("allocatable") or {}).get(r)) or 0)
+                    - used.get((name, r), 0) for r in need}
+            short = [r for r in need if free[r] < need[r]]
+            if short:
+                reason = "Not enough " + " and ".join("CPU" if r == "cpu" else r for r in short)
+        out.append({"name": name, "coder": name in coder_on, "fits": reason is None, "reason": reason})
+    out.sort(key=lambda n: (not n["coder"], not n["fits"], n["name"]))
+    return {"maxReplicas": sum(1 for n in out if n["coder"] or n["fits"]), "nodes": out}
+
+
 def coder_scale(body=None):
-    """Read or update only the central Coder Deployment, using optimistic concurrency."""
+    """Read or update only the central Coder Deployment, using optimistic concurrency. It never asks for more replicas
+    than coder_placement finds nodes for, one each."""
     path = "/apis/apps/v1/namespaces/%s/deployments/coder" % NAMESPACE
     status, deployment = KUBE.call("GET", path)
     if status != 200:
@@ -1178,6 +1264,10 @@ def coder_scale(body=None):
         if not any(t.get("topologyKey") == "kubernetes.io/hostname" and
                    t.get("labelSelector", {}).get("matchLabels", {}).get("app.kubernetes.io/name") == "coder" for t in terms):
             raise ValueError("Required separate-node placement must be configured before scaling")
+        placement = coder_placement(spec.get("template", {}).get("spec", {}))
+        if body["replicas"] > placement["maxReplicas"]:
+            raise ValueError("Only %d nodes can run a Coder replica (one each). Add or free an eligible node first."
+                             % placement["maxReplicas"])
         status, result = KUBE.call("PUT", path + "/scale", {
             "apiVersion": "autoscaling/v1", "kind": "Scale",
             "metadata": {"name": "coder", "namespace": NAMESPACE,
@@ -1186,10 +1276,15 @@ def coder_scale(body=None):
         if status not in (200, 201):
             raise RuntimeError("Scaling failed or the deployment changed. Refresh and try again.")
         return coder_scale()
+    try:
+        placement = coder_placement(spec.get("template", {}).get("spec", {}))
+    except Exception as e:  # noqa: BLE001 - the replica count still reads; the menu then keeps its fixed range
+        LOG(event="coder-placement-failed", error=str(e)[:200])
+        placement = {"maxReplicas": None, "nodes": []}
     return {"desired": spec.get("replicas", 1),
             "ready": deployment.get("status", {}).get("readyReplicas", 0),
             "resourceVersion": deployment["metadata"]["resourceVersion"],
-            "automated": automated}
+            "automated": automated, **placement}
 
 
 # ---------------------------------------------------------------------------------------------------- HTTP

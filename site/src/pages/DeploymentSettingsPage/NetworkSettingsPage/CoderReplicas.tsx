@@ -14,6 +14,14 @@ export const CoderReplicas = () => {
 	const mutation = useMutation(updateCoderScale());
 	const current = query.data;
 	const desired = selected ?? current?.desired ?? 2;
+	// One replica per node that can take one; without a node count, the fixed range of 2 to 10.
+	const max = current?.maxReplicas ?? 10;
+	const counts = Array.from(
+		{ length: Math.max(0, Math.min(max, 10) - 1) },
+		(_, index) => index + 2,
+	);
+	const stranded =
+		current?.maxReplicas != null && current.desired > current.maxReplicas;
 	return (
 		<section
 			className="rounded-lg border border-solid border-border p-6"
@@ -72,12 +80,16 @@ export const CoderReplicas = () => {
 									1 (single replica, no failover)
 								</option>
 							)}
-							{Array.from({ length: 9 }, (_, index) => index + 2).map(
-								(count) => (
-									<option key={count} value={count}>
-										{count}
-									</option>
-								),
+							{counts.map((count) => (
+								<option key={count} value={count}>
+									{count}
+								</option>
+							))}
+							{/* What is requested now, though no node can take the extra replicas: shown, not offered. */}
+							{current.desired > Math.min(max, 10) && (
+								<option value={current.desired} disabled>
+									{current.desired} (more than the nodes can run)
+								</option>
 							)}
 						</select>
 						<Button
@@ -87,12 +99,36 @@ export const CoderReplicas = () => {
 								current.automated ||
 								mutation.isPending ||
 								query.isError ||
-								desired === current.desired
+								desired === current.desired ||
+								desired > max
 							}
 						>
 							{mutation.isPending ? "Applying…" : "Apply replicas"}
 						</Button>
 					</form>
+					{current.maxReplicas != null && (
+						<p className="text-sm">
+							{current.maxReplicas}{" "}
+							{current.maxReplicas === 1 ? "node can" : "nodes can"} run a Coder
+							replica, one each:{" "}
+							{current.nodes?.length
+								? current.nodes
+										.map(
+											(node) =>
+												`${node.name} (${node.coder ? "running one" : node.fits ? "free" : (node.reason ?? "unavailable").toLowerCase()})`,
+										)
+										.join(", ")
+								: "none"}
+							.
+						</p>
+					)}
+					{stranded && (
+						<p role="alert" className="text-sm text-content-warning">
+							{current.desired} replicas are requested but only{" "}
+							{current.maxReplicas} can run; the rest stay Pending. Choose{" "}
+							{current.maxReplicas} or fewer.
+						</p>
+					)}
 					{current.automated && (
 						<p>
 							An autoscaler manages this deployment. Adjust its configuration

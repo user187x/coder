@@ -582,11 +582,25 @@ export const clusterHA = (paused: boolean) => ({
 	retry: false,
 });
 
+/** A node that can run a central Coder replica (its selector, affinity and tolerations allow it). */
+type CoderPlacementNode = {
+	name: string;
+	/** A Coder replica runs there now. */
+	coder: boolean;
+	/** It can take one: it runs one, or a new one's requests fit. */
+	fits: boolean;
+	/** Why it cannot: not ready, cordoned, or not enough CPU or memory. */
+	reason: string | null;
+};
+
 type CoderScale = {
 	desired: number;
 	ready: number;
 	resourceVersion: string;
 	automated: boolean;
+	/** How many replicas can run, one per node; null when the nodes could not be read. */
+	maxReplicas?: number | null;
+	nodes?: CoderPlacementNode[];
 };
 export const coderScaleKey = [...clusterNetworkKey, "coder-scale"] as const;
 export const coderScale = () => ({

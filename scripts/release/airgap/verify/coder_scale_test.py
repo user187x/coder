@@ -18,8 +18,44 @@ class CoderScaleTest(unittest.TestCase):
                 "labelSelector": {"matchLabels": {"app.kubernetes.io/name": "coder"}}}]}}}}},
             "status": {"readyReplicas": 2}}
         self.hpas = {"items": []}
+        node = lambda name, role, memory="16Gi", **extra: {"metadata": {"name": name, "labels": {"coder-ha-role": role}},
+            "spec": extra, "status": {"allocatable": {"cpu": "8", "memory": memory},
+                                      "conditions": [{"type": "Ready", "status": "True"}]}}
+        self.nodes = {"items": [node("a", "control"), node("b", "control"), node("c", "control"),
+                                node("edge", "edge"), node("small", "control", "1Gi")]}
+        coder = lambda n: {"metadata": {"labels": {"app.kubernetes.io/name": "coder", "app.kubernetes.io/instance": "coder"}},
+                           "spec": {"nodeName": n, "containers": [{"resources": {"requests": {"cpu": "1", "memory": "2Gi"}}}]}}
+        self.pods = {"items": [coder("a"), coder("b")]}
+        template = self.deployment["spec"]["template"]["spec"]
+        template["nodeSelector"] = {"coder-ha-role": "control"}
+        template["containers"] = [{"resources": {"requests": {"cpu": "1", "memory": "2Gi"}}}]
+        module.QUANTITY = lambda v: None if v is None else float(str(v).replace("Gi", "e9"))
+        module.LOG = Mock()
         module.KUBE = Mock()
-        module.KUBE.call.side_effect = lambda method, path, *args: (200, self.hpas if "horizontalpodautoscalers" in path else self.deployment)
+
+        def call(method, path, *args):
+            if "horizontalpodautoscalers" in path:
+                return 200, self.hpas
+            if path == "/api/v1/nodes":
+                return 200, self.nodes
+            if path.startswith("/api/v1/pods"):
+                return 200, self.pods
+            return 200, self.deployment
+        module.KUBE.call.side_effect = call
+
+    def test_reports_one_replica_per_eligible_node(self):
+        out = module.coder_scale()
+        self.assertEqual(out["maxReplicas"], 3, "a and b run Coder, c fits; edge is not selected and small is full")
+        self.assertEqual([(n["name"], n["coder"], n["fits"]) for n in out["nodes"]],
+                         [("a", True, True), ("b", True, True), ("c", False, True), ("small", False, False)])
+        self.assertEqual(out["nodes"][-1]["reason"], "Not enough memory")
+        self.nodes["items"][2]["spec"]["unschedulable"] = True
+        self.assertEqual(module.coder_scale()["maxReplicas"], 2)
+
+    def test_refuses_more_replicas_than_nodes(self):
+        with self.assertRaises(ValueError):
+            module.coder_scale({"replicas": 4, "resourceVersion": "4"})
+        self.assertFalse(any(c.args[0] == "PUT" for c in module.KUBE.call.call_args_list))
 
     def test_scaling_uses_versioned_scale_subresource(self):
         module.coder_scale({"replicas": 3, "resourceVersion": "4"})
