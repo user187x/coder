@@ -50,6 +50,7 @@ import { SettingsChatPanel } from "./SettingsChatPanel";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
+import { UserSettingsShortcut } from "./UserSettingsShortcut";
 import "./navbarSoft.css";
 
 /** Platform: the Controls menu's items, as its own button had them (AdminSettingsItems). */
@@ -230,8 +231,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			title={compactLabel}
 			disabled={docking.isPending}
 			className={cn(
-				"min-h-8 justify-center rounded-full border border-solid border-border px-1",
-				compact ? "mx-auto size-8 shrink-0 p-0" : "flex-1",
+				"min-h-8 justify-center px-1",
+				compact
+					? "mx-auto size-8 shrink-0 rounded-full border border-solid border-border p-0"
+					: "flex-1 rounded-none border-0 border-l border-solid border-border",
 			)}
 			onSelect={(event) => {
 				event.preventDefault();
@@ -337,11 +340,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								aria-label="Settings navigation"
 								className="mx-1 mb-1 flex flex-wrap items-center gap-1"
 							>
+								<UserSettingsShortcut user={user} buildInfo={buildInfo} />
 								{hud && (
 									<DropdownMenuItem
 										asChild
 										{...hudMenu.trigger}
-										className="min-h-8 flex-2 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
+										className="min-h-8 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
 									>
 										<NavLink to="/hud" title="HUD">
 											<GaugeIcon aria-hidden />
@@ -359,24 +363,35 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									</InlineMenuPanel>
 								)}
 								{controls && (
-									<DropdownMenuItem
-										{...dockMenu.trigger}
-										aria-label={dockLabel}
-										title={dockLabel}
-										disabled={docking.isPending || !prefs.data}
-										className="min-h-8 flex-1 justify-center rounded-full border border-solid border-border px-1"
-										onSelect={(event) => {
-											event.preventDefault();
-											toggleDock();
-										}}
+									// The docking buttons together in one pill, each doing its own
+									<div
+										role="group"
+										aria-label="Docking"
+										className="flex min-h-8 flex-1 items-stretch overflow-hidden rounded-full border border-solid border-border"
 									>
-										{docked ? (
-											<PanelRightCloseIcon aria-hidden className="-rotate-90" />
-										) : (
-											// undocked: its arrow points right, where Settings docks; docked, up to the dropdown it returns to
-											<PanelRightCloseIcon aria-hidden />
-										)}
-									</DropdownMenuItem>
+										<DropdownMenuItem
+											{...dockMenu.trigger}
+											aria-label={dockLabel}
+											title={dockLabel}
+											disabled={docking.isPending || !prefs.data}
+											className="min-h-8 flex-1 justify-center rounded-none px-1"
+											onSelect={(event) => {
+												event.preventDefault();
+												toggleDock();
+											}}
+										>
+											{docked ? (
+												<PanelRightCloseIcon
+													aria-hidden
+													className="-rotate-90"
+												/>
+											) : (
+												// undocked: its arrow points right, where Settings docks; docked, up to the dropdown it returns to
+												<PanelRightCloseIcon aria-hidden />
+											)}
+										</DropdownMenuItem>
+										{!compact && compactToggle}
+									</div>
 								)}
 								{controls && dockMenu.open && (
 									<InlineMenuPanel
@@ -392,7 +407,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										/>
 									</InlineMenuPanel>
 								)}
-								{compactToggle}
+								{!controls && compactToggle}
 								{compactOptions}
 							</div>
 						)}
