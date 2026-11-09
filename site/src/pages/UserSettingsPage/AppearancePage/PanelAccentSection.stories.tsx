@@ -37,3 +37,18 @@ export const LargerPanels: Story = {
 		],
 	},
 };
+
+export const CustomTextColour: Story = {
+	parameters: {
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					panel_accent: { mode: "custom", color: "#22c55e" },
+					panel_text_color: "#fbbf24",
+				},
+			},
+			{ key: panelAccentGlobal().queryKey, data: { global: null } },
+		],
+	},
+};

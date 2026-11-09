@@ -31,9 +31,11 @@ import { ColorField } from "#/modules/platform/ColorField";
 import {
 	PANEL_SCALE,
 	panelAccentColor,
+	panelTextTokens,
 } from "#/modules/platform/panelAccent/PanelAccent";
 
 const DEFAULT_CUSTOM = "#7c3aed";
+const DEFAULT_TEXT = "#e4e4e7";
 /** How long a picker or slider rests before its value is saved. */
 const SAVE_DELAY_MS = 400;
 type Mode = "off" | PanelAccent["mode"];
@@ -70,6 +72,11 @@ export const PanelAccentSection: React.FC = () => {
 	useEffect(() => {
 		if (savedColor) setColor(savedColor);
 	}, [savedColor]);
+	const savedText = preferences.data?.panel_text_color ?? null;
+	const [text, setText] = useState(savedText ?? DEFAULT_TEXT);
+	useEffect(() => {
+		if (savedText) setText(savedText);
+	}, [savedText]);
 	const savedScale = preferences.data?.panel_scale ?? PANEL_SCALE.default;
 	const [scale, setScale] = useState(savedScale);
 	useEffect(() => setScale(savedScale), [savedScale]);
@@ -101,7 +108,8 @@ export const PanelAccentSection: React.FC = () => {
 			</h2>
 			<p className="mt-0 mb-4 text-sm text-content-secondary">
 				Colour the cards and rows inside the Settings menu and side panel and
-				the chat, floating or docked, and set how large those panels are drawn.
+				the chat, floating or docked, set their text colour, and set how large
+				those panels are drawn.
 			</p>
 			<div className="grid gap-6 lg:grid-cols-2">
 				<div className="flex min-w-0 flex-col gap-4">
@@ -162,6 +170,36 @@ export const PanelAccentSection: React.FC = () => {
 							</span>
 						</div>
 					)}
+					<div className="flex flex-col gap-3">
+						<Label htmlFor={`${id}-text`}>Text</Label>
+						<Select
+							value={savedText ? "custom" : "theme"}
+							disabled={busy}
+							onValueChange={(value) =>
+								save.mutate({
+									panel_text_color: value === "custom" ? text : null,
+								})
+							}
+						>
+							<SelectTrigger id={`${id}-text`}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="theme">Theme's</SelectItem>
+								<SelectItem value="custom">Custom colour</SelectItem>
+							</SelectContent>
+						</Select>
+						{savedText && (
+							<ColorField
+								label="Text colour"
+								value={text}
+								onChange={(value) => {
+									setText(value);
+									later(() => save.mutate({ panel_text_color: value }));
+								}}
+							/>
+						)}
+					</div>
 					<div className="flex flex-col gap-2">
 						<span id={`${id}-size`} className="text-sm font-medium">
 							Panel size
@@ -202,7 +240,11 @@ export const PanelAccentSection: React.FC = () => {
 				>
 					<span className="text-sm font-medium">Preview</span>
 					<div className="flex min-h-72 items-start justify-center overflow-hidden rounded-xl bg-surface-tertiary p-4">
-						<SettingsPanelPreview accent={previewAccent} scale={scale} />
+						<SettingsPanelPreview
+							accent={previewAccent}
+							scale={scale}
+							text={savedText ? text : null}
+						/>
 					</div>
 				</div>
 			</div>
@@ -214,16 +256,24 @@ export const PanelAccentSection: React.FC = () => {
 const SettingsPanelPreview: React.FC<{
 	accent: PanelAccent | null;
 	scale: number;
-}> = ({ accent, scale }) => (
+	text: string | null;
+}> = ({ accent, scale, text }) => (
 	<div
 		aria-hidden
 		data-testid="panel-preview"
 		data-panel-accent-preview={accent ? "" : undefined}
+		data-panel-text-preview={text ? "" : undefined}
 		className="w-64 shrink-0 rounded-2xl border border-solid border-border bg-surface-primary p-2 text-xs shadow-md"
 		style={
 			{
 				zoom: scale / 100,
 				...(accent ? { "--panel-accent": panelAccentColor(accent) } : {}),
+				...(text
+					? {
+							"--panel-text-primary": panelTextTokens(text).primary,
+							"--panel-text-secondary": panelTextTokens(text).secondary,
+						}
+					: {}),
 			} as React.CSSProperties
 		}
 	>

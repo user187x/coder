@@ -26,3 +26,13 @@
 .chat-side-panel {
 	zoom: var(--panel-zoom, 1);
 }
+
+/* Appearance > Panel accents' text colour: the theme's text tokens, inside the Settings menu and panel and the chat's
+   panels only (and the Appearance preview), so every text class there follows it. */
+[data-panel-text-preview],
+:root[data-panel-text]
+	:is(.settings-menu-surface, [data-chat-panel], .chat-side-panel) {
+	--content-primary: var(--panel-text-primary);
+	--content-secondary: var(--panel-text-secondary);
+	color: hsl(var(--content-primary));
+}

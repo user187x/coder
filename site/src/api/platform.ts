@@ -1468,6 +1468,8 @@ export type UserUIPreferences = {
 	settings_default_view?: string | null;
 	/** The Settings and chat panels' size in percent (80-150), as a browser zoom would make them; none: 100. */
 	panel_scale?: number | null;
+	/** Appearance > Panel accents' text colour for the Settings and chat panels ("#rrggbb"); null: the theme's. */
+	panel_text_color?: string | null;
 };
 
 export type PanelAccent = { mode: "theme" } | { mode: "custom"; color: string };

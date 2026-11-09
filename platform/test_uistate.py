@@ -26,6 +26,13 @@ class PreferencesTest(unittest.TestCase):
                 self.state.preferences('user-id', {'admin_notes_tray_target': target})
         self.pool.query.assert_not_called()
 
+    def test_panel_text_color_is_a_hex_colour_or_none(self):
+        self.state.preferences('user-id', {'panel_text_color': '#A1b2C3'})
+        self.state.preferences('user-id', {'panel_text_color': None})
+        for bad in ('red', '#abc', '#abcdef0', 7, True, {}):
+            with self.subTest(colour=bad), self.assertRaises(ValueError):
+                self.state.preferences('user-id', {'panel_text_color': bad})
+
 
 if __name__ == '__main__':
     unittest.main()
