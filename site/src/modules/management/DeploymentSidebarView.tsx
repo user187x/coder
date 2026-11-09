@@ -1,4 +1,4 @@
-import { HouseIcon } from "lucide-react";
+import { cn } from "cn";
 import type { BuildInfoResponse } from "#/api/typesGenerated";
 import {
 	ContextMenu,
@@ -72,17 +72,19 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		node: (
 			<ContextMenu>
 				<ContextMenuTrigger asChild>
-					<div>
+					{/* The default view in a pill: an outline, so nothing moves */}
+					<div
+						data-default-view={defaultView === href || undefined}
+						title={defaultView === href ? "Set as default view" : undefined}
+						className={cn(
+							defaultView === href &&
+								"rounded-full outline outline-1 -outline-offset-1 outline-content-link/60",
+						)}
+					>
 						<SidebarNavItem href={href}>
 							<AdminCategoryLabel id={id}>
 								{label}
 								{extra}
-								{defaultView === href && (
-									<HouseIcon
-										aria-label="Default view"
-										className="ml-auto size-3.5 shrink-0 text-content-secondary"
-									/>
-								)}
 							</AdminCategoryLabel>
 						</SidebarNavItem>
 					</div>

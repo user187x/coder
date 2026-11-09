@@ -128,9 +128,17 @@
 .deployment-breadcrumb > ol > li:first-child:not(:only-child) {
 	min-width: calc(var(--navbar-action-width, 8.5rem) - 2rem);
 }
-/* The category's chevron holds its icon alone, beside the categories toggle. */
+/* The category's chevron holds its icon alone, beside the categories toggle: a little longer than the icon needs. */
 .deployment-breadcrumb > ol > li:last-child:not(:only-child) {
 	width: auto;
+}
+.deployment-breadcrumb:not([data-categories-collapsed])
+	> ol
+	> li:last-child:not(:only-child),
+.deployment-breadcrumb[data-inline]:not([data-categories-collapsed])
+	> ol
+	> li:last-child:not(:only-child) {
+	min-width: 5.5rem;
 }
 .deployment-breadcrumb > ol > li > :is(a, span, button) svg {
 	width: 0.875rem;
@@ -160,7 +168,10 @@
 	--toggle-width: 2.25rem;
 	position: relative;
 	isolation: isolate;
-	padding-right: var(--toggle-width);
+	/* The icon centred on the white face: from its notch to where its point begins (the face ends 3px short of the
+	   toggle's own notch). */
+	padding-left: var(--crumb-edge);
+	padding-right: calc(var(--toggle-width) + 3px);
 	background: transparent;
 	border-radius: 0;
 	clip-path: polygon(

@@ -235,4 +235,19 @@ describe("Default View", () => {
 		});
 		expect(await screen.findByText("Appearance page")).toBeInTheDocument();
 	});
+
+	it("rings the default view's category and says so on hover", async () => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+			settings_default_view: "/deployment/users",
+		});
+		renderWithAuth(<DeploymentSettingsLayout />, {
+			path: "/deployment",
+			route: "/deployment/users",
+			children: [{ path: "users", element: <p>Accounts page</p> }],
+		});
+		const pill = await screen.findByTitle("Set as default view");
+		expect(
+			within(pill).getByRole("link", { name: "Accounts" }),
+		).toHaveAttribute("href", "/deployment/users");
+	});
 });
