@@ -140,12 +140,22 @@ export const GpuCardBody: React.FC<{
 	const withGpus = workspaces.filter((w) => (w.gpus ?? 0) > 0);
 	const claimed = withGpus.reduce((sum, w) => sum + (w.gpus ?? 0), 0);
 	return (
-		<div className="flex flex-col gap-4">
-			<div className="flex items-center gap-3">
+		<div className="relative flex min-h-28 flex-col gap-4">
+			{/* A graphics card behind the figures, centred, half see-through */}
+			<img
+				src="/dashboard-gpu.png"
+				alt=""
+				aria-hidden
+				className="pointer-events-none absolute inset-0 m-auto max-h-28 max-w-full object-contain opacity-50"
+			/>
+			<div className="relative flex items-center gap-3">
 				<span className="flex flex-col">
-					<span className="text-2xl font-semibold tabular-nums text-content-primary">
-						{known ? formatQuotaNumber(claimed) : "N/A"}
-					</span>
+					{/* No figure while nothing is claimed: the card says so, greyed out */}
+					{(!known || withGpus.length > 0) && (
+						<span className="text-2xl font-semibold tabular-nums text-content-primary">
+							{known ? formatQuotaNumber(claimed) : "N/A"}
+						</span>
+					)}
 					<span className="text-xs text-content-secondary">
 						{!known
 							? "GPU claims are shown for your own workspaces"
@@ -155,7 +165,7 @@ export const GpuCardBody: React.FC<{
 					</span>
 				</span>
 			</div>
-			<dl className="m-0 flex flex-col gap-1.5">
+			<dl className="relative m-0 flex flex-col gap-1.5">
 				{withGpus.map((w) => (
 					<DottedRow
 						key={w.id}

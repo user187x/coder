@@ -91,6 +91,8 @@ it("keeps the GPU card, saying no workspace has a GPU, without GPUs", async () =
 	setup();
 	const gpu = await screen.findByRole("region", { name: "GPU" });
 	expect(gpu).toHaveTextContent("No workspace has a GPU enabled");
+	// No "0": the greyed-out card says so in words.
+	expect(gpu).not.toHaveTextContent(/^GPU\s*0/);
 });
 
 it("shows the GPUs a running workspace claims", async () => {
