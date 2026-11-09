@@ -45,3 +45,18 @@ describe("WorkspaceSlotsBar", () => {
 		);
 	});
 });
+
+it("rounds an offline share only where it stands alone", () => {
+	const stopped = { ...running, label: "Stopped", offline: true };
+	const { unmount } = render(
+		<WorkspaceSlotsBar segments={[running, stopped]} limit={3} />,
+	);
+	expect(screen.getByTestId("bar-segment-offline")).toHaveAttribute(
+		"data-continues",
+	);
+	unmount();
+	render(<WorkspaceSlotsBar segments={[stopped]} limit={3} />);
+	expect(screen.getByTestId("bar-segment-offline")).not.toHaveAttribute(
+		"data-continues",
+	);
+});

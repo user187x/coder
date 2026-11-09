@@ -212,12 +212,18 @@ export const BarSegmentFill: React.FC<{
 	segment: BarSegment;
 	width: string;
 	fill?: string | null;
-}> = ({ segment, width, fill }) =>
+	/** Another segment shows before it: an offline one carries on from it, flat and open on its left. */
+	continues?: boolean;
+}> = ({ segment, width, fill, continues = false }) =>
 	segment.offline ? (
 		<div
 			data-testid="bar-segment-offline"
+			data-continues={continues || undefined}
 			title={`${segment.label}: claimed, not running`}
-			className="h-full shrink-0 rounded-full border-[1.5px] border-dotted border-content-secondary bg-transparent transition-[width] duration-500"
+			className={cn(
+				"h-full shrink-0 border-[1.5px] border-dotted border-content-secondary bg-transparent transition-[width] duration-500",
+				continues ? "rounded-r-full border-l-0" : "rounded-full",
+			)}
 			style={{ width }}
 		/>
 	) : (
@@ -278,10 +284,11 @@ export const QuotaBar: React.FC<{
 			)}
 		>
 			<div className="flex h-full overflow-hidden rounded-full">
-				{segments.map((s) => (
+				{segments.map((s, i) => (
 					<BarSegmentFill
 						key={s.label}
 						segment={s}
+						continues={segments.slice(0, i).some((p) => p.value > 0)}
 						fill={LEVEL_FILL[level]}
 						width={`${top > 0 ? Math.min(100, (s.value / top) * 100) : 0}%`}
 					/>

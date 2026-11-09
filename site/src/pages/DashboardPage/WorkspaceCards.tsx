@@ -159,10 +159,11 @@ export const WorkspaceSlotsBar: React.FC<{
 			className="relative h-3.5 w-full rounded-full bg-surface-tertiary"
 		>
 			<div className="flex h-full overflow-hidden rounded-full">
-				{segments.map((s) => (
+				{segments.map((s, i) => (
 					<BarSegmentFill
 						key={s.label}
 						segment={s}
+						continues={segments.slice(0, i).some((p) => p.value > 0)}
 						fill={full ? "bg-highlight-red" : null}
 						width={`${(s.value / slots) * 100}%`}
 					/>
