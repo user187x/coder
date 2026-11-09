@@ -34,6 +34,18 @@ docker image inspect "$base" >/dev/null 2>&1 || docker pull "$base" 2>/dev/null 
 rm -rf "${ctx}/template"
 mkdir -p "${ctx}/template"
 cp "${top}"/helm-chart/coder-airgapped/charts/coder-workspace/files/*.tf "${ctx}/template/"
+# The providers the newest earlier release of this image mirrored: the build uses them when they satisfy the template
+# offline, so a release does not depend on GitHub's release CDN (whose 504s failed builds); empty otherwise.
+rm -rf "${ctx}/provider-cache"
+mkdir -p "${ctx}/provider-cache"
+prev=$(docker images --format '{{.Tag}}' "mrshll187/${repo}" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | grep -vx "${release}" |
+	sort -V | tail -1 || true)
+if [ -n "$prev" ]; then
+	cid=$(docker create "mrshll187/${repo}:${prev}" 2>/dev/null) &&
+		docker cp "${cid}:/opt/terraform/plugins/." "${ctx}/provider-cache/" 2>/dev/null &&
+		echo "provider cache from mrshll187/${repo}:${prev}" || echo "no provider cache (mrshll187/${repo}:${prev})"
+	[ -n "${cid:-}" ] && docker rm "$cid" >/dev/null
+fi
 # Terraform: built from source in the image (../airgap-image/Dockerfile), the newest 1.16 (Coder's provisioner accepts
 # up to 1.16.9), with a current Go
 tf=1.16.6

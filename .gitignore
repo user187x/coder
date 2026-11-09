@@ -140,6 +140,7 @@ test-timings.tsv
 # Generated release output and image-build inputs.
 /build/
 /images/airgap-image/template/
+/images/airgap-image/provider-cache/
 /images/workspace-image-dataflow/nifi-*-bin.zip*
 /images/workspace-image-dataflow/airflow-constraints.txt
 *.pyc

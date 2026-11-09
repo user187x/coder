@@ -10,9 +10,17 @@ ARG GO_IMAGE=docker.io/library/golang:1.26.10-alpine
 
 FROM hashicorp/terraform:${TERRAFORM_VERSION} AS providers
 COPY template/ /template/
-# Providers download from GitHub's release CDN, which answers 504 for minutes at a time: try a few times (mirroring
-# again into the same directory is safe; the checksum below still checks the result).
-RUN for try in 1 2 3 4 5; do \
+COPY provider-cache/ /cache/
+# The previous release's mirror (provider-cache, from build-airgap-image.sh) when the template initializes from it
+# alone; otherwise providers download from GitHub's release CDN, which answers 504 for minutes at a time: try a few
+# times (mirroring again into the same directory is safe; the checksum below still checks the result).
+RUN if [ -d /cache/registry.terraform.io ]; then \
+        printf 'provider_installation {\n  filesystem_mirror {\n    path = "/cache"\n  }\n}\n' > /tmp/cache.tfrc; \
+        if TF_CLI_CONFIG_FILE=/tmp/cache.tfrc terraform -chdir=/template init -backend=false -input=false; then \
+            rm -rf /template/.terraform; cp -a /cache /mirror; echo "providers from the previous release's mirror"; exit 0; \
+        fi; \
+    fi; \
+    for try in 1 2 3 4 5; do \
         terraform -chdir=/template providers mirror -platform=linux_amd64 /mirror && exit 0; \
         echo "provider mirror failed (try $try), retrying in 20s"; sleep 20; \
     done; exit 1
