@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { TooltipProvider } from "#/components/Tooltip/Tooltip";
 import { MockHudNode } from "#/testHelpers/hud";
+import { render } from "#/testHelpers/renderHelpers";
 import { HudNodeStrip, ringLabels } from "./HudNodeStrip";
 
 it("names each orb by what sets its node apart, short enough for its edge", () => {
@@ -39,4 +41,37 @@ it("names each orb by its node and the state its health reports", () => {
 	expect(
 		screen.getByRole("button", { name: "node-down: Not ready" }),
 	).toBeTruthy();
+});
+
+it("counts the cluster's nodes in the strip's corner", () => {
+	render(
+		<TooltipProvider>
+			<HudNodeStrip
+				nodes={[
+					{ ...MockHudNode, name: "a" },
+					{ ...MockHudNode, name: "b" },
+				]}
+			/>
+		</TooltipProvider>,
+	);
+	expect(screen.getByTestId("cluster-node-count")).toHaveTextContent(
+		"Cluster Nodes 2",
+	);
+});
+
+it("opens a node's details from its right-click menu", async () => {
+	const user = userEvent.setup();
+	render(
+		<TooltipProvider>
+			<HudNodeStrip nodes={[{ ...MockHudNode, name: "node-ok" }]} />
+		</TooltipProvider>,
+	);
+	fireEvent.contextMenu(
+		screen.getByRole("button", { name: "node-ok: Healthy" }),
+	);
+	expect(await screen.findByRole("menuitem", { name: "View" })).toBeTruthy();
+	await user.click(screen.getByRole("menuitem", { name: "Details" }));
+	expect(
+		await screen.findByRole("dialog", { name: /node-ok/ }),
+	).toHaveTextContent("Annotations");
 });
