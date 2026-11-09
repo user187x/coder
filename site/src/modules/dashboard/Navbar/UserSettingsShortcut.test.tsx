@@ -7,16 +7,11 @@ import { MockUserOwner } from "#/testHelpers/entities";
 import { render } from "#/testHelpers/renderHelpers";
 import { UserSettingsShortcut } from "./UserSettingsShortcut";
 
-const signOut = vi.fn();
-vi.mock("#/hooks/useAuthenticated", () => ({
-	useAuthenticated: () => ({ signOut }),
-}));
-
 it("lists User Settings' sections in the Account button's right-click menu", async () => {
 	render(
 		<DropdownMenu open>
 			<DropdownMenuContent>
-				<UserSettingsShortcut user={MockUserOwner} />
+				<UserSettingsShortcut user={MockUserOwner} onSignOut={vi.fn()} />
 			</DropdownMenuContent>
 		</DropdownMenu>,
 	);
@@ -33,10 +28,11 @@ it("lists User Settings' sections in the Account button's right-click menu", asy
 });
 
 it("logs out from the Account button's right-click menu", async () => {
+	const signOut = vi.fn();
 	render(
 		<DropdownMenu open>
 			<DropdownMenuContent>
-				<UserSettingsShortcut user={MockUserOwner} />
+				<UserSettingsShortcut user={MockUserOwner} onSignOut={signOut} />
 			</DropdownMenuContent>
 		</DropdownMenu>,
 	);

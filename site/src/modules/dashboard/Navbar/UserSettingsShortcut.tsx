@@ -10,7 +10,6 @@ import {
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { settingsSections } from "#/pages/UserSettingsPage/settingsSections";
 
 /**
@@ -20,9 +19,9 @@ import { settingsSections } from "#/pages/UserSettingsPage/settingsSections";
 export const UserSettingsShortcut: React.FC<{
 	user: User;
 	buildInfo?: BuildInfoResponse;
-}> = ({ user, buildInfo }) => {
+	onSignOut: () => void;
+}> = ({ user, buildInfo, onSignOut }) => {
 	const navigate = useNavigate();
-	const { signOut } = useAuthenticated();
 	// As User Settings' own list: no Appearance (it has a page of its own), OAuth2 only where Coder provides it, and
 	// no Schedule (an Enterprise feature the platform's open-source Coder lacks).
 	const sections = Object.entries(settingsSections).filter(
@@ -67,7 +66,7 @@ export const UserSettingsShortcut: React.FC<{
 					</ContextMenuItem>
 				))}
 				<ContextMenuSeparator />
-				<ContextMenuItem onSelect={signOut}>
+				<ContextMenuItem onSelect={onSignOut}>
 					<LogOutIcon aria-hidden />
 					Log out
 				</ContextMenuItem>

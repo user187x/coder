@@ -340,7 +340,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								aria-label="Settings navigation"
 								className="mx-1 mb-1 flex flex-wrap items-center gap-1"
 							>
-								<UserSettingsShortcut user={user} buildInfo={buildInfo} />
+								<UserSettingsShortcut
+									user={user}
+									buildInfo={buildInfo}
+									onSignOut={onSignOut}
+								/>
 								{hud && (
 									<DropdownMenuItem
 										asChild
