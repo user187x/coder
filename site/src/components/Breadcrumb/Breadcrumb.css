@@ -255,3 +255,20 @@
 		transform: translateX(var(--arrow-shift));
 	}
 }
+/* In the category list's header (AdminBreadcrumb inline): as wide as the list beside its sort button. */
+.deployment-breadcrumb[data-inline] > ol {
+	margin-block: 0;
+	padding-inline: 0;
+}
+.deployment-breadcrumb[data-inline] > ol > li,
+.deployment-breadcrumb[data-inline] > ol > li:first-child:not(:only-child),
+.deployment-breadcrumb[data-inline] > ol > li:last-child:not(:only-child) {
+	width: auto;
+	min-width: 0;
+}
+.deployment-breadcrumb[data-inline] > ol > li:first-child {
+	flex: 0 1 auto;
+}
+.deployment-breadcrumb[data-inline] > ol > li:last-child {
+	flex: 1 1 0;
+}

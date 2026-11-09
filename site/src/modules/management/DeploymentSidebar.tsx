@@ -18,7 +18,10 @@ import { NetworkStatusIndicator } from "./NetworkStatusIndicator";
  * A sidebar for deployment settings, in the order the admin arranged it (a
  * preference of theirs, saved with Coder).
  */
-export const DeploymentSidebar: React.FC = () => {
+export const DeploymentSidebar: React.FC<{
+	/** Above the categories in place of their "Settings" label: the settings breadcrumb. */
+	header?: React.ReactNode;
+}> = ({ header }) => {
 	const { permissions } = useAuthenticated();
 	const { buildInfo } = useDashboard();
 	const { data: keycloak } = useQuery({
@@ -40,6 +43,7 @@ export const DeploymentSidebar: React.FC = () => {
 				) : undefined
 			}
 			keycloakConnected={keycloak?.connected === true}
+			header={header}
 			order={preferences.data?.admin_sidebar_order ?? []}
 			onReorder={(ids) => {
 				// The sidebar changes at once; the save follows, and a failed one

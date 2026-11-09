@@ -28,6 +28,8 @@ type DeploymentSidebarViewProps = {
 	order?: readonly string[];
 	/** Saves a new order ([]: alphabetical). Without it the categories cannot be moved. */
 	onReorder?: (ids: string[]) => void;
+	/** Above the list in place of its "Settings" label: the settings breadcrumb. */
+	header?: React.ReactNode;
 };
 
 /**
@@ -45,6 +47,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	keycloakConnected,
 	order = [],
 	onReorder,
+	header,
 }) => {
 	const item = (
 		id: string,
@@ -137,9 +140,11 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 					categories={categories}
 					order={order}
 					onReorder={onReorder}
+					header={header}
 				/>
 			) : (
 				<div className="flex flex-col gap-1">
+					{header && <div className="pb-1">{header}</div>}
 					{orderCategories(categories, order).map((c) => (
 						<div key={c.id}>{c.node}</div>
 					))}

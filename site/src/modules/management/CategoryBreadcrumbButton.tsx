@@ -3,6 +3,7 @@ import {
 	PanelLeftCloseIcon,
 	PanelLeftOpenIcon,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 /** The active settings category and its sidebar visibility control. */
 export const CategoryBreadcrumbButton = ({
@@ -11,16 +12,25 @@ export const CategoryBreadcrumbButton = ({
 	controls,
 	sidebarOpen,
 	onToggle,
+	focusOnMount = false,
 }: {
 	label: string;
 	icon: LucideIcon;
 	controls: string;
 	sidebarOpen: boolean;
 	onToggle: () => void;
+	/** Take the focus when it appears: the breadcrumb moves between the list's header and a row of its own as the
+	 * categories show and hide, and the keyboard stays on the toggle. */
+	focusOnMount?: boolean;
 }) => {
+	const ref = useRef<HTMLButtonElement>(null);
+	useEffect(() => {
+		if (focusOnMount) ref.current?.focus();
+	}, [focusOnMount]);
 	const SidebarIcon = sidebarOpen ? PanelLeftCloseIcon : PanelLeftOpenIcon;
 	return (
 		<button
+			ref={ref}
 			type="button"
 			className="category-breadcrumb-button"
 			aria-current="page"

@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { SettingsIcon } from "lucide-react";
 import { Suspense, useId, useState } from "react";
 import { useQuery } from "react-query";
@@ -25,6 +26,8 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const location = useLocation();
 	const sidebarId = useId();
 	const [sidebarOpen, setSidebarOpen] = useState(true);
+	// Shown or hidden from the breadcrumb: its toggle keeps the focus where the breadcrumb moves to.
+	const [toggled, setToggled] = useState(false);
 	const { data: introduction } = useQuery({
 		...bannerQuery(false),
 		enabled: !isEmbeddedFrame(),
@@ -70,29 +73,42 @@ const DeploymentSettingsLayout: React.FC = () => {
 
 	const CategoryIcon = category?.icon ?? SettingsIcon;
 
+	const breadcrumb = (inline: boolean, className?: string) => (
+		<AdminBreadcrumb
+			variant="connected"
+			inline={inline}
+			className={cn("deployment-breadcrumb", className)}
+			data-categories-collapsed={!sidebarOpen || undefined}
+		>
+			<BreadcrumbList>
+				<BreadcrumbItem>
+					<AdminCategoryMenu />
+				</BreadcrumbItem>
+				<BreadcrumbItem>
+					<CategoryBreadcrumbButton
+						label={category?.label ?? "General"}
+						icon={CategoryIcon}
+						controls={sidebarId}
+						sidebarOpen={sidebarOpen}
+						focusOnMount={toggled}
+						onToggle={() => {
+							setToggled(true);
+							setSidebarOpen((open) => !open);
+						}}
+					/>
+				</BreadcrumbItem>
+			</BreadcrumbList>
+		</AdminBreadcrumb>
+	);
+
 	return (
 		<RequirePermission isFeatureVisible={canViewDeploymentSettingsPage}>
-			<div className={chat ? "flex-1 min-h-0" : undefined}>
-				<AdminBreadcrumb
-					variant="connected"
-					className="deployment-breadcrumb"
-					data-categories-collapsed={!sidebarOpen || undefined}
-				>
-					<BreadcrumbList>
-						<BreadcrumbItem>
-							<AdminCategoryMenu />
-						</BreadcrumbItem>
-						<BreadcrumbItem>
-							<CategoryBreadcrumbButton
-								label={category?.label ?? "General"}
-								icon={CategoryIcon}
-								controls={sidebarId}
-								sidebarOpen={sidebarOpen}
-								onToggle={() => setSidebarOpen((open) => !open)}
-							/>
-						</BreadcrumbItem>
-					</BreadcrumbList>
-				</AdminBreadcrumb>
+			<div data-admin-layout="" className={chat ? "flex-1 min-h-0" : undefined}>
+				{/* With the categories open the breadcrumb heads their list, in place of its "Settings" label; collapsed
+				    (or on a small screen's Chat, where the list is hidden), it keeps a row of its own. */}
+				{!sidebarOpen
+					? breadcrumb(false)
+					: chat && breadcrumb(false, "lg:hidden")}
 				<section className="px-4 sm:px-6 lg:px-10 max-w-[1920px] mx-auto">
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
 						<div
@@ -106,7 +122,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 									: undefined
 							}
 						>
-							{sidebarOpen && <DeploymentSidebar />}
+							{sidebarOpen && <DeploymentSidebar header={breadcrumb(true)} />}
 						</div>
 						<div className="grow min-w-0">
 							<Suspense fallback={<PageLoader />}>

@@ -47,6 +47,8 @@ export const orderCategories = (
 };
 
 type SortableCategoriesProps = {
+	/** In place of the "Settings" label above the list (the settings breadcrumb). */
+	header?: React.ReactNode;
 	categories: readonly SidebarCategory[];
 	/** The user's order (page IDs); empty: alphabetical. */
 	order: readonly string[];
@@ -63,6 +65,7 @@ export const SortableCategories: React.FC<SortableCategoriesProps> = ({
 	categories,
 	order,
 	onReorder,
+	header,
 }) => {
 	const ordered = orderCategories(categories, order);
 	const ids = ordered.map((c) => c.id);
@@ -94,10 +97,17 @@ export const SortableCategories: React.FC<SortableCategoriesProps> = ({
 
 	return (
 		<>
-			<div className="flex items-center justify-between pb-1 pl-3">
-				<span className="text-xs font-medium text-content-secondary">
-					Settings
-				</span>
+			<div
+				className={cn(
+					"flex items-center justify-between gap-1 pb-1",
+					!header && "pl-3",
+				)}
+			>
+				{header ?? (
+					<span className="text-xs font-medium text-content-secondary">
+						Settings
+					</span>
+				)}
 				<Button
 					size="icon"
 					variant="subtle"
