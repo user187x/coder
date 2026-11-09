@@ -74,6 +74,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 			)}
 			<DropdownMenuTrigger asChild>
 				<Button
+					data-navbar-ink-follow=""
 					aria-label={open ? "Close menu" : "Open menu"}
 					size="icon-lg"
 					variant="subtle"

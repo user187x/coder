@@ -275,3 +275,29 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	max-width: 100%;
 	padding-inline: 0.5rem;
 }
+
+/* The navbar's own strip colour (Appearance) can be dark under a light theme or light under a dark one: controls
+   without a surface of their own (Resources, the notification bell) take the ink that reads on it. */
+.navbar-soft[data-navbar-ink="light"] [data-navbar-ink-follow] {
+	color: #fff;
+	border-color: rgb(255 255 255 / 0.28);
+}
+.navbar-soft[data-navbar-ink="light"] [data-navbar-ink-follow]:hover {
+	background: rgb(255 255 255 / 0.12);
+}
+.navbar-soft[data-navbar-ink="dark"] [data-navbar-ink-follow] {
+	color: #18181b;
+	border-color: rgb(0 0 0 / 0.2);
+}
+.navbar-soft[data-navbar-ink="dark"] [data-navbar-ink-follow]:hover {
+	background: rgb(0 0 0 / 0.07);
+}
+/* The workspaces icon in the version that reads on the strip */
+.navbar-soft[data-navbar-ink="light"] [data-ink-icon="on-light"],
+.navbar-soft[data-navbar-ink="dark"] [data-ink-icon="on-dark"] {
+	display: none;
+}
+.navbar-soft[data-navbar-ink="light"] [data-ink-icon="on-dark"],
+.navbar-soft[data-navbar-ink="dark"] [data-ink-icon="on-light"] {
+	display: block;
+}

@@ -12,7 +12,13 @@ export const InboxButton: React.FC<InboxButtonProps> = ({
 	...props
 }) => {
 	return (
-		<Button size="icon-lg" variant="outline" className="relative" {...props}>
+		<Button
+			size="icon-lg"
+			variant="outline"
+			className="relative"
+			data-navbar-ink-follow=""
+			{...props}
+		>
 			<BellIcon />
 			{unreadCount > 0 && (
 				<UnreadBadge

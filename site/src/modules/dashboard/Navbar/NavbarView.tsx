@@ -21,7 +21,7 @@ import type {
 import { addableAdminPages } from "./adminQuickLinks";
 import { MobileMenu } from "./MobileMenu";
 import { NavbarLogo } from "./NavbarLogo";
-import { navbarStripColor } from "./navbarStrip";
+import { navbarInk, navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
 import { UserDropdown } from "./UserDropdown/UserDropdown";
@@ -110,6 +110,8 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					"--navbar-strip-bg": `var(--navbar-preview-strip, ${navbarStripColor(stripColor, transparency)})`,
 				} as React.CSSProperties
 			}
+			// Controls without a surface of their own take the ink that reads on the strip (navbarSoft.css)
+			data-navbar-ink={navbarInk(stripColor, transparency) ?? undefined}
 			className="navbar-soft sticky top-0 z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"
 		>
 			{/* Platform: the logo in a tile like the user's avatar. */}

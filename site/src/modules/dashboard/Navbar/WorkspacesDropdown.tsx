@@ -31,19 +31,26 @@ export const WorkspacesDropdown: React.FC<{
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" size="lg" title="Workspaces and templates">
+				<Button
+					variant="outline"
+					size="lg"
+					title="Workspaces and templates"
+					data-navbar-ink-follow=""
+				>
 					<img
 						src="/workspaces-icon-light.png"
 						alt=""
+						data-ink-icon="on-light"
 						className="size-5 shrink-0 block dark:hidden"
 					/>
 					<img
 						src="/workspaces-icon-dark.png"
 						alt=""
+						data-ink-icon="on-dark"
 						className="size-5 shrink-0 hidden dark:block"
 					/>
 					Resources
-					<ChevronDownIcon className="text-content-primary" />
+					<ChevronDownIcon />
 				</Button>
 			</DropdownMenuTrigger>
 
