@@ -10,7 +10,10 @@ import { AnnouncementBanner } from "#/modules/platform/announcement/Announcement
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
 import { ChatGate } from "#/modules/platform/chat/useChatEnabled";
 import { NavbarArrange } from "#/modules/platform/navbarOrder/NavbarArrange";
-import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
+import {
+	startNavbarArrange,
+	useNavbarOrder,
+} from "#/modules/platform/navbarOrder/navbarOrder";
 import type {
 	AdminQuickLinks,
 	AdminSettingsPermissions,
@@ -59,6 +62,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	proxyContextValue,
 }) => {
 	const logoURL = useProductLogoURL();
+	// The items taken off the navbar: the notification bell among them or not (the Settings badge leaves the inbox
+	// and chats to the bell while it shows).
+	const { hidden: navbarHidden } = useNavbarOrder(defaultLayout);
 	// Editable where there is anything to link to.
 	const quickLinksEditor =
 		adminQuickLinks && adminQuickLinks.pages.length > 0
@@ -144,6 +150,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 								permissions: adminPermissions,
 								quickLinks: adminQuickLinks?.links,
 								quickLinksEditor,
+								bellShown: !navbarHidden.includes("notifications"),
 							}}
 						/>
 					),

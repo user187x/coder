@@ -13,13 +13,23 @@ import type { AdminSettingsPermissions } from "./AdminSettings";
 /** Remains mounted while Settings is closed, sharing the inbox and notes query caches. */
 export const SettingsNotificationBadge = ({
 	permissions,
+	bellShown = false,
 }: {
 	permissions?: AdminSettingsPermissions;
+	/** The navbar's notification bell is there and badges the inbox and chats itself: this badge leaves them out. */
+	bellShown?: boolean;
 }) => {
 	const admin = Boolean(permissions?.canEditDeployment);
 	const chat = useChatSnapshot();
-	const chats = unreadTotal(chat);
-	const inbox = useQuery({ ...inboxNotifications(), retry: false });
+	const chats = bellShown ? 0 : unreadTotal(chat);
+	const inboxQuery = useQuery({
+		...inboxNotifications(),
+		retry: false,
+		enabled: !bellShown,
+	});
+	const inbox = bellShown
+		? { data: undefined, isError: false, isLoading: false }
+		: inboxQuery;
 	const orgs = useQuery({ ...organizations(), enabled: admin });
 	const org =
 		(orgs.data?.find((org) => org.is_default) ?? orgs.data?.[0])?.id ?? "";
@@ -45,8 +55,12 @@ export const SettingsNotificationBadge = ({
 		report.loading;
 	const label = [
 		`${total} Settings notifications`,
-		`${chats} unread chats`,
-		`${inbox.data?.unread_count ?? 0} unread inbox messages`,
+		...(bellShown
+			? []
+			: [
+					`${chats} unread chats`,
+					`${inbox.data?.unread_count ?? 0} unread inbox messages`,
+				]),
 		...(admin ? [`${noteCount} unread shared admin notes`] : []),
 		...(admin || permissions?.canViewHealth
 			? [`${report.issues.length} infrastructure alerts`]

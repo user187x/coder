@@ -57,6 +57,8 @@ type ProxyMenuControls = {
 	permissions: AdminSettingsPermissions;
 	quickLinks?: readonly AdminPage[];
 	quickLinksEditor?: AdminQuickLinksEditor;
+	/** The navbar's notification bell is shown: it badges the inbox and chats, Settings does not. */
+	bellShown?: boolean;
 };
 
 type ProxyMenuProps = {
@@ -200,7 +202,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				Settings
 			</span>
 			<ChevronDownIcon className="text-content-primary" />
-			<SettingsNotificationBadge permissions={controls?.permissions} />
+			<SettingsNotificationBadge
+				permissions={controls?.permissions}
+				bellShown={controls?.bellShown}
+			/>
 		</>
 	);
 
