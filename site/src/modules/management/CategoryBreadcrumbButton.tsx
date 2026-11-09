@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-/** The active settings category and its sidebar visibility control. */
+/** The active settings category, shown by its icon, and its sidebar visibility control. */
 export const CategoryBreadcrumbButton = ({
 	label,
 	icon: CategoryIcon,
@@ -39,8 +39,8 @@ export const CategoryBreadcrumbButton = ({
 			aria-expanded={sidebarOpen}
 			title={
 				sidebarOpen
-					? "Double-click to hide categories"
-					: "Double-click to show categories"
+					? `${label}: double-click to hide categories`
+					: `${label}: double-click to show categories`
 			}
 			onDoubleClick={(event) => {
 				if (
@@ -61,8 +61,8 @@ export const CategoryBreadcrumbButton = ({
 					onToggle();
 			}}
 		>
+			{/* The category by its icon alone; its name is the button's label and tooltip */}
 			<CategoryIcon aria-hidden className="size-4 shrink-0" />
-			<span className="truncate">{label}</span>
 			<span
 				data-category-toggle=""
 				aria-hidden="true"

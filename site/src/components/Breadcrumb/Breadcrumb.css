@@ -128,8 +128,9 @@
 .deployment-breadcrumb > ol > li:first-child:not(:only-child) {
 	min-width: calc(var(--navbar-action-width, 8.5rem) - 2rem);
 }
+/* The category's chevron holds its icon alone, beside the categories toggle. */
 .deployment-breadcrumb > ol > li:last-child:not(:only-child) {
-	width: calc(var(--navbar-action-width, 8.5rem) + 2rem);
+	width: auto;
 }
 .deployment-breadcrumb > ol > li > :is(a, span, button) svg {
 	width: 0.875rem;
@@ -270,5 +271,5 @@
 	flex: 0 1 auto;
 }
 .deployment-breadcrumb[data-inline] > ol > li:last-child {
-	flex: 1 1 0;
+	flex: 0 0 auto;
 }
