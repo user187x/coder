@@ -25,9 +25,14 @@ fetch() { # url sha256 destination
 fetch "https://github.com/cloudflare/doom-wasm/archive/$ENGINE_COMMIT.tar.gz" "$ENGINE_SHA256" "$work/engine.tar.gz"
 mkdir "$work/engine"
 tar -xzf "$work/engine.tar.gz" -C "$work/engine" --strip-components=1
-# Upstream builds with debug-only SAFE_HEAP and STACK_OVERFLOW_CHECK. Under the pinned emsdk, SAFE_HEAP's alignment
-# checks abort the net code at startup.
+# Upstream builds with debug-only SAFE_HEAP and STACK_OVERFLOW_CHECK, which slow the game down.
 sed -i -e 's/-s SAFE_HEAP=1/-s SAFE_HEAP=0/' -e 's/-s STACK_OVERFLOW_CHECK=1/-s STACK_OVERFLOW_CHECK=0/' "$work/engine/configure.ac"
+# doomtype.h makes boolean a 1-byte bool in a file that included stdbool.h first (the pinned emsdk's SDL headers do)
+# and a 4-byte enum elsewhere, so a file writing a boolean another file defines overwrites its neighbours: netgame's
+# write at startup set deathmatch and the other players' in-game flags (FRAGS, "player 4 left the game", a frozen
+# screen and no movement). An int is the enum's size in every file.
+sed -i 's/^typedef bool boolean;$/typedef int boolean;/' "$work/engine/src/doomtype.h"
+grep -q '^typedef int boolean;$' "$work/engine/src/doomtype.h"
 docker run --rm -v "$work/engine:/src" -w /src "$EMSDK_IMAGE" bash -c \
 	'apt-get update -qq && apt-get install -y -qq automake autoconf libtool pkg-config >/dev/null && bash scripts/build.sh; status=$?
 	chown -R '"$(id -u):$(id -g)"' /src; exit $status'
