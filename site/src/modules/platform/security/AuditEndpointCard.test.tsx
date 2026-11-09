@@ -54,12 +54,16 @@ it("grants and revokes an exact identity in the selected organization", async ()
 	);
 	await userEvent.click(screen.getByRole("button", { name: "Grant access" }));
 	await waitFor(() =>
-		expect(create).toHaveBeenCalledWith(MockOrganization2.id, {
-			name: "Security collector",
-			subject: "collector-subject",
-			client_id: "collector-client",
-			valid_days: 7,
-		}),
+		expect(create).toHaveBeenCalledWith(
+			MockOrganization2.id,
+			{
+				name: "Security collector",
+				subject: "collector-subject",
+				client_id: "collector-client",
+				valid_days: 7,
+			},
+			"audit",
+		),
 	);
 	await userEvent.click(
 		screen.getByRole("button", { name: `Revoke ${MockAuditCollector.name}` }),
@@ -68,9 +72,13 @@ it("grants and revokes an exact identity in the selected organization", async ()
 		expect(revoke).toHaveBeenCalledWith(
 			MockOrganization2.id,
 			MockAuditCollector.id,
+			"audit",
 		),
 	);
-	expect(API.getAuditCollectors).toHaveBeenCalledWith(MockOrganization2.id);
+	expect(API.getAuditCollectors).toHaveBeenCalledWith(
+		MockOrganization2.id,
+		"audit",
+	);
 });
 
 it("keeps a failed grant editable for retry", async () => {
@@ -98,4 +106,35 @@ it("keeps a failed grant editable for retry", async () => {
 	await userEvent.click(screen.getByRole("button", { name: "Grant access" }));
 	await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
 	expect(create.mock.calls[1]).toEqual(create.mock.calls[0]);
+});
+
+it("grants metrics collectors through the metrics endpoint", async () => {
+	const create = vi
+		.spyOn(API, "createAuditCollector")
+		.mockResolvedValue(MockAuditCollector);
+	render(<AuditEndpointCard kind="metrics" prometheus />);
+	await userEvent.type(
+		await screen.findByRole("textbox", { name: "Name" }),
+		"Prometheus",
+	);
+	await userEvent.type(
+		screen.getByRole("textbox", { name: "Keycloak client ID" }),
+		"client",
+	);
+	await userEvent.type(
+		screen.getByRole("textbox", { name: "Subject (sub)" }),
+		"subject",
+	);
+	await userEvent.click(screen.getByRole("button", { name: "Grant access" }));
+	await waitFor(() =>
+		expect(create).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.objectContaining({ name: "Prometheus" }),
+			"metrics",
+		),
+	);
+	expect(API.getAuditCollectors).toHaveBeenCalledWith(
+		expect.any(String),
+		"metrics",
+	);
 });

@@ -37,3 +37,23 @@ type AuditCollectorConfiguration struct {
 	Scope         string           `json:"scope"`
 	Collectors    []AuditCollector `json:"collectors"`
 }
+
+// OrganizationMetrics is an organization's metrics as an external metrics
+// collector reads them (the metrics export, without format=prometheus).
+type OrganizationMetrics struct {
+	OrganizationID  uuid.UUID             `json:"organization_id" format:"uuid"`
+	Organization    string                `json:"organization"`
+	CollectedAt     time.Time             `json:"collected_at" format:"date-time"`
+	Members         int64                 `json:"members"`
+	Templates       int64                 `json:"templates"`
+	Workspaces      int64                 `json:"workspaces"`
+	WorkspaceStates []WorkspaceStateCount `json:"workspace_states"`
+}
+
+// WorkspaceStateCount is how many of an organization's workspaces are in one
+// state: their latest build's transition and job status.
+type WorkspaceStateCount struct {
+	Transition WorkspaceTransition  `json:"transition"`
+	Status     ProvisionerJobStatus `json:"status"`
+	Count      int64                `json:"count"`
+}

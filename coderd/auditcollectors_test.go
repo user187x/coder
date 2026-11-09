@@ -151,7 +151,7 @@ func TestAuditCollectors(t *testing.T) {
 	code, _, _ = request(t, "", http.MethodGet, export, nil, valid)
 	require.Equal(t, http.StatusForbidden, code, "revocation invalidates previously issued tokens")
 	_, err = db.InsertAuditCollector(dbauthz.AsSystemRestricted(ctx), database.InsertAuditCollectorParams{
-		ID: uuid.New(), OrganizationID: owner.OrganizationID, Name: "Expired", Issuer: config.Issuer,
+		ID: uuid.New(), OrganizationID: owner.OrganizationID, Kind: "audit", Name: "Expired", Issuer: config.Issuer,
 		Subject: grant.Subject, ClientID: grant.ClientID, CreatedBy: owner.UserID, CreatedAt: time.Now().Add(-time.Hour), ExpiresAt: time.Now().Add(-time.Minute),
 	})
 	require.NoError(t, err)

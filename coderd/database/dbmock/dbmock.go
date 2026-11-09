@@ -2652,18 +2652,18 @@ func (mr *MockStoreMockRecorder) GetApplicationName(ctx any) *gomock.Call {
 }
 
 // GetAuditCollectors mocks base method.
-func (m *MockStore) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]database.AuditCollector, error) {
+func (m *MockStore) GetAuditCollectors(ctx context.Context, arg database.GetAuditCollectorsParams) ([]database.AuditCollector, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAuditCollectors", ctx, organizationID)
+	ret := m.ctrl.Call(m, "GetAuditCollectors", ctx, arg)
 	ret0, _ := ret[0].([]database.AuditCollector)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAuditCollectors indicates an expected call of GetAuditCollectors.
-func (mr *MockStoreMockRecorder) GetAuditCollectors(ctx, organizationID any) *gomock.Call {
+func (mr *MockStoreMockRecorder) GetAuditCollectors(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditCollectors", reflect.TypeOf((*MockStore)(nil).GetAuditCollectors), ctx, organizationID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditCollectors", reflect.TypeOf((*MockStore)(nil).GetAuditCollectors), ctx, arg)
 }
 
 // GetAuditLogsOffset mocks base method.

@@ -28,6 +28,7 @@ import {
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { ScreenShareCard } from "#/modules/platform/screenShare/ScreenShareCard";
 import { pageTitle } from "#/utils/page";
+import { MetricsCard } from "./MetricsCard";
 import { ObservabilityCard } from "./ObservabilityCard";
 import { SecurityPostureSection } from "./SecurityPostureSection";
 import { MAX_SHOWN_LINES, useWorkspaceLogs } from "./useWorkspaceLogs";
@@ -115,6 +116,7 @@ const MonitoringSettingsPage: React.FC = () => {
 					)}
 				</>
 			)}
+			{permissions.editDeploymentConfig && <MetricsCard />}
 			{permissions.viewDeploymentConfig && (
 				<ObservabilityCard
 					scrollReady={

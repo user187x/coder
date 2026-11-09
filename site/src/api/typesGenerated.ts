@@ -4200,6 +4200,21 @@ export interface OrganizationMembersQuery {
 	readonly GithubUserID: number;
 }
 
+// From codersdk/auditcollectors.go
+/**
+ * OrganizationMetrics is an organization's metrics as an external metrics
+ * collector reads them (the metrics export, without format=prometheus).
+ */
+export interface OrganizationMetrics {
+	readonly organization_id: string;
+	readonly organization: string;
+	readonly collected_at: string;
+	readonly members: number;
+	readonly templates: number;
+	readonly workspaces: number;
+	readonly workspace_states: readonly WorkspaceStateCount[];
+}
+
 // From codersdk/organizations.go
 export interface OrganizationProvisionerDaemonsOptions {
 	readonly Limit: number;
@@ -8501,6 +8516,17 @@ export interface WorkspaceSharingSettings {
 	 * within the organization.
 	 */
 	readonly shareable_workspace_owners: ShareableWorkspaceOwners;
+}
+
+// From codersdk/auditcollectors.go
+/**
+ * WorkspaceStateCount is how many of an organization's workspaces are in one
+ * state: their latest build's transition and job status.
+ */
+export interface WorkspaceStateCount {
+	readonly transition: WorkspaceTransition;
+	readonly status: ProvisionerJobStatus;
+	readonly count: number;
 }
 
 // From codersdk/workspacebuilds.go

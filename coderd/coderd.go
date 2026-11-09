@@ -1232,6 +1232,7 @@ func New(options *Options) *API {
 		})
 		r.Get("/updatecheck", api.updateCheck)
 		r.With(httpmw.RateLimit(60, time.Minute)).Get("/audit-export/{organization}", api.externalAuditLogs)
+		r.With(httpmw.RateLimit(60, time.Minute)).Get("/metrics-export/{organization}", api.externalMetrics)
 		r.Route("/audit", func(r chi.Router) {
 			r.Use(
 				apiKeyMiddleware,
@@ -1300,6 +1301,9 @@ func New(options *Options) *API {
 				r.Get("/audit-collectors", api.auditCollectors)
 				r.Post("/audit-collectors", api.postAuditCollector)
 				r.Delete("/audit-collectors/{collector}", api.deleteAuditCollector)
+				r.Get("/metrics-collectors", api.metricsCollectors)
+				r.Post("/metrics-collectors", api.postMetricsCollector)
+				r.Delete("/metrics-collectors/{collector}", api.deleteMetricsCollector)
 				r.Get("/short-term-leases", api.shortTermLeases)
 				r.Post("/short-term-leases", api.postShortTermLease)
 				r.Patch("/short-term-leases/{user}", api.patchShortTermLease)

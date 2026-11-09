@@ -442,7 +442,7 @@ type sqlcQuerier interface {
 	GetAndResetBoundaryUsageSummary(ctx context.Context, maxStalenessMs int64) (GetAndResetBoundaryUsageSummaryRow, error)
 	GetAnnouncementBanners(ctx context.Context) (string, error)
 	GetApplicationName(ctx context.Context) (string, error)
-	GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]AuditCollector, error)
+	GetAuditCollectors(ctx context.Context, arg GetAuditCollectorsParams) ([]AuditCollector, error)
 	// GetAuditLogsBefore retrieves `row_limit` number of audit logs before the provided
 	// ID.
 	GetAuditLogsOffset(ctx context.Context, arg GetAuditLogsOffsetParams) ([]GetAuditLogsOffsetRow, error)

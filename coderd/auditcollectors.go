@@ -1,6 +1,7 @@
 package coderd
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -24,9 +25,26 @@ import (
 	"github.com/coder/coder/v2/codersdk"
 )
 
-const (
-	auditCollectorAudience = "coder-audit"
-	auditCollectorScope    = "coder:audit:read"
+// collectorKind is what a collector grant reads: an organization's audit
+// logs, or its metrics. Each kind has its own grants, token audience and scope,
+// and export path.
+type collectorKind struct {
+	name     string
+	audience string
+	scope    string
+	export   string
+	what     string
+}
+
+var (
+	auditCollectorKind = collectorKind{
+		name: "audit", audience: "coder-audit", scope: "coder:audit:read",
+		export: "api/v2/audit-export", what: "audit",
+	}
+	metricsCollectorKind = collectorKind{
+		name: "metrics", audience: "coder-metrics", scope: "coder:metrics:read",
+		export: "api/v2/metrics-export", what: "metrics",
+	}
 )
 
 func (api *API) auditCollectorIssuer() string {
@@ -70,18 +88,34 @@ func convertAuditCollector(c database.AuditCollector) codersdk.AuditCollector {
 // @Success 200 {object} codersdk.AuditCollectorConfiguration
 // @Router /api/v2/organizations/{organization}/audit-collectors [get]
 func (api *API) auditCollectors(rw http.ResponseWriter, r *http.Request) {
+	api.collectorConfiguration(rw, r, auditCollectorKind)
+}
+
+// @Summary Get external metrics collector configuration
+// @ID get-external-metrics-collector-configuration
+// @Security CoderSessionToken
+// @Tags Audit
+// @Produce json
+// @Param organization path string true "Organization ID"
+// @Success 200 {object} codersdk.AuditCollectorConfiguration
+// @Router /api/v2/organizations/{organization}/metrics-collectors [get]
+func (api *API) metricsCollectors(rw http.ResponseWriter, r *http.Request) {
+	api.collectorConfiguration(rw, r, metricsCollectorKind)
+}
+
+func (api *API) collectorConfiguration(rw http.ResponseWriter, r *http.Request, kind collectorKind) {
 	if !api.authorizeAuditCollectors(rw, r) {
 		return
 	}
 	org := httpmw.OrganizationParam(r)
-	rows, err := api.Database.GetAuditCollectors(r.Context(), org.ID)
+	rows, err := api.Database.GetAuditCollectors(r.Context(), database.GetAuditCollectorsParams{OrganizationID: org.ID, Kind: kind.name})
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
 		return
 	}
 	out := codersdk.AuditCollectorConfiguration{
-		Issuer: api.auditCollectorIssuer(), Audience: auditCollectorAudience, Scope: auditCollectorScope,
-		Endpoint:   api.AccessURL.JoinPath("api/v2/audit-export", org.ID.String()).String(),
+		Issuer: api.auditCollectorIssuer(), Audience: kind.audience, Scope: kind.scope,
+		Endpoint:   api.AccessURL.JoinPath(kind.export, org.ID.String()).String(),
 		Collectors: make([]codersdk.AuditCollector, 0, len(rows)),
 	}
 	out.Available = out.Issuer != "" && api.AccessURL.Scheme == "https"
@@ -105,12 +139,30 @@ func (api *API) auditCollectors(rw http.ResponseWriter, r *http.Request) {
 // @Success 201 {object} codersdk.AuditCollector
 // @Router /api/v2/organizations/{organization}/audit-collectors [post]
 func (api *API) postAuditCollector(rw http.ResponseWriter, r *http.Request) {
+	api.postCollector(rw, r, auditCollectorKind)
+}
+
+// @Summary Grant external metrics access
+// @ID grant-external-metrics-access
+// @Security CoderSessionToken
+// @Tags Audit
+// @Accept json
+// @Produce json
+// @Param organization path string true "Organization ID"
+// @Param request body codersdk.CreateAuditCollectorRequest true "Collector grant"
+// @Success 201 {object} codersdk.AuditCollector
+// @Router /api/v2/organizations/{organization}/metrics-collectors [post]
+func (api *API) postMetricsCollector(rw http.ResponseWriter, r *http.Request) {
+	api.postCollector(rw, r, metricsCollectorKind)
+}
+
+func (api *API) postCollector(rw http.ResponseWriter, r *http.Request, kind collectorKind) {
 	if !api.authorizeAuditCollectors(rw, r) {
 		return
 	}
 	issuer := api.auditCollectorIssuer()
 	if issuer == "" || api.AccessURL.Scheme != "https" {
-		httpapi.Write(r.Context(), rw, http.StatusConflict, codersdk.Response{Message: "Configure HTTPS and Keycloak before granting external audit access."})
+		httpapi.Write(r.Context(), rw, http.StatusConflict, codersdk.Response{Message: "Configure HTTPS and Keycloak before granting external " + kind.what + " access."})
 		return
 	}
 	var req codersdk.CreateAuditCollectorRequest
@@ -128,7 +180,7 @@ func (api *API) postAuditCollector(rw http.ResponseWriter, r *http.Request) {
 	err := api.Database.InTx(func(tx database.Store) error {
 		var err error
 		row, err = tx.InsertAuditCollector(r.Context(), database.InsertAuditCollectorParams{
-			ID: uuid.New(), OrganizationID: org.ID, Name: strings.TrimSpace(req.Name), Issuer: issuer,
+			ID: uuid.New(), OrganizationID: org.ID, Kind: kind.name, Name: strings.TrimSpace(req.Name), Issuer: issuer,
 			Subject: req.Subject, ClientID: req.ClientID, CreatedBy: httpmw.APIKey(r).UserID,
 			CreatedAt: now, ExpiresAt: now.Add(time.Duration(req.ValidDays) * 24 * time.Hour),
 		})
@@ -157,6 +209,22 @@ func (api *API) postAuditCollector(rw http.ResponseWriter, r *http.Request) {
 // @Success 204
 // @Router /api/v2/organizations/{organization}/audit-collectors/{collector} [delete]
 func (api *API) deleteAuditCollector(rw http.ResponseWriter, r *http.Request) {
+	api.deleteCollector(rw, r, auditCollectorKind)
+}
+
+// @Summary Revoke external metrics access
+// @ID revoke-external-metrics-access
+// @Security CoderSessionToken
+// @Tags Audit
+// @Param organization path string true "Organization ID"
+// @Param collector path string true "Collector ID"
+// @Success 204
+// @Router /api/v2/organizations/{organization}/metrics-collectors/{collector} [delete]
+func (api *API) deleteMetricsCollector(rw http.ResponseWriter, r *http.Request) {
+	api.deleteCollector(rw, r, metricsCollectorKind)
+}
+
+func (api *API) deleteCollector(rw http.ResponseWriter, r *http.Request, kind collectorKind) {
 	if !api.authorizeAuditCollectors(rw, r) {
 		return
 	}
@@ -166,7 +234,7 @@ func (api *API) deleteAuditCollector(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = api.Database.InTx(func(tx database.Store) error {
-		row, err := tx.DeleteAuditCollector(r.Context(), database.DeleteAuditCollectorParams{OrganizationID: httpmw.OrganizationParam(r).ID, ID: id})
+		row, err := tx.DeleteAuditCollector(r.Context(), database.DeleteAuditCollectorParams{OrganizationID: httpmw.OrganizationParam(r).ID, Kind: kind.name, ID: id})
 		if err != nil {
 			return err
 		}
@@ -184,7 +252,7 @@ func (api *API) deleteAuditCollector(rw http.ResponseWriter, r *http.Request) {
 }
 
 func recordAuditCollectorChange(r *http.Request, db database.Store, row database.AuditCollector, action database.AuditAction) error {
-	fields, err := json.Marshal(map[string]any{"audit_collector": convertAuditCollector(row), "collector_action": action})
+	fields, err := json.Marshal(map[string]any{"audit_collector": convertAuditCollector(row), "collector_kind": row.Kind, "collector_action": action})
 	if err != nil {
 		return err
 	}
@@ -214,26 +282,30 @@ func recordAuditCollectorChange(r *http.Request, db database.Store, row database
 // @Failure 401 {object} codersdk.OAuth2Error
 // @Failure 403 {object} codersdk.OAuth2Error
 // @Router /api/v2/audit-export/{organization} [get]
-func (api *API) externalAuditLogs(rw http.ResponseWriter, r *http.Request) {
+// verifyCollector checks the request's Keycloak access token against the
+// organization's active grants of the kind: on success, a system context and
+// the organization; otherwise it has written the RFC 6750 error.
+func (api *API) verifyCollector(rw http.ResponseWriter, r *http.Request, kind collectorKind) (context.Context, uuid.UUID, bool) {
+	realm := "coder-" + kind.name
 	rw.Header().Set("Cache-Control", "no-store")
 	deny := func(status int, code codersdk.OAuth2ErrorCode, message string) {
 		// RFC 6750 section 3 requires the Bearer authentication challenge.
-		rw.Header().Set("WWW-Authenticate", `Bearer realm="coder-audit", error="`+string(code)+`"`)
+		rw.Header().Set("WWW-Authenticate", `Bearer realm="`+realm+`", error="`+string(code)+`"`)
 		httpapi.WriteOAuth2Error(r.Context(), rw, status, code, message)
 	}
 	if r.Header.Get("Authorization") == "" && !r.URL.Query().Has("access_token") {
-		rw.Header().Set("WWW-Authenticate", `Bearer realm="coder-audit"`)
-		httpapi.Write(r.Context(), rw, http.StatusUnauthorized, codersdk.Response{Message: "A Keycloak audit access token is required."})
-		return
+		rw.Header().Set("WWW-Authenticate", `Bearer realm="`+realm+`"`)
+		httpapi.Write(r.Context(), rw, http.StatusUnauthorized, codersdk.Response{Message: "A Keycloak " + kind.what + " access token is required."})
+		return nil, uuid.Nil, false
 	}
 	issuer := api.auditCollectorIssuer()
 	parts := strings.Fields(r.Header.Get("Authorization"))
 	if issuer == "" || api.AccessURL.Scheme != "https" || len(r.Header.Values("Authorization")) != 1 ||
 		len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || len(parts[1]) > 16384 || r.URL.Query().Has("access_token") {
-		deny(http.StatusUnauthorized, codersdk.OAuth2ErrorCodeInvalidToken, "A Keycloak audit access token is required.")
-		return
+		deny(http.StatusUnauthorized, codersdk.OAuth2ErrorCodeInvalidToken, "A Keycloak "+kind.what+" access token is required.")
+		return nil, uuid.Nil, false
 	}
-	token, err := api.OIDCConfig.Provider.Verifier(&oidc.Config{ClientID: auditCollectorAudience}).Verify(r.Context(), parts[1])
+	token, err := api.OIDCConfig.Provider.Verifier(&oidc.Config{ClientID: kind.audience}).Verify(r.Context(), parts[1])
 	var claims struct {
 		Type         string          `json:"typ"`
 		ClientID     string          `json:"azp"`
@@ -245,17 +317,17 @@ func (api *API) externalAuditLogs(rw http.ResponseWriter, r *http.Request) {
 	if err != nil || token.Claims(&claims) != nil || claims.Type != "Bearer" || token.Subject == "" || claims.ClientID == "" ||
 		token.IssuedAt.IsZero() || token.IssuedAt.After(now.Add(30*time.Second)) || token.Expiry.Sub(token.IssuedAt) > 15*time.Minute ||
 		now.Sub(token.IssuedAt) > 15*time.Minute || claims.NotBefore > now.Unix() || len(claims.Confirmation) != 0 {
-		deny(http.StatusUnauthorized, codersdk.OAuth2ErrorCodeInvalidToken, "The audit access token is invalid or expired.")
-		return
+		deny(http.StatusUnauthorized, codersdk.OAuth2ErrorCodeInvalidToken, "The "+kind.what+" access token is invalid or expired.")
+		return nil, uuid.Nil, false
 	}
-	if !slices.Contains(strings.Fields(claims.Scope), auditCollectorScope) {
-		deny(http.StatusForbidden, codersdk.OAuth2ErrorCodeInsufficientScope, "The token does not permit audit collection.")
-		return
+	if !slices.Contains(strings.Fields(claims.Scope), kind.scope) {
+		deny(http.StatusForbidden, codersdk.OAuth2ErrorCodeInsufficientScope, "The token does not permit "+kind.what+" collection.")
+		return nil, uuid.Nil, false
 	}
 	orgID, err := uuid.Parse(chi.URLParam(r, "organization"))
 	if err != nil || orgID == uuid.Nil {
 		httpapi.ResourceNotFound(rw)
-		return
+		return nil, uuid.Nil, false
 	}
 	// The external identity is checked against an explicit, expiring grant.
 	// No API key, cookie, forwarded identity header or token role grants access.
@@ -264,18 +336,26 @@ func (api *API) externalAuditLogs(rw http.ResponseWriter, r *http.Request) {
 	org, err := api.Database.GetOrganizationByID(ctx, orgID)
 	if err != nil || org.Deleted {
 		httpapi.ResourceNotFound(rw)
-		return
+		return nil, uuid.Nil, false
 	}
-	grants, err := api.Database.GetAuditCollectors(ctx, orgID)
+	grants, err := api.Database.GetAuditCollectors(ctx, database.GetAuditCollectorsParams{OrganizationID: orgID, Kind: kind.name})
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
-		return
+		return nil, uuid.Nil, false
 	}
 	allowed := slices.ContainsFunc(grants, func(g database.AuditCollector) bool {
 		return g.Issuer == token.Issuer && g.Subject == token.Subject && g.ClientID == claims.ClientID && g.ExpiresAt.After(now)
 	})
 	if !allowed {
 		deny(http.StatusForbidden, codersdk.OAuth2ErrorCodeInsufficientScope, "No active collector grant for this organization.")
+		return nil, uuid.Nil, false
+	}
+	return ctx, orgID, true
+}
+
+func (api *API) externalAuditLogs(rw http.ResponseWriter, r *http.Request) {
+	ctx, orgID, ok := api.verifyCollector(rw, r, auditCollectorKind)
+	if !ok {
 		return
 	}
 	page, ok := ParsePagination(rw, r)

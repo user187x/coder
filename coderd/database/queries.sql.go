@@ -4544,16 +4544,17 @@ func (q *sqlQuerier) UpdateAPIKeyByID(ctx context.Context, arg UpdateAPIKeyByIDP
 }
 
 const deleteAuditCollector = `-- name: DeleteAuditCollector :one
-DELETE FROM audit_collectors WHERE organization_id = $1 AND id = $2 RETURNING id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at
+DELETE FROM audit_collectors WHERE organization_id = $1 AND kind = $2 AND id = $3 RETURNING id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at, kind
 `
 
 type DeleteAuditCollectorParams struct {
 	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	Kind           string    `db:"kind" json:"kind"`
 	ID             uuid.UUID `db:"id" json:"id"`
 }
 
 func (q *sqlQuerier) DeleteAuditCollector(ctx context.Context, arg DeleteAuditCollectorParams) (AuditCollector, error) {
-	row := q.db.QueryRowContext(ctx, deleteAuditCollector, arg.OrganizationID, arg.ID)
+	row := q.db.QueryRowContext(ctx, deleteAuditCollector, arg.OrganizationID, arg.Kind, arg.ID)
 	var i AuditCollector
 	err := row.Scan(
 		&i.ID,
@@ -4565,16 +4566,22 @@ func (q *sqlQuerier) DeleteAuditCollector(ctx context.Context, arg DeleteAuditCo
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.Kind,
 	)
 	return i, err
 }
 
 const getAuditCollectors = `-- name: GetAuditCollectors :many
-SELECT id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at FROM audit_collectors WHERE organization_id = $1 ORDER BY created_at, id
+SELECT id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at, kind FROM audit_collectors WHERE organization_id = $1 AND kind = $2 ORDER BY created_at, id
 `
 
-func (q *sqlQuerier) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]AuditCollector, error) {
-	rows, err := q.db.QueryContext(ctx, getAuditCollectors, organizationID)
+type GetAuditCollectorsParams struct {
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	Kind           string    `db:"kind" json:"kind"`
+}
+
+func (q *sqlQuerier) GetAuditCollectors(ctx context.Context, arg GetAuditCollectorsParams) ([]AuditCollector, error) {
+	rows, err := q.db.QueryContext(ctx, getAuditCollectors, arg.OrganizationID, arg.Kind)
 	if err != nil {
 		return nil, err
 	}
@@ -4592,6 +4599,7 @@ func (q *sqlQuerier) GetAuditCollectors(ctx context.Context, organizationID uuid
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.ExpiresAt,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}
@@ -4607,14 +4615,15 @@ func (q *sqlQuerier) GetAuditCollectors(ctx context.Context, organizationID uuid
 }
 
 const insertAuditCollector = `-- name: InsertAuditCollector :one
-INSERT INTO audit_collectors (id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at
+INSERT INTO audit_collectors (id, organization_id, kind, name, issuer, subject, client_id, created_by, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at, kind
 `
 
 type InsertAuditCollectorParams struct {
 	ID             uuid.UUID `db:"id" json:"id"`
 	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	Kind           string    `db:"kind" json:"kind"`
 	Name           string    `db:"name" json:"name"`
 	Issuer         string    `db:"issuer" json:"issuer"`
 	Subject        string    `db:"subject" json:"subject"`
@@ -4628,6 +4637,7 @@ func (q *sqlQuerier) InsertAuditCollector(ctx context.Context, arg InsertAuditCo
 	row := q.db.QueryRowContext(ctx, insertAuditCollector,
 		arg.ID,
 		arg.OrganizationID,
+		arg.Kind,
 		arg.Name,
 		arg.Issuer,
 		arg.Subject,
@@ -4647,6 +4657,7 @@ func (q *sqlQuerier) InsertAuditCollector(ctx context.Context, arg InsertAuditCo
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.Kind,
 	)
 	return i, err
 }

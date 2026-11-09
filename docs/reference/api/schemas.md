@@ -6188,6 +6188,38 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 |----------|-----------------------|
 | `status` | `active`, `suspended` |
 
+## codersdk.OrganizationMetrics
+
+```json
+{
+  "collected_at": "2019-08-24T14:15:22Z",
+  "members": 0,
+  "organization": "string",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "templates": 0,
+  "workspace_states": [
+    {
+      "count": 0,
+      "status": "pending",
+      "transition": "start"
+    }
+  ],
+  "workspaces": 0
+}
+```
+
+### Properties
+
+| Name               | Type                                                                  | Required | Restrictions | Description |
+|--------------------|-----------------------------------------------------------------------|----------|--------------|-------------|
+| `collected_at`     | string                                                                | false    |              |             |
+| `members`          | integer                                                               | false    |              |             |
+| `organization`     | string                                                                | false    |              |             |
+| `organization_id`  | string                                                                | false    |              |             |
+| `templates`        | integer                                                               | false    |              |             |
+| `workspace_states` | array of [codersdk.WorkspaceStateCount](#codersdkworkspacestatecount) | false    |              |             |
+| `workspaces`       | integer                                                               | false    |              |             |
+
 ## codersdk.OrganizationSyncSettings
 
 ```json
@@ -13066,6 +13098,24 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | Property                     | Value(s)                               |
 |------------------------------|----------------------------------------|
 | `shareable_workspace_owners` | `everyone`, `none`, `service_accounts` |
+
+## codersdk.WorkspaceStateCount
+
+```json
+{
+  "count": 0,
+  "status": "pending",
+  "transition": "start"
+}
+```
+
+### Properties
+
+| Name         | Type                                                           | Required | Restrictions | Description |
+|--------------|----------------------------------------------------------------|----------|--------------|-------------|
+| `count`      | integer                                                        | false    |              |             |
+| `status`     | [codersdk.ProvisionerJobStatus](#codersdkprovisionerjobstatus) | false    |              |             |
+| `transition` | [codersdk.WorkspaceTransition](#codersdkworkspacetransition)   | false    |              |             |
 
 ## codersdk.WorkspaceStatus
 

@@ -38,7 +38,10 @@ import * as TypesGen from "./typesGenerated";
  * The below declaration is required to stop Knip from complaining.
  * @public
  */
-export const SessionTokenCookie = "coder_session_token";
+/** What an external collector grant reads: an organization's audit logs, or its metrics. */
+export type CollectorKind = "audit" | "metrics";
+
+const SessionTokenCookie = "coder_session_token";
 
 /**
  * @param agentId
@@ -1999,11 +2002,13 @@ class ApiMethods {
 		return resp.data;
 	};
 
+	/** An organization's external collector grants: of its audit logs, or of its metrics (kind). */
 	getAuditCollectors = async (
 		organizationId: string,
+		kind: CollectorKind = "audit",
 	): Promise<TypesGen.AuditCollectorConfiguration> => {
 		const response = await this.axios.get(
-			`/api/v2/organizations/${organizationId}/audit-collectors`,
+			`/api/v2/organizations/${organizationId}/${kind}-collectors`,
 		);
 		return response.data;
 	};
@@ -2011,9 +2016,10 @@ class ApiMethods {
 	createAuditCollector = async (
 		organizationId: string,
 		request: TypesGen.CreateAuditCollectorRequest,
+		kind: CollectorKind = "audit",
 	): Promise<TypesGen.AuditCollector> => {
 		const response = await this.axios.post(
-			`/api/v2/organizations/${organizationId}/audit-collectors`,
+			`/api/v2/organizations/${organizationId}/${kind}-collectors`,
 			request,
 		);
 		return response.data;
@@ -2022,9 +2028,10 @@ class ApiMethods {
 	deleteAuditCollector = async (
 		organizationId: string,
 		collectorId: string,
+		kind: CollectorKind = "audit",
 	): Promise<void> => {
 		await this.axios.delete(
-			`/api/v2/organizations/${organizationId}/audit-collectors/${collectorId}`,
+			`/api/v2/organizations/${organizationId}/${kind}-collectors/${collectorId}`,
 		);
 	};
 

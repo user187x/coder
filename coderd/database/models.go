@@ -5296,6 +5296,7 @@ type AuditCollector struct {
 	CreatedBy      uuid.UUID `db:"created_by" json:"created_by"`
 	CreatedAt      time.Time `db:"created_at" json:"created_at"`
 	ExpiresAt      time.Time `db:"expires_at" json:"expires_at"`
+	Kind           string    `db:"kind" json:"kind"`
 }
 
 type AuditLog struct {

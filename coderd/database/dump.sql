@@ -1893,7 +1893,9 @@ CREATE TABLE audit_collectors (
     client_id text NOT NULL,
     created_by uuid NOT NULL,
     created_at timestamp with time zone NOT NULL,
-    expires_at timestamp with time zone NOT NULL
+    expires_at timestamp with time zone NOT NULL,
+    kind text DEFAULT 'audit'::text NOT NULL,
+    CONSTRAINT audit_collectors_kind_check CHECK ((kind = ANY (ARRAY['audit'::text, 'metrics'::text])))
 );
 
 CREATE TABLE audit_logs (
@@ -4549,7 +4551,7 @@ ALTER TABLE ONLY api_keys
     ADD CONSTRAINT api_keys_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY audit_collectors
-    ADD CONSTRAINT audit_collectors_organization_id_issuer_subject_client_id_key UNIQUE (organization_id, issuer, subject, client_id);
+    ADD CONSTRAINT audit_collectors_organization_id_kind_issuer_subject_client_id_ UNIQUE (organization_id, kind, issuer, subject, client_id);
 
 ALTER TABLE ONLY audit_collectors
     ADD CONSTRAINT audit_collectors_pkey PRIMARY KEY (id);

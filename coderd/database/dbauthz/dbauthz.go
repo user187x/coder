@@ -3231,14 +3231,14 @@ func (q *querier) GetApplicationName(ctx context.Context) (string, error) {
 	return q.db.GetApplicationName(ctx)
 }
 
-func (q *querier) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]database.AuditCollector, error) {
+func (q *querier) GetAuditCollectors(ctx context.Context, arg database.GetAuditCollectorsParams) ([]database.AuditCollector, error) {
 	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceDeploymentConfig); err != nil {
 		return nil, err
 	}
-	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceAuditLog.InOrg(organizationID)); err != nil {
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceAuditLog.InOrg(arg.OrganizationID)); err != nil {
 		return nil, err
 	}
-	return q.db.GetAuditCollectors(ctx, organizationID)
+	return q.db.GetAuditCollectors(ctx, arg)
 }
 
 func (q *querier) GetAuditLogsOffset(ctx context.Context, arg database.GetAuditLogsOffsetParams) ([]database.GetAuditLogsOffsetRow, error) {

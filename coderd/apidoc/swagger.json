@@ -2197,6 +2197,62 @@
 				]
 			}
 		},
+		"/api/v2/metrics-export/{organization}": {
+			"get": {
+				"produces": ["application/json"],
+				"tags": ["Audit"],
+				"summary": "Collect organization metrics with a Keycloak access token",
+				"operationId": "collect-organization-metrics-with-a-keycloak-access-token",
+				"parameters": [
+					{
+						"type": "string",
+						"description": "Organization ID",
+						"name": "organization",
+						"in": "path",
+						"required": true
+					},
+					{
+						"type": "string",
+						"description": "Bearer access token with coder-metrics audience and coder:metrics:read scope",
+						"name": "Authorization",
+						"in": "header",
+						"required": true
+					},
+					{
+						"enum": ["json", "prometheus"],
+						"type": "string",
+						"description": "prometheus answers in the Prometheus text exposition format (text/plain); JSON otherwise",
+						"name": "format",
+						"in": "query"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/codersdk.OrganizationMetrics"
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"schema": {
+							"$ref": "#/definitions/codersdk.OAuth2Error"
+						}
+					},
+					"403": {
+						"description": "Forbidden",
+						"schema": {
+							"$ref": "#/definitions/codersdk.OAuth2Error"
+						}
+					}
+				},
+				"security": [
+					{
+						"Authorization": []
+					}
+				]
+			}
+		},
 		"/api/v2/notifications/custom": {
 			"post": {
 				"consumes": ["application/json"],
@@ -3791,6 +3847,107 @@
 								"$ref": "#/definitions/codersdk.MinimalUser"
 							}
 						}
+					}
+				},
+				"security": [
+					{
+						"CoderSessionToken": []
+					}
+				]
+			}
+		},
+		"/api/v2/organizations/{organization}/metrics-collectors": {
+			"get": {
+				"produces": ["application/json"],
+				"tags": ["Audit"],
+				"summary": "Get external metrics collector configuration",
+				"operationId": "get-external-metrics-collector-configuration",
+				"parameters": [
+					{
+						"type": "string",
+						"description": "Organization ID",
+						"name": "organization",
+						"in": "path",
+						"required": true
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"schema": {
+							"$ref": "#/definitions/codersdk.AuditCollectorConfiguration"
+						}
+					}
+				},
+				"security": [
+					{
+						"CoderSessionToken": []
+					}
+				]
+			},
+			"post": {
+				"consumes": ["application/json"],
+				"produces": ["application/json"],
+				"tags": ["Audit"],
+				"summary": "Grant external metrics access",
+				"operationId": "grant-external-metrics-access",
+				"parameters": [
+					{
+						"type": "string",
+						"description": "Organization ID",
+						"name": "organization",
+						"in": "path",
+						"required": true
+					},
+					{
+						"description": "Collector grant",
+						"name": "request",
+						"in": "body",
+						"required": true,
+						"schema": {
+							"$ref": "#/definitions/codersdk.CreateAuditCollectorRequest"
+						}
+					}
+				],
+				"responses": {
+					"201": {
+						"description": "Created",
+						"schema": {
+							"$ref": "#/definitions/codersdk.AuditCollector"
+						}
+					}
+				},
+				"security": [
+					{
+						"CoderSessionToken": []
+					}
+				]
+			}
+		},
+		"/api/v2/organizations/{organization}/metrics-collectors/{collector}": {
+			"delete": {
+				"tags": ["Audit"],
+				"summary": "Revoke external metrics access",
+				"operationId": "revoke-external-metrics-access",
+				"parameters": [
+					{
+						"type": "string",
+						"description": "Organization ID",
+						"name": "organization",
+						"in": "path",
+						"required": true
+					},
+					{
+						"type": "string",
+						"description": "Collector ID",
+						"name": "collector",
+						"in": "path",
+						"required": true
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "No Content"
 					}
 				},
 				"security": [
@@ -17714,6 +17871,37 @@
 				}
 			}
 		},
+		"codersdk.OrganizationMetrics": {
+			"type": "object",
+			"properties": {
+				"collected_at": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"members": {
+					"type": "integer"
+				},
+				"organization": {
+					"type": "string"
+				},
+				"organization_id": {
+					"type": "string",
+					"format": "uuid"
+				},
+				"templates": {
+					"type": "integer"
+				},
+				"workspace_states": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/codersdk.WorkspaceStateCount"
+					}
+				},
+				"workspaces": {
+					"type": "integer"
+				}
+			}
+		},
 		"codersdk.OrganizationSyncSettings": {
 			"type": "object",
 			"properties": {
@@ -23380,6 +23568,20 @@
 				"sharing_globally_disabled": {
 					"description": "SharingGloballyDisabled is true if sharing has been disabled for this\norganization because of a deployment-wide setting.",
 					"type": "boolean"
+				}
+			}
+		},
+		"codersdk.WorkspaceStateCount": {
+			"type": "object",
+			"properties": {
+				"count": {
+					"type": "integer"
+				},
+				"status": {
+					"$ref": "#/definitions/codersdk.ProvisionerJobStatus"
+				},
+				"transition": {
+					"$ref": "#/definitions/codersdk.WorkspaceTransition"
 				}
 			}
 		},

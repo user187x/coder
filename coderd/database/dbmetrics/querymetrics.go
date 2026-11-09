@@ -1497,7 +1497,7 @@ func (m queryMetricsStore) GetApplicationName(ctx context.Context) (string, erro
 	return r0, r1
 }
 
-func (m queryMetricsStore) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]database.AuditCollector, error) {
+func (m queryMetricsStore) GetAuditCollectors(ctx context.Context, organizationID database.GetAuditCollectorsParams) ([]database.AuditCollector, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetAuditCollectors(ctx, organizationID)
 	m.queryLatencies.WithLabelValues("GetAuditCollectors").Observe(time.Since(start).Seconds())

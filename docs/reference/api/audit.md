@@ -216,6 +216,66 @@ curl -X GET http://coder-server:8080/api/v2/audit-export/{organization} \
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
+## Collect organization metrics with a Keycloak access token
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/metrics-export/{organization} \
+  -H 'Accept: application/json' \
+  -H 'Authorization: string' \
+  -H 'Authorization: API_KEY'
+```
+
+`GET /api/v2/metrics-export/{organization}`
+
+### Parameters
+
+| Name            | In     | Type   | Required | Description                                                                              |
+|-----------------|--------|--------|----------|------------------------------------------------------------------------------------------|
+| `organization`  | path   | string | true     | Organization ID                                                                          |
+| `Authorization` | header | string | true     | Bearer access token with coder-metrics audience and coder:metrics:read scope             |
+| `format`        | query  | string | false    | prometheus answers in the Prometheus text exposition format (text/plain); JSON otherwise |
+
+#### Enumerated Values
+
+| Parameter | Value(s)             |
+|-----------|----------------------|
+| `format`  | `json`, `prometheus` |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "collected_at": "2019-08-24T14:15:22Z",
+  "members": 0,
+  "organization": "string",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "templates": 0,
+  "workspace_states": [
+    {
+      "count": 0,
+      "status": "pending",
+      "transition": "start"
+    }
+  ],
+  "workspaces": 0
+}
+```
+
+### Responses
+
+| Status | Meaning                                                         | Description  | Schema                                                                 |
+|--------|-----------------------------------------------------------------|--------------|------------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)         | OK           | [codersdk.OrganizationMetrics](schemas.md#codersdkorganizationmetrics) |
+| 401    | [Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1) | Unauthorized | [codersdk.OAuth2Error](schemas.md#codersdkoauth2error)                 |
+| 403    | [Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)  | Forbidden    | [codersdk.OAuth2Error](schemas.md#codersdkoauth2error)                 |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
 ## Get external audit collector configuration
 
 ### Code samples
@@ -340,6 +400,146 @@ curl -X DELETE http://coder-server:8080/api/v2/organizations/{organization}/audi
 ```
 
 `DELETE /api/v2/organizations/{organization}/audit-collectors/{collector}`
+
+### Parameters
+
+| Name           | In   | Type   | Required | Description     |
+|----------------|------|--------|----------|-----------------|
+| `organization` | path | string | true     | Organization ID |
+| `collector`    | path | string | true     | Collector ID    |
+
+### Responses
+
+| Status | Meaning                                                         | Description | Schema |
+|--------|-----------------------------------------------------------------|-------------|--------|
+| 204    | [No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5) | No Content  |        |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Get external metrics collector configuration
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/metrics-collectors \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/organizations/{organization}/metrics-collectors`
+
+### Parameters
+
+| Name           | In   | Type   | Required | Description     |
+|----------------|------|--------|----------|-----------------|
+| `organization` | path | string | true     | Organization ID |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "audience": "string",
+  "available": true,
+  "collectors": [
+    {
+      "client_id": "string",
+      "created_at": "2019-08-24T14:15:22Z",
+      "created_by": "ee824cad-d7a6-4f48-87dc-e8461a9201c4",
+      "expires_at": "2019-08-24T14:15:22Z",
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "issuer": "string",
+      "name": "string",
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+      "subject": "string"
+    }
+  ],
+  "endpoint": "string",
+  "issuer": "string",
+  "scope": "string",
+  "token_endpoint": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                                 |
+|--------|---------------------------------------------------------|-------------|----------------------------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.AuditCollectorConfiguration](schemas.md#codersdkauditcollectorconfiguration) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Grant external metrics access
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/metrics-collectors \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`POST /api/v2/organizations/{organization}/metrics-collectors`
+
+> Body parameter
+
+```json
+{
+  "client_id": "string",
+  "name": "string",
+  "subject": "string",
+  "valid_days": 0
+}
+```
+
+### Parameters
+
+| Name           | In   | Type                                                                                   | Required | Description     |
+|----------------|------|----------------------------------------------------------------------------------------|----------|-----------------|
+| `organization` | path | string                                                                                 | true     | Organization ID |
+| `body`         | body | [codersdk.CreateAuditCollectorRequest](schemas.md#codersdkcreateauditcollectorrequest) | true     | Collector grant |
+
+### Example responses
+
+> 201 Response
+
+```json
+{
+  "client_id": "string",
+  "created_at": "2019-08-24T14:15:22Z",
+  "created_by": "ee824cad-d7a6-4f48-87dc-e8461a9201c4",
+  "expires_at": "2019-08-24T14:15:22Z",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "issuer": "string",
+  "name": "string",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "subject": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                      | Description | Schema                                                       |
+|--------|--------------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 201    | [Created](https://tools.ietf.org/html/rfc7231#section-6.3.2) | Created     | [codersdk.AuditCollector](schemas.md#codersdkauditcollector) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Revoke external metrics access
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X DELETE http://coder-server:8080/api/v2/organizations/{organization}/metrics-collectors/{collector} \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`DELETE /api/v2/organizations/{organization}/metrics-collectors/{collector}`
 
 ### Parameters
 
