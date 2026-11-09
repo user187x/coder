@@ -21,6 +21,8 @@ const PARTS: {
 	/** What is left, with its unit: "6 Cores". */
 	amount: (n: number) => string;
 	icon: typeof CpuIcon;
+	/** Its card's icon tile, in the Dashboard's tints. */
+	tone: string;
 }[] = [
 	{
 		key: "workspaces",
@@ -28,6 +30,7 @@ const PARTS: {
 		unit: "",
 		amount: (n) => `${num(n)} ${n === 1 ? "workspace" : "workspaces"}`,
 		icon: MonitorIcon,
+		tone: "bg-surface-green text-highlight-green",
 	},
 	{
 		key: "cpu",
@@ -35,6 +38,7 @@ const PARTS: {
 		unit: " cores",
 		amount: (n) => `${num(n)} ${n === 1 ? "Core" : "Cores"}`,
 		icon: CpuIcon,
+		tone: "bg-surface-sky text-highlight-sky",
 	},
 	{
 		key: "memory",
@@ -42,6 +46,7 @@ const PARTS: {
 		unit: " GB",
 		amount: (n) => `${num(n)} GB`,
 		icon: MemoryStickIcon,
+		tone: "bg-surface-purple text-highlight-purple",
 	},
 	{
 		key: "disk",
@@ -49,12 +54,17 @@ const PARTS: {
 		unit: " GB",
 		amount: (n) => `${num(n)} GB`,
 		icon: HardDriveIcon,
+		tone: "bg-surface-orange text-highlight-orange",
 	},
 ];
 
 function num(v: number) {
 	return `${Math.round(v * 100) / 100}`;
 }
+
+/** A part's card, as the Dashboard's cards. */
+const QUOTA_CARD =
+	"min-w-0 rounded-[20px] border border-solid border-border bg-surface-primary px-5 py-4 shadow-sm";
 
 /** Where a part stands: fine, near (80% or more), or at its limit. */
 export const quotaLevel = (used: number, limit: number) =>
@@ -94,14 +104,14 @@ export const WorkspaceQuotaPillView: React.FC<{
 	return (
 		<section
 			aria-label="Workspace quota"
-			className="@container w-full overflow-hidden rounded-xl border border-solid border-border bg-surface-primary/70 text-content-secondary"
+			className="w-full text-content-secondary"
 			title={
 				quota?.atLimit
 					? "One or more quota limits are reached. Per-instance limits apply separately to each workspace. Ask an admin to raise a limit if needed."
 					: "Your workspace quota: what your workspaces are built with, of the limits an admin set."
 			}
 		>
-			<div className="flex flex-wrap items-center justify-between gap-3 border-0 border-b border-solid border-border px-4 py-2.5">
+			<div className="mb-2 flex flex-wrap items-center justify-between gap-3 px-1">
 				<h2 className="m-0 text-sm font-semibold text-content-primary">
 					Quota
 				</h2>
@@ -113,8 +123,9 @@ export const WorkspaceQuotaPillView: React.FC<{
 				) : null}
 				{action}
 			</div>
-			{/* As many equal columns as it has parts once there is room; the Cloud Drive is the last of them. */}
-			<div className="grid grid-cols-1 gap-x-6 gap-y-4 px-4 py-4 @min-[480px]:grid-cols-2 @min-[880px]:grid-flow-col @min-[880px]:grid-cols-none @min-[880px]:auto-cols-[minmax(0,1fr)]">
+			{/* One card per part, as the Dashboard's, all on one line (scrolling sideways where the window is too narrow);
+			    the Cloud Drive is the last of them. */}
+			<div className="grid grid-flow-col auto-cols-[minmax(13rem,1fr)] gap-3 overflow-x-auto pb-1">
 				{parts.map((p) => {
 					const level = quotaLevel(p.used, p.limit);
 					const pct = p.limit > 0 ? Math.min(p.used / p.limit, 1) * 100 : 100;
@@ -122,13 +133,22 @@ export const WorkspaceQuotaPillView: React.FC<{
 					return (
 						<div
 							key={p.key}
-							className="min-w-0"
+							className={QUOTA_CARD}
 							data-testid={`quota-${p.key}`}
 							data-level={level}
 						>
-							<div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-								<Icon aria-hidden className="size-3.5 shrink-0" />
-								<span className="font-medium">{p.label}</span>
+							<div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+								<span
+									className={cn(
+										"flex size-8 shrink-0 items-center justify-center rounded-lg",
+										p.tone,
+									)}
+								>
+									<Icon aria-hidden className="size-4" />
+								</span>
+								<span className="text-[13px] font-bold uppercase tracking-wide text-content-primary">
+									{p.label}
+								</span>
 								{p.key !== "workspaces" &&
 									quota?.resourceModes?.[p.key] === "instance" && (
 										<span className="text-2xs">/ instance (largest)</span>
@@ -190,10 +210,7 @@ export const WorkspaceQuotaPillView: React.FC<{
 					);
 				})}
 				{cloudDrive && (
-					<div
-						className="min-w-0 @min-[480px]:col-span-2 @min-[880px]:col-span-1"
-						data-testid="quota-cloud-drive"
-					>
+					<div className={QUOTA_CARD} data-testid="quota-cloud-drive">
 						{cloudDrive}
 					</div>
 				)}

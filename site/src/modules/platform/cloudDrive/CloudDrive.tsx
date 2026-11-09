@@ -262,7 +262,7 @@ export const CloudDrive: React.FC<{
 					{drop.over && <DropHint refusal={drop.refusal} />}
 					{/* its leading cloud, in the place of the other columns' icons: what is shared with the user */}
 					<SharedWithYou
-						className="absolute -left-[3px] -top-0.5 z-[1] !size-5 [&_svg]:!size-3.5"
+						className="absolute top-0 left-0 z-[1] !size-8 rounded-lg bg-surface-sky text-highlight-sky [&_svg]:!size-4"
 						onOpen={openFiles}
 					/>
 					<button
@@ -273,9 +273,12 @@ export const CloudDrive: React.FC<{
 						aria-label={ariaLabel}
 						onClick={() => openFiles("", "")}
 					>
-						<span className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-							<span aria-hidden className="size-3.5 shrink-0" />
-							<span className="font-medium">Cloud Drive</span>
+						{/* As the quota cards' titles: its cloud in an icon tile (SharedWithYou, over it), its name in capitals */}
+						<span className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+							<span aria-hidden className="size-8 shrink-0" />
+							<span className="text-[13px] font-bold uppercase tracking-wide text-content-primary">
+								Cloud Drive
+							</span>
 							{encrypted && (
 								<LockIcon
 									aria-hidden
