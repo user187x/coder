@@ -331,7 +331,15 @@ const DashboardPage: React.FC = () => {
 					title="GPU"
 					icon={CircuitBoardIcon}
 					tone="magenta"
-					className={cn(!gpus && "opacity-50 grayscale")}
+					badge={
+						!gpus && (
+							<SuppliedBadge
+								value="N/A"
+								what="No workspace has a GPU enabled"
+							/>
+						)
+					}
+					muted={!gpus}
 				>
 					<GpuCardBody
 						workspaces={cluster ? [] : gpuWorkspaces}

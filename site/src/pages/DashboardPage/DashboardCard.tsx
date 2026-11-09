@@ -29,6 +29,8 @@ type DashboardCardProps = {
 	badge?: React.ReactNode;
 	actions?: React.ReactNode;
 	className?: string;
+	/** Greyed out (nothing to show), all but the title's pill, which says why. */
+	muted?: boolean;
 	children: React.ReactNode;
 };
 
@@ -40,8 +42,10 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 	badge,
 	actions,
 	className,
+	muted = false,
 	children,
 }) => {
+	const dim = muted && "opacity-50 grayscale";
 	// A card that can be moved (SortableCards) is dragged by its header.
 	const handle = useCardHandle();
 	return (
@@ -68,12 +72,18 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 							className={cn(
 								"flex size-10 shrink-0 items-center justify-center rounded-xl",
 								TONES[tone],
+								dim,
 							)}
 						>
 							<Icon aria-hidden className="size-5" />
 						</span>
 					)}
-					<h2 className="m-0 shrink-0 text-[13px] font-bold uppercase tracking-wide text-content-primary">
+					<h2
+						className={cn(
+							"m-0 shrink-0 text-[13px] font-bold uppercase tracking-wide text-content-primary",
+							dim,
+						)}
+					>
 						{title}
 					</h2>
 					{badge}
@@ -81,7 +91,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 				{/* Beside the title while they fit, else on a line of their own: the title is never cut short for them */}
 				{actions && <span className="ml-auto flex shrink-0">{actions}</span>}
 			</header>
-			{children}
+			{muted ? <div className={cn(dim)}>{children}</div> : children}
 		</section>
 	);
 };

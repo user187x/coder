@@ -155,13 +155,14 @@ export const GpuCardBody: React.FC<{
 							{known ? formatQuotaNumber(claimed) : "N/A"}
 						</span>
 					)}
-					<span className="text-xs text-content-secondary">
-						{!known
-							? "GPU claims are shown for your own workspaces"
-							: withGpus.length === 0
-								? "No workspace has a GPU enabled"
-								: "GPUs claimed by running workspaces"}
-					</span>
+					{/* Without GPUs the title's N/A pill says it */}
+					{(!known || withGpus.length > 0) && (
+						<span className="text-xs text-content-secondary">
+							{known
+								? "GPUs claimed by running workspaces"
+								: "GPU claims are shown for your own workspaces"}
+						</span>
+					)}
 				</span>
 			</div>
 			<dl className="relative m-0 flex flex-col gap-1.5">
