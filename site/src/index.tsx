@@ -3,15 +3,6 @@ import "./index.css";
 import "./contexts/platformBoot";
 import { App } from "./App";
 
-console.info(`      -#######          +######-      ########+       ##########  ########+.      ###########
-   +#####--######    +#####--#####+   ############    ##########  ####+++#####-   ###########
-  ####-      -####  ####-      #####  ####     ####+  ####        ####    .####   ###########
- .####              ####        ####  ####      ####  #########   ####...+##+     ###########
-  ####.      .####  ####       +####  ####     +####  ####        ####+#######    ###########
-   #####-  -#####    ######..######   ############-   ##########  ####    #####   ###########
-     .########+        -########.     #########+      ##########  ####    .####   ###########
-`);
-
 // After a redeploy, the SPA still holds old chunk filenames in memory.
 // Navigating to a lazy-loaded route will try to fetch a chunk that no
 // longer exists (the content hash changed), crashing the app. Vite fires
