@@ -72,14 +72,12 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		node: (
 			<ContextMenu>
 				<ContextMenuTrigger asChild>
-					{/* The default view in a pill: an outline, so nothing moves */}
+					{/* The default view in the theme's accent colour (--content-link, a custom theme's accent): only its
+					    text changes, so nothing moves */}
 					<div
 						data-default-view={defaultView === href || undefined}
 						title={defaultView === href ? "Set as default view" : undefined}
-						className={cn(
-							defaultView === href &&
-								"rounded-full outline outline-1 -outline-offset-1 outline-content-link/60",
-						)}
+						className={cn(defaultView === href && "[&>a]:!text-content-link")}
 					>
 						<SidebarNavItem href={href}>
 							<AdminCategoryLabel id={id}>
