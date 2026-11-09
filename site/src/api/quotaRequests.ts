@@ -1,6 +1,9 @@
 import { platformGet, platformPost, type QuotaKey } from "./platform";
 
-type ExtraResources = Record<QuotaKey, number>;
+type ExtraResources = Record<QuotaKey, number> & {
+	/** Extra Cloud Drive capacity in whole GiB, asked for from the Cloud Drive window. */
+	cloudDrive?: number;
+};
 export type QuotaRequest = {
 	id: string;
 	organization_id: string;

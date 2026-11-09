@@ -107,11 +107,13 @@ export const WithCloudDrive: Story = {
 	},
 };
 
-/** User Quota switched off: the Cloud Drive alone, at the same size, on the left. */
+/** User Quota switched off: the Cloud Drive alone, at the same size, on the left, and no Quota Request (the Cloud
+    Drive asks for its own storage). */
 export const CloudDriveWithoutQuota: Story = {
 	...WithCloudDrive,
 	args: {
 		...WithCloudDrive.args,
+		action: undefined,
 		quota: { ...meta.args.quota, limited: false, usage: undefined },
 	},
 };

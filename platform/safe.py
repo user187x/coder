@@ -109,6 +109,7 @@ import urllib.parse
 import urllib.request
 
 import drivepeers
+import quotaextras
 import driveaudit
 import kexec
 import kitcrypto
@@ -436,7 +437,7 @@ def settings_view(user, fresh=False):
             "endpoint": cfg["endpoint"], "region": cfg["region"], "bucket": cfg["bucket"],
             "accessKey": cfg["accessKey"] if IS_ADMIN and IS_ADMIN(user) else "", "hasSecret": bool(cfg["secretKey"]),
             "chart": {"kind": chart["kind"], "endpoint": chart["endpoint"], "bucket": chart["bucket"]},
-            "mountPath": MOUNT_PATH, "status": dict(_status), "quota": quota_view(),
+            "mountPath": MOUNT_PATH, "status": dict(_status), "quota": dict(quota_view(), extraGib=quotaextras.cloud_drive_gib(user.get("id")) if user.get("id") else 0),
             "enabled": turned_off() is None, "turnedOff": turned_off()}
 
 
@@ -517,10 +518,12 @@ def custom_quota_gib():
         return None
 
 
-def quota_bytes():
-    """Every account's capacity: an admin's, else the chart's."""
+def quota_bytes(user_id=None):
+    """Every account's capacity: an admin's, else the chart's; with user_id, plus that account's approved extra
+    Cloud Drive storage (quotaextras)."""
     gib = custom_quota_gib()
-    return gib * 1024 ** 3 if gib else QUOTA_BYTES
+    base = gib * 1024 ** 3 if gib else QUOTA_BYTES
+    return base + (quotaextras.cloud_drive_gib(user_id) * 1024 ** 3 if user_id else 0)
 
 
 def save_quota(user, body):
@@ -2365,7 +2368,7 @@ def summary(user):
         if KUBE and KUBE.ok else (0, None)
     bound = status == 200 and ((pvc or {}).get("status") or {}).get("phase") == "Bound"
     return {"enabled": True, "mountPath": MOUNT_PATH, "usedBytes": used, "files": files,
-            "quotaBytes": None if src else quota_bytes(), "maxUploadBytes": MAX_UPLOAD_BYTES,
+            "quotaBytes": None if src else quota_bytes(user["id"]), "maxUploadBytes": MAX_UPLOAD_BYTES,
             "volume": "ready" if bound else "pending", "offline": offline,
             "encrypted": encryption_on(user["id"]), "source": source_view(user["id"], src) if src else None,
             "shared": shared_capacity(user["id"])}
@@ -2384,7 +2387,7 @@ def shared_capacity(user_id):
         except (DriveUnavailable, s3client.S3Error, OSError):
             used = None
         out.append({"owner": p["owner"], "ownerName": p["name"],
-                    "quotaBytes": None if srcs.get(p["owner"]) else quota_bytes(), "usedBytes": used})
+                    "quotaBytes": None if srcs.get(p["owner"]) else quota_bytes(p["owner"]), "usedBytes": used})
     return out
 
 
@@ -2533,7 +2536,7 @@ def _upload(h, user, path):
         except s3client.S3Error as e:
             if e.status != 404:
                 raise
-        quota = quota_bytes()
+        quota = quota_bytes(user["id"])
         if used - existing + length > quota:
             return h.send_json(413, {"error": "Your Cloud Drive holds %s; this file would take it past its %s." % (
                 human(used), human(quota))})

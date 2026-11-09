@@ -56,6 +56,20 @@ class QuotaExtrasTest(unittest.TestCase):
         with self.assertRaises(extras.Conflict):
             self.approve()
 
+    def test_cloud_drive_storage_request_adds_capacity_not_workspace_grants(self):
+        body = dict(self.body, resources={"cloudDrive": 50})
+        self.assertEqual(self.create(body)["resources"], {"workspaces": 0, "cpu": 0, "memory": 0, "disk": 0,
+                                                          "cloudDrive": 50})
+        self.assertEqual(extras.cloud_drive_gib(self.uid), 0)
+        self.approve()
+        self.assertEqual(extras.cloud_drive_gib(self.uid), 50)
+        self.assertEqual(extras.totals()[self.uid]["activeGrantCount"], 0)
+        for bad in (1.5, -1, True, "10"):
+            with self.assertRaises(ValueError):
+                extras.resources({"cloudDrive": bad})
+        extras.review("session", self.admin, self.org, self.rid, "revoke", {})
+        self.assertEqual(extras.cloud_drive_gib(self.uid), 0)
+
     def test_multiple_organizations_sum_by_uuid_not_username(self):
         self.create()
         self.approve()

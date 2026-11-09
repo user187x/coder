@@ -17,6 +17,8 @@ import uuid
 BASE = "/__coder-ui/api"
 FILE = os.environ.get("QUOTA_REQUESTS_FILE", "/data/quota-requests.json")
 KEYS = ("workspaces", "cpu", "memory", "disk")
+# Extra Cloud Drive capacity (whole GiB), requested from the Cloud Drive window; safe.quota_bytes adds it.
+CLOUD_DRIVE = "cloudDrive"
 ROUTE = re.compile(r"^" + BASE + r"/organizations/([0-9a-f-]{36})/quota-requests(?:/([0-9a-f-]{36})/(approve|deny|revoke))?$")
 SEND = LOG = NOTIFY = None
 _LOCK = threading.Lock()
@@ -74,8 +76,8 @@ def identifier(value):
 
 
 def resources(raw):
-    if not isinstance(raw, dict) or any(k not in KEYS for k in raw):
-        raise ValueError("Choose extra workspaces, CPU cores, memory GiB, or disk GB.")
+    if not isinstance(raw, dict) or any(k not in KEYS + (CLOUD_DRIVE,) for k in raw):
+        raise ValueError("Choose extra workspaces, CPU cores, memory GiB, disk GB, or Cloud Drive GiB.")
     result = {}
     for key in KEYS:
         value = raw.get(key, 0)
@@ -84,6 +86,14 @@ def resources(raw):
         if key == "workspaces" and value != int(value):
             raise ValueError("Extra workspace count must be a whole number.")
         result[key] = int(value) if key == "workspaces" else round(value, 3)
+    drive = raw.get(CLOUD_DRIVE, 0)
+    if isinstance(drive, float) and drive.is_integer():
+        drive = int(drive)
+    if isinstance(drive, bool) or not isinstance(drive, int) or not 0 <= drive <= 1000000:
+        raise ValueError("Extra Cloud Drive storage must be a whole number of GiB from zero through 1,000,000.")
+    if drive:
+        # Only when asked for, so a workspace request keeps the shape it always had.
+        result[CLOUD_DRIVE] = drive
     if not any(result.values()):
         raise ValueError("Request at least one positive resource addition.")
     return result
@@ -228,8 +238,20 @@ def totals():
             total = result.setdefault(record["user_id"], {"bonus": dict.fromkeys(KEYS, 0), "activeGrantCount": 0})
             for key in KEYS:
                 total["bonus"][key] += record["resources"].get(key, 0)
-            total["activeGrantCount"] += 1
+            if record["resources"].get(CLOUD_DRIVE):
+                total[CLOUD_DRIVE] = total.get(CLOUD_DRIVE, 0) + record["resources"][CLOUD_DRIVE]
+            # A Cloud Drive grant is not a workspace quota grant (the Workspaces page's count).
+            if any(record["resources"].get(key, 0) for key in KEYS):
+                total["activeGrantCount"] += 1
     return result
+
+
+def cloud_drive_gib(user_id):
+    """The extra Cloud Drive capacity (GiB) approved for the user, 0 when none (or when it cannot be read)."""
+    try:
+        return int(totals().get(user_id, {}).get(CLOUD_DRIVE, 0))
+    except (OSError, ValueError, KeyError, TypeError):
+        return 0
 
 
 def limits(base, user_id, additions=None):

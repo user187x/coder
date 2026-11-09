@@ -2120,6 +2120,8 @@ type CloudDriveQuota = {
 	custom: boolean;
 	min: number;
 	max: number;
+	/** The caller's approved extra Cloud Drive storage (GiB), on top of gib. */
+	extraGib?: number;
 };
 
 export type CloudDriveSettings = {

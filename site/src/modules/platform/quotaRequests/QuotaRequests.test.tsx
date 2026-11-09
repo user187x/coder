@@ -6,6 +6,7 @@ import { MockOrganization, MockUserOwner } from "#/testHelpers/entities";
 import { MockQuotaRequest } from "#/testHelpers/quotaRequests";
 import { render } from "#/testHelpers/renderHelpers";
 import { server } from "#/testHelpers/server";
+import { CloudDriveStorageRequest } from "../cloudDrive/CloudDriveStorageRequest";
 import { QuotaAdjustments, QuotaRequestsView } from "./QuotaAdjustments";
 import { QuotaRequestButton, QuotaRequestForm } from "./QuotaRequestButton";
 
@@ -181,4 +182,36 @@ it("remembers viewed requests without approving them", async () => {
 	await waitFor(() =>
 		expect(saved).toEqual({ quota_seen: [MockQuotaRequest.id] }),
 	);
+});
+
+it("asks for Cloud Drive storage alone from the Cloud Drive", async () => {
+	const submitted: unknown[] = [];
+	server.use(
+		http.get("/api/v2/organizations", () =>
+			HttpResponse.json([MockOrganization]),
+		),
+		http.post(
+			"/__coder-ui/api/organizations/:organization/quota-requests",
+			async ({ request }) => {
+				submitted.push(await request.json());
+				return HttpResponse.json({ request: MockQuotaRequest });
+			},
+		),
+	);
+	render(<CloudDriveStorageRequest />);
+	await userEvent.click(
+		screen.getByRole("button", { name: "Request more storage" }),
+	);
+	await userEvent.type(screen.getByLabelText("Additional storage (GB)"), "25");
+	await userEvent.type(screen.getByLabelText("Reason"), " Datasets ");
+	const submit = screen.getByRole("button", {
+		name: "Submit storage request",
+	});
+	await waitFor(() => expect(submit).toBeEnabled());
+	await userEvent.click(submit);
+	await waitFor(() => expect(submitted).toHaveLength(1));
+	expect(submitted[0]).toMatchObject({
+		resources: { workspaces: 0, cpu: 0, memory: 0, disk: 0, cloudDrive: 25 },
+		reason: "Datasets",
+	});
 });

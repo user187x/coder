@@ -274,7 +274,8 @@ export const WorkspaceQuotaPill: React.FC<{
 			extend
 		);
 	}
-	const action = !lease.isLoading && <QuotaRequestButton />;
+	// Only where a workspace quota applies: the Cloud Drive asks for its own storage (Cloud Drive > Settings).
+	const action = !lease.isLoading && data?.limited && <QuotaRequestButton />;
 	return data || cloudDrive ? (
 		<WorkspaceQuotaPillView
 			quota={data}

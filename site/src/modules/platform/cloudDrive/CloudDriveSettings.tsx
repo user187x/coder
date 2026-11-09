@@ -15,6 +15,7 @@ import { Label } from "#/components/Label/Label";
 import { Slider } from "#/components/Slider/Slider";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { homePath } from "./CloudDriveBrowser";
+import { CloudDriveStorageRequest } from "./CloudDriveStorageRequest";
 
 const ago = (unixSeconds: number | null) => {
 	if (!unixSeconds) {
@@ -443,13 +444,25 @@ const CapacitySection: React.FC<{ settings: Settings }> = ({ settings }) => {
 					</div>
 				</>
 			) : (
-				<p className="m-0 text-sm text-content-secondary">
-					Each account's Cloud Drive holds up to{" "}
-					<span className="font-semibold text-content-primary">
-						{quota.gib} GB
-					</span>
-					.
-				</p>
+				<>
+					<p className="m-0 text-sm text-content-secondary">
+						Each account's Cloud Drive holds up to{" "}
+						<span className="font-semibold text-content-primary">
+							{quota.gib} GB
+						</span>
+						{(quota.extraGib ?? 0) > 0 && (
+							<>
+								; yours holds{" "}
+								<span className="font-semibold text-content-primary">
+									{quota.extraGib} GB
+								</span>{" "}
+								more, approved by an administrator
+							</>
+						)}
+						.
+					</p>
+					<CloudDriveStorageRequest />
+				</>
 			)}
 		</section>
 	);
