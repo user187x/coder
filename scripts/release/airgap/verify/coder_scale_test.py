@@ -52,6 +52,33 @@ class CoderScaleTest(unittest.TestCase):
         self.nodes["items"][2]["spec"]["unschedulable"] = True
         self.assertEqual(module.coder_scale()["maxReplicas"], 2)
 
+    def use_label_placement(self):
+        template = self.deployment["spec"]["template"]["spec"]
+        template["nodeSelector"] = {}
+        term = lambda key, value: {"matchExpressions": [{"key": key, "operator": "In", "values": [value]}]}
+        template["affinity"]["nodeAffinity"] = {"requiredDuringSchedulingIgnoredDuringExecution": {
+            "nodeSelectorTerms": [term("coder-ha-role", "control"), term("platform.coder/central-coder", "true")]}}
+
+    def test_counts_nodes_the_label_would_allow(self):
+        self.use_label_placement()
+        out = module.coder_scale()
+        self.assertEqual(out["maxReplicas"], 4, "a, b, c and the edge node once labelled")
+        edge = next(n for n in out["nodes"] if n["name"] == "edge")
+        self.assertEqual((edge["fits"], edge["label"]), (True, True))
+
+    def test_labels_only_the_nodes_a_scale_up_needs(self):
+        self.use_label_placement()
+        module.coder_scale({"replicas": 3, "resourceVersion": "4"})
+        self.assertFalse(any(c.args[0] == "PATCH" for c in module.KUBE.call.call_args_list), "c is already allowed")
+        module.KUBE.call.reset_mock()
+        module.coder_scale({"replicas": 4, "resourceVersion": "4"})
+        patches = [c.args for c in module.KUBE.call.call_args_list if c.args[0] == "PATCH"]
+        self.assertEqual(patches, [("PATCH", "/api/v1/nodes/edge",
+                                    {"metadata": {"labels": {"platform.coder/central-coder": "true"}}},
+                                    "application/merge-patch+json")])
+        self.assertEqual([c.args[2]["spec"] for c in module.KUBE.call.call_args_list if c.args[0] == "PUT"],
+                         [{"replicas": 4}])
+
     def test_refuses_more_replicas_than_nodes(self):
         with self.assertRaises(ValueError):
             module.coder_scale({"replicas": 4, "resourceVersion": "4"})

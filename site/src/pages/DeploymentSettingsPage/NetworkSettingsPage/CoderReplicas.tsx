@@ -115,7 +115,7 @@ export const CoderReplicas = () => {
 								? current.nodes
 										.map(
 											(node) =>
-												`${node.name} (${node.coder ? "running one" : node.fits ? "free" : (node.reason ?? "unavailable").toLowerCase()})`,
+												`${node.name} (${node.coder ? "running one" : node.fits ? (node.label ? "free, labelled when needed" : "free") : (node.reason ?? "unavailable").toLowerCase()})`,
 										)
 										.join(", ")
 								: "none"}

@@ -591,6 +591,8 @@ type CoderPlacementNode = {
 	fits: boolean;
 	/** Why it cannot: not ready, cordoned, or not enough CPU or memory. */
 	reason: string | null;
+	/** It takes a replica once labelled platform.coder/central-coder=true, which scaling up does as needed. */
+	label?: boolean;
 };
 
 type CoderScale = {

@@ -1178,11 +1178,17 @@ def _tolerated(taint, tolerations):
     return False
 
 
+# The label coder_scale puts on a node to let a central Coder replica run there, alongside the node's own role (the
+# live placement accepts coder-ha-role=control or this label; build/ui-18NN/deploy.sh).
+CODER_NODE_LABEL = ("platform.coder/central-coder", "true")
+
+
 def coder_placement(pod_spec):
     """The nodes a central Coder pod can run on, one each (its required separate-node placement): every node its
     selector, required node affinity and tolerations allow that is Ready and schedulable - those already running a
-    Coder pod, and the others its CPU and memory requests fit on now. {"maxReplicas", "nodes": [{name, coder,
-    fits, reason}]}."""
+    Coder pod, and the others its CPU and memory requests fit on now. A node that would be allowed once it carries
+    CODER_NODE_LABEL counts too (label: true), and coder_scale labels it when it needs it. {"maxReplicas", "nodes":
+    [{name, coder, fits, reason, label}]}."""
     status, nodes = KUBE.call("GET", "/api/v1/nodes")
     if status != 200:
         raise RuntimeError("Cannot read the cluster's nodes")
@@ -1210,16 +1216,21 @@ def coder_placement(pod_spec):
             req = (c.get("resources") or {}).get("requests") or {}
             for r in need:
                 used[(node, r)] = used.get((node, r), 0) + (QUANTITY(req.get(r)) or 0)
+    def allowed(labels):
+        return all(labels.get(k) == v for k, v in selector.items()) and \
+            (not terms or any(all(_matches(e, labels) for e in t.get("matchExpressions") or []) for t in terms))
+
     out = []
     for node in nodes.get("items", []):
         name = node["metadata"]["name"]
         labels = node["metadata"].get("labels") or {}
         ready = any(c.get("type") == "Ready" and c.get("status") == "True"
                     for c in (node.get("status") or {}).get("conditions") or [])
-        if any(labels.get(k) != v for k, v in selector.items()):
-            continue
-        if terms and not any(all(_matches(e, labels) for e in t.get("matchExpressions") or []) for t in terms):
-            continue
+        label = False
+        if not allowed(labels):
+            if name in coder_on or not allowed(dict(labels, **dict([CODER_NODE_LABEL]))):
+                continue
+            label = True
         if any(t.get("effect") in ("NoSchedule", "NoExecute") and not _tolerated(t, tolerations)
                for t in (node.get("spec") or {}).get("taints") or []):
             continue
@@ -1234,8 +1245,14 @@ def coder_placement(pod_spec):
             short = [r for r in need if free[r] < need[r]]
             if short:
                 reason = "Not enough " + " and ".join("CPU" if r == "cpu" else r for r in short)
-        out.append({"name": name, "coder": name in coder_on, "fits": reason is None, "reason": reason})
-    out.sort(key=lambda n: (not n["coder"], not n["fits"], n["name"]))
+        free_memory = (QUANTITY(((node.get("status") or {}).get("allocatable") or {}).get("memory")) or 0) \
+            - used.get((name, "memory"), 0)
+        out.append({"name": name, "coder": name in coder_on, "fits": reason is None, "reason": reason, "label": label,
+                    "_free": free_memory})
+    # Running ones first, then those that can take one, already allowed before those that need the label, roomiest first.
+    out.sort(key=lambda n: (not n["coder"], not n["fits"], n["label"], -n["_free"], n["name"]))
+    for n in out:
+        n.pop("_free")
     return {"maxReplicas": sum(1 for n in out if n["coder"] or n["fits"]), "nodes": out}
 
 
@@ -1268,6 +1285,15 @@ def coder_scale(body=None):
         if body["replicas"] > placement["maxReplicas"]:
             raise ValueError("Only %d nodes can run a Coder replica (one each). Add or free an eligible node first."
                              % placement["maxReplicas"])
+        # Label just as many more nodes as the new replicas need, roomiest first (coder_placement's order).
+        ready_now = sum(1 for n in placement["nodes"] if n["fits"] and not n["label"])
+        for n in [n for n in placement["nodes"] if n["fits"] and n["label"]][:max(0, body["replicas"] - ready_now)]:
+            status, _ = KUBE.call("PATCH", "/api/v1/nodes/" + urllib.parse.quote(n["name"]),
+                                  {"metadata": {"labels": dict([CODER_NODE_LABEL])}},
+                                  "application/merge-patch+json")
+            if status not in (200, 201):
+                raise RuntimeError("Could not label node %s for a Coder replica" % n["name"])
+            LOG(event="coder-node-labelled", node=n["name"], label="=".join(CODER_NODE_LABEL))
         status, result = KUBE.call("PUT", path + "/scale", {
             "apiVersion": "autoscaling/v1", "kind": "Scale",
             "metadata": {"name": "coder", "namespace": NAMESPACE,
