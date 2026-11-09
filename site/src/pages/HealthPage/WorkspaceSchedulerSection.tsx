@@ -21,6 +21,7 @@ import {
 	scheduleProblem,
 	WEEKDAYS,
 } from "#/modules/platform/scheduler/schedule";
+import { EnabledToggle } from "#/pages/UsersPage/EnabledToggle";
 
 /** The slider's range for the maximum active time; 0 is "no limit". */
 const MAX_HOURS_SLIDER = 24;
@@ -129,213 +130,219 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 
 	return (
 		<section className="flex flex-col gap-3" aria-labelledby={`${ids}-title`}>
-			<div className="flex items-start justify-between gap-3">
-				<div>
-					<h2
-						id={`${ids}-title`}
-						className="m-0 flex items-center gap-2 text-base font-medium"
-					>
-						Global Workspace Scheduler
-						{saved.enabled ? (
-							<Badge
-								variant={report.noncompliant.length ? "warning" : "green"}
-								size="xs"
-							>
-								{report.noncompliant.length
-									? `${report.noncompliant.length} without a valid schedule`
-									: "Every workspace complies"}
-							</Badge>
-						) : (
-							<Badge size="xs">Off</Badge>
-						)}
-					</h2>
-					<p className="m-0 mt-1 text-sm text-content-secondary">
-						Require schedules for new workspaces and prompt owners to correct
-						existing ones. Set shared times, a maximum duration, and exemptions
-						below.
-					</p>
-				</div>
-				<Switch
-					aria-label="Global Workspace Scheduler"
+			<div className="flex flex-wrap items-center gap-3">
+				<h2
+					id={`${ids}-title`}
+					className="m-0 flex items-center gap-2 text-base font-medium"
+				>
+					Global Workspace Scheduler
+				</h2>
+				<EnabledToggle
+					label="Global Workspace Scheduler"
 					title={
 						saved.enabled
 							? "Switch the workspace scheduler off"
 							: "Switch it on: every workspace needs a start and stop schedule"
 					}
-					className="mt-0.5 shrink-0"
 					checked={saved.enabled}
 					disabled={save.isPending}
 					onCheckedChange={onToggle}
 				/>
+				{saved.enabled ? (
+					<Badge
+						variant={report.noncompliant.length ? "warning" : "green"}
+						size="xs"
+						className="ml-auto"
+					>
+						{report.noncompliant.length
+							? `${report.noncompliant.length} without a valid schedule`
+							: "Every workspace complies"}
+					</Badge>
+				) : (
+					<Badge size="xs" className="ml-auto">
+						Off
+					</Badge>
+				)}
 			</div>
 
-			<fieldset
-				className="m-0 grid grid-cols-1 gap-3 border-0 p-0 disabled:opacity-60 lg:grid-cols-2"
-				disabled={!draft.enabled}
-			>
-				<RadioGroup
-					value={draft.mode}
-					onValueChange={(mode) =>
-						setDraft({ ...draft, mode: mode as SchedulerSettings["mode"] })
-					}
-					className="grid grid-cols-1 gap-3 text-sm lg:grid-cols-2"
+			{/* Everything but the title in one inner card, as User Quota's */}
+			<div className="flex flex-col gap-3 rounded-lg border border-solid border-border p-3">
+				<p className="m-0 text-sm text-content-secondary">
+					Require schedules for new workspaces and prompt owners to correct
+					existing ones. Set shared times, a maximum duration, and exemptions
+					below.
+				</p>
+
+				<fieldset
+					className="m-0 grid grid-cols-1 gap-3 border-0 p-0 disabled:opacity-60 lg:grid-cols-2"
+					disabled={!draft.enabled}
 				>
-					<div className="flex items-start gap-2">
-						<RadioGroupItem value="user" id={`${ids}-user`} />
-						<Label htmlFor={`${ids}-user`} className="flex flex-col gap-0.5">
-							<span>Users set their own times</span>
-							<span className="font-normal text-content-secondary">
-								Each workspace needs a start and a stop time; its owner picks
-								them.
-							</span>
-						</Label>
-					</div>
-					<div className="flex items-start gap-2">
-						<RadioGroupItem value="fixed" id={`${ids}-fixed`} />
-						<Label htmlFor={`${ids}-fixed`} className="flex flex-col gap-0.5">
-							<span>The same schedule for every workspace</span>
-							<span className="font-normal text-content-secondary">
-								Applied to new workspaces; users cannot change it.
-							</span>
-						</Label>
-					</div>
-				</RadioGroup>
+					<RadioGroup
+						value={draft.mode}
+						onValueChange={(mode) =>
+							setDraft({ ...draft, mode: mode as SchedulerSettings["mode"] })
+						}
+						className="grid grid-cols-1 gap-3 text-sm lg:grid-cols-2"
+					>
+						<div className="flex items-start gap-2">
+							<RadioGroupItem value="user" id={`${ids}-user`} />
+							<Label htmlFor={`${ids}-user`} className="flex flex-col gap-0.5">
+								<span>Users set their own times</span>
+								<span className="font-normal text-content-secondary">
+									Each workspace needs a start and a stop time; its owner picks
+									them.
+								</span>
+							</Label>
+						</div>
+						<div className="flex items-start gap-2">
+							<RadioGroupItem value="fixed" id={`${ids}-fixed`} />
+							<Label htmlFor={`${ids}-fixed`} className="flex flex-col gap-0.5">
+								<span>The same schedule for every workspace</span>
+								<span className="font-normal text-content-secondary">
+									Applied to new workspaces; users cannot change it.
+								</span>
+							</Label>
+						</div>
+					</RadioGroup>
 
-				<fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0 text-sm lg:col-span-2">
-					<legend className="mb-1.5 font-medium">Enforced days</legend>
-					<div className="flex flex-wrap gap-1.5">
-						{WEEKDAYS.map(({ day, label }) => {
-							const on = draft.enforcedDays.includes(day);
-							return (
-								<button
-									key={day}
-									type="button"
-									aria-pressed={on}
-									aria-label={WEEKDAY_NAMES[day]}
-									onClick={() => toggleEnforcedDay(day)}
-									className={cn(
-										"h-8 min-w-12 cursor-pointer rounded-md border border-solid px-2 text-xs font-medium uppercase transition-colors",
-										on
-											? "border-content-link bg-surface-secondary text-content-primary"
-											: "border-border bg-transparent text-content-secondary hover:text-content-primary",
-									)}
-								>
-									{label}
-								</button>
-							);
-						})}
-					</div>
-					<p className="m-0 text-content-secondary">
-						Workspaces may only be scheduled on the selected days.
-					</p>
-					{enforcedDaysProblem && (
-						<p role="alert" className="m-0 text-content-destructive">
-							{enforcedDaysProblem}
+					<fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0 text-sm lg:col-span-2">
+						<legend className="mb-1.5 font-medium">Enforced days</legend>
+						<div className="flex flex-wrap gap-1.5">
+							{WEEKDAYS.map(({ day, label }) => {
+								const on = draft.enforcedDays.includes(day);
+								return (
+									<button
+										key={day}
+										type="button"
+										aria-pressed={on}
+										aria-label={WEEKDAY_NAMES[day]}
+										onClick={() => toggleEnforcedDay(day)}
+										className={cn(
+											"h-8 min-w-12 cursor-pointer rounded-md border border-solid px-2 text-xs font-medium uppercase transition-colors",
+											on
+												? "border-content-link bg-surface-secondary text-content-primary"
+												: "border-border bg-transparent text-content-secondary hover:text-content-primary",
+										)}
+									>
+										{label}
+									</button>
+								);
+							})}
+						</div>
+						<p className="m-0 text-content-secondary">
+							Workspaces may only be scheduled on the selected days.
 						</p>
-					)}
-				</fieldset>
+						{enforcedDaysProblem && (
+							<p role="alert" className="m-0 text-content-destructive">
+								{enforcedDaysProblem}
+							</p>
+						)}
+					</fieldset>
 
-				{draft.mode === "fixed" && (
-					<div className="lg:col-span-2 rounded-md border border-solid border-border p-3">
-						<ScheduleFields
-							idPrefix={`${ids}-sched`}
-							value={draft.fixed}
-							onChange={(fixed) => setDraft({ ...draft, fixed })}
-							problem={fixedProblem}
+					{draft.mode === "fixed" && (
+						<div className="lg:col-span-2 rounded-md border border-solid border-border p-3">
+							<ScheduleFields
+								idPrefix={`${ids}-sched`}
+								value={draft.fixed}
+								onChange={(fixed) => setDraft({ ...draft, fixed })}
+								problem={fixedProblem}
+							/>
+						</div>
+					)}
+
+					<div className="flex flex-col gap-2 text-sm">
+						<div className="flex items-center justify-between">
+							<Label htmlFor={`${ids}-max`}>Maximum active time</Label>
+							<span className="tabular-nums text-content-secondary">
+								{hours ? `${formatHours(hours)} after it starts` : "No limit"}
+							</span>
+						</div>
+						<Slider
+							id={`${ids}-max`}
+							aria-label="Maximum active time in hours (0 for no limit)"
+							min={0}
+							max={MAX_HOURS_SLIDER}
+							step={0.5}
+							value={[Math.min(hours, MAX_HOURS_SLIDER)]}
+							onValueChange={([value]) =>
+								setDraft({ ...draft, maxActiveHours: value ? value : null })
+							}
+						/>
+						<p className="m-0 text-content-secondary">
+							No workspace may be scheduled to stay up longer than this.
+							{draft.mode === "fixed" &&
+								` The schedule above is ${formatHours(
+									durationMs(draft.fixed.start, draft.fixed.stop) / 3_600_000,
+								)}.`}
+						</p>
+					</div>
+
+					<div className="flex items-center gap-3 text-sm">
+						<Switch
+							id={`${ids}-admins`}
+							checked={draft.ignoreAdmins}
+							onCheckedChange={(ignoreAdmins) =>
+								setDraft({ ...draft, ignoreAdmins })
+							}
+						/>
+						<Label htmlFor={`${ids}-admins`}>Administrators Exempt</Label>
+					</div>
+
+					<div className="flex flex-col gap-1.5 text-sm">
+						<span className="font-medium">Excluded users</span>
+						<MultiSelectCombobox
+							commandProps={{ label: "Excluded users" }}
+							placeholder="Users the scheduler leaves alone"
+							emptyIndicator={
+								<p className="text-center text-sm">No such user</p>
+							}
+							value={draft.excludedUsers.map((u) => ({ value: u, label: u }))}
+							options={report.users.map((u) => ({ value: u, label: u }))}
+							onChange={(options) =>
+								setDraft({
+									...draft,
+									excludedUsers: options.map((o) => o.value),
+								})
+							}
 						/>
 					</div>
-				)}
+				</fieldset>
 
-				<div className="flex flex-col gap-2 text-sm">
-					<div className="flex items-center justify-between">
-						<Label htmlFor={`${ids}-max`}>Maximum active time</Label>
-						<span className="tabular-nums text-content-secondary">
-							{hours ? `${formatHours(hours)} after it starts` : "No limit"}
-						</span>
+				{saved.enabled && report.noncompliant.length > 0 && (
+					<div className="text-sm">
+						<p className="m-0 mb-1 font-medium">
+							Workspaces without a valid schedule
+						</p>
+						<ul className="m-0 flex max-h-40 list-none flex-col gap-1 overflow-y-auto p-0 text-content-secondary">
+							{report.noncompliant.map((w) => (
+								<li key={w.id}>
+									<span className="text-content-primary">
+										{w.owner}/{w.name}
+									</span>
+									: {w.problem}
+								</li>
+							))}
+						</ul>
 					</div>
-					<Slider
-						id={`${ids}-max`}
-						aria-label="Maximum active time in hours (0 for no limit)"
-						min={0}
-						max={MAX_HOURS_SLIDER}
-						step={0.5}
-						value={[Math.min(hours, MAX_HOURS_SLIDER)]}
-						onValueChange={([value]) =>
-							setDraft({ ...draft, maxActiveHours: value ? value : null })
-						}
-					/>
-					<p className="m-0 text-content-secondary">
-						No workspace may be scheduled to stay up longer than this.
-						{draft.mode === "fixed" &&
-							` The schedule above is ${formatHours(
-								durationMs(draft.fixed.start, draft.fixed.stop) / 3_600_000,
-							)}.`}
-					</p>
-				</div>
-
-				<div className="flex items-center gap-3 text-sm">
-					<Switch
-						id={`${ids}-admins`}
-						checked={draft.ignoreAdmins}
-						onCheckedChange={(ignoreAdmins) =>
-							setDraft({ ...draft, ignoreAdmins })
-						}
-					/>
-					<Label htmlFor={`${ids}-admins`}>Administrators Exempt</Label>
-				</div>
-
-				<div className="flex flex-col gap-1.5 text-sm">
-					<span className="font-medium">Excluded users</span>
-					<MultiSelectCombobox
-						commandProps={{ label: "Excluded users" }}
-						placeholder="Users the scheduler leaves alone"
-						emptyIndicator={<p className="text-center text-sm">No such user</p>}
-						value={draft.excludedUsers.map((u) => ({ value: u, label: u }))}
-						options={report.users.map((u) => ({ value: u, label: u }))}
-						onChange={(options) =>
-							setDraft({
-								...draft,
-								excludedUsers: options.map((o) => o.value),
-							})
-						}
-					/>
-				</div>
-			</fieldset>
-
-			{saved.enabled && report.noncompliant.length > 0 && (
-				<div className="text-sm">
-					<p className="m-0 mb-1 font-medium">
-						Workspaces without a valid schedule
-					</p>
-					<ul className="m-0 flex max-h-40 list-none flex-col gap-1 overflow-y-auto p-0 text-content-secondary">
-						{report.noncompliant.map((w) => (
-							<li key={w.id}>
-								<span className="text-content-primary">
-									{w.owner}/{w.name}
-								</span>{" "}
-								– {w.problem}
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
-
-			<div className="flex items-center gap-3">
-				<Button
-					disabled={
-						!dirty ||
-						save.isPending ||
-						Boolean((fixedProblem || enforcedDaysProblem) && draft.enabled)
-					}
-					onClick={onSave}
-				>
-					{save.isPending ? "Saving…" : "Save scheduler"}
-				</Button>
-				{dirty && (
-					<Button variant="outline" onClick={() => setDraft(saved)}>
-						Discard changes
-					</Button>
 				)}
+
+				<div className="flex items-center gap-3">
+					<Button
+						disabled={
+							!dirty ||
+							save.isPending ||
+							Boolean((fixedProblem || enforcedDaysProblem) && draft.enabled)
+						}
+						onClick={onSave}
+					>
+						{save.isPending ? "Saving…" : "Save scheduler"}
+					</Button>
+					{dirty && (
+						<Button variant="outline" onClick={() => setDraft(saved)}>
+							Discard changes
+						</Button>
+					)}
+				</div>
 			</div>
 		</section>
 	);

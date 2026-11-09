@@ -37,6 +37,7 @@ import { Switch } from "#/components/Switch/Switch";
 import { TableCell } from "#/components/Table/Table";
 import { QuotaAdjustments } from "#/modules/platform/quotaRequests/QuotaAdjustments";
 import { Header, HeaderTitle, Main } from "#/pages/HealthPage/Content";
+import { EnabledToggle } from "./EnabledToggle";
 import { QuotaClusterLoad } from "./QuotaClusterLoad";
 import { formatQuotaNumber, quotaUserColor } from "./quotaFormatting";
 
@@ -302,7 +303,7 @@ export const UserQuotaSection: React.FC<{
 
 	return (
 		<>
-			<Header>
+			<Header className="flex-wrap justify-start gap-3">
 				<HeaderTitle>
 					{report &&
 						(atLimit.length ? (
@@ -319,6 +320,15 @@ export const UserQuotaSection: React.FC<{
 					User Quota
 				</HeaderTitle>
 				{report && (
+					<EnabledToggle
+						label="User quota"
+						title={on ? "Switch user quota off" : "Switch user quota on"}
+						checked={on}
+						disabled={saving}
+						onCheckedChange={onToggle}
+					/>
+				)}
+				{report && (
 					<div className="ml-auto flex items-center gap-3">
 						<Badge variant={on && atLimit.length ? "warning" : "default"}>
 							{!on
@@ -329,13 +339,6 @@ export const UserQuotaSection: React.FC<{
 										? `${atLimit.length} at the limit`
 										: "Everyone within quota"}
 						</Badge>
-						<Switch
-							aria-label="User quota"
-							title={on ? "Switch user quota off" : "Switch user quota on"}
-							checked={on}
-							disabled={saving}
-							onCheckedChange={onToggle}
-						/>
 					</div>
 				)}
 			</Header>
