@@ -15,6 +15,7 @@ import {
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { useDeploymentConfig } from "#/modules/management/DeploymentConfigProvider";
+import { InboxCards } from "#/modules/notifications/NotificationsInbox/InboxCards";
 import { castNotificationMethod } from "#/modules/notifications/utils";
 import { deploymentGroupHasParent } from "#/utils/deployOptions";
 import { pageTitle } from "#/utils/page";
@@ -22,7 +23,12 @@ import OptionsTable from "../OptionsTable";
 import { NotificationEvents } from "./NotificationEvents";
 import { Troubleshooting } from "./Troubleshooting";
 
-const NOTIFICATION_TABS = ["events", "settings", "troubleshooting"] as const;
+const NOTIFICATION_TABS = [
+	"inbox",
+	"events",
+	"settings",
+	"troubleshooting",
+] as const;
 
 function isNotificationTab(
 	value: string,
@@ -50,7 +56,7 @@ const NotificationsPage: React.FC = () => {
 		});
 	const tabState = useSearchParamsKey({
 		key: "tab",
-		defaultValue: "events",
+		defaultValue: "inbox",
 	});
 
 	const activeTab = isNotificationTab(tabState.value)
@@ -75,13 +81,28 @@ const NotificationsPage: React.FC = () => {
 			{!ready ? (
 				<Loader />
 			) : (
-				<Tabs value={activeTab} onValueChange={tabState.setValue}>
-					<TabsList>
-						<TabsTrigger value="events">Events</TabsTrigger>
-						<TabsTrigger value="settings">Settings</TabsTrigger>
-						<TabsTrigger value="troubleshooting">Troubleshooting</TabsTrigger>
-					</TabsList>
-					<TabsContent value="events" className="py-6">
+				// One card with its views as tabs along the top, as the Chat console
+				<Tabs
+					value={activeTab}
+					onValueChange={tabState.setValue}
+					className="flex min-w-0 w-full flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary"
+					data-testid="notifications-card"
+				>
+					<div className="flex shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-3">
+						<TabsList
+							aria-label="Notifications views"
+							className="min-w-0 flex-1 flex-wrap gap-x-4 gap-y-0 border-0"
+						>
+							<TabsTrigger value="inbox">Inbox</TabsTrigger>
+							<TabsTrigger value="events">Events</TabsTrigger>
+							<TabsTrigger value="settings">Settings</TabsTrigger>
+							<TabsTrigger value="troubleshooting">Troubleshooting</TabsTrigger>
+						</TabsList>
+					</div>
+					<TabsContent value="inbox" className="p-4">
+						<InboxCards />
+					</TabsContent>
+					<TabsContent value="events" className="p-4">
 						<NotificationEvents
 							templatesByGroup={allTemplatesByGroup}
 							deploymentConfig={deploymentConfig.config}
@@ -94,14 +115,14 @@ const NotificationsPage: React.FC = () => {
 							)}
 						/>
 					</TabsContent>
-					<TabsContent value="settings" className="py-6">
+					<TabsContent value="settings" className="p-4">
 						<OptionsTable
 							options={deploymentConfig.options.filter((o) =>
 								deploymentGroupHasParent(o.group, "Notifications"),
 							)}
 						/>
 					</TabsContent>
-					<TabsContent value="troubleshooting" className="py-6">
+					<TabsContent value="troubleshooting" className="p-4">
 						<Troubleshooting canEdit={canEditDeploymentConfig} />
 					</TabsContent>
 				</Tabs>

@@ -165,6 +165,7 @@ export const SettingsResourceTray = ({
 						]
 					: []),
 				...pages,
+				{ id: "inbox", label: "Inbox", icon: BellIcon, path: "" },
 				{ id: "logout", label: "Sign out", icon: LogOutIcon, path: "" },
 			].map((page) => [page.id, page]),
 		).values(),
@@ -264,7 +265,34 @@ export const SettingsResourceTray = ({
 	);
 	const resourceLinks = links.map((page) => {
 		const shortcut =
-			page.id === "logout" ? (
+			page.id === "inbox" ? (
+				// The notification inbox's own popover, from a quick link of its own
+				<div className="relative size-8 shrink-0">
+					<NotificationsInbox
+						fetchNotifications={API.getInboxNotifications}
+						markAllAsRead={API.markAllInboxNotificationsAsRead}
+						clearAll={PlatformAPI.clearInbox}
+						markNotificationAsRead={(id) =>
+							API.updateInboxNotificationReadStatus(id, { is_read: true })
+						}
+						trigger={
+							<button
+								type="button"
+								aria-label={page.label}
+								title={page.label}
+								className="flex size-8 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-content-secondary hover:bg-surface-secondary hover:text-content-primary"
+							>
+								<BellIcon aria-hidden className="size-4" />
+							</button>
+						}
+					/>
+					{Boolean(inbox.data?.unread_count) && (
+						<span className="pointer-events-none absolute -right-1.5 -top-1.5 scale-75 origin-top-right">
+							<UnreadBadge count={inbox.data?.unread_count ?? 0} />
+						</span>
+					)}
+				</div>
+			) : page.id === "logout" ? (
 				<DropdownMenuItem
 					aria-label={page.label}
 					title={page.label}

@@ -12,9 +12,7 @@ import { InboxPopover } from "./InboxPopover";
 
 const NOTIFICATIONS_LIMIT = 25; // This is hard set in the API
 
-type NotificationsInboxProps = {
-	defaultOpen?: boolean;
-	trigger?: React.ReactElement;
+type InboxSource = {
 	fetchNotifications: (
 		startingBeforeId?: string,
 	) => Promise<ListInboxNotificationsResponse>;
@@ -26,17 +24,24 @@ type NotificationsInboxProps = {
 	) => Promise<UpdateInboxNotificationReadStatusResponse>;
 };
 
+type NotificationsInboxProps = InboxSource & {
+	defaultOpen?: boolean;
+	trigger?: React.ReactElement;
+};
+
 const WATCH_FAILURES_BEFORE_WARNING = 3;
 const WATCH_TOAST_ID = "inbox-watch-unavailable";
 
-export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
-	defaultOpen,
-	trigger,
+/**
+ * The signed-in user's inbox, kept live: its notifications, the live channel that adds new ones, and the actions
+ * on them. The popover (NotificationsInbox) and the Notifications page's card view both show it.
+ */
+export const useNotificationsInbox = ({
 	fetchNotifications,
 	markAllAsRead,
 	clearAll,
 	markNotificationAsRead,
-}) => {
+}: InboxSource) => {
 	const queryClient = useQueryClient();
 
 	const {
@@ -256,23 +261,33 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 		},
 	});
 
+	return {
+		notifications: inboxRes?.notifications,
+		unreadCount: inboxRes?.unread_count ?? 0,
+		error,
+		isLoadingMoreNotifications,
+		hasMoreNotifications: Boolean(
+			inboxRes &&
+				inboxRes.notifications.length > 0 &&
+				inboxRes.notifications.length % NOTIFICATIONS_LIMIT === 0,
+		),
+		onRetry: () => void refetch(),
+		onMarkAllAsRead: () => markAllAsReadMutation.mutate(),
+		onClearAll: clearAll ? () => clearAllMutation.mutate() : undefined,
+		isClearing: clearAllMutation.isPending,
+		onMarkNotificationAsRead: (id: string) =>
+			markNotificationAsReadMutation.mutate(id),
+		onLoadMoreNotifications: () => loadMoreNotifications(),
+	};
+};
+
+export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
+	defaultOpen,
+	trigger,
+	...source
+}) => {
+	const inbox = useNotificationsInbox(source);
 	return (
-		<InboxPopover
-			trigger={trigger}
-			defaultOpen={defaultOpen}
-			notifications={inboxRes?.notifications}
-			unreadCount={inboxRes?.unread_count ?? 0}
-			error={error}
-			isLoadingMoreNotifications={isLoadingMoreNotifications}
-			hasMoreNotifications={Boolean(
-				inboxRes && inboxRes.notifications.length % NOTIFICATIONS_LIMIT === 0,
-			)}
-			onRetry={refetch}
-			onMarkAllAsRead={markAllAsReadMutation.mutate}
-			onClearAll={clearAll ? () => clearAllMutation.mutate() : undefined}
-			isClearing={clearAllMutation.isPending}
-			onMarkNotificationAsRead={markNotificationAsReadMutation.mutate}
-			onLoadMoreNotifications={loadMoreNotifications}
-		/>
+		<InboxPopover trigger={trigger} defaultOpen={defaultOpen} {...inbox} />
 	);
 };

@@ -469,3 +469,18 @@ it("signs out through the selected resource shortcut", async () => {
 		.click(await screen.findByRole("menuitem", { name: "Sign out" }));
 	expect(signOut).toHaveBeenCalledTimes(1);
 });
+
+it("opens the notification inbox from its quick link", async () => {
+	vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+		resource_shortcuts: ["inbox"],
+	});
+	const fetch = vi
+		.spyOn(API, "getInboxNotifications")
+		.mockResolvedValue({ notifications: [], unread_count: 0 });
+	renderTray(vi.fn());
+	await userEvent
+		.setup()
+		.click(await screen.findByRole("button", { name: "Inbox" }));
+	await waitFor(() => expect(fetch).toHaveBeenCalled());
+	await screen.findByText("Inbox");
+});
