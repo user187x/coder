@@ -168,10 +168,10 @@
 	--toggle-width: 2.25rem;
 	position: relative;
 	isolation: isolate;
-	/* The icon centred on the white face: from its notch to where its point begins (the face ends 3px short of the
-	   toggle's own notch). */
+	/* The icon centred where the eye measures the white face: across its middle, from the notch's tip to the point's
+	   tip (the face ends 3px short of the toggle's own notch). */
 	padding-left: var(--crumb-edge);
-	padding-right: calc(var(--toggle-width) + 3px);
+	padding-right: calc(var(--toggle-width) - var(--crumb-edge) + 3px);
 	background: transparent;
 	border-radius: 0;
 	clip-path: polygon(

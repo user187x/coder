@@ -5,10 +5,14 @@ import {
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { settingsSections } from "./settingsSections";
 
-export const Sidebar: React.FC = () => {
+export const Sidebar: React.FC<{
+	/** Above the sections: the settings breadcrumb, as the admin settings' list has it. */
+	header?: React.ReactNode;
+}> = ({ header }) => {
 	const { entitlements, buildInfo } = useDashboard();
 	return (
 		<BaseSidebar className="lg:sticky lg:top-[calc(var(--dashboard-navigation-height,72px)+var(--admin-breadcrumb-height,0px)+16px+var(--coder-classification-h,0px))] lg:self-start [@media(max-height:640px)]:static">
+			{header && <div className="flex items-center pb-1">{header}</div>}
 			{/* Inset like the admin list's rows, which leave room for their drag handles. */}
 			<div className="flex flex-col gap-1 pl-4">
 				{Object.entries(settingsSections).map(
