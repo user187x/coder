@@ -15,7 +15,7 @@ import {
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { useDeploymentConfig } from "#/modules/management/DeploymentConfigProvider";
-import { InboxCards } from "#/modules/notifications/NotificationsInbox/InboxCards";
+import { InboxView } from "#/modules/notifications/NotificationsInbox/InboxView";
 import { castNotificationMethod } from "#/modules/notifications/utils";
 import { deploymentGroupHasParent } from "#/utils/deployOptions";
 import { pageTitle } from "#/utils/page";
@@ -100,7 +100,7 @@ const NotificationsPage: React.FC = () => {
 						</TabsList>
 					</div>
 					<TabsContent value="inbox" className="p-4">
-						<InboxCards />
+						<InboxView />
 					</TabsContent>
 					<TabsContent value="toast" className="p-4">
 						<ToastComposer canEdit={canEditDeploymentConfig} />

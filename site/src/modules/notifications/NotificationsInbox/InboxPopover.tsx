@@ -55,9 +55,14 @@ type InboxPopoverProps = {
 	trigger?: React.ReactElement;
 };
 
-export const InboxPopover: React.FC<InboxPopoverProps> = ({
-	defaultOpen,
-	trigger,
+/** The inbox itself: its header (count, search, bulk actions on their hazard-striped surface) and its notifications,
+ * newest first. The navbar's popover shows it, and the Notifications page's Inbox tab, bigger. */
+export const InboxPanel: React.FC<
+	Omit<InboxPopoverProps, "defaultOpen" | "trigger"> & {
+		/** Leaving for the notification settings (the popover closes). */
+		onNavigate?: () => void;
+	}
+> = ({
 	unreadCount,
 	notifications,
 	error,
@@ -69,8 +74,8 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 	isClearing,
 	onMarkNotificationAsRead,
 	onLoadMoreNotifications,
+	onNavigate,
 }) => {
-	const [isOpen, setIsOpen] = useState(defaultOpen);
 	// Platform: Clear all deletes, so it asks twice: the first click opens it into a labelled "Clear all?" for a few
 	// seconds, the second clears.
 	const [clearArmed, setClearArmed] = useState(false);
@@ -91,195 +96,191 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 	);
 
 	return (
+		<div className="flex max-h-(--radix-popover-content-available-height) flex-col">
+			<div className="flex shrink-0 items-center gap-2 p-3 border-0 border-b border-solid border-border">
+				<div className="flex shrink-0 items-center gap-2">
+					<span className="text-xl font-semibold">Inbox</span>
+					{unreadCount > 0 && <UnreadBadge count={unreadCount} />}
+				</div>
+
+				<label
+					className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-solid border-border bg-surface-primary px-2"
+					data-testid="inbox-search"
+				>
+					<SearchIcon className="size-3.5 shrink-0 text-content-secondary" />
+					<input
+						type="search"
+						value={query}
+						onChange={(event) => setQuery(event.target.value)}
+						onKeyDown={(event) => {
+							if (event.key === "Escape" && query) {
+								event.stopPropagation();
+								setQuery("");
+							}
+						}}
+						placeholder="Search"
+						aria-label="Search notifications"
+						className="h-full min-w-0 flex-1 border-0 bg-transparent text-sm text-inherit outline-hidden"
+					/>
+				</label>
+
+				<div className="bulk-action-surface flex shrink-0 justify-end gap-1 rounded-md p-1">
+					{onClearAll && (
+						<Button
+							variant={clearArmed ? "destructive" : "outline"}
+							size={clearArmed ? "sm" : "icon"}
+							disabled={!hasNotifications || isClearing}
+							title={
+								clearArmed
+									? "Click again to clear all notifications"
+									: "Clear all"
+							}
+							data-testid="inbox-clear-all"
+							data-armed={clearArmed || undefined}
+							onClick={() => {
+								if (clearArmed) {
+									setClearArmed(false);
+									onClearAll();
+								} else {
+									setClearArmed(true);
+								}
+							}}
+						>
+							<Spinner loading={isClearing}>
+								<Trash2Icon />
+							</Spinner>
+							{clearArmed ? (
+								<span>Clear all?</span>
+							) : (
+								<span className="sr-only">Clear all</span>
+							)}
+						</Button>
+					)}
+					<Button
+						variant="outline"
+						size="icon"
+						disabled={unreadCount === 0}
+						title={unreadCount === 0 ? "Nothing unread" : "Mark all as read"}
+						onClick={onMarkAllAsRead}
+					>
+						<CheckCheckIcon />
+						<span className="sr-only">Mark all as read</span>
+					</Button>
+					<Button variant="outline" size="icon" asChild>
+						<RouterLink to="/settings/notifications" onClick={onNavigate}>
+							<SettingsIcon />
+							<span className="sr-only">Notification settings</span>
+						</RouterLink>
+					</Button>
+				</div>
+			</div>
+
+			<ScrollArea className="min-h-0 flex-1 [&>[data-radix-scroll-area-viewport]]:max-h-[calc(var(--radix-popover-content-available-height)-4.5rem)]">
+				<div className="p-2" data-testid="inbox-list">
+					{shown ? (
+						shown.length > 0 ? (
+							<div
+								className={cn([
+									"flex flex-col gap-1",
+									"[&>[role=menuitem]]:rounded-md [&>[role=menuitem]]:border [&>[role=menuitem]]:border-solid [&>[role=menuitem]]:border-border",
+								])}
+							>
+								{shown.map((notification) => (
+									<InboxItem
+										key={notification.id}
+										notification={notification}
+										onMarkNotificationAsRead={onMarkNotificationAsRead}
+									/>
+								))}
+								{hasMoreNotifications && (
+									<Button
+										variant="subtle"
+										size="sm"
+										disabled={isLoadingMoreNotifications}
+										onClick={onLoadMoreNotifications}
+										className="w-full"
+									>
+										<Spinner loading={isLoadingMoreNotifications} size="sm" />
+										{query ? "Load more to search them too" : "Load more"}
+									</Button>
+								)}
+							</div>
+						) : (
+							<div className="p-6 flex items-center justify-center min-h-48">
+								<div className="text-sm text-center flex flex-col">
+									<span className="font-medium">
+										{query ? "Nothing matches" : "No notifications"}
+									</span>
+									<span className="text-xs text-content-secondary">
+										{query
+											? hasMoreNotifications
+												? "Only the notifications loaded are searched: load more to search older ones."
+												: "No notification holds those words."
+											: "New notifications will be displayed here."}
+									</span>
+									{query && hasMoreNotifications && (
+										<div className="mt-3">
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={isLoadingMoreNotifications}
+												onClick={onLoadMoreNotifications}
+											>
+												<Spinner
+													loading={isLoadingMoreNotifications}
+													size="sm"
+												/>
+												Load more
+											</Button>
+										</div>
+									)}
+								</div>
+							</div>
+						)
+					) : error === undefined ? (
+						<div className="p-6 flex items-center justify-center min-h-48">
+							<Spinner loading />
+							<span className="sr-only">Loading notifications...</span>
+						</div>
+					) : (
+						<div className="p-6 flex items-center justify-center min-h-48">
+							<div className="text-sm text-center flex flex-col">
+								<span className="font-medium">Error loading notifications</span>
+								<span className="text-xs text-content-secondary">
+									Click on the button below to retry
+								</span>
+								<div className="mt-3">
+									<Button size="sm" variant="outline" onClick={onRetry}>
+										<RefreshCwIcon />
+										Retry
+									</Button>
+								</div>
+							</div>
+						</div>
+					)}
+				</div>
+			</ScrollArea>
+		</div>
+	);
+};
+
+export const InboxPopover: React.FC<InboxPopoverProps> = ({
+	defaultOpen,
+	trigger,
+	...inbox
+}) => {
+	const [isOpen, setIsOpen] = useState(defaultOpen);
+	return (
 		<Popover open={isOpen} onOpenChange={setIsOpen}>
 			<PopoverTrigger asChild>
-				{trigger ?? <InboxButton unreadCount={unreadCount} />}
+				{trigger ?? <InboxButton unreadCount={inbox.unreadCount} />}
 			</PopoverTrigger>
 			<PopoverContent
 				className="w-(--radix-popper-available-width) max-w-[466px]"
 				align="end"
 				onKeyDown={(event) => event.stopPropagation()}
 			>
-				{/*
-				 * Platform: the header stays put above the list (it no longer scrolls with it, covering its first entry),
-				 * and the list scrolls in its own container, with room around its entries. The popover's height is the
-				 * room below the navbar: the list takes what the header leaves.
-				 */}
-				<div className="flex max-h-(--radix-popover-content-available-height) flex-col">
-					<div className="flex shrink-0 items-center gap-2 p-3 border-0 border-b border-solid border-border">
-						<div className="flex shrink-0 items-center gap-2">
-							<span className="text-xl font-semibold">Inbox</span>
-							{unreadCount > 0 && <UnreadBadge count={unreadCount} />}
-						</div>
-
-						<label
-							className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-solid border-border bg-surface-primary px-2"
-							data-testid="inbox-search"
-						>
-							<SearchIcon className="size-3.5 shrink-0 text-content-secondary" />
-							<input
-								type="search"
-								value={query}
-								onChange={(event) => setQuery(event.target.value)}
-								onKeyDown={(event) => {
-									if (event.key === "Escape" && query) {
-										event.stopPropagation();
-										setQuery("");
-									}
-								}}
-								placeholder="Search"
-								aria-label="Search notifications"
-								className="h-full min-w-0 flex-1 border-0 bg-transparent text-sm text-inherit outline-hidden"
-							/>
-						</label>
-
-						<div className="bulk-action-surface flex shrink-0 justify-end gap-1 rounded-md p-1">
-							{onClearAll && (
-								<Button
-									variant={clearArmed ? "destructive" : "outline"}
-									size={clearArmed ? "sm" : "icon"}
-									disabled={!hasNotifications || isClearing}
-									title={
-										clearArmed
-											? "Click again to clear all notifications"
-											: "Clear all"
-									}
-									data-testid="inbox-clear-all"
-									data-armed={clearArmed || undefined}
-									onClick={() => {
-										if (clearArmed) {
-											setClearArmed(false);
-											onClearAll();
-										} else {
-											setClearArmed(true);
-										}
-									}}
-								>
-									<Spinner loading={isClearing}>
-										<Trash2Icon />
-									</Spinner>
-									{clearArmed ? (
-										<span>Clear all?</span>
-									) : (
-										<span className="sr-only">Clear all</span>
-									)}
-								</Button>
-							)}
-							<Button
-								variant="outline"
-								size="icon"
-								disabled={unreadCount === 0}
-								title={
-									unreadCount === 0 ? "Nothing unread" : "Mark all as read"
-								}
-								onClick={onMarkAllAsRead}
-							>
-								<CheckCheckIcon />
-								<span className="sr-only">Mark all as read</span>
-							</Button>
-							<Button variant="outline" size="icon" asChild>
-								<RouterLink
-									to="/settings/notifications"
-									onClick={() => setIsOpen(false)}
-								>
-									<SettingsIcon />
-									<span className="sr-only">Notification settings</span>
-								</RouterLink>
-							</Button>
-						</div>
-					</div>
-
-					<ScrollArea className="min-h-0 flex-1 [&>[data-radix-scroll-area-viewport]]:max-h-[calc(var(--radix-popover-content-available-height)-4.5rem)]">
-						<div className="p-2" data-testid="inbox-list">
-							{shown ? (
-								shown.length > 0 ? (
-									<div
-										className={cn([
-											"flex flex-col gap-1",
-											"[&>[role=menuitem]]:rounded-md [&>[role=menuitem]]:border [&>[role=menuitem]]:border-solid [&>[role=menuitem]]:border-border",
-										])}
-									>
-										{shown.map((notification) => (
-											<InboxItem
-												key={notification.id}
-												notification={notification}
-												onMarkNotificationAsRead={onMarkNotificationAsRead}
-											/>
-										))}
-										{hasMoreNotifications && (
-											<Button
-												variant="subtle"
-												size="sm"
-												disabled={isLoadingMoreNotifications}
-												onClick={onLoadMoreNotifications}
-												className="w-full"
-											>
-												<Spinner
-													loading={isLoadingMoreNotifications}
-													size="sm"
-												/>
-												{query ? "Load more to search them too" : "Load more"}
-											</Button>
-										)}
-									</div>
-								) : (
-									<div className="p-6 flex items-center justify-center min-h-48">
-										<div className="text-sm text-center flex flex-col">
-											<span className="font-medium">
-												{query ? "Nothing matches" : "No notifications"}
-											</span>
-											<span className="text-xs text-content-secondary">
-												{query
-													? hasMoreNotifications
-														? "Only the notifications loaded are searched: load more to search older ones."
-														: "No notification holds those words."
-													: "New notifications will be displayed here."}
-											</span>
-											{query && hasMoreNotifications && (
-												<div className="mt-3">
-													<Button
-														size="sm"
-														variant="outline"
-														disabled={isLoadingMoreNotifications}
-														onClick={onLoadMoreNotifications}
-													>
-														<Spinner
-															loading={isLoadingMoreNotifications}
-															size="sm"
-														/>
-														Load more
-													</Button>
-												</div>
-											)}
-										</div>
-									</div>
-								)
-							) : error === undefined ? (
-								<div className="p-6 flex items-center justify-center min-h-48">
-									<Spinner loading />
-									<span className="sr-only">Loading notifications...</span>
-								</div>
-							) : (
-								<div className="p-6 flex items-center justify-center min-h-48">
-									<div className="text-sm text-center flex flex-col">
-										<span className="font-medium">
-											Error loading notifications
-										</span>
-										<span className="text-xs text-content-secondary">
-											Click on the button below to retry
-										</span>
-										<div className="mt-3">
-											<Button size="sm" variant="outline" onClick={onRetry}>
-												<RefreshCwIcon />
-												Retry
-											</Button>
-										</div>
-									</div>
-								</div>
-							)}
-						</div>
-					</ScrollArea>
-				</div>
+				<InboxPanel {...inbox} onNavigate={() => setIsOpen(false)} />
 			</PopoverContent>
 		</Popover>
 	);
