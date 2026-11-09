@@ -5,6 +5,7 @@ import { GlobalLockdownCard } from "#/modules/platform/globalLockdown/GlobalLock
 import { WorkspaceQuarantineCard } from "#/modules/platform/quarantine/WorkspaceQuarantine";
 import { SecurityActivity } from "#/modules/platform/security/SecurityActivity";
 import { pageTitle } from "#/utils/page";
+import { CollapsibleSecurityCard } from "./CollapsibleSecurityCard";
 import { SecuritySettingsPageView } from "./SecuritySettingsPageView";
 
 const SecuritySettingsPage: React.FC = () => {
@@ -18,18 +19,32 @@ const SecuritySettingsPage: React.FC = () => {
 			<SecuritySettingsPageView
 				options={deploymentConfig.options}
 				activity={
-					permissions.viewAnyAuditLog ? <SecurityActivity /> : undefined
+					permissions.viewAnyAuditLog ? (
+						<CollapsibleSecurityCard id="activity" title="Coder security logs">
+							<SecurityActivity />
+						</CollapsibleSecurityCard>
+					) : undefined
 				}
 				lockdown={
 					user.roles.some((role) => role.name === "owner") ? (
 						<div className="flex flex-col gap-6">
+							{/* Global Command & Control always stays open */}
 							<GlobalLockdownCard />
-							<WorkspaceQuarantineCard />
+							<CollapsibleSecurityCard
+								id="quarantine"
+								title="Workspace quarantine"
+							>
+								<WorkspaceQuarantineCard />
+							</CollapsibleSecurityCard>
 						</div>
 					) : undefined
 				}
 				certificates={
-					permissions.editDeploymentConfig ? <CertificateOverview /> : undefined
+					permissions.editDeploymentConfig ? (
+						<CollapsibleSecurityCard id="certificates" title="Certificates">
+							<CertificateOverview />
+						</CollapsibleSecurityCard>
+					) : undefined
 				}
 			/>
 		</>
