@@ -1,5 +1,9 @@
 import type { Query, QueryClient } from "react-query";
-import { PlatformAPI, type WorkspacePowerOperation } from "#/api/platform";
+import {
+	PlatformAPI,
+	type TerminateSignoffs,
+	type WorkspacePowerOperation,
+} from "#/api/platform";
 import type { Workspace } from "#/api/typesGenerated";
 import { globalLockdownKey } from "./globalLockdown";
 import { workspacesQueryKeyPrefix } from "./workspaces";
@@ -50,10 +54,13 @@ export const runWorkspacePower = (
 		action,
 		targets,
 		excludeAdmins = false,
+		roundId,
 	}: {
 		action: WorkspacePowerOperation["action"];
 		targets: readonly Workspace[];
 		excludeAdmins?: boolean;
+		/** Terminate: the round of sign-offs that allows it (terminateSignoffs). */
+		roundId?: string;
 	}): Promise<WorkspacePowerResult> => {
 		const result: WorkspacePowerResult = { operations: [], errors: [] };
 		const groups = new Map<string, string[]>();
@@ -79,12 +86,14 @@ export const runWorkspacePower = (
 									batch,
 									globalToken,
 									excludeAdmins,
+									roundId,
 								)
 							: await PlatformAPI.startWorkspacePower(
 									organizationId,
 									action,
 									batch,
 									excludeAdmins,
+									roundId,
 								);
 						remember(client, operation);
 						while (operation.status === "running") {
@@ -113,6 +122,10 @@ export const runWorkspacePower = (
 		await Promise.all(
 			Array.from({ length: Math.min(4, pending.length) }, () => worker()),
 		);
+		if (roundId) {
+			// Every organization's terminate started (or failed): its sign-offs are spent.
+			await PlatformAPI.completeTerminate(roundId).catch(() => undefined);
+		}
 		return result;
 	},
 	onSettled: async () => {
@@ -144,3 +157,29 @@ export const clearWorkspacePowerHistory = (client: QueryClient) => ({
 	},
 	onSettled: () => client.invalidateQueries({ queryKey: workspacePowerKey }),
 });
+
+const terminateSignoffsKey = [
+	...workspacePowerKey,
+	"terminate-signoffs",
+] as const;
+
+/** The open round of administrators' sign-offs on Global Terminate, kept current while another admin signs. */
+export const terminateSignoffs = () => ({
+	queryKey: terminateSignoffsKey,
+	queryFn: () => PlatformAPI.getTerminateSignoffs(),
+	refetchInterval: 3000,
+	retry: false,
+});
+
+const signoffMutation =
+	(client: QueryClient) => (mutationFn: () => Promise<TerminateSignoffs>) => ({
+		mutationFn,
+		onSuccess: (data: TerminateSignoffs) =>
+			client.setQueryData(terminateSignoffsKey, data),
+	});
+
+export const signTerminate = (client: QueryClient) =>
+	signoffMutation(client)(PlatformAPI.signTerminate);
+
+export const cancelTerminate = (client: QueryClient) =>
+	signoffMutation(client)(PlatformAPI.cancelTerminate);

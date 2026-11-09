@@ -2220,6 +2220,25 @@ export type ProvisionersRekickResult = {
 };
 
 /** A reviewed organization-scoped bulk workspace power operation. */
+/** An administrator's sign-off on Global Terminate (terminatesignoff.py). */
+export type TerminateSignoff = {
+	user_id: string;
+	username: string;
+	name: string;
+	/** The SHA-256 thumbprint of their x509 device certificate, "AB:CD:...". */
+	fingerprint: string;
+	signed_at: string;
+};
+
+/** The open round of sign-offs on Global Terminate: it runs once `required` administrators signed. */
+export type TerminateSignoffs = {
+	round_id: string | null;
+	required: number;
+	round_seconds: number;
+	opened_at: string | null;
+	signoffs: TerminateSignoff[];
+};
+
 export type WorkspacePowerOperation = {
 	exclude_admins?: boolean;
 	id: string;
@@ -2312,11 +2331,18 @@ export const PlatformAPI = {
 		workspace_ids: string[],
 		token: string,
 		exclude_admins = false,
+		round_id?: string,
 	) =>
 		(
 			await API.getAxiosInstance().post<WorkspacePowerOperation>(
 				`/api/v2/global-lockdown/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
-				{ action, workspace_ids, confirmation: action, exclude_admins },
+				{
+					action,
+					workspace_ids,
+					confirmation: action,
+					exclude_admins,
+					round_id,
+				},
 				{
 					headers: {
 						"X-Requested-With": PLATFORM_REQUESTED_WITH,
@@ -2330,10 +2356,29 @@ export const PlatformAPI = {
 		action: WorkspacePowerOperation["action"],
 		workspace_ids: string[],
 		exclude_admins = false,
+		round_id?: string,
 	) =>
 		post<WorkspacePowerOperation>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
-			{ action, workspace_ids, confirmation: action, exclude_admins },
+			{ action, workspace_ids, confirmation: action, exclude_admins, round_id },
+		),
+	getTerminateSignoffs: () =>
+		get<TerminateSignoffs>(
+			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs`,
+		),
+	signTerminate: () =>
+		post<TerminateSignoffs>(
+			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs`,
+			{},
+		),
+	cancelTerminate: () =>
+		deleteJSON<TerminateSignoffs>(
+			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs`,
+		),
+	completeTerminate: (round_id: string) =>
+		post<TerminateSignoffs>(
+			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs/complete`,
+			{ round_id },
 		),
 	getWorkspaceTunnels: (organizationId: string) =>
 		get<{ tunnels: WorkspaceTunnel[] }>(

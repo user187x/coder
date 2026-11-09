@@ -32,6 +32,7 @@ it("submits all reviewed IDs including administrator-owned targets in batches of
 		"shutdown",
 		targets.slice(0, 100).map((w) => w.id),
 		false,
+		undefined,
 	);
 	expect(start).toHaveBeenNthCalledWith(
 		2,
@@ -39,6 +40,7 @@ it("submits all reviewed IDs including administrator-owned targets in batches of
 		"shutdown",
 		["workspace-100"],
 		false,
+		undefined,
 	);
 });
 it("waits for server completion before submitting the next batch", async () => {
@@ -163,8 +165,38 @@ it("uses the server-guarded route for global actions", async () => {
 		[MockWorkspace.id],
 		"test-global-token",
 		true,
+		undefined,
 	);
 	expect(regular).not.toHaveBeenCalled();
+});
+
+it("sends a terminate's sign-off round and closes it once every organization started", async () => {
+	const global = vi
+		.spyOn(PlatformAPI, "startGlobalWorkspacePower")
+		.mockResolvedValue(MockWorkspacePowerOperation);
+	const complete = vi
+		.spyOn(PlatformAPI, "completeTerminate")
+		.mockResolvedValue({
+			round_id: null,
+			required: 2,
+			round_seconds: 900,
+			opened_at: null,
+			signoffs: [],
+		});
+	await runWorkspacePower(new QueryClient(), "test-global-token").mutationFn({
+		action: "terminate",
+		targets: [MockWorkspace],
+		roundId: "round-1",
+	});
+	expect(global).toHaveBeenCalledWith(
+		MockWorkspace.organization_id,
+		"terminate",
+		[MockWorkspace.id],
+		"test-global-token",
+		false,
+		"round-1",
+	);
+	expect(complete).toHaveBeenCalledExactlyOnceWith("round-1");
 });
 
 it("refreshes history after a partial clear and never clears running entries", async () => {

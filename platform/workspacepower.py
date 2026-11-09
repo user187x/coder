@@ -14,6 +14,8 @@ import time
 import urllib.parse
 import uuid
 
+import terminatesignoff
+
 BASE = "/__coder-ui/api"
 FILE = os.environ.get("WORKSPACE_POWER_FILE", "/data/workspace-power.json")
 NAMESPACE = os.environ.get("CODER_NAMESPACE", "coder")
@@ -155,6 +157,9 @@ def start(token, user, oid, body):
     action = body.get("action")
     if action not in ("shutdown", "terminate") or body.get("confirmation") != action:
         raise ValueError("Confirm the exact shutdown or terminate action.")
+    if action == "terminate":
+        # Two administrators signed off on it (terminatesignoff), in the round the request names.
+        terminatesignoff.ready(body.get("round_id"))
     ids = body.get("workspace_ids")
     if not isinstance(ids, list) or not 1 <= len(ids) <= MAX_TARGETS:
         raise ValueError("Review between 1 and 100 workspace IDs per organization.")

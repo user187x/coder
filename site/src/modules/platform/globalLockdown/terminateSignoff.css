@@ -1,0 +1,141 @@
+/* Global Terminate's sign-offs (TerminateSignoff.tsx): a dimple at each end of the button, which becomes a turning red
+   emergency light when an administrator signs off; then the button folds down into a split-flap countdown. */
+.terminate-dimple,
+.terminate-beacon {
+	flex: none;
+	width: 1.375rem;
+	height: 1.375rem;
+	border-radius: 9999px;
+}
+.terminate-dimple {
+	background: hsl(var(--surface-tertiary));
+	box-shadow:
+		inset 0 2px 3px rgb(0 0 0 / 0.55),
+		inset 0 -1px 1px rgb(255 255 255 / 0.12);
+}
+.terminate-beacon {
+	position: relative;
+	overflow: hidden;
+	padding: 0;
+	border: 1px solid rgb(127 29 29);
+	cursor: help;
+	background: radial-gradient(
+		circle at 50% 45%,
+		#ff8a80 0 18%,
+		#e53935 42%,
+		#8e0000 100%
+	);
+	box-shadow:
+		0 0 6px 1px rgb(239 68 68 / 0.85),
+		0 0 14px 3px rgb(239 68 68 / 0.4);
+}
+.terminate-beacon-beam {
+	position: absolute;
+	inset: -40%;
+	background: conic-gradient(
+		from 0deg,
+		transparent 0 70%,
+		rgb(255 255 255 / 0.85) 80%,
+		transparent 90%
+	);
+	animation: terminate-beacon-turn 0.9s linear infinite;
+}
+@keyframes terminate-beacon-turn {
+	to {
+		transform: rotate(1turn);
+	}
+}
+
+/* The button folds down (hinged at its bottom) as the countdown takes its place. */
+.terminate-fold {
+	max-height: 4rem;
+	transform-origin: 50% 100%;
+	transition:
+		transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+		opacity 0.45s,
+		max-height 0.45s;
+}
+/* Folded, it gives its place to the countdown. */
+.terminate-fold-down {
+	max-height: 0;
+	overflow: hidden;
+	transform: perspective(400px) rotateX(-90deg);
+	opacity: 0;
+}
+.terminate-countdown {
+	animation: terminate-unfold 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+	transform-origin: 50% 0;
+}
+@keyframes terminate-unfold {
+	from {
+		transform: perspective(400px) rotateX(90deg);
+		opacity: 0;
+	}
+}
+
+/* A split-flap digit: the card flips down from its top half to show the next value. */
+.terminate-flap {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 3.5rem;
+	height: 4.5rem;
+	perspective: 300px;
+	border-radius: 0.5rem;
+	background: #111;
+	box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+	font:
+		700 2.75rem / 1 ui-monospace,
+		SFMono-Regular,
+		Menlo,
+		monospace;
+	font-variant-numeric: tabular-nums;
+}
+.terminate-flap::after {
+	content: "";
+	position: absolute;
+	inset: 50% 0 auto;
+	height: 2px;
+	background: rgb(0 0 0 / 0.85);
+}
+.terminate-flap-card {
+	animation: terminate-flap 0.35s cubic-bezier(0.3, 0, 0.3, 1);
+	transform-origin: 50% 50%;
+}
+@keyframes terminate-flap {
+	from {
+		transform: rotateX(90deg);
+	}
+}
+
+/* At zero the screen flashes white, over everything. */
+.terminate-flash {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483647;
+	pointer-events: none;
+	background: #fff;
+	animation: terminate-flash 0.9s ease-out forwards;
+}
+@keyframes terminate-flash {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.terminate-beacon-beam,
+	.terminate-flap-card,
+	.terminate-countdown {
+		animation: none;
+	}
+	.terminate-fold {
+		transition: none;
+	}
+	.terminate-flash {
+		animation-duration: 0.3s;
+	}
+}

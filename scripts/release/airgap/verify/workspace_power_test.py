@@ -22,6 +22,10 @@ class WorkspacePowerTest(unittest.TestCase):
         patch = mock.patch.object(power, "FILE", os.path.join(self.directory.name, "power.json"))
         patch.start()
         self.addCleanup(patch.stop)
+        # Two administrators' sign-offs are terminatesignoff's (its own tests); here a terminate always has them.
+        signed = mock.patch.object(power.terminatesignoff, "ready", return_value=None)
+        self.ready = signed.start()
+        self.addCleanup(signed.stop)
         self.org, self.wid, self.build, self.version = [str(uuid.uuid4()) for _ in range(4)]
         self.ws = {"id": self.wid, "name": "fixture", "owner_name": "admin", "owner_id": str(uuid.uuid4()),
                    "organization_id": self.org, "latest_build": {"id": self.build, "status": "running",
@@ -37,6 +41,13 @@ class WorkspacePowerTest(unittest.TestCase):
                                    {"action": action, "workspace_ids": [self.wid], "confirmation": action})
         return power.read_operation(self.org, response["id"])
 
+
+    def test_terminate_needs_its_signoff_round(self):
+        self.ready.side_effect = PermissionError("Terminate needs the sign-off of two administrators.")
+        with self.assertRaises(PermissionError):
+            power.start("session", self.user, self.org, {"action": "terminate", "confirmation": "terminate",
+                                                        "workspace_ids": [self.wid], "round_id": "r"})
+        self.ready.assert_called_once_with("r")
     def execute(self, operation, builds, force=None):
         builds = iter(builds)
         requests = []

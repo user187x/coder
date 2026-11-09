@@ -196,6 +196,7 @@ QUARANTINE_ENFORCER = None
 NEKO_MEDIA = None
 import vmusercommand
 import quotaextras
+import terminatesignoff
 import nodeprovisioning
 import workspacecapacity
 import workspacenodemetrics
@@ -8883,6 +8884,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if quotaextras.handle(self, "GET", path, url.query):
             return
+        if terminatesignoff.handle(self, "GET", path):
+            return
         if workspacepower.handle(self, "GET", path, url.query):
             return
         if workspacetunnels.handle(self, "GET", path, url.query):
@@ -10084,6 +10087,8 @@ class Handler(BaseHTTPRequestHandler):
         # DELETE handlers may finish without reading the client's JSON body.
         self.close_connection = True
         url = urllib.parse.urlsplit(self.path)
+        if terminatesignoff.handle(self, "DELETE", url.path):
+            return
         if workspacepower.handle(self, "DELETE", url.path, url.query):
             return
         if not workspacetunnels.handle(self, "DELETE", url.path, url.query):
@@ -10126,6 +10131,8 @@ class Handler(BaseHTTPRequestHandler):
         if dr.handle(self, "POST", path, url.query):
             return
         if quotaextras.handle(self, "POST", path, url.query):
+            return
+        if terminatesignoff.handle(self, "POST", path):
             return
         if workspacepower.handle(self, "POST", path, url.query):
             return
@@ -10886,6 +10893,7 @@ def main():
     UI_STATE = uistate.UIState(lambda: LOGOS.pool if LOGOS else None, log,
                               infrastructure=workspacenodemetrics.collect_history)
     adminnotes.setup(UI_STATE, log)
+    terminatesignoff.setup(UI_STATE, log)
     clientcertificates.setup(UI_STATE, log, certificate_identity_provider)
     HUD_HISTORY = HudHistory(os.path.join(os.path.dirname(DB_PATH) or "/data", "hud.sqlite"), backing=UI_STATE)
     HUD_HISTORY.start()

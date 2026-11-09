@@ -1,41 +1,156 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { TerminateSignoff, TerminateSignoffs } from "#/api/platform";
 import { MockWorkspace } from "#/testHelpers/entities";
 import { renderComponent as render } from "#/testHelpers/renderHelpers";
 import { MockWorkspacePowerOperation } from "#/testHelpers/workspacePower";
 import { GlobalWorkspaceActionsView } from "./GlobalWorkspaceActions";
 
-it.each([
-	["Shut Down", "shutdown"],
-	["Terminate", "terminate"],
-])("requires explicit review confirmation for %s", async (label, action) => {
+it("requires explicit review confirmation for Shut Down", async () => {
 	const onRun = vi.fn();
 	const user = userEvent.setup();
 	render(
 		<GlobalWorkspaceActionsView workspaces={[MockWorkspace]} onRun={onRun} />,
 	);
-	await user.click(screen.getByRole("button", { name: label }));
+	await user.click(screen.getByRole("button", { name: "Shut Down" }));
 	const dialog = within(screen.getByRole("dialog"));
-	await user.click(dialog.getByRole("button", { name: label }));
+	await user.click(dialog.getByRole("button", { name: "Shut Down" }));
 	expect(onRun).not.toHaveBeenCalled();
-	await user.type(dialog.getByLabelText(`Type ${action} to confirm`), action);
-	await user.click(dialog.getByRole("button", { name: label }));
-	expect(onRun).toHaveBeenCalledExactlyOnceWith(action, [MockWorkspace], true);
+	await user.type(
+		dialog.getByLabelText("Type shutdown to confirm"),
+		"shutdown",
+	);
+	await user.click(dialog.getByRole("button", { name: "Shut Down" }));
+	expect(onRun).toHaveBeenCalledExactlyOnceWith(
+		"shutdown",
+		[MockWorkspace],
+		true,
+	);
 });
-it("cancels without submitting a workspace power operation", async () => {
+
+const otherSignoff = {
+	user_id: "other-admin",
+	username: "grace",
+	name: "Grace",
+	fingerprint: "AB:CD",
+	signed_at: "2026-11-09T06:00:00Z",
+};
+const round = (signoffs: TerminateSignoff[]): TerminateSignoffs => ({
+	round_id: "round-1",
+	required: 2,
+	round_seconds: 900,
+	opened_at: signoffs[0]?.signed_at ?? null,
+	signoffs,
+});
+
+it("signs off on Terminate without running it until a second administrator signs", async () => {
 	const onRun = vi.fn();
+	const onSign = vi.fn();
 	const user = userEvent.setup();
 	render(
-		<GlobalWorkspaceActionsView workspaces={[MockWorkspace]} onRun={onRun} />,
+		<GlobalWorkspaceActionsView
+			workspaces={[MockWorkspace]}
+			onRun={onRun}
+			onSign={onSign}
+			userId="me"
+		/>,
 	);
 	await user.click(screen.getByRole("button", { name: "Terminate" }));
+	const dialog = within(screen.getByRole("dialog"));
 	await user.type(
-		screen.getByLabelText("Type terminate to confirm"),
+		dialog.getByLabelText("Type terminate to confirm"),
 		"terminate",
 	);
-	await user.click(screen.getByRole("button", { name: "Cancel" }));
+	await user.click(dialog.getByRole("button", { name: "Sign off" }));
+	expect(onSign).toHaveBeenCalledTimes(1);
+	onSign.mock.calls[0][0](round([{ ...otherSignoff, user_id: "me" }]));
 	expect(onRun).not.toHaveBeenCalled();
 });
+
+it("counts down after the last sign-off, then terminates the reviewed workspaces", async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true });
+	const onRun = vi.fn();
+	const onTerminateStarted = vi.fn();
+	const onSign = vi.fn((onSigned: (r: TerminateSignoffs) => void) =>
+		onSigned(
+			round([otherSignoff, { ...otherSignoff, user_id: "me", name: "Me" }]),
+		),
+	);
+	const user = userEvent.setup({
+		advanceTimers: vi.advanceTimersByTime,
+		pointerEventsCheck: 0,
+	});
+	render(
+		<GlobalWorkspaceActionsView
+			workspaces={[MockWorkspace]}
+			onRun={onRun}
+			onSign={onSign}
+			onTerminateStarted={onTerminateStarted}
+			signoffs={round([otherSignoff])}
+			userId="me"
+		/>,
+	);
+	await user.click(screen.getByRole("button", { name: /Terminate/ }));
+	const dialog = within(screen.getByRole("dialog"));
+	await user.type(
+		dialog.getByLabelText("Type terminate to confirm"),
+		"terminate",
+	);
+	await user.click(dialog.getByRole("button", { name: "Sign off" }));
+	// One flap a second: each its own act, as React renders the next before its timer starts.
+	for (let second = 0; second < 4; second++) {
+		await act(() => vi.advanceTimersByTimeAsync(1000));
+	}
+	expect(onRun).not.toHaveBeenCalled();
+	await act(() => vi.advanceTimersByTimeAsync(1000));
+	expect(onRun).toHaveBeenCalledExactlyOnceWith(
+		"terminate",
+		[MockWorkspace],
+		true,
+		"round-1",
+	);
+	expect(onTerminateStarted).toHaveBeenCalledTimes(1);
+	vi.useRealTimers();
+});
+
+it("cancels the countdown without terminating", async () => {
+	vi.useFakeTimers({ shouldAdvanceTime: true });
+	const onRun = vi.fn();
+	const onCancelTerminate = vi.fn();
+	const onSign = vi.fn((onSigned: (r: TerminateSignoffs) => void) =>
+		onSigned(round([otherSignoff, { ...otherSignoff, user_id: "me" }])),
+	);
+	const user = userEvent.setup({
+		advanceTimers: vi.advanceTimersByTime,
+		pointerEventsCheck: 0,
+	});
+	render(
+		<GlobalWorkspaceActionsView
+			workspaces={[MockWorkspace]}
+			onRun={onRun}
+			onSign={onSign}
+			onCancelTerminate={onCancelTerminate}
+			signoffs={round([otherSignoff])}
+			userId="me"
+		/>,
+	);
+	await user.click(screen.getByRole("button", { name: /Terminate/ }));
+	const dialog = within(screen.getByRole("dialog"));
+	await user.type(
+		dialog.getByLabelText("Type terminate to confirm"),
+		"terminate",
+	);
+	await user.click(dialog.getByRole("button", { name: "Sign off" }));
+	await user.click(screen.getByRole("button", { name: "Pause" }));
+	await act(() => vi.advanceTimersByTimeAsync(8000));
+	expect(onRun).not.toHaveBeenCalled();
+	await user.click(screen.getByRole("button", { name: "Cancel" }));
+	expect(onCancelTerminate).toHaveBeenCalledTimes(1);
+	await act(() => vi.advanceTimersByTimeAsync(8000));
+	expect(onRun).not.toHaveBeenCalled();
+	vi.useRealTimers();
+});
+
 it("keeps the reviewed workspace snapshot when the list refreshes", async () => {
 	const onRun = vi.fn();
 	const user = userEvent.setup();
