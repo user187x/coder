@@ -416,3 +416,27 @@ class WorkspaceTunnelsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WorkspaceTunnelPortMappingTest(unittest.TestCase):
+    def test_a_port_maps_to_another_on_the_target(self):
+        ports = tunnels.clean_ports([{"protocol": "tcp", "port": 8080, "target_port": 8000},
+                                     {"protocol": "tcp", "port": 7777, "target_port": 7777}])
+        self.assertEqual(ports, [{"protocol": "tcp", "port": 7777},
+                                 {"protocol": "tcp", "port": 8080, "target_port": 8000}])
+        self.assertTrue(tunnels.mapped(ports))
+        self.assertFalse(tunnels.mapped([{"protocol": "tcp", "port": 7777}]))
+        with self.assertRaises(ValueError):
+            tunnels.clean_ports([{"protocol": "tcp", "port": 8080, "target_port": 0}])
+        with self.assertRaises(ValueError):
+            tunnels.clean_ports([{"protocol": "tcp", "port": 8080, "target_port": 8000},
+                                 {"protocol": "tcp", "port": 8080, "target_port": 9000}])
+
+    def test_mapping_needs_helpers_that_map(self):
+        data = {"workspaces": {"a": {"port_policy_version": 2}, "b": {"port_policy_version": 1}}}
+        mapping = [{"protocol": "tcp", "port": 8080, "target_port": 8000}]
+        tunnels.port_helpers(data, ("a", "b"), [{"protocol": "tcp", "port": 8080}])
+        with self.assertRaises(ValueError):
+            tunnels.port_helpers(data, ("a", "b"), mapping)
+        data["workspaces"]["b"]["port_policy_version"] = 2
+        tunnels.port_helpers(data, ("a", "b"), mapping)

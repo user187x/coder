@@ -18,10 +18,13 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
-// PortRule permits one TCP or UDP service port in both directions.
+// PortRule permits one TCP or UDP service port in both directions. On the
+// tunnel's target, TargetPort (port policy version 2) maps it: the peer
+// connects to Port and the connection reaches the local service on TargetPort.
 type PortRule struct {
-	Protocol string `json:"protocol"`
-	Port     uint16 `json:"port"`
+	Protocol   string `json:"protocol"`
+	Port       uint16 `json:"port"`
+	TargetPort uint16 `json:"target_port,omitempty"`
 }
 
 // Peer is a single authorized workspace endpoint. AllowedIP must be a host route.
@@ -88,15 +91,19 @@ func (p Policy) Validate() error {
 	seenKeys := map[wgtypes.Key]bool{}
 	for _, peer := range p.Peers {
 		if peer.Ports != nil {
-			if p.PortPolicyVersion != 1 || len(peer.Ports) > 32 {
+			if p.PortPolicyVersion != 1 && p.PortPolicyVersion != 2 || len(peer.Ports) > 32 {
 				return xerrors.New("unsupported port policy")
 			}
 			seenPorts := map[PortRule]bool{}
 			for _, rule := range peer.Ports {
-				if rule.Port == 0 || rule.Protocol != "tcp" && rule.Protocol != "udp" || seenPorts[rule] {
+				if rule.TargetPort != 0 && p.PortPolicyVersion != 2 {
+					return xerrors.New("port mapping needs port policy version 2")
+				}
+				key := PortRule{Protocol: rule.Protocol, Port: rule.Port}
+				if rule.Port == 0 || rule.Protocol != "tcp" && rule.Protocol != "udp" || seenPorts[key] {
 					return xerrors.New("invalid or duplicate peer port")
 				}
-				seenPorts[rule] = true
+				seenPorts[key] = true
 			}
 		}
 		ip, err := hostPrefix(peer.AllowedIP)

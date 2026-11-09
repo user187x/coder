@@ -27,6 +27,7 @@ import { Skeleton } from "#/components/Skeleton/Skeleton";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
 import { type ShareChange, TrafficDiagram } from "./TrafficDiagram";
+import { TunnelPortsDialog } from "./TunnelPortsDialog";
 import {
 	type TrafficTopology,
 	type TrafficWorkspace,
@@ -124,7 +125,7 @@ const Legend: React.FC = () => (
 				aria-hidden
 				className="size-2.5 rounded-full border border-solid border-[#8a9a46] bg-[#cfe17a]"
 			/>
-			Output ports: tunnel ports to another workspace
+			Tunnel ports: the ports each tunnel establishes to another workspace
 		</li>
 		<li className="flex items-center gap-1.5">
 			<span aria-hidden className="size-2 rounded-full bg-[#ec4899]" />
@@ -148,6 +149,8 @@ const TopologyCard: React.FC<{
 	onShareChange: ShareChange;
 }> = ({ topology, rates, onShareChange }) => {
 	const [selected, setSelected] = useState<string | null>(null);
+	const [editing, setEditing] = useState<string | null>(null);
+	const editingTunnel = topology.tunnels.find((t) => t.id === editing);
 	const picked = topology.columns
 		.flatMap((c) => (c.kind === "workspace" ? c.workspaces : []))
 		.find((w) => w.id === selected);
@@ -201,8 +204,15 @@ const TopologyCard: React.FC<{
 					selected={picked ? picked.id : null}
 					onSelect={setSelected}
 					onShareChange={onShareChange}
+					onTunnelOpen={setEditing}
 				/>
 			</div>
+			{editingTunnel && (
+				<TunnelPortsDialog
+					tunnel={editingTunnel}
+					onClose={() => setEditing(null)}
+				/>
+			)}
 			<footer className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border pt-3 text-xs text-content-secondary">
 				<span>
 					Input ports:{" "}
@@ -213,7 +223,7 @@ const TopologyCard: React.FC<{
 					<strong className="text-content-primary">{workspaces}</strong>
 				</span>
 				<span>
-					Output ports:{" "}
+					Tunnel ports:{" "}
 					<strong className="text-content-primary">{count("output")}</strong>
 				</span>
 				<span>

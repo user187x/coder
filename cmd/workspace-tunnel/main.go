@@ -53,7 +53,8 @@ func run() error {
 	defer cancel()
 	runtime := &workspaceoverlay.Runtime{Client: &http.Client{Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, URL: service, Token: token, PublicKey: key.PublicKey().String(), Endpoint: podIP + ":51871", Device: device}
 	if device.SocketScope == nil {
-		runtime.PortPolicyVersion = 1
+		// 2: ports may be mapped (PortRule.TargetPort)
+		runtime.PortPolicyVersion = 2
 	}
 	return runtime.Run(ctx, func(err error) { _, _ = fmt.Fprintln(os.Stderr, err) })
 }

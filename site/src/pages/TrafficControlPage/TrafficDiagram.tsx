@@ -144,7 +144,7 @@ const columnLabel = (column: TrafficColumn) => {
 		case "input":
 			return "Input Ports";
 		case "output":
-			return "Output Ports";
+			return "Tunnel Ports";
 		case "ports":
 			return "Ports";
 		default:
@@ -471,7 +471,16 @@ export const TrafficDiagram: React.FC<{
 	selected?: string | null;
 	onSelect?: (workspaceId: string | null) => void;
 	onShareChange?: ShareChange;
-}> = ({ topology, rates, selected = null, onSelect, onShareChange }) => {
+	/** A tunnel's badge clicked: its ports to edit. */
+	onTunnelOpen?: (tunnelId: string) => void;
+}> = ({
+	topology,
+	rates,
+	selected = null,
+	onSelect,
+	onShareChange,
+	onTunnelOpen,
+}) => {
 	const navigate = useNavigate();
 	const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 	const [hovered, setHovered] = useState<string | null>(null);
@@ -688,10 +697,22 @@ export const TrafficDiagram: React.FC<{
 				return (
 					<g
 						key={`tunnel:${link.from}>${link.to}`}
-						aria-hidden
 						data-testid="tunnel-badge"
-						pointerEvents="none"
+						role="button"
+						tabIndex={0}
+						aria-label="Tunnel ports"
+						className="cursor-pointer outline-none"
+						onClick={() => link.tunnelId && onTunnelOpen?.(link.tunnelId)}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.preventDefault();
+								if (link.tunnelId) onTunnelOpen?.(link.tunnelId);
+							}
+						}}
 					>
+						<title>
+							Tunnel ports: click to map input ports to output ports
+						</title>
 						<circle
 							cx={mx}
 							cy={my}

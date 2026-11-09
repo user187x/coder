@@ -38,7 +38,11 @@ func (d *KernelDevice) portPolicy(p Policy, run func(...string) error) error {
 				continue
 			}
 			for _, rule := range peer.Ports {
+				// A mapped port is filtered as the service sees it, after natPolicy redirected it.
 				port := strconv.Itoa(int(rule.Port))
+				if rule.TargetPort != 0 {
+					port = strconv.Itoa(int(rule.TargetPort))
+				}
 				request := append(append([]string{}, base...), "-p", rule.Protocol, "--dport", port, "-j", "RETURN")
 				if err := run(request...); err != nil {
 					return err
@@ -51,6 +55,38 @@ func (d *KernelDevice) portPolicy(p Policy, run func(...string) error) error {
 		}
 		if err := run("-w", "5", "-A", chain, "-j", "DROP"); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// natPolicy redirects a mapped port (PortRule.TargetPort) on the tunnel's
+// target: a peer connecting to Port reaches the local service on TargetPort.
+// Only connections arriving on the overlay from that peer are redirected.
+func (d *KernelDevice) natPolicy(p Policy, run func(...string) error) error {
+	const chain = "CODER_WS_PORT_NAT"
+	if err := run("-w", "5", "-t", "nat", "-N", chain); err != nil {
+		if err := run("-w", "5", "-t", "nat", "-S", chain); err != nil {
+			return xerrors.Errorf("inspect tunnel port mapping chain: %w", err)
+		}
+	}
+	if err := run("-w", "5", "-t", "nat", "-F", chain); err != nil {
+		return err
+	}
+	if err := run("-w", "5", "-t", "nat", "-C", "PREROUTING", "-i", d.Name, "-j", chain); err != nil {
+		if err := run("-w", "5", "-t", "nat", "-I", "PREROUTING", "1", "-i", d.Name, "-j", chain); err != nil {
+			return err
+		}
+	}
+	for _, peer := range p.Peers {
+		for _, rule := range peer.Ports {
+			if rule.TargetPort == 0 || rule.TargetPort == rule.Port {
+				continue
+			}
+			if err := run("-w", "5", "-t", "nat", "-A", chain, "-s", peer.AllowedIP, "-p", rule.Protocol,
+				"--dport", strconv.Itoa(int(rule.Port)), "-j", "REDIRECT", "--to-ports", strconv.Itoa(int(rule.TargetPort))); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

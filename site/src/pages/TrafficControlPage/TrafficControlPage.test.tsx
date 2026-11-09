@@ -83,10 +83,10 @@ afterEach(() => {
 it("draws the workspaces' shared ports and tunnels, source to target", async () => {
 	setup();
 	const diagram = await screen.findByRole("group", {
-		name: /Traffic: .*:3000 public.*web.*Output Ports :5432 tcp.*db/,
+		name: /Traffic: .*:3000 public.*web.*Tunnel Ports :5432 tcp.*db/,
 	});
 	expect(diagram).toHaveAccessibleName(
-		"Traffic: Input Ports :3000 public → web → Output Ports :5432 tcp → db",
+		"Traffic: Input Ports :3000 public → web → Tunnel Ports :5432 tcp → db",
 	);
 	expect(screen.getByRole("region", { name: "web → db" })).toHaveTextContent(
 		"1 of 1 tunnel connected",
@@ -187,4 +187,46 @@ it("marks a connected workspace that went down: grey, with a dead face", async (
 	]);
 	await screen.findByRole("group", { name: /Traffic:/ });
 	expect(screen.getAllByTestId("dead-workspace-face")).toHaveLength(1);
+});
+
+it("maps a tunnel's input port to another output port from its badge", async () => {
+	const user = userEvent.setup();
+	setup();
+	vi.mocked(PlatformAPI.getWorkspaceTunnels).mockResolvedValue({
+		tunnels: [
+			{
+				id: "t1",
+				organization_id: MockWorkspace.organization_id,
+				source_workspace_id: "web",
+				target_workspace_id: "db",
+				source_workspace_name: "web",
+				target_workspace_name: "db",
+				status: "ready",
+				revision: 3,
+				port_mapping_supported: true,
+				ports: [{ protocol: "tcp", port: 5432 }],
+			},
+		],
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "updateWorkspaceTunnelPorts")
+		.mockResolvedValue({ tunnel: {} as never });
+	const [badge] = await screen.findAllByRole("button", {
+		name: "Tunnel ports",
+	});
+	await user.click(badge);
+	const dialog = await screen.findByRole("dialog", {
+		name: /Tunnel ports: web → db/,
+	});
+	const output = within(dialog).getByRole("spinbutton", {
+		name: "Mapping 1 output port",
+	});
+	await user.clear(output);
+	await user.type(output, "6543");
+	await user.click(within(dialog).getByRole("button", { name: "Save" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith(MockWorkspace.organization_id, "t1", 3, [
+			{ protocol: "tcp", port: 5432, target_port: 6543 },
+		]),
+	);
 });

@@ -163,7 +163,8 @@ def public(data, tunnel):
                   target_workspace_name=b.get("name", tunnel["target_workspace_id"]),
                   source_stats=public_stats(a, tunnel["target_workspace_id"]),
                   target_stats=public_stats(b, tunnel["source_workspace_id"]))
-    result.update(ports=tunnel.get("ports"), revision=tunnel["revision"], port_settings_supported=all(w.get("port_policy_version") == 1 for w in (a, b)))
+    result.update(ports=tunnel.get("ports"), revision=tunnel["revision"], port_settings_supported=all(w.get("port_policy_version", 0) >= 1 for w in (a, b)),
+                  port_mapping_supported=all(w.get("port_policy_version", 0) >= 2 for w in (a, b)))
     result.update(status=status, source_address=a["address"], target_address=b["address"],
                   source_side=tunnel.get("source_side", "right"), target_side=tunnel.get("target_side", "left"))
     if errors:
@@ -277,22 +278,33 @@ def clean_ports(value):
         return None
     if not isinstance(value, list) or not 1 <= len(value) <= 32:
         raise ValueError('Choose between one and 32 service ports, or all ports.')
-    result = []
+    result = {}
     for rule in value:
         if not isinstance(rule, dict) or rule.get('protocol') not in ('tcp', 'udp'):
             raise ValueError('Each service port needs TCP or UDP.')
-        port = rule.get('port')
-        if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
-            raise ValueError('Service ports must be integers from 1 through 65535.')
-        result.append((rule['protocol'], port))
-    if len(set(result)) != len(result):
-        raise ValueError('Duplicate service port.')
-    return [dict(protocol=protocol, port=port) for protocol, port in sorted(result)]
+        port, target = rule.get('port'), rule.get('target_port', rule.get('port'))
+        for value_ in (port, target):
+            if isinstance(value_, bool) or not isinstance(value_, int) or not 1 <= value_ <= 65535:
+                raise ValueError('Service ports must be integers from 1 through 65535.')
+        if (rule['protocol'], port) in result:
+            raise ValueError('Duplicate service port.')
+        result[(rule['protocol'], port)] = target
+    # A mapping (target_port): the source connects to port, the target's service listens on target_port.
+    return [dict(protocol=protocol, port=port, **({'target_port': target} if target != port else {}))
+            for (protocol, port), target in sorted(result.items())]
 
 
-def port_helpers(data, endpoints):
-    if any(data['workspaces'].get(wid, {}).get('port_policy_version', 0) != 1 for wid in endpoints):
+def mapped(ports):
+    """Whether any of a tunnel's ports is mapped to another port on its target (needs helper port policy 2)."""
+    return any('target_port' in rule for rule in ports or [])
+
+
+def port_helpers(data, endpoints, ports=None):
+    versions = [data['workspaces'].get(wid, {}).get('port_policy_version', 0) for wid in endpoints]
+    if any(v < 1 for v in versions):
         raise ValueError('Update both workspaces to a tunnel helper that supports port restrictions.')
+    if mapped(ports) and any(v < 2 for v in versions):
+        raise ValueError('Restart both workspaces for a tunnel helper that maps ports.')
 
 
 def configure_ports(token, user, organization_id, tunnel_id, body):
@@ -318,7 +330,7 @@ def configure_ports(token, user, organization_id, tunnel_id, body):
             if not current or current.get('deleted') or current['revision'] != body.get('revision'):
                 raise ValueError('The connection changed. Reload and review port settings again.')
             if ports is not None:
-                port_helpers(data, endpoints)
+                port_helpers(data, endpoints, ports)
             if current.get('ports') != ports:
                 current.update(ports=ports, revision=changed(data))
             return public(data, current)
@@ -488,7 +500,7 @@ def sync(token, body):
     if error is not None and not isinstance(error, str):
         raise ValueError("Expected a helper error string.")
     capability = body.get('port_policy_version', 0)
-    if isinstance(capability, bool) or capability not in (0, 1):
+    if isinstance(capability, bool) or capability not in (0, 1, 2):
         raise ValueError('Unsupported port policy capability.')
     measurements = peer_stats(body)
     established = body.get("established_peers", [])
@@ -525,11 +537,16 @@ def sync(token, body):
                 continue
             other = ends[1] if ends[0] == wid else ends[0]
             peer = data["workspaces"][other]
-            if tunnel.get('ports') is not None and (current.get('port_policy_version') != 1 or peer.get('port_policy_version') != 1):
+            ports = tunnel.get('ports')
+            need = 2 if mapped(ports) else 1
+            if ports is not None and (current.get('port_policy_version', 0) < need or peer.get('port_policy_version', 0) < need):
                 continue
+            # Only the tunnel's target maps ports: the source connects to the port it was given.
+            if ports is not None and wid != tunnel["target_workspace_id"]:
+                ports = [{k: v for k, v in rule.items() if k != 'target_port'} for rule in ports]
             if peer.get("public_key") and peer.get("endpoint"):
                 peers.append({"workspace_id": other, "public_key": peer["public_key"],
-                              "endpoint": peer["endpoint"], "allowed_ip": peer["address"] + "/32", "ports": tunnel.get("ports")})
+                              "endpoint": peer["endpoint"], "allowed_ip": peer["address"] + "/32", "ports": ports})
         epoch = {"public_key": key, "peers": sorted(peers, key=lambda p: p["workspace_id"])}
         if current.get("stats_policy") != epoch:
             current.update(stats={}, stats_policy=epoch)
@@ -537,7 +554,8 @@ def sync(token, body):
         observed = measurements if ack == data["revision"] and not error else {}
         record_stats(current, observed, {p["workspace_id"] for p in peers})
         prune(data)
-        return {"revision": data["revision"], "address": current["address"] + "/32", "port_policy_version": 1,
+        return {"revision": data["revision"], "address": current["address"] + "/32",
+                "port_policy_version": 2 if current.get("port_policy_version", 0) >= 2 else 1,
                 "peers": sorted(peers, key=lambda p: p["workspace_id"]), "lease_seconds": LEASE_SECONDS}
 
 

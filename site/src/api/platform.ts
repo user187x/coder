@@ -2259,11 +2259,18 @@ export type WorkspaceTunnelStats = {
 };
 
 /** An organization-scoped private network connection between two workspaces. */
-export type WorkspaceTunnelPort = { protocol: "tcp" | "udp"; port: number };
+/** A tunnel's port: the source connects to port; target_port, when set, is the service's port on the target. */
+export type WorkspaceTunnelPort = {
+	protocol: "tcp" | "udp";
+	port: number;
+	target_port?: number;
+};
 export type WorkspaceTunnel = {
 	ports?: WorkspaceTunnelPort[] | null;
 	revision?: number;
 	port_settings_supported?: boolean;
+	/** Both workspaces run a tunnel helper that maps ports (target_port). */
+	port_mapping_supported?: boolean;
 	source_workspace_name?: string;
 	target_workspace_name?: string;
 	source_stats?: WorkspaceTunnelStats | null;

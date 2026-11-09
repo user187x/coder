@@ -144,14 +144,16 @@ const tunnelOrbs = (
 			},
 		];
 	}
+	// One orb per port the tunnel establishes: "8080:8000" where it maps the source's port to another on the target.
 	return rules.map((rule) => {
-		const own = through(rule.protocol, rule.port);
+		const to = rule.target_port ?? rule.port;
+		const own = through(rule.protocol, to);
 		return {
 			key: `tunnel:${tunnel.id}:${rule.protocol}:${rule.port}`,
 			kind: "output",
-			port: `:${rule.port}`,
+			port: to === rule.port ? `:${rule.port}` : `${rule.port}:${to}`,
 			tag: rule.protocol,
-			title: `${source.label} → ${target.label}: ${rule.protocol} port ${rule.port}${state}${describe(own)}`,
+			title: `${source.label} → ${target.label}: ${rule.protocol} port ${rule.port}${to === rule.port ? "" : ` to ${to}`}${state}${describe(own)}`,
 			tunnelId: tunnel.id,
 			ready,
 			established: own,

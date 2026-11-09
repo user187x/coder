@@ -95,14 +95,20 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 	}); err != nil {
 		return err
 	}
-	if err = d.portPolicy(p, func(args ...string) error {
+	iptables := func(args ...string) error {
 		output, runErr := exec.CommandContext(ctx, "iptables", args...).CombinedOutput()
 		if runErr != nil {
 			return xerrors.Errorf("%w: %s", runErr, output)
 		}
 		return nil
-	}); err != nil {
+	}
+	if err = d.portPolicy(p, iptables); err != nil {
 		return err
+	}
+	if p.PortPolicyVersion == 2 {
+		if err = d.natPolicy(p, iptables); err != nil {
+			return err
+		}
 	}
 	// Installing a conntrack match activates UDP flow observation, including
 	// sendto sockets. Returning from a dedicated chain preserves later rules.
