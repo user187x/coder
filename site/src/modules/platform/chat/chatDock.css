@@ -1,21 +1,29 @@
-/* Share a single width between the fixed rail and the dashboard beside it. */
+/* Share a single width between the fixed rail and the dashboard beside it. Appearance > Panel size (--panel-zoom)
+   widens it, so the docked chat and Settings grow together and the page gives them the room. */
 html[data-chat-side] {
-	--chat-side-width: min(380px, 48vw);
+	--chat-side-width: min(calc(380px * var(--panel-zoom, 1)), 48vw);
 }
 html[data-settings-side][data-chat-side] {
-	--chat-side-width: min(380px, 32vw);
+	--chat-side-width: min(calc(380px * var(--panel-zoom, 1)), 32vw);
 }
 .chat-side-panel {
-	/* Right and bottom match the docked Settings (navbarSoft.css); the left edge stays at the column's. */
-	right: var(--dock-gutter, 1.5rem);
-	width: calc(var(--chat-side-width) - var(--dock-gutter, 1.5rem));
-	top: var(--coder-classification-h, 0px);
-	bottom: calc(var(--chat-bottom, 0px) + var(--dock-block-gap, 0.75rem));
+	/* Right and bottom match the docked Settings (navbarSoft.css); the left edge stays at the column's. The panel
+	   is zoomed (panelAccent.css), which scales its own lengths too, so they are divided by the zoom to stay put. */
+	right: calc(var(--dock-gutter, 1.5rem) / var(--panel-zoom, 1));
+	width: calc(
+		(var(--chat-side-width) - var(--dock-gutter, 1.5rem)) /
+		var(--panel-zoom, 1)
+	);
+	top: calc(var(--coder-classification-h, 0px) / var(--panel-zoom, 1));
+	bottom: calc(
+		(var(--chat-bottom, 0px) + var(--dock-block-gap, 0.75rem)) /
+		var(--panel-zoom, 1)
+	);
 	border-radius: var(--dock-radius, 1.125rem);
 }
 /* Under the docked Settings (navbarSoft.css) the chat takes the column's lower half, from --dock-split, which also fixes the Settings bottom. */
 html[data-settings-side="expanded"][data-chat-side] {
-	--chat-side-width: min(380px, 48vw);
+	--chat-side-width: min(calc(380px * var(--panel-zoom, 1)), 48vw);
 }
 html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
 	top: var(--dock-split, 50%);

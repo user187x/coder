@@ -151,7 +151,7 @@
 }
 
 html[data-settings-side] {
-	--settings-dock-width: min(244px, 40vw);
+	--settings-dock-width: min(calc(244px * var(--panel-zoom, 1)), 40vw);
 	--settings-panel-right: calc(
 		var(--navbar-inline-padding) *
 		var(--settings-navbar-scale, 1)
@@ -165,7 +165,7 @@ html[data-settings-side] {
 	);
 }
 html[data-settings-side="compact"] {
-	--settings-dock-width: 52px;
+	--settings-dock-width: calc(52px * var(--panel-zoom, 1));
 }
 [data-radix-popper-content-wrapper]:has(
 	> .settings-menu[data-settings-docked]
