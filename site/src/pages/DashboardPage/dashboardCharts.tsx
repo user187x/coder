@@ -206,7 +206,8 @@ export type BarSegment = {
 	offline?: boolean;
 };
 
-/** One segment of a bar: solid while its workspaces run, a dotted line through the track while they are offline. */
+/** One segment of a bar: solid while its workspaces run; while they are offline, a dotted outline of where its
+ * fill would be. */
 export const BarSegmentFill: React.FC<{
 	segment: BarSegment;
 	width: string;
@@ -216,11 +217,9 @@ export const BarSegmentFill: React.FC<{
 		<div
 			data-testid="bar-segment-offline"
 			title={`${segment.label}: claimed, not running`}
-			className="flex h-full shrink-0 items-center border-0 border-r border-solid border-surface-primary px-0.5 transition-[width] duration-500"
+			className="h-full shrink-0 rounded-full border-[1.5px] border-dotted border-content-secondary bg-transparent transition-[width] duration-500"
 			style={{ width }}
-		>
-			<div className="w-full border-0 border-t-2 border-dotted border-content-secondary" />
-		</div>
+		/>
 	) : (
 		<div
 			className={cn(
