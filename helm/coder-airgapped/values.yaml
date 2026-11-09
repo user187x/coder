@@ -182,20 +182,17 @@ controlPlaneNodeAffinity: &controlPlaneNodeAffinity
 coder:
   enabled: true
   coder:
-    # The upstream default (replicas on different nodes), and never an external node (controlPlaneNodeAffinity)
+    # Never two replicas on one node (required: a node's loss takes at most one, and the Network page's replica menu
+    # offers one per node that can run one), and never an external node (controlPlaneNodeAffinity)
     affinity:
       nodeAffinity: *controlPlaneNodeAffinity
       podAntiAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                  - key: app.kubernetes.io/instance
-                    operator: In
-                    values:
-                      - "coder"
-              topologyKey: kubernetes.io/hostname
-            weight: 1
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: coder
+                app.kubernetes.io/name: coder
+            topologyKey: kubernetes.io/hostname
     image:
       # global.coderImages: the fork's, or upstream Coder's on a base without the layer (global.decorator)
       repo: '{{ include "platform.coderImage" (list . "repo") }}'
