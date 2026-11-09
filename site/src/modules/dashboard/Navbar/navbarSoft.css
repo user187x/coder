@@ -22,8 +22,8 @@
 }
 .navbar-soft {
 	padding-inline: var(--navbar-inline-padding);
-	/* The strip behind the controls rounds its corners as they do. */
-	border-radius: 10px;
+	/* The strip behind the controls rounds its corners (Appearance > Navigation bar; 10px as the controls do). */
+	border-radius: var(--navbar-strip-radius, 10px);
 }
 /* The strip is a layer of its own: it runs under the docked Settings and chat to the viewport edge while the navbar's content stays inside the dock inset. */
 .navbar-soft::before {
@@ -40,6 +40,10 @@
 	border-radius: inherit;
 	background-color: var(--navbar-strip-bg);
 	pointer-events: none;
+}
+/* Appearance > Navigation bar: no backstrip at all. */
+.navbar-soft[data-navbar-strip="off"]::before {
+	display: none;
 }
 .navbar-soft :is(.navbar-split, .navbar-action > button, .navbar-action > a) {
 	box-sizing: border-box;

@@ -500,6 +500,13 @@ export const ChatDock: React.FC = () => {
 					Keep chat open
 				</ContextMenuCheckboxItem>
 				<ContextMenuItem onSelect={closeChat}>Hide</ContextMenuItem>
+				{/* Everyone's, not only the console's (ChatBarControls): under the docked Settings, or full screen */}
+				<ContextMenuItem onSelect={() => setDockMode("side")}>
+					Attach to the right side
+				</ContextMenuItem>
+				<ContextMenuItem onSelect={() => setDockMode("full")}>
+					Full screen
+				</ContextMenuItem>
 				{(["top", "right", "bottom", "left"] as const).map((edge) => (
 					<ContextMenuItem
 						key={edge}

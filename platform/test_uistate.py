@@ -33,6 +33,14 @@ class PreferencesTest(unittest.TestCase):
             with self.subTest(colour=bad), self.assertRaises(ValueError):
                 self.state.preferences('user-id', {'panel_text_color': bad})
 
+    def test_navbar_strip_radius_and_switch(self):
+        self.state.preferences('user-id', {'navbar_strip_radius': 0, 'navbar_strip_off': True})
+        self.state.preferences('user-id', {'navbar_strip_radius': None, 'navbar_strip_off': None})
+        for bad in ({'navbar_strip_radius': 25}, {'navbar_strip_radius': -1}, {'navbar_strip_radius': 4.5},
+                    {'navbar_strip_radius': True}, {'navbar_strip_off': 'yes'}, {'navbar_strip_off': 1}):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.state.preferences('user-id', bad)
+
 
 if __name__ == '__main__':
     unittest.main()

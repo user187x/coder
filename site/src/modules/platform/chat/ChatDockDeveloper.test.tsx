@@ -1,9 +1,10 @@
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter } from "react-router";
 import { type ChatState, PlatformAPI } from "#/api/platform";
 import { renderWithRouter } from "#/testHelpers/renderHelpers";
 import { ChatDock } from "./ChatDock";
+import { setDockMode } from "./chatStore";
 
 const ADMIN = { id: "adm", username: "adm", name: "Ada" };
 const chatState: ChatState = {
@@ -65,5 +66,20 @@ describe("ChatDock: a developer's", () => {
 
 		await user.click(within(raised).getByTestId("chat-mode-fullscreen"));
 		screen.getByTestId("chat-fullscreen");
+	});
+
+	it("attaches to the right side from the chat's right-click menu, without the console", async () => {
+		const user = userEvent.setup();
+		// The test before ends in full screen.
+		act(() => setDockMode("bar"));
+		renderDock();
+		await user.pointer({
+			target: await screen.findByRole("region", { name: "Chats" }),
+			keys: "[MouseRight]",
+		});
+		await user.click(
+			await screen.findByRole("menuitem", { name: "Attach to the right side" }),
+		);
+		await screen.findByTestId("chat-side-panel");
 	});
 });

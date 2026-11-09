@@ -1468,6 +1468,10 @@ export type UserUIPreferences = {
 	settings_default_view?: string | null;
 	/** The Settings and chat panels' size in percent (80-150), as a browser zoom would make them; none: 100. */
 	panel_scale?: number | null;
+	/** Appearance > Navigation bar: the backstrip's corner radius in px (0 to 24); null: 10. */
+	navbar_strip_radius?: number | null;
+	/** Appearance > Navigation bar: the backstrip hidden. */
+	navbar_strip_off?: boolean | null;
 	/** Appearance > Panel accents' text colour for the Settings and chat panels ("#rrggbb"); null: the theme's. */
 	panel_text_color?: string | null;
 };

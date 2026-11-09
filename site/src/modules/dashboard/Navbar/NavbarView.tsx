@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
+import { useQuery } from "react-query";
 import { API } from "#/api/api";
 import { type NavbarLayout, PlatformAPI } from "#/api/platform";
+import { userUIPreferences } from "#/api/queries/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { useProductLogoURL } from "#/components/Icons/ProductLogo";
@@ -62,6 +64,10 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	proxyContextValue,
 }) => {
 	const logoURL = useProductLogoURL();
+	// Appearance > Navigation bar: the backstrip's corners, or no backstrip.
+	const preferences = useQuery(userUIPreferences());
+	const stripRadius = preferences.data?.navbar_strip_radius ?? 10;
+	const stripOff = Boolean(preferences.data?.navbar_strip_off);
 	// The items taken off the navbar: the notification bell among them or not (the Settings badge leaves the inbox
 	// and chats to the bell while it shows).
 	const { hidden: navbarHidden } = useNavbarOrder(defaultLayout);
@@ -108,10 +114,16 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					borderBottomColor: `var(--navbar-preview-border, ${wireframe ? "hsl(var(--border-default))" : "transparent"})`,
 					// the Appearance page's unsaved choice, while it previews one
 					"--navbar-strip-bg": `var(--navbar-preview-strip, ${navbarStripColor(stripColor, transparency)})`,
+					"--navbar-strip-radius": `${stripRadius}px`,
 				} as React.CSSProperties
 			}
 			// Controls without a surface of their own take the ink that reads on the strip (navbarSoft.css)
-			data-navbar-ink={navbarInk(stripColor, transparency) ?? undefined}
+			data-navbar-ink={
+				stripOff
+					? undefined
+					: (navbarInk(stripColor, transparency) ?? undefined)
+			}
+			data-navbar-strip={stripOff ? "off" : undefined}
 			className="navbar-soft sticky top-0 z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"
 		>
 			{/* Platform: the logo in a tile like the user's avatar. */}
