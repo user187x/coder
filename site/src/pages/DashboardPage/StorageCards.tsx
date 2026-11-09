@@ -141,12 +141,11 @@ export const GpuCardBody: React.FC<{
 	const claimed = withGpus.reduce((sum, w) => sum + (w.gpus ?? 0), 0);
 	return (
 		<div className="relative flex min-h-28 flex-col gap-4">
-			{/* A graphics card behind the figures, centred, half see-through */}
-			<img
-				src="/dashboard-gpu.png"
-				alt=""
+			{/* A graphics card behind the figures, centred: the picture's shape in the theme's secondary text colour, faint
+			    enough to stay in the background on any theme */}
+			<span
 				aria-hidden
-				className="pointer-events-none absolute inset-0 m-auto max-h-28 max-w-full object-contain opacity-50"
+				className="pointer-events-none absolute inset-0 m-auto aspect-square h-28 max-w-full bg-content-secondary opacity-35 [mask:url(/dashboard-gpu.png)_center/contain_no-repeat]"
 			/>
 			<div className="relative flex items-center gap-3">
 				<span className="flex flex-col">
