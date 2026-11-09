@@ -75,7 +75,7 @@ export const Acknowledgements = ({ banner }: { banner: Banner }) => {
 	return (
 		<section
 			aria-labelledby={headingId}
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id={headingId} className="m-0 text-base font-semibold">

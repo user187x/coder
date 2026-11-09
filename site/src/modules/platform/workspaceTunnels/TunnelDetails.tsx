@@ -62,7 +62,7 @@ const Endpoint: React.FC<{
 	return (
 		<section
 			aria-label={`Endpoint ${name}`}
-			className="rounded-lg border border-solid border-border p-3"
+			className="rounded-lg border border-solid border-border p-3 bg-surface-primary"
 		>
 			<h3 className="m-0 text-sm">{name}</h3>
 			<p className="break-all font-mono">{address ?? "Address not reported"}</p>

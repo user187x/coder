@@ -355,7 +355,7 @@ export const UserQuotaSection: React.FC<{
 				{report && draft && (
 					<div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
 						<div className="min-w-0 flex flex-col gap-3">
-							<section className="rounded-lg border border-border p-3 flex flex-col gap-3">
+							<section className="rounded-lg border border-border p-3 flex flex-col gap-3 bg-surface-primary">
 								<div>
 									<div className="flex flex-wrap items-center justify-between gap-2">
 										<h3 className="m-0 text-base font-medium">Default quota</h3>
@@ -505,7 +505,7 @@ export const UserQuotaSection: React.FC<{
 								</div>
 							</section>
 						</div>
-						<div className="min-w-0 rounded-lg border border-border p-3">
+						<div className="min-w-0 rounded-lg border border-border p-3 bg-surface-primary">
 							<QuotaClusterLoad report={report} />
 						</div>
 					</div>

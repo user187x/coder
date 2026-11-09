@@ -200,7 +200,7 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 	return (
 		<section
 			aria-label="Versions"
-			className="flex min-h-60 max-h-[min(56vh,32rem)] flex-col overflow-hidden rounded-lg border border-solid border-surface-quaternary"
+			className="flex min-h-60 max-h-[min(56vh,32rem)] flex-col overflow-hidden rounded-lg border border-solid border-surface-quaternary bg-surface-primary"
 			data-testid="versions-sidebar"
 		>
 			<header className="flex shrink-0 items-center gap-1.5 border-0 border-b border-solid border-surface-quaternary px-2.5 py-1.5">

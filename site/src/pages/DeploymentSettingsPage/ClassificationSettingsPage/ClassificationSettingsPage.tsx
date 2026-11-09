@@ -140,7 +140,7 @@ export const ClassificationForm: React.FC<ClassificationFormProps> = ({
 		<div className="flex flex-col gap-6">
 			<section
 				aria-labelledby="classification-preview"
-				className="rounded-lg border border-solid border-border p-6"
+				className="rounded-lg border border-solid border-border p-6 bg-surface-primary"
 			>
 				<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
 					<h2

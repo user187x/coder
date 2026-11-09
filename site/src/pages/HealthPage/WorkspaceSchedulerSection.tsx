@@ -166,7 +166,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 			</div>
 
 			{/* Everything but the title in one inner card, as User Quota's */}
-			<div className="flex flex-col gap-3 rounded-lg border border-solid border-border p-3">
+			<div className="flex flex-col gap-3 rounded-lg border border-solid border-border p-3 bg-surface-primary">
 				<p className="m-0 text-sm text-content-secondary">
 					Require schedules for new workspaces and prompt owners to correct
 					existing ones. Set shared times, a maximum duration, and exemptions

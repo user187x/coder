@@ -125,7 +125,7 @@ const NotificationsPage: React.FC = () => {
 
 						return (
 							<article
-								className="border border-solid rounded-lg overflow-hidden"
+								className="border border-solid rounded-lg overflow-hidden bg-surface-primary"
 								key={group}
 							>
 								<div className="flex flex-col">

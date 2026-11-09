@@ -583,7 +583,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									<nav
 										aria-label="Settings"
 										data-testid="controls-group"
-										className="mx-1 mt-2 mb-1 flex flex-auto flex-col rounded-lg border border-solid border-border p-1"
+										className="mx-1 mt-2 mb-1 flex flex-auto flex-col rounded-lg border border-solid border-border p-1 bg-surface-primary"
 									>
 										<AdminSettingsItems
 											externalMetrics

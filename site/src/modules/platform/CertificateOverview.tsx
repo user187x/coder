@@ -184,7 +184,7 @@ const Summary: React.FC<{ count: number; soonest: CertificateInfo }> = ({
 }) => {
 	const life = certificateLifetime(soonest.notBefore, soonest.notAfter);
 	return (
-		<div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-solid border-border px-4 py-3 text-sm">
+		<div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-solid border-border px-4 py-3 text-sm bg-surface-primary">
 			<span>
 				<span className="font-semibold text-content-primary">{count}</span>{" "}
 				<span className="text-content-secondary">
@@ -211,7 +211,7 @@ const EndpointCard: React.FC<{ endpoint: TlsEndpoint }> = ({ endpoint: e }) => {
 		(e.versions ?? []).map((v) => [v.version, v.cipher]),
 	);
 	return (
-		<div className="flex flex-col gap-3 rounded-lg border border-solid border-border p-4">
+		<div className="flex flex-col gap-3 rounded-lg border border-solid border-border p-4 bg-surface-primary">
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<div className="flex flex-col">
 					<span className="font-semibold text-content-primary">{e.name}</span>
@@ -327,7 +327,7 @@ const EndpointCard: React.FC<{ endpoint: TlsEndpoint }> = ({ endpoint: e }) => {
 const FileCard: React.FC<{ file: CertificateFile }> = ({ file: f }) => {
 	const title = f.key ?? f.source;
 	return (
-		<div className="flex flex-col gap-3 rounded-lg border border-solid border-border p-4">
+		<div className="flex flex-col gap-3 rounded-lg border border-solid border-border p-4 bg-surface-primary">
 			<div className="flex flex-wrap items-baseline justify-between gap-2">
 				<span className="font-semibold text-content-primary">{title}</span>
 				<span className="text-xs text-content-secondary">

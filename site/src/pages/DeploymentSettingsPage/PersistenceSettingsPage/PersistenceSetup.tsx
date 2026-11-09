@@ -50,7 +50,7 @@ export const OperatorSetupCard: React.FC = () => {
 	return (
 		<section
 			aria-labelledby={`${id}-operator`}
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id={`${id}-operator`} className="m-0 text-base font-semibold">
@@ -112,7 +112,7 @@ export const ClusterSettingsCard: React.FC<ClusterSettingsCardProps> = ({
 	return (
 		<section
 			aria-labelledby={`${id}-settings`}
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id={`${id}-settings`} className="m-0 text-base font-semibold">

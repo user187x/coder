@@ -90,7 +90,7 @@ export const Tile: React.FC<{ label: string; value: string; sub?: string }> = ({
 	value,
 	sub,
 }) => (
-	<div className="min-w-0 rounded-lg border border-solid border-border px-3.5 py-3">
+	<div className="min-w-0 rounded-lg border border-solid border-border px-3.5 py-3 bg-surface-primary">
 		<div className="text-xs font-medium text-content-secondary">{label}</div>
 		<div
 			className="truncate text-[22px] font-semibold leading-snug tabular-nums"

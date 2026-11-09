@@ -45,7 +45,7 @@ export const IntegrationPageView: React.FC<{ build: BuildInfoResponse }> = ({
 	build,
 }) => (
 	<div className="flex flex-col gap-6">
-		<dl className="m-0 rounded-lg border border-solid border-border px-4">
+		<dl className="m-0 rounded-lg border border-solid border-border px-4 bg-surface-primary">
 			<Row label="CLI version">{build.version}</Row>
 			<Row label="Dashboard">
 				<span className="break-all">{build.dashboard_url}</span>

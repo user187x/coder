@@ -46,7 +46,7 @@ const CloudDriveSettingsPage: React.FC = () => {
 					<div className="flex flex-col gap-6">
 						<section
 							data-testid="cloud-drive-enabled"
-							className="flex items-center gap-4 rounded-lg border border-solid border-border px-6 py-5"
+							className="flex items-center gap-4 rounded-lg border border-solid border-border px-6 py-5 bg-surface-primary"
 						>
 							<CloudIcon
 								aria-hidden
@@ -85,7 +85,7 @@ const CloudDriveSettingsPage: React.FC = () => {
 								onCheckedChange={(next) => toggle.mutate(next)}
 							/>
 						</section>
-						<div className="rounded-lg border border-solid border-border">
+						<div className="rounded-lg border border-solid border-border bg-surface-primary">
 							<CloudDriveSettings settings={settings.data} />
 						</div>
 					</div>

@@ -272,7 +272,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
 	return (
 		<section
 			aria-labelledby="keycloak-status"
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex items-start gap-4">
 				<span
@@ -351,7 +351,7 @@ const ConnectCard: React.FC<{ settings: KeycloakSettings }> = ({
 	return (
 		<section
 			aria-labelledby={`${id}-connect`}
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id={`${id}-connect`} className="m-0 text-base font-semibold">
@@ -436,7 +436,7 @@ const ChecksCard: React.FC<ChecksCardProps> = ({
 }) => (
 	<section
 		aria-labelledby="keycloak-checks"
-		className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+		className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 	>
 		<div className="flex flex-wrap items-center justify-between gap-3">
 			<h2 id="keycloak-checks" className="m-0 text-base font-semibold">
@@ -579,7 +579,7 @@ const SettingsCard: React.FC<SettingsCardProps> = ({
 	return (
 		<section
 			aria-labelledby={`${id}-settings`}
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id={`${id}-settings`} className="m-0 text-base font-semibold">

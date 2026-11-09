@@ -106,7 +106,7 @@ export const ClusterMap: React.FC = () => {
 					<div className="flex flex-col gap-6">
 						<section
 							aria-labelledby="cluster-map"
-							className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6"
+							className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 							data-testid="cluster-map"
 						>
 							<div className="flex flex-wrap items-center justify-between gap-3">
@@ -911,7 +911,7 @@ const WorkspacesTable: React.FC<{ report: ClusterNetworkReport }> = ({
 	return (
 		<section
 			aria-labelledby="cluster-workspaces"
-			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id="cluster-workspaces" className="m-0 text-base font-semibold">

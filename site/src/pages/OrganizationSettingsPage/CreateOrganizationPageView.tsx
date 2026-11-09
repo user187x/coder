@@ -102,7 +102,7 @@ export const CreateOrganizationPageView: React.FC<
 					{!isEntitled ? (
 						<FeatureUnavailable feature="Organizations" />
 					) : (
-						<div className="border border-solid p-6 rounded-lg">
+						<div className="border border-solid p-6 rounded-lg bg-surface-primary">
 							<form
 								onSubmit={form.handleSubmit}
 								aria-label="Organization settings form"

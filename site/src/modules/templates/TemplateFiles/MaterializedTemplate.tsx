@@ -90,7 +90,7 @@ export const MaterializedTemplate: React.FC<MaterializedTemplateProps> = ({
 					With the platform's files: {m.added.join(", ")} (see Global files).
 				</p>
 			)}
-			<div className="overflow-hidden rounded-lg border border-solid border-surface-quaternary">
+			<div className="overflow-hidden rounded-lg border border-solid border-surface-quaternary bg-surface-primary">
 				<SyntaxHighlighter
 					language="hcl"
 					value={m.main_tf}
@@ -105,7 +105,7 @@ export const MaterializedTemplate: React.FC<MaterializedTemplateProps> = ({
 				.map(([name, content]) => (
 					<div
 						key={name}
-						className="overflow-hidden rounded-lg border border-solid border-surface-quaternary"
+						className="overflow-hidden rounded-lg border border-solid border-surface-quaternary bg-surface-primary"
 					>
 						<header className="border-0 border-b border-solid border-surface-quaternary px-4 py-2 text-sm font-medium">
 							{name}

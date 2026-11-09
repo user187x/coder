@@ -93,7 +93,7 @@ export const PersistenceView: React.FC = () => {
 			/>
 			<section
 				aria-labelledby="persistence-map"
-				className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6"
+				className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 			>
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<h2 id="persistence-map" className="m-0 text-base font-semibold">
@@ -240,7 +240,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
 	return (
 		<section
 			aria-labelledby="persistence-status"
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex items-start gap-4">
 				<span
@@ -319,7 +319,7 @@ const ChecksCard: React.FC<ChecksCardProps> = ({
 }) => (
 	<section
 		aria-labelledby="persistence-checks"
-		className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+		className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 	>
 		<div className="flex flex-wrap items-center justify-between gap-3">
 			<h2 id="persistence-checks" className="m-0 text-base font-semibold">

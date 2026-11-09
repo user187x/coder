@@ -71,7 +71,7 @@ export const CreateGroupPageView: React.FC<CreateGroupPageViewProps> = ({
 				</SettingsHeader>
 
 				<form
-					className="flex flex-col gap-6 border border-solid p-6 rounded-lg"
+					className="flex flex-col gap-6 border border-solid p-6 rounded-lg bg-surface-primary"
 					onSubmit={form.handleSubmit}
 				>
 					{Boolean(error) && !isApiValidationError(error) && (

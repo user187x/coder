@@ -115,7 +115,7 @@ export const SecurityActivity = () => {
 					</Button>
 				</div>
 			)}
-			<div className="overflow-x-auto rounded-xl border border-solid border-border">
+			<div className="overflow-x-auto rounded-xl border border-solid border-border bg-surface-primary">
 				<Table aria-label="Security events">
 					<TableHeader>
 						<TableRow>

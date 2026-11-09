@@ -24,7 +24,7 @@ export const CoderReplicas = () => {
 		current?.maxReplicas != null && current.desired > current.maxReplicas;
 	return (
 		<section
-			className="rounded-lg border border-solid border-border p-6"
+			className="rounded-lg border border-solid border-border p-6 bg-surface-primary"
 			aria-labelledby="coder-replicas"
 		>
 			<h2 id="coder-replicas" className="mt-0 text-base font-semibold">

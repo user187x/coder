@@ -759,7 +759,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 							.map((tunnel) => (
 								<details
 									key={`settings-${tunnel.id}`}
-									className="rounded-lg border border-solid border-border p-3"
+									className="rounded-lg border border-solid border-border p-3 bg-surface-primary"
 								>
 									<summary className="cursor-pointer text-sm font-medium">
 										{tunnel.source_workspace_name ?? tunnel.source_workspace_id}{" "}

@@ -160,7 +160,7 @@ const Workspaces: React.FC<StageProps> = ({ workspaces }) => {
 
 	return (
 		<>
-			<ul className="list-none p-0 border border-solid border-border rounded-lg overflow-x-hidden overflow-y-auto max-h-48">
+			<ul className="list-none p-0 border border-solid border-border rounded-lg overflow-x-hidden overflow-y-auto max-h-48 bg-surface-primary">
 				{workspaces.map((workspace) => (
 					<li
 						key={workspace.id}

@@ -182,7 +182,7 @@ export const AccountWorkspaceNotes: React.FC<{
 			{query.data?.notes.map((note) => (
 				<article
 					key={note.id}
-					className="rounded-lg border border-solid border-border p-3"
+					className="rounded-lg border border-solid border-border p-3 bg-surface-primary"
 				>
 					<p className="m-0 whitespace-pre-wrap break-words">{note.text}</p>
 					<p className="text-xs text-content-secondary">

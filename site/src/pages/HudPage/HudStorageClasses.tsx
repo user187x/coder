@@ -76,7 +76,7 @@ export const HudStorageClasses = ({
 	cluster?: Capacity | null;
 	handle?: React.ReactNode;
 }) => (
-	<section className="rounded-lg border border-solid border-border p-4">
+	<section className="rounded-lg border border-solid border-border p-4 bg-surface-primary">
 		<header className="mb-3 flex items-center justify-between gap-2">
 			<h2 className="m-0 text-base font-medium">Storage classes</h2>
 			{handle}

@@ -36,7 +36,7 @@ export const GlobalFiles: React.FC = () => {
 	}
 	return (
 		<section
-			className="flex shrink-0 flex-col gap-1.5 rounded-lg border border-solid border-surface-quaternary p-2"
+			className="flex shrink-0 flex-col gap-1.5 rounded-lg border border-solid border-surface-quaternary p-2 bg-surface-primary"
 			aria-labelledby="global-files"
 			data-testid="global-files"
 		>
@@ -109,7 +109,7 @@ export const GlobalFiles: React.FC = () => {
 								<code className="whitespace-pre-wrap">{open.reference}</code>
 							</DialogDescription>
 						</DialogHeader>
-						<div className="overflow-hidden rounded-lg border border-solid border-surface-quaternary">
+						<div className="overflow-hidden rounded-lg border border-solid border-surface-quaternary bg-surface-primary">
 							<SyntaxHighlighter
 								language={languageOf(open.name)}
 								value={open.content}

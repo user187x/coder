@@ -282,7 +282,7 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 
 				{pageNumberIsInvalid ? (
 					<EmptyState
-						className="border border-solid border-border rounded-lg"
+						className="border border-solid border-border rounded-lg bg-surface-primary"
 						message="Page not found"
 						description="The page you are trying to access does not exist."
 						cta={

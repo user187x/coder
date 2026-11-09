@@ -90,7 +90,7 @@ export const ChatConsoleWorkspace = ({
 						<OnlineUsersCard onOpen={open} />
 						<section
 							aria-label="Who is around"
-							className="rounded-lg border border-solid border-border p-4"
+							className="rounded-lg border border-solid border-border p-4 bg-surface-primary"
 						>
 							<h3 className="m-0 mb-3 text-sm font-semibold">Who is around</h3>
 							<ChatPeople onOpen={open} />

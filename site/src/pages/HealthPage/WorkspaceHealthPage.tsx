@@ -76,7 +76,7 @@ const WorkspaceHealthPage: React.FC = () => {
 					// Nothing to triage: one line, not an empty table.
 					<div
 						role="status"
-						className="flex items-center gap-2.5 rounded-lg border border-solid border-border px-4 py-3 text-sm text-content-secondary"
+						className="flex items-center gap-2.5 rounded-lg border border-solid border-border px-4 py-3 text-sm text-content-secondary bg-surface-primary"
 						data-testid="workspace-health-clear"
 					>
 						<CircleCheckIcon

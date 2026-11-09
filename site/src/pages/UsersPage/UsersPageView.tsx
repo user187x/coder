@@ -224,7 +224,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 				<section
 					aria-label="User Quota"
 					data-testid="user-quota"
-					className="mb-6 rounded-lg border border-solid border-border p-6"
+					className="mb-6 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 				>
 					{quota}
 				</section>
@@ -233,7 +233,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			{quota && (
 				<section
 					aria-label="Global Workspace Scheduler"
-					className="mb-6 rounded-lg border border-solid border-border p-6"
+					className="mb-6 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 				>
 					<WorkspaceSchedulerSection />
 				</section>

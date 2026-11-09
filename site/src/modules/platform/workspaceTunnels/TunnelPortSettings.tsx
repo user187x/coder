@@ -29,7 +29,7 @@ export const TunnelPortSettings = ({ tunnel }: { tunnel: WorkspaceTunnel }) => {
 	const changed = tunnel.revision !== revision;
 	return (
 		<form
-			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-3"
+			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-3 bg-surface-primary"
 			aria-label="Tunnel port settings"
 			onSubmit={(event) => {
 				event.preventDefault();

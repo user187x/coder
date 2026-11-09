@@ -266,7 +266,7 @@ const CertificatesPage: React.FC = () => {
 
 				<section
 					aria-labelledby="certificates-how"
-					className="rounded-lg border border-solid border-border p-6"
+					className="rounded-lg border border-solid border-border p-6 bg-surface-primary"
 				>
 					<h2
 						id="certificates-how"

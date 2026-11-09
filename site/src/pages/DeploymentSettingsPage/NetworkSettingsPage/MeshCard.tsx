@@ -56,7 +56,7 @@ export const MeshCard: React.FC<{ paused: boolean }> = ({ paused }) => {
 	return (
 		<section
 			aria-labelledby="cluster-mesh"
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 			data-testid="cluster-mesh-card"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">

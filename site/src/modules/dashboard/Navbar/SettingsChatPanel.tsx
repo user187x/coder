@@ -27,7 +27,7 @@ export const SettingsChatPanel = ({ onClose }: { onClose: () => void }) => {
 			role="region"
 			aria-label="Quick chat"
 			data-settings-chat
-			className="settings-compact-chat flex min-w-0 flex-col overflow-hidden rounded-lg border border-solid border-border mt-2"
+			className="settings-compact-chat flex min-w-0 flex-col overflow-hidden rounded-lg border border-solid border-border mt-2 bg-surface-primary"
 			style={{ height: "min(420px, 50vh)", minHeight: 220 }}
 			onKeyDown={(event) => event.stopPropagation()}
 		>

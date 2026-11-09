@@ -131,7 +131,7 @@ const LicensesSettingsPageView: React.FC<Props> = ({
 				)}
 
 				{!isLoading && licenses?.length === 0 && (
-					<div className="min-h-[240px] flex items-center justify-center rounded-lg border border-solid border-border p-12">
+					<div className="min-h-[240px] flex items-center justify-center rounded-lg border border-solid border-border p-12 bg-surface-primary">
 						<div className="flex flex-col gap-2 items-center">
 							<div className="flex flex-col gap-1 items-center">
 								<span className="text-base">

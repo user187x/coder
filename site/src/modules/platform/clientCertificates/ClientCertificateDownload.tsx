@@ -21,7 +21,7 @@ export const ClientCertificateDownload = ({
 }: {
 	credential: CertificateDownload;
 }) => (
-	<div className="space-y-3 rounded-lg border border-solid p-4">
+	<div className="space-y-3 rounded-lg border border-solid p-4 bg-surface-primary">
 		<p className="text-sm">
 			Your device certificate is ready. Save it before leaving this page.
 			Install the .p12 file on Android or your computer using the download

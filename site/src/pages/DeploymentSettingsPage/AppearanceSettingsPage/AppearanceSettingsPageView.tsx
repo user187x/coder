@@ -108,7 +108,7 @@ export const AppearanceSettingsPageView: React.FC<
 				</div>
 			)}
 
-			<div className="overflow-hidden rounded-lg border border-solid border-border">
+			<div className="overflow-hidden rounded-lg border border-solid border-border bg-surface-primary">
 				<div className="flex items-center justify-between gap-4 p-6">
 					<div>
 						<h3 className="m-0 text-xl font-semibold">

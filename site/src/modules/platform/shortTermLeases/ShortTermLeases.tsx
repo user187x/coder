@@ -124,7 +124,7 @@ export const ShortTermLeases = ({
 		<section
 			ref={section}
 			id="short-term-leases"
-			className="mb-6 rounded-lg border border-solid border-border p-6"
+			className="mb-6 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 			aria-labelledby={`${id}-short-term-lease-title`}
 		>
 			<h2

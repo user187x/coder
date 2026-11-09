@@ -426,7 +426,7 @@ export const CloudDrivePeersView: React.FC = () => {
 			data-testid="cloud-drive-peers"
 		>
 			{data.admin && (
-				<section className="flex flex-col gap-3 rounded-lg border border-solid border-border p-4">
+				<section className="flex flex-col gap-3 rounded-lg border border-solid border-border p-4 bg-surface-primary">
 					<h3 className="m-0 text-sm font-semibold">
 						Sharing between users (admins)
 					</h3>

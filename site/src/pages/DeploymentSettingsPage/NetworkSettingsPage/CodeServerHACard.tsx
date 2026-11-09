@@ -52,7 +52,7 @@ export const CodeServerHACard: React.FC<{ paused: boolean }> = ({ paused }) => {
 	return (
 		<section
 			aria-labelledby="cluster-ha"
-			className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 			data-testid="cluster-ha-card"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">

@@ -76,7 +76,7 @@ export const NodesTopologyCard: React.FC<{ report: ClusterNetworkReport }> = ({
 	return (
 		<section
 			aria-labelledby="cluster-topology"
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 			data-testid="cluster-nodes-card"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">

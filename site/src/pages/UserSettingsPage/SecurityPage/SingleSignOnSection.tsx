@@ -100,7 +100,7 @@ export const useSingleSignOnSection = () => {
 const SSOEmptyState: React.FC = () => {
 	return (
 		<EmptyState
-			className="rounded-lg border border-solid border-border min-h-0"
+			className="rounded-lg border border-solid border-border min-h-0 bg-surface-primary"
 			message="No SSO Providers"
 			description="No SSO providers are configured with this Coder deployment."
 		/>

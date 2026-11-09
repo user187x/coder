@@ -58,7 +58,7 @@ export const FillDialog = ({
 				<div
 					role="img"
 					aria-label="Fill preview"
-					className="h-32 rounded-lg border border-solid border-border"
+					className="h-32 rounded-lg border border-solid border-border bg-surface-primary"
 					style={{ background: fillCSS(value) }}
 				/>
 				<FillControls value={value} onChange={setValue} disabled={busy} />

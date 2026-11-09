@@ -43,7 +43,7 @@ export const WorkspaceQuarantineView: React.FC<Props> = ({
 	return (
 		<section
 			aria-label={`Quarantine ${name}`}
-			className="rounded-lg border border-solid border-border p-4 flex flex-col gap-3"
+			className="rounded-lg border border-solid border-border p-4 flex flex-col gap-3 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h3 className="m-0 flex items-center gap-2 text-base">

@@ -190,7 +190,7 @@ export const WorkspaceQuarantineCardView: React.FC<{
 	return (
 		<section
 			aria-label="Workspace quarantine"
-			className="rounded-lg border border-solid border-border p-4 flex flex-col gap-4"
+			className="rounded-lg border border-solid border-border p-4 flex flex-col gap-4 bg-surface-primary"
 		>
 			<h2 className="m-0 text-lg">Workspace quarantine</h2>
 			<p className="m-0 text-sm text-content-secondary">

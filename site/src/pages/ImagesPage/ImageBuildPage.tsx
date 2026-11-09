@@ -117,7 +117,7 @@ const ImageBuildPage: React.FC = () => {
 			<BuildPanel build={build} />
 			{build.status === "ready" && image.pullRef && (
 				<section
-					className="flex flex-col gap-4 rounded-lg border border-solid border-border p-5"
+					className="flex flex-col gap-4 rounded-lg border border-solid border-border p-5 bg-surface-primary"
 					data-testid="build-ready"
 				>
 					<div className="flex flex-wrap items-center gap-4">
@@ -304,7 +304,10 @@ const BuildLog: React.FC<{ lines: string[]; follow: boolean }> = ({
 		}
 	}, [lines, follow]);
 	return (
-		<details open className="rounded-lg border border-solid border-border">
+		<details
+			open
+			className="rounded-lg border border-solid border-border bg-surface-primary"
+		>
 			<summary className="cursor-pointer px-4 py-2 text-sm font-semibold">
 				Build log ({lines.length} lines shown)
 			</summary>

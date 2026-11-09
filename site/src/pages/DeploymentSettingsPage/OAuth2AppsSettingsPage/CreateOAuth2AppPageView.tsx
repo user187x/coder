@@ -49,7 +49,7 @@ export const CreateOAuth2AppPageView: React.FC = () => {
 					Configure an application to use Coder as an OAuth2 provider.
 				</p>
 
-				<div className="border border-solid p-6 rounded-lg">
+				<div className="border border-solid p-6 rounded-lg bg-surface-primary">
 					<OAuth2AppForm
 						// Apps created here are confidential. Public clients only come
 						// from dynamic client registration.

@@ -192,7 +192,7 @@ export const PlatformAppsStep: React.FC<PlatformAppsStepProps> = ({
 			come with every workspace.
 		</TemplateBuilderSubtitle>
 		<div
-			className="mt-6 flex flex-col divide-y divide-border rounded-lg border border-solid border-border"
+			className="mt-6 flex flex-col divide-y divide-border rounded-lg border border-solid border-border bg-surface-primary"
 			data-testid="platform-apps"
 		>
 			<div className="flex min-h-14 items-center gap-3 px-4 py-3 text-sm">

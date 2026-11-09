@@ -32,7 +32,7 @@ export const MigrationsTable: React.FC = () => {
 	return (
 		<section
 			aria-labelledby="workspace-migrations"
-			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<h2 id="workspace-migrations" className="m-0 text-base font-semibold">
 				Workspace migrations

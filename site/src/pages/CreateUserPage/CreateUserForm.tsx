@@ -254,7 +254,7 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 						Add a user to this Coder deployment.
 					</SettingsHeaderDescription>
 				</SettingsHeader>
-				<div className="border border-solid p-6 rounded-lg">
+				<div className="border border-solid p-6 rounded-lg bg-surface-primary">
 					<form
 						onSubmit={form.handleSubmit}
 						autoComplete="off"
@@ -398,7 +398,7 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 							)}
 
 							{certificatesEnabled && form.values.login_type === "oidc" && (
-								<div className="space-y-3 rounded-lg border border-solid p-4">
+								<div className="space-y-3 rounded-lg border border-solid p-4 bg-surface-primary">
 									<label className="flex items-center gap-2 text-sm">
 										<input
 											type="checkbox"

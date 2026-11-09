@@ -24,7 +24,7 @@ export const InstancesTable: React.FC<{ report: PersistenceReport }> = ({
 	return (
 		<section
 			aria-labelledby="persistence-instances"
-			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id="persistence-instances" className="m-0 text-base font-semibold">
@@ -136,7 +136,7 @@ export const StorageClassesTable: React.FC<{ report: PersistenceReport }> = ({
 	return (
 		<section
 			aria-labelledby="persistence-storage"
-			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id="persistence-storage" className="m-0 text-base font-semibold">

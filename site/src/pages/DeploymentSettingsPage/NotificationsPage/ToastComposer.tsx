@@ -130,7 +130,7 @@ export const ToastComposer = ({ canEdit }: { canEdit: boolean }) => {
 						<summary className="cursor-pointer text-sm">
 							Preview notification
 						</summary>
-						<div className="mt-3 rounded-lg border border-solid border-border p-4">
+						<div className="mt-3 rounded-lg border border-solid border-border p-4 bg-surface-primary">
 							<h3 className="mt-0 text-sm">{title || "Notification title"}</h3>
 							<Markdown>{message || "Your message will appear here."}</Markdown>
 						</div>

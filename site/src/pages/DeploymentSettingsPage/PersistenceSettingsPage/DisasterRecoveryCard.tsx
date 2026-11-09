@@ -101,7 +101,7 @@ export const DisasterRecoveryCard: React.FC<{
 	return (
 		<section
 			aria-labelledby="persistence-dr"
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 			data-testid="disaster-recovery"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">

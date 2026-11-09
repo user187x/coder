@@ -222,7 +222,7 @@ export const AdminNotesPanel = ({
 						)}
 						{remove.error && <ErrorAlert error={remove.error} />}
 						{query.data && (
-							<div className="shrink-0 overflow-hidden rounded-lg border border-solid border-border">
+							<div className="shrink-0 overflow-hidden rounded-lg border border-solid border-border bg-surface-primary">
 								<Table aria-label="Admin notes">
 									<TableHeader>
 										<TableRow>

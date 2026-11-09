@@ -136,7 +136,7 @@ export const TemplateIconsDialog: React.FC<{ onClose: () => void }> = ({
 						{canManage && (
 							<section
 								aria-label="Add an icon"
-								className="flex flex-col gap-3 rounded-lg border border-solid border-border p-4"
+								className="flex flex-col gap-3 rounded-lg border border-solid border-border p-4 bg-surface-primary"
 							>
 								<FileUpload
 									isUploading={upload.isPending}

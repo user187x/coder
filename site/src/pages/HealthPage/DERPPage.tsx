@@ -221,7 +221,7 @@ const DERPPage: React.FC = () => {
 					<SectionLabel>Logs</SectionLabel>
 					<Logs
 						lines={logs}
-						className="rounded-lg border border-solid border-border text-content-secondary"
+						className="rounded-lg border border-solid border-border text-content-secondary bg-surface-primary"
 					/>
 				</section>
 			</Main>

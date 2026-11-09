@@ -209,7 +209,7 @@ export const ClientCertificatesDialog = ({
 						query.data?.certificates.map((certificate) => (
 							<div
 								key={certificate.id}
-								className="rounded-lg border border-solid p-3 text-sm"
+								className="rounded-lg border border-solid p-3 text-sm bg-surface-primary"
 							>
 								<div className="flex items-center justify-between gap-2">
 									<span>{certificate.label}</span>

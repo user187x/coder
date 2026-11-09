@@ -182,7 +182,7 @@ export const NodesTable: React.FC<{ report: ClusterNetworkReport }> = ({
 	return (
 		<section
 			aria-labelledby="cluster-nodes"
-			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex items-center justify-between gap-3">
 				<h2 id="cluster-nodes" className="m-0 text-base font-semibold">

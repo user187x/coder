@@ -157,7 +157,7 @@ const DERPRegionPage: React.FC = () => {
 					return (
 						<section
 							key={node.HostName}
-							className="border border-solid border-border rounded-lg overflow-hidden text-sm"
+							className="border border-solid border-border rounded-lg overflow-hidden text-sm bg-surface-primary"
 						>
 							<header className="p-6 flex justify-between items-center">
 								<div>

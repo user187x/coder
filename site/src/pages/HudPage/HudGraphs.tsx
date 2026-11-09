@@ -78,7 +78,7 @@ export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
 					The history could not be read.
 				</p>
 			) : !data ? (
-				<div className="h-[226px] rounded-lg border border-solid border-border" />
+				<div className="h-[226px] rounded-lg border border-solid border-border bg-surface-primary" />
 			) : (
 				<HudSortableGrid
 					className="grid gap-3 lg:grid-cols-3"

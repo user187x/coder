@@ -103,7 +103,7 @@ export const SecurityPostureSection: React.FC = () => {
 							checks.length > 0 && (
 								<div
 									key={category}
-									className="flex flex-col rounded-lg border border-solid border-border"
+									className="flex flex-col rounded-lg border border-solid border-border bg-surface-primary"
 								>
 									<h3 className="m-0 border-0 border-b border-solid border-border px-4 py-2 text-sm font-medium text-content-secondary">
 										{category}

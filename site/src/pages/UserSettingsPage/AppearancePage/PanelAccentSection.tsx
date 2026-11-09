@@ -304,7 +304,7 @@ const SettingsPanelPreview: React.FC<{
 			<MonitorIcon className="size-3.5" />
 			Workspaces
 		</span>
-		<div className="flex flex-col gap-2 rounded-lg border border-solid border-border p-2">
+		<div className="flex flex-col gap-2 rounded-lg border border-solid border-border p-2 bg-surface-primary">
 			<span className="font-semibold">Cluster</span>
 			{[
 				["CPU", "40%", "w-2/5"],
