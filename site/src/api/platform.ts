@@ -1466,6 +1466,8 @@ export type UserUIPreferences = {
 	dashboard_card_order?: string[];
 	/** The admin settings page Settings opens on for the user (its path); none: the usual first page. */
 	settings_default_view?: string | null;
+	/** The Settings and chat panels' size in percent (80-150), as a browser zoom would make them; none: 100. */
+	panel_scale?: number | null;
 };
 
 export type PanelAccent = { mode: "theme" } | { mode: "custom"; color: string };
@@ -2953,6 +2955,13 @@ export const PlatformAPI = {
 		),
 	getUserUIPreferences: () =>
 		get<UserUIPreferences>(`${PLATFORM_BASE}/api/preferences`),
+	/** Appearance > Panel accents set for everyone by an admin (Global); null: each user's own. */
+	getPanelAccentGlobal: () =>
+		get<{ global: PanelAccent | null }>(`${PLATFORM_BASE}/api/panel-accent`),
+	setPanelAccentGlobal: (global: PanelAccent | null) =>
+		post<{ global: PanelAccent | null }>(`${PLATFORM_BASE}/api/panel-accent`, {
+			global,
+		}),
 	setUserUIPreferences: (settings: UserUIPreferences) =>
 		post<UserUIPreferences>(`${PLATFORM_BASE}/api/preferences`, settings),
 	getWorkspaceNetwork: (workspaceId: string) =>

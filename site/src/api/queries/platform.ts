@@ -54,6 +54,19 @@ export const updateNavbarAppearance = (client: QueryClient) => ({
 		value: Awaited<ReturnType<typeof PlatformAPI.getNavbarAppearance>>,
 	) => client.setQueryData(navbarAppearanceKey, value),
 });
+const panelAccentGlobalKey = [...platformKey, "panel-accent-global"] as const;
+export const panelAccentGlobal = () => ({
+	queryKey: panelAccentGlobalKey,
+	queryFn: PlatformAPI.getPanelAccentGlobal,
+	refetchInterval: 60_000,
+	retry: false,
+});
+export const updatePanelAccentGlobal = (client: QueryClient) => ({
+	mutationFn: PlatformAPI.setPanelAccentGlobal,
+	onSuccess: (
+		value: Awaited<ReturnType<typeof PlatformAPI.getPanelAccentGlobal>>,
+	) => client.setQueryData(panelAccentGlobalKey, value),
+});
 export const updateNavbarLayoutDefault = (client: QueryClient) => ({
 	...updateNavbarAppearance(client),
 	mutationFn: PlatformAPI.setNavbarLayoutDefault,

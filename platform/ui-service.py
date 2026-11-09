@@ -8608,6 +8608,23 @@ def navbar_appearance():
     return {**appearance, "defaultLayout": layout} if layout is not None else appearance
 
 
+def panel_accent_global():
+    """Appearance > Panel accents set for everyone by an admin (Global): {"mode": "theme"} or {"mode": "custom",
+    "color": "#rrggbb"}; None leaves each user's own."""
+    return STORE.get_setting("panel_accent_global", None)
+
+
+def clean_panel_accent(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or value.get("mode") not in ("theme", "custom") or (
+            value["mode"] == "theme" and set(value) != {"mode"}) or (
+            value["mode"] == "custom" and (set(value) != {"mode", "color"} or not isinstance(value["color"], str)
+                                           or not re.fullmatch(r"#[0-9a-fA-F]{6}", value["color"]))):
+        raise ValueError("Invalid panel accent.")
+    return {"mode": value["mode"], **({"color": value["color"].lower()} if value["mode"] == "custom" else {})}
+
+
 def animation_policy():
     backing = STORE.settings_backing
     settings = backing.read("platform-settings", {}, legacy=STORE.legacy_settings) if backing else STORE.legacy_settings()
@@ -9305,6 +9322,8 @@ class Handler(BaseHTTPRequestHandler):
             )
         if path == BASE + "/api/navbar-appearance":
             return self.send_json(200, navbar_appearance())
+        if path == BASE + "/api/panel-accent":
+            return self.send_json(200, {"global": panel_accent_global()})
         if path == BASE + "/api/animations":
             return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
@@ -10127,6 +10146,7 @@ class Handler(BaseHTTPRequestHandler):
             BASE + "/api/login-page",
             BASE + "/api/navbar-appearance",
             BASE + "/api/navbar-layout-default",
+            BASE + "/api/panel-accent",
             BASE + "/api/animations",
             BASE + "/api/quick-menu",
             BASE + "/api/quick-menu/reset",
@@ -10224,6 +10244,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(400, {"error": str(e)})
             STORE.put_setting("navbar_layout_default", layout)
             return self.send_json(200, navbar_appearance())
+        if path == BASE + "/api/panel-accent":
+            try:
+                accent = clean_panel_accent(payload.get("global"))
+            except ValueError as e:
+                return self.send_json(400, {"error": str(e)})
+            STORE.put_setting("panel_accent_global", accent)
+            return self.send_json(200, {"global": panel_accent_global()})
         if path == BASE + "/api/navbar-appearance":
             value = payload.get("transparency")
             if type(value) is not int or not 0 <= value <= 100:

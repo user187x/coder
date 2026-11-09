@@ -1,16 +1,28 @@
 /*
  * Appearance > Panel accents: the inner containers (cards, rows, pills and fields drawn with a border) of the
  * Settings menu, its docked side panel and the chat (floating or docked) take a tint and border of the accent.
- * PanelAccent sets data-panel-accent and --panel-accent on the document.
+ * PanelAccent sets data-panel-accent and --panel-accent on the document; the Appearance page's preview of a panel
+ * carries data-panel-accent-preview and its own --panel-accent.
  */
+[data-panel-accent-preview],
 :root[data-panel-accent] {
 	--panel-accent-fill: color-mix(in srgb, var(--panel-accent) 12%, transparent);
 	--panel-accent-edge: color-mix(in srgb, var(--panel-accent) 50%, transparent);
 }
 
+[data-panel-accent-preview]
+	:is([class*="border-solid"], .chat-card, input, textarea),
 :root[data-panel-accent]
 	:is(.settings-menu-surface, [data-chat-panel], .chat-side-panel)
 	:is([class*="border-solid"], .chat-card, input, textarea) {
 	background-color: var(--panel-accent-fill);
 	border-color: var(--panel-accent-edge);
+}
+
+/* Appearance > Panel size: the Settings menu and panel and the chat's panel drawn larger or smaller, as the
+   browser's zoom would draw them, the rest of the page as it is. */
+.settings-menu-surface,
+[data-chat-panel],
+.chat-side-panel {
+	zoom: var(--panel-zoom, 1);
 }
