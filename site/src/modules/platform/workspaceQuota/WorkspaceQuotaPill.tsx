@@ -106,20 +106,17 @@ export const WorkspaceQuotaPillView: React.FC<{
 	/** The table's last column: the account's Cloud Drive (CloudDrive, placement "quota"). */
 	cloudDrive?: React.ReactNode;
 }> = ({ quota, action, cloudDrive }) => {
-	if (!cloudDrive && (!quota?.limited || !quota.usage)) {
-		return quota && !quota.limited && quota.activeGrantCount ? (
-			<div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-solid border-border bg-surface-primary/70 px-4 py-3 text-xs text-content-secondary">
-				<span>
-					{quota.activeGrantCount} approved extra quota grants · No finite cap
-					applies
-				</span>
-				{action}
-			</div>
-		) : (
-			action
-		);
-	}
 	const limited = Boolean(quota?.limited && quota.usage);
+	// Quotas not enforced: nothing about quotas (no heading, grants or request), only the Cloud Drive's card.
+	if (!limited) {
+		return cloudDrive ? (
+			<div className="grid w-full grid-cols-[repeat(5,minmax(13rem,1fr))] gap-3 overflow-x-auto pb-1">
+				<SlidingCard className={QUOTA_CARD} data-testid="quota-cloud-drive">
+					{cloudDrive}
+				</SlidingCard>
+			</div>
+		) : null;
+	}
 	const parts = PARTS.flatMap((p) => {
 		if (!quota || !limited) {
 			return [];
@@ -144,12 +141,6 @@ export const WorkspaceQuotaPillView: React.FC<{
 				<h2 className="m-0 text-sm font-semibold text-content-primary">
 					Quota
 				</h2>
-				{quota && !quota.limited && quota.activeGrantCount ? (
-					<span className="text-xs">
-						{quota.activeGrantCount} approved extra quota grants · No finite cap
-						applies
-					</span>
-				) : null}
 				{action}
 			</div>
 			{/* One card per part, as the Dashboard's, all on one line (scrolling sideways where the window is too narrow);

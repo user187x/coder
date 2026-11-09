@@ -58,16 +58,22 @@ describe("WorkspaceQuotaPillView", () => {
 		expect(screen.getByTestId("quota-cloud-drive")).toHaveTextContent("drive");
 	});
 
-	it("shows the Cloud Drive column alone where no limit applies", () => {
+	it("shows the Cloud Drive card alone, nothing of quotas, where no limit applies", () => {
 		render(
 			<WorkspaceQuotaPillView
-				quota={{ limited: false, exempt: true, limits: none }}
+				quota={{
+					limited: false,
+					exempt: true,
+					limits: none,
+					activeGrantCount: 2,
+				}}
 				cloudDrive={<span>drive</span>}
 			/>,
 		);
 		expect(
-			screen.getByRole("region", { name: "Workspace quota" }),
-		).toHaveTextContent("Quota");
+			screen.queryByRole("region", { name: "Workspace quota" }),
+		).toBeNull();
+		expect(screen.queryByText(/approved extra quota grants/)).toBeNull();
 		expect(screen.queryByTestId("quota-workspaces")).toBeNull();
 		expect(screen.getByTestId("quota-cloud-drive")).toHaveTextContent("drive");
 	});
