@@ -5,6 +5,7 @@ import {
 	MemoryStickIcon,
 	MonitorIcon,
 } from "lucide-react";
+import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "react-query";
 import type { QuotaKey, QuotaMe } from "#/api/platform";
 import { quotaMe } from "#/api/queries/platform";
@@ -61,6 +62,34 @@ const PARTS: {
 function num(v: number) {
 	return `${Math.round(v * 100) / 100}`;
 }
+
+/**
+ * A card that glides to its new place when the cards before it come or go (User Quota switched on or off): it
+ * measures where it was and slides from there (FLIP), unless the user prefers reduced motion.
+ */
+const SlidingCard: React.FC<React.ComponentProps<"div">> = (props) => {
+	const ref = useRef<HTMLDivElement>(null);
+	const left = useRef<number | null>(null);
+	useLayoutEffect(() => {
+		const element = ref.current;
+		if (!element) return;
+		const now = element.offsetLeft;
+		const before = left.current;
+		left.current = now;
+		if (
+			before === null ||
+			before === now ||
+			!element.animate ||
+			window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+		)
+			return;
+		element.animate(
+			[{ transform: `translateX(${before - now}px)` }, { transform: "none" }],
+			{ duration: 450, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+		);
+	});
+	return <div ref={ref} {...props} />;
+};
 
 /** A part's card, as the Dashboard's cards. */
 const QUOTA_CARD =
@@ -125,7 +154,9 @@ export const WorkspaceQuotaPillView: React.FC<{
 			</div>
 			{/* One card per part, as the Dashboard's, all on one line (scrolling sideways where the window is too narrow);
 			    the Cloud Drive is the last of them. */}
-			<div className="grid grid-flow-col auto-cols-[minmax(13rem,1fr)] gap-3 overflow-x-auto pb-1">
+			{/* Always five columns' worth (the four parts and the Cloud Drive): a card keeps its size whether or not the
+			    others show, and fewer cards line up from the left. */}
+			<div className="grid grid-cols-[repeat(5,minmax(13rem,1fr))] gap-3 overflow-x-auto pb-1">
 				{parts.map((p) => {
 					const level = quotaLevel(p.used, p.limit);
 					const pct = p.limit > 0 ? Math.min(p.used / p.limit, 1) * 100 : 100;
@@ -210,9 +241,9 @@ export const WorkspaceQuotaPillView: React.FC<{
 					);
 				})}
 				{cloudDrive && (
-					<div className={QUOTA_CARD} data-testid="quota-cloud-drive">
+					<SlidingCard className={QUOTA_CARD} data-testid="quota-cloud-drive">
 						{cloudDrive}
-					</div>
+					</SlidingCard>
 				)}
 			</div>
 		</section>
