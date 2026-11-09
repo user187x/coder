@@ -79,7 +79,7 @@ const OpenPortsPill: React.FC<{
 			role="status"
 			aria-label={`${workspace.label}: ${text}`}
 			title={ports.length ? `Open: ${ports.join(", ")}` : undefined}
-			className="whitespace-nowrap rounded-full border border-solid border-[#dc352e]/60 bg-surface-secondary px-2 text-[11px] leading-5 tabular-nums text-content-secondary"
+			className="whitespace-nowrap rounded-full border border-solid border-content-link/60 bg-surface-secondary px-2 text-[11px] leading-5 tabular-nums text-content-secondary"
 		>
 			<span className="font-medium text-content-primary">
 				{workspace.label}
@@ -115,7 +115,7 @@ const Legend: React.FC = () => (
 		<li className="flex items-center gap-1.5">
 			<span
 				aria-hidden
-				className="size-2.5 rounded-full border border-solid border-[#dc352e] bg-[#ff5ca8]"
+				className="size-2.5 rounded-full border border-solid border-content-link bg-content-link/70"
 			/>
 			Workspaces
 		</li>

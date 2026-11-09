@@ -40,10 +40,23 @@ const PALETTE = {
 		text: "#283011",
 		tag: "#434f20",
 	},
-	workspace: "#dc352e",
 	active: "#dc352e",
 	forward: "#ec4899",
 	back: "#38bdf8",
+} as const;
+
+/**
+ * The workspaces in the theme's own colour (its accent, --content-link), a shade of it for each part: the box's
+ * border the colour itself, the name a lighter tint, the orb shaded from a light tint to a darker shade.
+ */
+const WORKSPACE = {
+	border: "hsl(var(--content-link))",
+	text: "color-mix(in srgb, hsl(var(--content-link)) 70%, white)",
+	orbLight: "color-mix(in srgb, hsl(var(--content-link)) 50%, white)",
+	orb: "hsl(var(--content-link))",
+	orbDark: "color-mix(in srgb, hsl(var(--content-link)) 70%, black)",
+	halo: "hsl(var(--content-link) / 0.22)",
+	glow: "drop-shadow(0 0 12px hsl(var(--content-link) / 0.7))",
 } as const;
 
 type Point = { x: number; y: number; r: number; workspace: boolean };
@@ -143,7 +156,7 @@ const columnLabel = (column: TrafficColumn) => {
 
 const columnStroke = (column: TrafficColumn) =>
 	column.kind === "workspace"
-		? PALETTE.workspace
+		? WORKSPACE.border
 		: column.kind === "ports"
 			? "hsl(var(--content-secondary))"
 			: PALETTE[column.kind].stroke;
@@ -521,9 +534,9 @@ export const TrafficDiagram: React.FC<{
 					<path d="M 0 1 L 9.5 5 L 0 9 L 2.2 5 z" fill={PALETTE.active} />
 				</marker>
 				<radialGradient id={dot} cx="35%" cy="30%" r="65%">
-					<stop offset="0%" stopColor="#ff99cc" />
-					<stop offset="55%" stopColor="#ff5ca8" />
-					<stop offset="100%" stopColor="#ec4899" />
+					<stop offset="0%" stopColor={WORKSPACE.orbLight} />
+					<stop offset="55%" stopColor={WORKSPACE.orb} />
+					<stop offset="100%" stopColor={WORKSPACE.orbDark} />
 				</radialGradient>
 			</defs>
 
@@ -595,7 +608,7 @@ export const TrafficDiagram: React.FC<{
 							x={cx}
 							y={top + h + 34}
 							textAnchor="middle"
-							fill={stroke}
+							fill={column.kind === "workspace" ? WORKSPACE.text : stroke}
 							fontSize={column.kind === "workspace" ? 18 : 16}
 							fontWeight={800}
 						>
@@ -749,9 +762,7 @@ export const TrafficDiagram: React.FC<{
 												cy={at.y}
 												r={at.r + (lit ? 15 : 10)}
 												fill={
-													alive
-														? "rgb(255 92 168 / 0.22)"
-														: "rgb(148 163 184 / 0.18)"
+													alive ? WORKSPACE.halo : "rgb(148 163 184 / 0.18)"
 												}
 												className="transition-[r] duration-150"
 											/>
@@ -765,8 +776,7 @@ export const TrafficDiagram: React.FC<{
 												style={
 													alive
 														? {
-																filter:
-																	"drop-shadow(0 0 12px rgb(236 72 153 / 0.7))",
+																filter: WORKSPACE.glow,
 															}
 														: undefined
 												}
