@@ -7951,8 +7951,18 @@ def hud_report(token):
         return m(mid, label, "leaders", round(lead[0], digits), unit, _who(lead) + (" · " + ws if ws else ""), hint,
                  _ws_href(owner, ws) if ws else _workspaces_href("owner:" + owner))
 
+    # The cluster's nodes, and those not Ready (down, unreachable or cordoned off by a failure)
+    node_names = [((n.get("metadata") or {}).get("name") or "?") for n in snapshot["nodes"]]
+    offline_nodes = [((n.get("metadata") or {}).get("name") or "?") for n in snapshot["nodes"]
+                     if not any(c.get("type") == "Ready" and c.get("status") == "True"
+                                for c in (n.get("status") or {}).get("conditions") or [])]
     metrics = [
         m("users", "Unique users", "totals", len(users), "", "%d online now" % online, "Active accounts", "/deployment/users"),
+        m("nodes", "Node count", "totals", len(node_names), "", "%d ready" % (len(node_names) - len(offline_nodes)),
+          "Nodes in the cluster", "/deployment/network"),
+        m("nodes-offline", "Offline nodes", "totals", len(offline_nodes), "",
+          ", ".join(offline_nodes[:4]) + (" and %d more" % (len(offline_nodes) - 4) if len(offline_nodes) > 4 else "")
+          if offline_nodes else "every node is ready", "Nodes that are not Ready", "/deployment/network"),
         m("workspaces", "Workspaces created", "totals", len(workspaces), "", "%d starting or stopping" % starting if starting else "",
           "Existing workspaces", _workspaces_href()),
         m("active", "Workspaces active", "totals", running, "", "of %d" % len(workspaces), "Running now",

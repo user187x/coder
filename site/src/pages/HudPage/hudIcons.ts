@@ -12,6 +12,8 @@ import {
 	LayersIcon,
 	type LucideIcon,
 	MemoryStickIcon,
+	ServerIcon,
+	ServerOffIcon,
 	UnplugIcon,
 	UsersIcon,
 } from "lucide-react";
@@ -31,6 +33,8 @@ const HUD_ICONS: Record<string, LucideIcon> = {
 	"max-volume-claim": HardDriveIcon,
 	"volume-count": HardDriveIcon,
 	users: UsersIcon,
+	nodes: ServerIcon,
+	"nodes-offline": ServerOffIcon,
 	workspaces: LayersIcon,
 	"top-workspaces": LayersIcon,
 	active: CirclePlayIcon,

@@ -11,6 +11,8 @@ const SERVICE_IDS = [
 	"max-volume-claim",
 	"volume-count",
 	"users",
+	"nodes",
+	"nodes-offline",
 	"workspaces",
 	"active",
 	"cpu-used",
