@@ -20,6 +20,7 @@ import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { AdminCategoryMenu } from "./AdminCategoryMenu";
 import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 import { DeploymentSidebar } from "./DeploymentSidebar";
+import { useSettingsDefaultView } from "./settingsDefaultView";
 
 const DeploymentSettingsLayout: React.FC = () => {
 	const { permissions } = useAuthenticated();
@@ -28,6 +29,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const [sidebarOpen, setSidebarOpen] = useState(true);
 	// Shown or hidden from the breadcrumb: its toggle keeps the focus where the breadcrumb moves to.
 	const [toggled, setToggled] = useState(false);
+	const defaultView = useSettingsDefaultView();
 	const { data: introduction } = useQuery({
 		...bannerQuery(false),
 		enabled: !isEmbeddedFrame(),
@@ -44,12 +46,15 @@ const DeploymentSettingsLayout: React.FC = () => {
 	);
 
 	if (location.pathname === "/deployment") {
+		// The user's Default View, else the usual first page
+		if (defaultView.loading) return <PageLoader />;
 		return (
 			<Navigate
 				to={
-					permissions.viewDeploymentConfig
+					defaultView.path ??
+					(permissions.viewDeploymentConfig
 						? "/deployment/network"
-						: "/deployment/users"
+						: "/deployment/users")
 				}
 				replace
 			/>

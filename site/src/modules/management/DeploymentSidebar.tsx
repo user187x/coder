@@ -13,6 +13,7 @@ import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { DeploymentSidebarView } from "./DeploymentSidebarView";
 import { HealthNavItem } from "./HealthNavItem";
 import { NetworkStatusIndicator } from "./NetworkStatusIndicator";
+import { useSettingsDefaultView } from "./settingsDefaultView";
 
 /**
  * A sidebar for deployment settings, in the order the admin arranged it (a
@@ -31,6 +32,7 @@ export const DeploymentSidebar: React.FC<{
 	const queryClient = useQueryClient();
 	const preferences = useQuery(preferenceSettings());
 	const savePreferences = useMutation(updatePreferenceSettings(queryClient));
+	const defaultView = useSettingsDefaultView();
 
 	return (
 		<DeploymentSidebarView
@@ -44,6 +46,8 @@ export const DeploymentSidebar: React.FC<{
 			}
 			keycloakConnected={keycloak?.connected === true}
 			header={header}
+			defaultView={defaultView.path}
+			onDefaultViewChange={defaultView.set}
 			order={preferences.data?.admin_sidebar_order ?? []}
 			onReorder={(ids) => {
 				// The sidebar changes at once; the save follows, and a failed one

@@ -12,12 +12,15 @@ import {
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminPagesFor } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { useSettingsDefaultView } from "./settingsDefaultView";
 
 /** The admin landing link and permission-filtered category shortcuts. */
 export const AdminCategoryMenu = () => {
 	const { permissions } = useAuthenticated();
 	const { buildInfo } = useDashboard();
 	const preferences = useQuery(preferenceSettings());
+	// Settings opens on the user's Default View (a category's right-click menu), else Accounts.
+	const defaultView = useSettingsDefaultView();
 	const order = preferences.data?.admin_sidebar_order ?? [];
 	const pages = adminPagesFor({
 		permissions,
@@ -35,9 +38,9 @@ export const AdminCategoryMenu = () => {
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
 				<BreadcrumbLink
-					to="/deployment/users"
+					to={defaultView.path ?? "/deployment/users"}
 					end
-					title="Accounts; right-click for admin categories"
+					title={`${defaultView.path ? "Your default view" : "Accounts"}; right-click for admin categories`}
 				>
 					<SettingsIcon aria-hidden className="size-4 shrink-0" />
 					Settings

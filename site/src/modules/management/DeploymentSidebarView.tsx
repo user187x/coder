@@ -1,4 +1,11 @@
+import { HouseIcon } from "lucide-react";
 import type { BuildInfoResponse } from "#/api/typesGenerated";
+import {
+	ContextMenu,
+	ContextMenuCheckboxItem,
+	ContextMenuContent,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import {
 	Sidebar as BaseSidebar,
 	SettingsSidebarNavItem as SidebarNavItem,
@@ -30,6 +37,9 @@ type DeploymentSidebarViewProps = {
 	onReorder?: (ids: string[]) => void;
 	/** Above the list in place of its "Settings" label: the settings breadcrumb. */
 	header?: React.ReactNode;
+	/** The page Settings opens on for the user (a category's path), set from a category's right-click menu. */
+	defaultView?: string | null;
+	onDefaultViewChange?: (path: string | null) => void;
 };
 
 /**
@@ -48,6 +58,8 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	order = [],
 	onReorder,
 	header,
+	defaultView = null,
+	onDefaultViewChange,
 }) => {
 	const item = (
 		id: string,
@@ -58,12 +70,33 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		id,
 		label,
 		node: (
-			<SidebarNavItem href={href}>
-				<AdminCategoryLabel id={id}>
-					{label}
-					{extra}
-				</AdminCategoryLabel>
-			</SidebarNavItem>
+			<ContextMenu>
+				<ContextMenuTrigger asChild>
+					<div>
+						<SidebarNavItem href={href}>
+							<AdminCategoryLabel id={id}>
+								{label}
+								{extra}
+								{defaultView === href && (
+									<HouseIcon
+										aria-label="Default view"
+										className="ml-auto size-3.5 shrink-0 text-content-secondary"
+									/>
+								)}
+							</AdminCategoryLabel>
+						</SidebarNavItem>
+					</div>
+				</ContextMenuTrigger>
+				<ContextMenuContent aria-label={`${label} actions`}>
+					<ContextMenuCheckboxItem
+						checked={defaultView === href}
+						disabled={!onDefaultViewChange}
+						onCheckedChange={(on) => onDefaultViewChange?.(on ? href : null)}
+					>
+						Default View
+					</ContextMenuCheckboxItem>
+				</ContextMenuContent>
+			</ContextMenu>
 		),
 	});
 	const candidates: (SidebarCategory | false | undefined)[] = [

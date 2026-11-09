@@ -1,8 +1,14 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { Link, Outlet } from "react-router";
-import type { Banner } from "#/api/platform";
+import { type Banner, PlatformAPI } from "#/api/platform";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { MockBanner } from "#/testHelpers/platform";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
@@ -188,5 +194,45 @@ describe("section introductions", () => {
 		await user.click(await screen.findByRole("link", { name: "Go" }));
 		await screen.findByRole("link", { name: "Stay" });
 		expect(screen.queryByTestId("section-splash")).toBeNull();
+	});
+});
+
+describe("Default View", () => {
+	it("sets a category as the page Settings opens on, from its right-click menu", async () => {
+		const user = userEvent.setup();
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => changes);
+		renderWithAuth(<DeploymentSettingsLayout />, {
+			path: "/deployment",
+			route: "/deployment/users",
+			children: [{ path: "users", element: <p>Accounts page</p> }],
+		});
+		const link = await screen.findByRole("link", { name: "Accounts" });
+		fireEvent.contextMenu(link);
+		await user.click(
+			await screen.findByRole("menuitemcheckbox", { name: "Default View" }),
+		);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({
+				settings_default_view: "/deployment/users",
+			}),
+		);
+	});
+
+	it("opens Settings on the user's Default View", async () => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+			settings_default_view: "/deployment/appearance",
+		});
+		renderWithAuth(<DeploymentSettingsLayout />, {
+			path: "/deployment",
+			route: "/deployment",
+			children: [
+				{ path: "appearance", element: <p>Appearance page</p> },
+				{ path: "users", element: <p>Accounts page</p> },
+			],
+		});
+		expect(await screen.findByText("Appearance page")).toBeInTheDocument();
 	});
 });

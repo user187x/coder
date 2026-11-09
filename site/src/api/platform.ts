@@ -1464,6 +1464,8 @@ export type UserUIPreferences = {
 	panel_accent?: PanelAccent | null;
 	/** The Dashboard's cards after Summary, in the order the user dragged them into (card IDs). */
 	dashboard_card_order?: string[];
+	/** The admin settings page Settings opens on for the user (its path); none: the usual first page. */
+	settings_default_view?: string | null;
 };
 
 export type PanelAccent = { mode: "theme" } | { mode: "custom"; color: string };
