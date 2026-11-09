@@ -43,6 +43,8 @@ describe("editableFields", () => {
 			outline: false,
 			introductions: false,
 			pulldown: true,
+			pulldownAdminsOnly: false,
+			terminal: true,
 			introEffect: "none",
 			introDurationMs: 2000,
 			introSize: "normal",

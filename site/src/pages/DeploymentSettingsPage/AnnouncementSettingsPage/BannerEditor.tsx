@@ -401,18 +401,49 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						</span>
 					</Label>
 				</div>
+				<div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+					<div className="flex items-center gap-2">
+						<Checkbox
+							id={`${id}-pulldown`}
+							checked={form.pulldown !== false}
+							onCheckedChange={(checked) =>
+								onChange({ pulldown: checked === true })
+							}
+						/>
+						<Label htmlFor={`${id}-pulldown`} className="font-normal">
+							Let people pull down the whole message{" "}
+							<span className="text-content-secondary">
+								(the panel and the right-click reader)
+							</span>
+						</Label>
+					</div>
+					<div className="flex items-center gap-2">
+						<Switch
+							id={`${id}-pulldown-admins`}
+							checked={form.pulldownAdminsOnly === true}
+							disabled={form.pulldown === false}
+							onCheckedChange={(pulldownAdminsOnly) =>
+								onChange({ pulldownAdminsOnly })
+							}
+						/>
+						<Label htmlFor={`${id}-pulldown-admins`} className="font-normal">
+							Admins Only
+						</Label>
+					</div>
+				</div>
 				<div className="flex items-center gap-2 text-sm">
 					<Checkbox
-						id={`${id}-pulldown`}
-						checked={form.pulldown !== false}
+						id={`${id}-terminal`}
+						checked={form.terminal !== false}
+						disabled={form.pulldown === false}
 						onCheckedChange={(checked) =>
-							onChange({ pulldown: checked === true })
+							onChange({ terminal: checked === true })
 						}
 					/>
-					<Label htmlFor={`${id}-pulldown`} className="font-normal">
-						Let people pull down the whole message{" "}
+					<Label htmlFor={`${id}-terminal`} className="font-normal">
+						Enable pseudo-terminal{" "}
 						<span className="text-content-secondary">
-							(the panel and the right-click reader)
+							(the pulled-down panel's command prompt)
 						</span>
 					</Label>
 				</div>

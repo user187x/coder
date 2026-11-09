@@ -210,6 +210,7 @@ it("publishes enforced still mode without erasing the configured effects", async
 it.each([
 	["Let people dismiss it", { dismissible: false }],
 	["Let people pull down the whole message", { pulldown: false }],
+	["Enable pseudo-terminal", { terminal: false }],
 ])("turns off %s", async (name, expected) => {
 	const onChange = vi.fn();
 	render(
@@ -232,6 +233,28 @@ it.each([
 		screen.getByRole("checkbox", { name: new RegExp(name) }),
 	);
 	expect(onChange).toHaveBeenCalledWith(expected);
+});
+
+it("keeps the pull-down to admins with Admins Only", async () => {
+	const onChange = vi.fn();
+	render(
+		<QueryClientProvider client={new QueryClient()}>
+			<BannerEditor
+				form={{ ...MockBanner, pulldown: true }}
+				dirty={false}
+				isPublishing={false}
+				problem={null}
+				onChange={onChange}
+				onProblem={vi.fn()}
+				onPublish={vi.fn()}
+				onDiscard={vi.fn()}
+				onTryOpen={vi.fn()}
+				onTryClose={vi.fn()}
+			/>
+		</QueryClientProvider>,
+	);
+	await userEvent.click(screen.getByRole("switch", { name: "Admins Only" }));
+	expect(onChange).toHaveBeenCalledWith({ pulldownAdminsOnly: true });
 });
 
 it("publishes a blank form, with every field cleared", async () => {

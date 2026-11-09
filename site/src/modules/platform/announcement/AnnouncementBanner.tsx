@@ -39,6 +39,7 @@ import {
 } from "./SectionSplashPill";
 import { useSectionSplash } from "./sectionIntroductions";
 import { useAnnouncementMotion } from "./useAnnouncementMotion";
+import { usePulldownAllowed } from "./usePulldownAllowed";
 import "./bannerLcd.css";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
 import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
@@ -237,6 +238,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const confirm = useMutation(confirmAnnouncement(queryClient));
 	const status = statusQuery.data;
 	const signedIn = status?.signedIn === true;
+	const pulldown = usePulldownAllowed(banner);
 	const acked = status?.signedIn === true && status.acked;
 	const viewedAt =
 		status?.signedIn === true ? (status.viewedAt ?? undefined) : undefined;
@@ -373,7 +375,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					)}
 				</BannerLcd>
 				{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
-				{placement !== "login" && banner.pulldown !== false && (
+				{placement !== "login" && pulldown && (
 					<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
 				)}
 				{opening && <OpenLayers effect={openEffect} />}

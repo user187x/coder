@@ -107,6 +107,7 @@ type BannerScrollViewProps = {
 		| "picture"
 		| "pictureFit"
 		| "pictureEffect"
+		| "terminal"
 		| "opacity"
 		| "autoScroll"
 		| "autoScrollSpeed"
@@ -291,8 +292,11 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		setCleared(true);
 	};
 
+	// Without the pseudo-terminal (the admin turned it off) the panel shows the message alone and takes no commands.
+	const terminal = banner.terminal !== false;
+
 	const onPromptKey = (event: React.KeyboardEvent) => {
-		if (workspace) return;
+		if (workspace || !terminal) return;
 		if (echo) {
 			setEcho(false);
 			event.preventDefault();
@@ -543,18 +547,21 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 											/>
 										</div>
 									)}
-									{history.map(({ command, answer }, i) => (
-										<div key={i} className="banner-scroll-prompt">
-											<i>root@platform</i>:<em>~</em># {command}
-											<TerminalAnswer
-												answer={answer}
-												time={<DotMatrixTime />}
-											/>
-										</div>
-									))}
-									{cat > 0 && <PromptCat key={cat} onDone={() => setCat(0)} />}
-									{echo && <PromptEcho />}
-									{completions && (
+									{terminal &&
+										history.map(({ command, answer }, i) => (
+											<div key={i} className="banner-scroll-prompt">
+												<i>root@platform</i>:<em>~</em># {command}
+												<TerminalAnswer
+													answer={answer}
+													time={<DotMatrixTime />}
+												/>
+											</div>
+										))}
+									{terminal && cat > 0 && (
+										<PromptCat key={cat} onDone={() => setCat(0)} />
+									)}
+									{terminal && echo && <PromptEcho />}
+									{terminal && completions && (
 										<div
 											className="banner-scroll-out banner-scroll-completions"
 											data-testid="announcement-scroll-completions"
@@ -562,14 +569,16 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 											{completions.join("  ")}
 										</div>
 									)}
-									<div
-										className="banner-scroll-prompt"
-										data-testid="announcement-scroll-prompt"
-										aria-hidden
-									>
-										<i>root@platform</i>:<em>~</em># {typed}
-										<span className="banner-scroll-cursor" />
-									</div>
+									{terminal && (
+										<div
+											className="banner-scroll-prompt"
+											data-testid="announcement-scroll-prompt"
+											aria-hidden
+										>
+											<i>root@platform</i>:<em>~</em># {typed}
+											<span className="banner-scroll-cursor" />
+										</div>
+									)}
 								</div>
 							)}
 							<CornerExpandButton

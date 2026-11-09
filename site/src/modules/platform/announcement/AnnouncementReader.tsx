@@ -23,6 +23,7 @@ import {
 	AnnouncementMotionDisabled,
 	useAnnouncementMotion,
 } from "./useAnnouncementMotion";
+import { usePulldownAllowed } from "./usePulldownAllowed";
 
 /** A full-message reader that leaves the announcement's dismissal state unchanged. */
 export const AnnouncementReader: React.FC<{
@@ -30,7 +31,8 @@ export const AnnouncementReader: React.FC<{
 	children: React.ReactElement;
 }> = ({ banner, children }) => {
 	const [open, setOpen] = useState(false);
-	if (banner.pulldown === false) {
+	const pulldown = usePulldownAllowed(banner);
+	if (!pulldown) {
 		return (
 			<AnnouncementMotionDisabled.Provider
 				value={banner.animationsDisabled === true}

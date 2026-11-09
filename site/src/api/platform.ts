@@ -1720,6 +1720,10 @@ export type Banner = {
 	introductions?: boolean;
 	/** Whether users can open the whole message (the pulldown panel and the right-click reader). Missing: on. */
 	pulldown?: boolean;
+	/** Only admins may pull it down (with pulldown on). Missing: off. */
+	pulldownAdminsOnly?: boolean;
+	/** The pulled-down panel's prompt that takes commands (the pseudo-terminal). Missing: on. */
+	terminal?: boolean;
 	/** The introduction's text effect (not "starwars"); missing: "none", the fade. */
 	introEffect?: BannerEffect;
 	/** How long the introduction stays visible, in ms (INTRO_DURATION); missing: 2000. */

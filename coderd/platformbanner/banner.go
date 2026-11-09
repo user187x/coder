@@ -40,7 +40,12 @@ type Fields struct {
 	Dismissible     bool     `json:"dismissible"`
 	// Pulldown: whether users can open the whole message (the pulldown panel
 	// and the right-click reader).
-	Pulldown           bool   `json:"pulldown"`
+	Pulldown bool `json:"pulldown"`
+	// PulldownAdminsOnly: only admins may pull it down (with Pulldown on).
+	PulldownAdminsOnly bool `json:"pulldownAdminsOnly"`
+	// Terminal: the pulled-down panel ends in a prompt that takes commands
+	// (the pseudo-terminal); off, it shows the message alone.
+	Terminal           bool   `json:"terminal"`
 	ShowOnLoginPage    bool   `json:"showOnLoginPage"`
 	RefreshSeconds     int    `json:"refreshSeconds"`
 	Effect             string `json:"effect"`
@@ -105,6 +110,7 @@ func FieldDefaults() Fields {
 		Level:           "info",
 		Dismissible:     true,
 		Pulldown:        true,
+		Terminal:        true,
 		ShowOnLoginPage: true,
 		RefreshSeconds:  60,
 		Effect:          "none",
@@ -240,6 +246,8 @@ func Clean(raw []byte) (Fields, error) {
 		{"enabled", &out.Enabled},
 		{"dismissible", &out.Dismissible},
 		{"pulldown", &out.Pulldown},
+		{"pulldownAdminsOnly", &out.PulldownAdminsOnly},
+		{"terminal", &out.Terminal},
 		{"showOnLoginPage", &out.ShowOnLoginPage},
 		{"repeat", &out.Repeat},
 		{"loopText", &out.LoopText},

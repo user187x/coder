@@ -87,6 +87,12 @@ func TestCleanPulldown(t *testing.T) {
 	f, err = clean(t, map[string]any{"message": "x", "pulldown": false})
 	require.NoError(t, err)
 	require.False(t, f.Pulldown)
+	require.False(t, f.PulldownAdminsOnly, "anyone may pull it down unless kept to admins")
+	require.True(t, f.Terminal, "the pseudo-terminal is on unless turned off")
+	f, err = clean(t, map[string]any{"message": "x", "pulldownAdminsOnly": true, "terminal": false})
+	require.NoError(t, err)
+	require.True(t, f.PulldownAdminsOnly)
+	require.False(t, f.Terminal)
 }
 
 func TestCleanIntroductions(t *testing.T) {
