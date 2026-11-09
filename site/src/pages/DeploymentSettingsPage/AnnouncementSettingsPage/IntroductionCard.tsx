@@ -19,8 +19,10 @@ import {
 } from "#/components/Select/Select";
 import { Slider } from "#/components/Slider/Slider";
 import { Switch } from "#/components/Switch/Switch";
-import { EffectStage } from "#/modules/platform/announcement/EffectStage";
-import { SectionSplashPill } from "#/modules/platform/announcement/SectionSplashPill";
+import {
+	BannerIntroductionPreview,
+	type IntroductionPreviewLook,
+} from "#/modules/platform/announcement/AnnouncementBanner";
 import { EffectGallery } from "./EffectGallery";
 
 /** How long the slider rests before the duration is saved. */
@@ -52,6 +54,11 @@ type IntroductionSettings = Pick<
 
 type IntroductionCardProps = {
 	settings: IntroductionSettings;
+	/** The published banner's look: the preview shows it as developers see it (the info colours without one). */
+	banner?: Pick<
+		IntroductionPreviewLook,
+		"title" | "level" | "opacity" | "receipts" | "dismissible"
+	>;
 	disabled?: boolean;
 	/** Saves a change at once; the duration slider waits until it rests. */
 	onChange: (change: Partial<IntroductionSettings>) => void;
@@ -60,6 +67,7 @@ type IntroductionCardProps = {
 /** Section introductions: the announcement banner names the admin settings section being opened. */
 export const IntroductionCard: React.FC<IntroductionCardProps> = ({
 	settings,
+	banner,
 	disabled,
 	onChange,
 }) => {
@@ -89,124 +97,137 @@ export const IntroductionCard: React.FC<IntroductionCardProps> = ({
 				banner shows that section's name for the time set below. Nothing shows
 				while no announcement banner is showing.
 			</p>
-			<div className="flex flex-col gap-4">
-				<div className="flex items-center gap-3">
-					<Switch
-						id={`${id}-switch`}
-						checked={settings.introductions === true}
-						disabled={disabled}
-						onCheckedChange={(introductions) => onChange({ introductions })}
-					/>
-					<Label htmlFor={`${id}-switch`}>Show section introductions</Label>
-				</div>
-				<div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-					<EffectGallery
-						label="Introduction text effect"
-						value={effect}
-						options={INTRO_EFFECTS}
-						disabled={disabled}
-						onChange={(introEffect) => onChange({ introEffect })}
-					/>
-					<Select
-						value={size}
-						disabled={disabled}
-						onValueChange={(next) => {
-							const introSize = INTRO_SIZES.find((s) => s === next);
-							if (introSize) {
-								onChange({ introSize });
-							}
-						}}
-					>
-						<SelectTrigger
-							className="h-8 w-36 text-xs"
-							aria-label="Introduction size"
+			{/* The settings on the left, the preview on the right (one above the other on a narrow screen) */}
+			<div className="grid gap-6 lg:grid-cols-2">
+				<div className="flex min-w-0 flex-col gap-4">
+					<div className="flex items-center gap-3">
+						<Switch
+							id={`${id}-switch`}
+							checked={settings.introductions === true}
+							disabled={disabled}
+							onCheckedChange={(introductions) => onChange({ introductions })}
+						/>
+						<Label htmlFor={`${id}-switch`}>Show section introductions</Label>
+					</div>
+					<div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+						<EffectGallery
+							label="Introduction text effect"
+							value={effect}
+							options={INTRO_EFFECTS}
+							disabled={disabled}
+							onChange={(introEffect) => onChange({ introEffect })}
+						/>
+						<Select
+							value={size}
+							disabled={disabled}
+							onValueChange={(next) => {
+								const introSize = INTRO_SIZES.find((s) => s === next);
+								if (introSize) {
+									onChange({ introSize });
+								}
+							}}
 						>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{INTRO_SIZES.map((s) => (
-								<SelectItem key={s} value={s}>
-									{SIZE_LABELS[s]}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					<Select
-						value={weight}
-						disabled={disabled}
-						onValueChange={(next) => {
-							const introWeight = INTRO_WEIGHTS.find((w) => w === next);
-							if (introWeight) {
-								onChange({ introWeight });
-							}
-						}}
-					>
-						<SelectTrigger
-							className="h-8 w-32 text-xs"
-							aria-label="Introduction weight"
+							<SelectTrigger
+								className="h-8 w-36 text-xs"
+								aria-label="Introduction size"
+							>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{INTRO_SIZES.map((s) => (
+									<SelectItem key={s} value={s}>
+										{SIZE_LABELS[s]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						<Select
+							value={weight}
+							disabled={disabled}
+							onValueChange={(next) => {
+								const introWeight = INTRO_WEIGHTS.find((w) => w === next);
+								if (introWeight) {
+									onChange({ introWeight });
+								}
+							}}
 						>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{INTRO_WEIGHTS.map((w) => (
-								<SelectItem key={w} value={w}>
-									{WEIGHT_LABELS[w]}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-				<div className="flex items-center gap-3">
-					<Switch
-						id={`${id}-uppercase`}
-						checked={settings.introUppercase === true}
-						disabled={disabled}
-						onCheckedChange={(introUppercase) => onChange({ introUppercase })}
-					/>
-					<Label htmlFor={`${id}-uppercase`}>All capitals</Label>
-				</div>
-				<div className="flex items-center gap-3">
-					<span id={`${id}-duration`} className="text-sm">
-						Visible for
-					</span>
-					<Slider
-						className="w-48"
-						min={INTRO_DURATION.min / 1000}
-						max={INTRO_DURATION.max / 1000}
-						step={INTRO_DURATION.step / 1000}
-						value={[durationMs / 1000]}
-						disabled={disabled}
-						aria-labelledby={`${id}-duration`}
-						onValueChange={([seconds]) => {
-							if (seconds === undefined) {
-								return;
-							}
-							const next = Math.round(seconds * 1000);
-							setDurationMs(next);
-							clearTimeout(timer.current);
-							timer.current = setTimeout(
-								() => onChange({ introDurationMs: next }),
-								SAVE_DELAY_MS,
-							);
-						}}
-					/>
-					<span className="w-10 text-sm tabular-nums text-content-secondary">
-						{durationMs / 1000} s
-					</span>
-				</div>
-				<div role="group" aria-label="Introduction preview">
-					<EffectStage
-						animationsDisabled={settings.animationsDisabled}
-						className="min-h-16"
-					>
-						<span className="flex min-w-0 flex-1 justify-center py-1">
-							<SectionSplashPill
-								key={`${effect}:${size}:${weight}`}
-								label="Appearance"
-								look={settings}
-							/>
+							<SelectTrigger
+								className="h-8 w-32 text-xs"
+								aria-label="Introduction weight"
+							>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{INTRO_WEIGHTS.map((w) => (
+									<SelectItem key={w} value={w}>
+										{WEIGHT_LABELS[w]}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+					<div className="flex items-center gap-3">
+						<Switch
+							id={`${id}-uppercase`}
+							checked={settings.introUppercase === true}
+							disabled={disabled}
+							onCheckedChange={(introUppercase) => onChange({ introUppercase })}
+						/>
+						<Label htmlFor={`${id}-uppercase`}>All capitals</Label>
+					</div>
+					<div className="flex items-center gap-3">
+						<span id={`${id}-duration`} className="text-sm">
+							Visible for
 						</span>
-					</EffectStage>
+						<Slider
+							className="w-48"
+							min={INTRO_DURATION.min / 1000}
+							max={INTRO_DURATION.max / 1000}
+							step={INTRO_DURATION.step / 1000}
+							value={[durationMs / 1000]}
+							disabled={disabled}
+							aria-labelledby={`${id}-duration`}
+							onValueChange={([seconds]) => {
+								if (seconds === undefined) {
+									return;
+								}
+								const next = Math.round(seconds * 1000);
+								setDurationMs(next);
+								clearTimeout(timer.current);
+								timer.current = setTimeout(
+									() => onChange({ introDurationMs: next }),
+									SAVE_DELAY_MS,
+								);
+							}}
+						/>
+						<span className="w-10 text-sm tabular-nums text-content-secondary">
+							{durationMs / 1000} s
+						</span>
+					</div>
+				</div>
+				<div
+					role="group"
+					aria-label="Introduction preview"
+					className="flex min-w-0 flex-col gap-2"
+				>
+					<span className="text-sm font-medium">Preview</span>
+					<p className="m-0 text-xs text-content-secondary">
+						The announcement banner as developers see it while it introduces a
+						section, only narrower.
+					</p>
+					<div className="rounded-xl bg-surface-tertiary p-3">
+						<BannerIntroductionPreview
+							key={`${effect}:${size}:${weight}`}
+							banner={{
+								title: "",
+								level: "info",
+								dismissible: false,
+								...banner,
+								...settings,
+							}}
+							label="Appearance"
+						/>
+					</div>
 				</div>
 			</div>
 		</section>

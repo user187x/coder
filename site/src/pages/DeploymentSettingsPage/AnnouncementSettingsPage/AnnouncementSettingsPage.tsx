@@ -446,6 +446,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 
 			<IntroductionCard
 				settings={published}
+				banner={published}
 				disabled={busy}
 				onChange={(change) =>
 					publish.mutate(

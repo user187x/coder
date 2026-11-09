@@ -3,7 +3,7 @@ import { XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useLocation } from "react-router";
-import type { Banner } from "#/api/platform";
+import type { Banner, BannerFields } from "#/api/platform";
 import { globalLockdown } from "#/api/queries/globalLockdown";
 import {
 	announcementStatus,
@@ -523,6 +523,76 @@ const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
 				className="pointer-events-none absolute -bottom-[14px] left-[19px] z-10 block size-[25px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.55)]"
 			/>
 		</span>
+	);
+};
+
+/** What the introduction preview draws: the banner's look and the introduction's settings. */
+export type IntroductionPreviewLook = Pick<
+	BannerFields,
+	| "title"
+	| "level"
+	| "opacity"
+	| "receipts"
+	| "dismissible"
+	| "introEffect"
+	| "introSize"
+	| "introWeight"
+	| "introUppercase"
+	| "font"
+	| "animationsDisabled"
+>;
+
+/**
+ * The navbar's announcement banner as it shows a section introduction, for the admin's preview: its card, colours,
+ * opacity, screen and Confirm or close button exactly as developers see them, as wide as its container.
+ */
+export const BannerIntroductionPreview: React.FC<{
+	banner: IntroductionPreviewLook;
+	label: string;
+}> = ({ banner, label }) => {
+	const { bg, fg } = bannerColors(banner);
+	const receipts = banner.receipts !== false;
+	const motion = useAnnouncementMotion(banner.animationsDisabled);
+	return (
+		<div
+			data-testid="introduction-banner-preview"
+			data-announcement-motion={motion.effects ? "on" : "off"}
+			className="flex min-h-9 w-full min-w-0 items-center gap-1.5 rounded-[14px] py-1 pr-1.5 pl-1 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
+			style={{ background: withBannerAlpha(bg, banner.opacity), color: fg }}
+		>
+			<BannerLcd
+				bg={bg}
+				fg={fg}
+				radius={CARD_RADIUS.navbar}
+				opacity={banner.opacity}
+			>
+				<span className="flex min-w-0 flex-1 items-center justify-center px-3">
+					<SectionSplashPill key={label} label={label} look={banner} inNavbar />
+				</span>
+			</BannerLcd>
+			{receipts ? (
+				<span
+					aria-hidden
+					style={{ background: confirmBackground(bg) }}
+					className={cn(
+						RECEIPT_BOX,
+						ANNOUNCEMENT_ACTION_SURFACE,
+						"px-2 text-[13px] font-semibold leading-[18px] whitespace-nowrap",
+					)}
+				>
+					Confirm
+				</span>
+			) : (
+				banner.dismissible && (
+					<span
+						aria-hidden
+						className="flex size-[28px] shrink-0 items-center justify-center rounded-[9px] border border-solid border-white/30 bg-white/10"
+					>
+						<XIcon className="size-4" />
+					</span>
+				)
+			)}
+		</div>
 	);
 };
 

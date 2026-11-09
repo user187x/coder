@@ -65,9 +65,9 @@ describe("IntroductionCard", () => {
 		expect(pill).toHaveTextContent("Appearance");
 	});
 
-	it("previews inside the banner's own screen and motion setting", () => {
+	it("previews inside the announcement banner, with its motion setting", () => {
 		setup({ introEffect: "gold" });
-		const stage = screen.getByTestId("effect-stage");
+		const stage = screen.getByTestId("introduction-banner-preview");
 		expect(stage).toHaveAttribute("data-announcement-motion");
 		expect(stage).toContainElement(screen.getByTestId("section-splash-pill"));
 	});
