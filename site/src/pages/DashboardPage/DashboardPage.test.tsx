@@ -200,3 +200,17 @@ it("keeps the Network card when none of the workspaces is running", async () => 
 	).toBeInTheDocument();
 	expect(PlatformAPI.getWorkspaceNetwork).not.toHaveBeenCalled();
 });
+
+it("measures a per-workspace disk limit against every workspace the account may have", async () => {
+	setup({
+		...MockQuotaMeResources,
+		resourceModes: { ...MockQuotaMeResources.resourceModes, disk: "instance" },
+		// 25 GB per workspace, three workspaces: 75 GB in all; the quota counts the largest (20 GB).
+		limits: { ...MockQuotaMeResources.limits, disk: 25 },
+		usage: { ...MockQuotaMeResources.usage, disk: 40 },
+	});
+	const rings = await screen.findByRole("img", { name: /Disk: 30 of 75 GB/ });
+	expect(rings).toHaveAccessibleName(
+		/Disk: 30 of 75 GB allocated \(40% of quota\), within quota/,
+	);
+});

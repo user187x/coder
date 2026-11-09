@@ -7,6 +7,8 @@ import {
 	type DashboardScope,
 	RESOURCE_UNIT,
 	type Resource,
+	totalAllocated,
+	totalLimit,
 	watermarkLevel,
 } from "./dashboardModel";
 
@@ -49,6 +51,13 @@ type SummaryCardProps = {
 	gpus?: number | null;
 };
 
+/** What counts against a resource's limit: the quota's own count, or with a per-workspace limit every
+ * workspace's together (measured against the limit times the workspaces allowed, totalLimit). */
+const ringUsed = (scope: DashboardScope, resource: Resource) =>
+	scope.modes[resource] === "instance"
+		? totalAllocated(scope, resource)
+		: scope.allocated[resource];
+
 /** The figures under the rings, two to a row: CPU and Memory, then Disk and GPU. */
 const LEGEND: readonly (Resource | "gpu")[] = ["cpu", "memory", "disk", "gpu"];
 
@@ -66,8 +75,10 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 	const [active, setActive] = useState<number | null>(null);
 	const rings: Ring[] = ORDER.map((resource) => ({
 		label: RESOURCE_STYLE[resource].label,
-		used: scope.allocated[resource],
-		limit: scope.limits[resource],
+		// The workspaces together against the limit for them all, as the resource cards measure: a per-workspace
+		// limit counts once for each workspace the account may have.
+		used: ringUsed(scope, resource),
+		limit: totalLimit(scope, resource),
 		unit: RESOURCE_UNIT[resource],
 		stroke: RESOURCE_STYLE[resource].stroke,
 	}));
@@ -121,8 +132,8 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 						}
 						const resource = key;
 						const index = ORDER.indexOf(resource);
-						const used = scope.allocated[resource];
-						const limit = scope.limits[resource];
+						const used = ringUsed(scope, resource);
+						const limit = totalLimit(scope, resource);
 						const style = RESOURCE_STYLE[resource];
 						const level = watermarkLevel(used, limit);
 						return (
@@ -142,7 +153,9 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 										className={cn("size-2 rounded-full", style.dot)}
 									/>
 									{style.label}
-									{scope.modes[resource] === "instance" && " (per workspace)"}
+									{scope.modes[resource] === "instance" &&
+										scope.limits[resource] !== null &&
+										` (${amount(scope.limits[resource] ?? 0, resource)} per workspace)`}
 								</span>
 								<span className="whitespace-nowrap text-2xl font-semibold tabular-nums text-content-primary">
 									{formatQuotaNumber(used)}
