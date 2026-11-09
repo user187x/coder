@@ -71,6 +71,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	const preferences = useQuery(userUIPreferences());
 	const stripRadius = preferences.data?.navbar_strip_radius ?? 10;
 	const stripOff = Boolean(preferences.data?.navbar_strip_off);
+	const floating = Boolean(preferences.data?.navbar_floating);
 	// The items taken off the navbar: the notification bell among them or not (the Settings badge leaves the inbox
 	// and chats to the bell while it shows).
 	const { hidden: navbarHidden } = useNavbarOrder(defaultLayout);
@@ -127,6 +128,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					: (navbarInk(stripColor, transparency) ?? undefined)
 			}
 			data-navbar-strip={stripOff ? "off" : undefined}
+			data-navbar-floating={floating || undefined}
 			className="navbar-soft sticky top-0 z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"
 		>
 			{/* Platform: the logo in a tile like the user's avatar. */}
@@ -144,7 +146,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			<NavbarArrange
 				defaultLayout={defaultLayout}
 				canSetDefault={adminPermissions.canEditDeployment}
-				className="relative flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
+				className="navbar-arrange relative flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
 				items={{
 					logo: logoURL ? <NavbarLogo /> : null,
 					workspaces: (

@@ -1472,6 +1472,8 @@ export type UserUIPreferences = {
 	navbar_strip_radius?: number | null;
 	/** The admin settings' breadcrumb and categories in the navbar's top left, not beside the page. */
 	admin_nav_in_navbar?: boolean | null;
+	/** Appearance > Navigation bar: the bar as a floating pill, centred, as wide as its items. */
+	navbar_floating?: boolean | null;
 	/** Appearance > Navigation bar: the backstrip hidden. */
 	navbar_strip_off?: boolean | null;
 	/** Appearance > Panel accents' text colour for the Settings and chat panels ("#rrggbb"); null: the theme's. */

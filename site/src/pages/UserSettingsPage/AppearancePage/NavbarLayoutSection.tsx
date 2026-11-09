@@ -34,6 +34,7 @@ export const NavbarLayoutSection: React.FC = () => {
 	const stripOff = Boolean(preferences.data?.navbar_strip_off);
 	const { permissions } = useAuthenticated();
 	const adminNav = Boolean(preferences.data?.admin_nav_in_navbar);
+	const floating = Boolean(preferences.data?.navbar_floating);
 	const savedRadius = preferences.data?.navbar_strip_radius ?? DEFAULT_RADIUS;
 	const [radius, setRadius] = useState(savedRadius);
 	useEffect(() => setRadius(savedRadius), [savedRadius]);
@@ -72,6 +73,21 @@ export const NavbarLayoutSection: React.FC = () => {
 						onCheckedChange={(on) => save.mutate({ navbar_strip_off: !on })}
 					/>
 					<Label htmlFor={`${id}-strip`}>Backstrip</Label>
+				</div>
+				<div className="flex items-start gap-3">
+					<Switch
+						id={`${id}-floating`}
+						checked={floating}
+						disabled={save.isPending || !preferences.isSuccess}
+						onCheckedChange={(on) => save.mutate({ navbar_floating: on })}
+					/>
+					<span className="flex flex-col">
+						<Label htmlFor={`${id}-floating`}>Floating</Label>
+						<span className="text-xs text-content-secondary">
+							The bar as one pill, centred and only as wide as its items: it
+							shrinks toward the centre as you take items off it.
+						</span>
+					</span>
 				</div>
 				{permissions.viewDeploymentConfig && (
 					<div className="flex items-start gap-3">

@@ -40,6 +40,38 @@
 	background-color: var(--navbar-strip-bg);
 	pointer-events: none;
 }
+/* Appearance > Navigation bar, Floating: the bar is one pill, centred and only as wide as its items, so it shrinks
+   toward the centre as items leave it; the full-width strip and the bar's bottom line give way to it. */
+.navbar-soft[data-navbar-floating] {
+	justify-content: center;
+	border-bottom-width: 0 !important;
+}
+.navbar-soft[data-navbar-floating]::before {
+	display: none;
+}
+.navbar-soft[data-navbar-floating] .navbar-arrange {
+	flex: 0 1 auto;
+	width: fit-content;
+	max-width: 100%;
+	height: auto;
+	/* centred between whatever else the bar holds (the logo, a page's navigation) */
+	margin-inline: auto;
+	padding: 0.375rem 0.75rem;
+	border: 1px solid hsl(var(--border-default));
+	border-radius: 9999px;
+	background-color: var(--navbar-strip-bg);
+	box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+	interpolate-size: allow-keywords;
+	transition: width 0.3s ease;
+}
+.navbar-soft[data-navbar-floating] [data-navbar-item="banner"] {
+	flex: 0 1 28rem;
+}
+@media (prefers-reduced-motion: reduce) {
+	.navbar-soft[data-navbar-floating] .navbar-arrange {
+		transition: none;
+	}
+}
 /* Appearance > Navigation bar: no backstrip at all. */
 .navbar-soft[data-navbar-strip="off"]::before {
 	display: none;
