@@ -1,3 +1,4 @@
+import { LogOutIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import type { BuildInfoResponse, User } from "#/api/typesGenerated";
 import { Avatar } from "#/components/Avatar/Avatar";
@@ -5,20 +6,23 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
+	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { settingsSections } from "#/pages/UserSettingsPage/settingsSections";
 
 /**
  * The Settings menu's Account button: the user's avatar, which opens User Settings; its right-click menu lists User
- * Settings' sections, each with its icon, as its own list has them.
+ * Settings' sections, each with its icon, as its own list has them, then Log out.
  */
 export const UserSettingsShortcut: React.FC<{
 	user: User;
 	buildInfo?: BuildInfoResponse;
 }> = ({ user, buildInfo }) => {
 	const navigate = useNavigate();
+	const { signOut } = useAuthenticated();
 	// As User Settings' own list: no Appearance (it has a page of its own), OAuth2 only where Coder provides it, and
 	// no Schedule (an Enterprise feature the platform's open-source Coder lacks).
 	const sections = Object.entries(settingsSections).filter(
@@ -62,6 +66,11 @@ export const UserSettingsShortcut: React.FC<{
 						{label}
 					</ContextMenuItem>
 				))}
+				<ContextMenuSeparator />
+				<ContextMenuItem onSelect={signOut}>
+					<LogOutIcon aria-hidden />
+					Log out
+				</ContextMenuItem>
 			</ContextMenuContent>
 		</ContextMenu>
 	);
