@@ -86,11 +86,18 @@ export const Events: Story = {
 	},
 };
 
-export const Settings: Story = {
+export const Configuration: Story = {
 	play: async ({ canvasElement }) => {
 		const user = userEvent.setup();
 		const canvas = within(canvasElement);
-		const settingsTab = await canvas.findByText("Settings");
-		await user.click(settingsTab);
+		await user.click(await canvas.findByText("Configuration"));
+	},
+};
+
+export const Toast: Story = {
+	play: async ({ canvasElement }) => {
+		const user = userEvent.setup();
+		const canvas = within(canvasElement);
+		await user.click(await canvas.findByText("Toast"));
 	},
 };

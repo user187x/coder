@@ -2,16 +2,15 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
 import { usersKey } from "#/api/queries/users";
 import { MockUserMember, MockUserOwner } from "#/testHelpers/entities";
-import { NotificationComposer } from "./NotificationComposer";
+import { ToastComposer } from "./ToastComposer";
 
-const meta: Meta<typeof NotificationComposer> = {
-	title:
-		"pages/DeploymentSettingsPage/AnnouncementSettingsPage/NotificationComposer",
-	component: NotificationComposer,
+const meta: Meta<typeof ToastComposer> = {
+	title: "pages/DeploymentSettingsPage/NotificationsPage/ToastComposer",
+	component: ToastComposer,
 	args: { canEdit: true },
 };
 export default meta;
-type Story = StoryObj<typeof NotificationComposer>;
+type Story = StoryObj<typeof ToastComposer>;
 
 export const Empty: Story = {
 	parameters: {

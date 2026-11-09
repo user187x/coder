@@ -21,13 +21,13 @@ import { deploymentGroupHasParent } from "#/utils/deployOptions";
 import { pageTitle } from "#/utils/page";
 import OptionsTable from "../OptionsTable";
 import { NotificationEvents } from "./NotificationEvents";
-import { Troubleshooting } from "./Troubleshooting";
+import { ToastComposer } from "./ToastComposer";
 
 const NOTIFICATION_TABS = [
 	"inbox",
+	"toast",
 	"events",
-	"settings",
-	"troubleshooting",
+	"configuration",
 ] as const;
 
 function isNotificationTab(
@@ -94,13 +94,16 @@ const NotificationsPage: React.FC = () => {
 							className="min-w-0 flex-1 flex-wrap gap-x-4 gap-y-0 border-0"
 						>
 							<TabsTrigger value="inbox">Inbox</TabsTrigger>
+							<TabsTrigger value="toast">Toast</TabsTrigger>
 							<TabsTrigger value="events">Events</TabsTrigger>
-							<TabsTrigger value="settings">Settings</TabsTrigger>
-							<TabsTrigger value="troubleshooting">Troubleshooting</TabsTrigger>
+							<TabsTrigger value="configuration">Configuration</TabsTrigger>
 						</TabsList>
 					</div>
 					<TabsContent value="inbox" className="p-4">
 						<InboxCards />
+					</TabsContent>
+					<TabsContent value="toast" className="p-4">
+						<ToastComposer canEdit={canEditDeploymentConfig} />
 					</TabsContent>
 					<TabsContent value="events" className="p-4">
 						<NotificationEvents
@@ -115,15 +118,12 @@ const NotificationsPage: React.FC = () => {
 							)}
 						/>
 					</TabsContent>
-					<TabsContent value="settings" className="p-4">
+					<TabsContent value="configuration" className="p-4">
 						<OptionsTable
 							options={deploymentConfig.options.filter((o) =>
 								deploymentGroupHasParent(o.group, "Notifications"),
 							)}
 						/>
-					</TabsContent>
-					<TabsContent value="troubleshooting" className="p-4">
-						<Troubleshooting canEdit={canEditDeploymentConfig} />
 					</TabsContent>
 				</Tabs>
 			)}

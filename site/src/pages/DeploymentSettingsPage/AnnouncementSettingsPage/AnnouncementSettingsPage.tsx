@@ -24,7 +24,6 @@ import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
 import { Switch } from "#/components/Switch/Switch";
-import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import { BannerPreview } from "#/modules/platform/announcement/BannerPreview";
 import {
 	fromMarkdown,
@@ -35,7 +34,6 @@ import { pageTitle } from "#/utils/page";
 import { Acknowledgements } from "./Acknowledgements";
 import { BannerEditor, MESSAGE_MAX_LENGTH } from "./BannerEditor";
 import { IntroductionCard } from "./IntroductionCard";
-import { NotificationComposer } from "./NotificationComposer";
 
 // The crawl's pace before it had a slider of its own (announcements with only a speed).
 const LEGACY_CRAWL_SPEED = { slow: 9, normal: 15, fast: 26 } as const;
@@ -218,7 +216,6 @@ const unavailableMessage = (error: unknown) => {
  */
 const AnnouncementSettingsPage: React.FC = () => {
 	const stateQuery = useQuery(bannerState());
-	const { permissions } = useAuthContext();
 
 	return (
 		<>
@@ -237,11 +234,6 @@ const AnnouncementSettingsPage: React.FC = () => {
 					<Acknowledgements banner={stateQuery.data.banner} />
 				</div>
 			)}
-			<div className="mt-6">
-				<NotificationComposer
-					canEdit={Boolean(permissions?.editDeploymentConfig)}
-				/>
-			</div>
 		</>
 	);
 };

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { API } from "#/api/api";
 import { MockUserMember, MockUserOwner } from "#/testHelpers/entities";
 import { render } from "#/testHelpers/renderHelpers";
-import { NotificationComposer } from "./NotificationComposer";
+import { ToastComposer } from "./ToastComposer";
 
 beforeEach(() => {
 	vi.spyOn(API, "getUsers").mockResolvedValue({
@@ -18,7 +18,7 @@ it("sends edited content only to selected recipients after confirmation", async 
 		.spyOn(API, "postCustomNotification")
 		.mockResolvedValue(undefined);
 	const user = userEvent.setup();
-	render(<NotificationComposer canEdit />);
+	render(<ToastComposer canEdit />);
 	await user.type(
 		screen.getByRole("textbox", { name: "Notification title" }),
 		"Maintenance",
@@ -71,7 +71,7 @@ it("retains the draft and targets when delivery fails", async () => {
 		.mockRejectedValueOnce(new Error("Service unavailable"))
 		.mockResolvedValue(undefined);
 	const user = userEvent.setup();
-	render(<NotificationComposer canEdit />);
+	render(<ToastComposer canEdit />);
 	await user.type(
 		screen.getByRole("textbox", { name: "Notification title" }),
 		"Update",
@@ -106,14 +106,14 @@ it("does not send without administrator permission", async () => {
 		.spyOn(API, "postCustomNotification")
 		.mockResolvedValue(undefined);
 	const user = userEvent.setup();
-	render(<NotificationComposer canEdit={false} />);
+	render(<ToastComposer canEdit={false} />);
 	await user.click(screen.getByRole("button", { name: "Send notification" }));
 	expect(send).not.toHaveBeenCalled();
 });
 
 it("searches recipients without double-encoding the filter", async () => {
 	const user = userEvent.setup();
-	render(<NotificationComposer canEdit />);
+	render(<ToastComposer canEdit />);
 	await user.type(
 		screen.getByRole("textbox", { name: "Search users" }),
 		"Test User",

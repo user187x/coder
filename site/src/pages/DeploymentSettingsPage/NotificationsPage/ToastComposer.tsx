@@ -13,7 +13,8 @@ import { Markdown } from "#/components/Markdown/Markdown";
 import { MultiUserSelect } from "#/components/MultiUserSelect/MultiUserSelect";
 import { Textarea } from "#/components/Textarea/Textarea";
 
-export const NotificationComposer = ({ canEdit }: { canEdit: boolean }) => {
+/** Notifications › Toast: a notification of the admin's own, sent to the users they choose. */
+export const ToastComposer = ({ canEdit }: { canEdit: boolean }) => {
 	const id = useId();
 	const queryClient = useQueryClient();
 	const sendButton = useRef<HTMLButtonElement>(null);
@@ -44,7 +45,7 @@ export const NotificationComposer = ({ canEdit }: { canEdit: boolean }) => {
 				className="m-0 flex items-center gap-2 text-base font-semibold"
 			>
 				<BellIcon className="size-4" />
-				Notification
+				Toast
 			</h2>
 			<p className="text-sm text-content-secondary">
 				Create a notification for selected users. Delivery follows the
