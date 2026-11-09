@@ -282,6 +282,45 @@ func recordAuditCollectorChange(r *http.Request, db database.Store, row database
 // @Failure 401 {object} codersdk.OAuth2Error
 // @Failure 403 {object} codersdk.OAuth2Error
 // @Router /api/v2/audit-export/{organization} [get]
+func (api *API) externalAuditLogs(rw http.ResponseWriter, r *http.Request) {
+	ctx, orgID, ok := api.verifyCollector(rw, r, auditCollectorKind)
+	if !ok {
+		return
+	}
+	page, ok := ParsePagination(rw, r)
+	if !ok {
+		return
+	}
+	if !r.URL.Query().Has("limit") {
+		page.Limit = 100
+	}
+	if page.Limit < 1 || page.Limit > 500 || page.Offset < 0 || page.Offset > 1000000 {
+		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Use a page size of 1 to 500 and an offset up to 1000000."})
+		return
+	}
+	filter, countFilter, errs := searchquery.AuditLogs(ctx, api.Database, r.URL.Query().Get("q"))
+	if len(errs) > 0 {
+		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Invalid audit filter.", Validations: errs})
+		return
+	}
+	filter.OrganizationID, countFilter.OrganizationID = orgID, orgID
+	// Pagination is bounded above before converting to SQL parameters.
+	//nolint:gosec // Both values are range-checked above, below the int32 maximum.
+	filter.LimitOpt, filter.OffsetOpt = int32(page.Limit), int32(page.Offset)
+	countFilter.CountCap = auditLogCountCap
+	count, err := api.Database.CountAuditLogs(ctx, countFilter)
+	if err != nil {
+		httpapi.InternalServerError(rw, err)
+		return
+	}
+	rows, err := api.Database.GetAuditLogsOffset(ctx, filter)
+	if err != nil {
+		httpapi.InternalServerError(rw, err)
+		return
+	}
+	httpapi.Write(ctx, rw, http.StatusOK, codersdk.AuditLogResponse{AuditLogs: api.convertAuditLogs(ctx, rows), Count: count, CountCap: auditLogCountCap})
+}
+
 // verifyCollector checks the request's Keycloak access token against the
 // organization's active grants of the kind: on success, a system context and
 // the organization; otherwise it has written the RFC 6750 error.
@@ -351,43 +390,4 @@ func (api *API) verifyCollector(rw http.ResponseWriter, r *http.Request, kind co
 		return nil, uuid.Nil, false
 	}
 	return ctx, orgID, true
-}
-
-func (api *API) externalAuditLogs(rw http.ResponseWriter, r *http.Request) {
-	ctx, orgID, ok := api.verifyCollector(rw, r, auditCollectorKind)
-	if !ok {
-		return
-	}
-	page, ok := ParsePagination(rw, r)
-	if !ok {
-		return
-	}
-	if !r.URL.Query().Has("limit") {
-		page.Limit = 100
-	}
-	if page.Limit < 1 || page.Limit > 500 || page.Offset < 0 || page.Offset > 1000000 {
-		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Use a page size of 1 to 500 and an offset up to 1000000."})
-		return
-	}
-	filter, countFilter, errs := searchquery.AuditLogs(ctx, api.Database, r.URL.Query().Get("q"))
-	if len(errs) > 0 {
-		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Invalid audit filter.", Validations: errs})
-		return
-	}
-	filter.OrganizationID, countFilter.OrganizationID = orgID, orgID
-	// Pagination is bounded above before converting to SQL parameters.
-	//nolint:gosec // Both values are range-checked above, below the int32 maximum.
-	filter.LimitOpt, filter.OffsetOpt = int32(page.Limit), int32(page.Offset)
-	countFilter.CountCap = auditLogCountCap
-	count, err := api.Database.CountAuditLogs(ctx, countFilter)
-	if err != nil {
-		httpapi.InternalServerError(rw, err)
-		return
-	}
-	rows, err := api.Database.GetAuditLogsOffset(ctx, filter)
-	if err != nil {
-		httpapi.InternalServerError(rw, err)
-		return
-	}
-	httpapi.Write(ctx, rw, http.StatusOK, codersdk.AuditLogResponse{AuditLogs: api.convertAuditLogs(ctx, rows), Count: count, CountCap: auditLogCountCap})
 }

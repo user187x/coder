@@ -219,6 +219,7 @@ describe("UsersTable", () => {
 				"shutdown",
 				["alpha", "beta"],
 				false,
+				undefined,
 			),
 		);
 		expect(accountSelect).not.toHaveBeenCalled();

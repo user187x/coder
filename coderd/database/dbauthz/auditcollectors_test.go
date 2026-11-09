@@ -14,8 +14,9 @@ import (
 func (s *MethodTestSuite) TestAuditCollectors() {
 	s.Run("GetAuditCollectors", s.Mocked(func(db *dbmock.MockStore, _ *gofakeit.Faker, check *expects) {
 		org := uuid.New()
-		db.EXPECT().GetAuditCollectors(gomock.Any(), org).Return([]database.AuditCollector{}, nil).AnyTimes()
-		check.Args(org).Asserts(rbac.ResourceDeploymentConfig, policy.ActionUpdate, rbac.ResourceAuditLog.InOrg(org), policy.ActionRead).Returns([]database.AuditCollector{})
+		arg := database.GetAuditCollectorsParams{OrganizationID: org, Kind: "metrics"}
+		db.EXPECT().GetAuditCollectors(gomock.Any(), arg).Return([]database.AuditCollector{}, nil).AnyTimes()
+		check.Args(arg).Asserts(rbac.ResourceDeploymentConfig, policy.ActionUpdate, rbac.ResourceAuditLog.InOrg(org), policy.ActionRead).Returns([]database.AuditCollector{})
 	}))
 	s.Run("InsertAuditCollector", s.Mocked(func(db *dbmock.MockStore, _ *gofakeit.Faker, check *expects) {
 		arg := database.InsertAuditCollectorParams{ID: uuid.New(), OrganizationID: uuid.New()}

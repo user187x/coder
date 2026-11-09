@@ -150,15 +150,16 @@ def update(operation_id, workspace_id=None, **fields):
     store(apply)
 
 
-def start(token, user, oid, body):
+def start(token, user, oid, body, global_scope=False):
     exclude_admins = body.get("exclude_admins", False)
     if not isinstance(exclude_admins, bool):
         raise ValueError("exclude_admins must be a boolean.")
     action = body.get("action")
     if action not in ("shutdown", "terminate") or body.get("confirmation") != action:
         raise ValueError("Confirm the exact shutdown or terminate action.")
-    if action == "terminate":
-        # Two administrators signed off on it (terminatesignoff), in the round the request names.
+    if action == "terminate" and global_scope:
+        # Global Command & Control's Terminate (Coder's global route): two administrators signed off on it
+        # (terminatesignoff), in the round the request names. An account's own workspace actions need no sign-off.
         terminatesignoff.ready(body.get("round_id"))
     ids = body.get("workspace_ids")
     if not isinstance(ids, list) or not 1 <= len(ids) <= MAX_TARGETS:
@@ -476,7 +477,8 @@ def handle(h, method, path, query=""):
             body = json.loads(h.rfile.read(length) or b"{}")
             if not isinstance(body, dict):
                 raise ValueError("Expected a JSON object.")
-            h.send_json(202, start(h.token(), user, oid, body))
+            global_scope = urllib.parse.parse_qs(query).get("scope") == ["global"]
+            h.send_json(202, start(h.token(), user, oid, body, global_scope))
         elif method == "DELETE" and operation_id:
             h.send_json(200, clear_operation(h.token(), user, oid, identifier(operation_id)))
         elif method == "GET":

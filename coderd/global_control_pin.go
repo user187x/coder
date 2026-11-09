@@ -344,7 +344,8 @@ func (api *API) globalControlPower(rw http.ResponseWriter, r *http.Request) {
 		forward.URL = &copied
 		forward.URL.Path = "/__coder-ui/api/organizations/" + organization.String() + "/workspace-power"
 		forward.URL.RawPath = ""
-		forward.URL.RawQuery = ""
+		// The platform service holds a global Terminate to two administrators' sign-off (terminatesignoff.py).
+		forward.URL.RawQuery = "scope=global"
 		forward.Header = r.Header.Clone()
 		forward.Header.Del(globalControlHeader)
 		platformServiceProxy(api.Logger, route.Target).ServeHTTP(rw, forward)

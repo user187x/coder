@@ -47,6 +47,7 @@ it("allows quarantined workspace cleanup without allowing restart", async () => 
 			"terminate",
 			[MockWorkspace.id],
 			false,
+			undefined,
 		),
 	);
 	await user.click(
@@ -89,6 +90,7 @@ it("terminates through the force-stop API and never deletes the workspace", asyn
 			"terminate",
 			[MockWorkspace.id],
 			false,
+			undefined,
 		),
 	);
 	expect(remove).not.toHaveBeenCalled();

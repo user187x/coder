@@ -46,7 +46,7 @@ class WorkspacePowerTest(unittest.TestCase):
         self.ready.side_effect = PermissionError("Terminate needs the sign-off of two administrators.")
         with self.assertRaises(PermissionError):
             power.start("session", self.user, self.org, {"action": "terminate", "confirmation": "terminate",
-                                                        "workspace_ids": [self.wid], "round_id": "r"})
+                                                        "workspace_ids": [self.wid], "round_id": "r"}, True)
         self.ready.assert_called_once_with("r")
     def execute(self, operation, builds, force=None):
         builds = iter(builds)
