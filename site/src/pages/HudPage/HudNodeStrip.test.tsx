@@ -1,6 +1,8 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { ClusterNetworkAPI } from "#/api/clusterNetwork";
 import { TooltipProvider } from "#/components/Tooltip/Tooltip";
+import { MockNodeConfiguration } from "#/testHelpers/clusterNetwork";
 import { MockHudNode } from "#/testHelpers/hud";
 import { render } from "#/testHelpers/renderHelpers";
 import { HudNodeStrip, ringLabels } from "./HudNodeStrip";
@@ -75,3 +77,46 @@ it("opens a node's details from its right-click menu", async () => {
 		await screen.findByRole("dialog", { name: /node-ok/ }),
 	).toHaveTextContent("Annotations");
 });
+
+it("drains a node from its right-click menu", async () => {
+	const user = userEvent.setup();
+	vi.spyOn(ClusterNetworkAPI, "nodeConfiguration").mockResolvedValue({
+		...MockNodeConfiguration,
+		name: "node-ok",
+	});
+	const drain = vi.spyOn(ClusterNetworkAPI, "drainNode").mockResolvedValue({
+		cordoned: true,
+		evicted: [],
+		blocked: [],
+		skipped: [],
+		failed: [],
+	});
+	render(
+		<TooltipProvider>
+			<HudNodeStrip nodes={[{ ...MockHudNode, name: "node-ok" }]} />
+		</TooltipProvider>,
+	);
+	fireEvent.contextMenu(
+		screen.getByRole("button", { name: "node-ok: Healthy" }),
+	);
+	expect(await screen.findByRole("menuitem", { name: "Cordon" })).toBeTruthy();
+	expect(screen.queryByRole("menuitem", { name: "Untaint" })).toBeNull();
+	await user.click(screen.getByRole("menuitem", { name: "Drain" }));
+	const dialog = await screen.findByRole("dialog", { name: /Drain node/ });
+	await user.type(
+		await within(dialog).findByRole("textbox", {
+			name: "Type the node name to confirm",
+		}),
+		"node-ok",
+	);
+	await user.click(within(dialog).getByRole("button", { name: "Drain node" }));
+	await waitFor(() =>
+		expect(drain).toHaveBeenCalledWith({
+			name: "node-ok",
+			uid: "node-uid",
+			confirmation: "node-ok",
+		}),
+	);
+});
+
+afterEach(() => vi.restoreAllMocks());

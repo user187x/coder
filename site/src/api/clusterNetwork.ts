@@ -8,7 +8,7 @@ import type { QueryClient } from "react-query";
  */
 import type { CoderPod, NetworkReport, NetworkWorkspace } from "./platform";
 import { platformRequest } from "./platform";
-import { networkReportKey } from "./queries/platform";
+import { hud, networkReportKey } from "./queries/platform";
 
 const { get, base } = platformRequest;
 
@@ -511,6 +511,17 @@ export type NodePod = PodBrief & {
 	readyContainers: number;
 };
 
+/** What a drain did: each pod as namespace/name, with the reason for those not evicted. */
+type NodeDrainResult = {
+	cordoned: boolean;
+	evicted: string[];
+	/** A disruption budget refused the eviction for now; drain again later. */
+	blocked: string[];
+	/** DaemonSet and static pods, which a drain leaves in place. */
+	skipped: string[];
+	failed: { pod: string; error: string }[];
+};
+
 export const ClusterNetworkAPI = {
 	nodePods: (name?: string) =>
 		get<{ node: string | null; pods: NodePod[] }>(
@@ -532,6 +543,11 @@ export const ClusterNetworkAPI = {
 	) =>
 		platformRequest.post<{ saved: boolean }>(
 			`${base}/api/network/edit-node`,
+			body,
+		),
+	drainNode: (body: { name: string; uid: string; confirmation: string }) =>
+		platformRequest.post<NodeDrainResult>(
+			`${base}/api/network/drain-node`,
 			body,
 		),
 	logTargets: (ref: KubernetesEntityRef) =>
@@ -687,13 +703,23 @@ export const networkNodeConfiguration = (name: string) => ({
 	retry: false,
 });
 
+/** The views that show a node's scheduling, taints or pods: the Network page's and the HUD's. */
+const invalidateNodeViews = (client: QueryClient) =>
+	Promise.all([
+		client.invalidateQueries({ queryKey: clusterNetworkKey }),
+		client.invalidateQueries({ queryKey: networkReportKey }),
+		client.invalidateQueries({ queryKey: hud().queryKey }),
+	]);
+
 export const updateNetworkNode = (client: QueryClient) => ({
 	mutationFn: ClusterNetworkAPI.editNode,
-	onSettled: () =>
-		Promise.all([
-			client.invalidateQueries({ queryKey: clusterNetworkKey }),
-			client.invalidateQueries({ queryKey: networkReportKey }),
-		]),
+	onSettled: () => invalidateNodeViews(client),
+});
+
+/** Cordons a node and evicts its pods through the Kubernetes Eviction API, as kubectl drain does. */
+export const drainNetworkNode = (client: QueryClient) => ({
+	mutationFn: ClusterNetworkAPI.drainNode,
+	onSettled: () => invalidateNodeViews(client),
 });
 
 /**

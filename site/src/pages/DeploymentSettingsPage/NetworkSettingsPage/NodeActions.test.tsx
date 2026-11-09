@@ -103,3 +103,30 @@ it("submits an enrolled node restart with confirmation and node identity", async
 		),
 	);
 });
+
+it("drains through Kubernetes once the node's name is typed", async () => {
+	const user = userEvent.setup();
+	const drain = vi.spyOn(ClusterNetworkAPI, "drainNode").mockResolvedValue({
+		cordoned: true,
+		evicted: ["default/web-1"],
+		blocked: [],
+		skipped: ["kube-system/svclb-1"],
+		failed: [],
+	});
+	render(<NodeActions name="node-a" action="drain-node" />);
+	const button = await screen.findByRole("button", { name: "Drain node" });
+	expect(button).toBeDisabled();
+	await user.type(
+		screen.getByRole("textbox", { name: "Type the node name to confirm" }),
+		"node-a",
+	);
+	await user.click(button);
+	await waitFor(() =>
+		expect(drain).toHaveBeenCalledWith({
+			name: "node-a",
+			uid: "node-uid",
+			confirmation: "node-a",
+		}),
+	);
+	expect(await screen.findByRole("status")).toHaveTextContent("Evicted 1");
+});

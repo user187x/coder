@@ -1313,6 +1313,56 @@ def coder_scale(body=None):
             "automated": automated, **placement}
 
 
+def drain_node(body, user):
+    """Drain a node, as kubectl drain does: cordon it, then evict its pods through the Eviction API (so disruption
+    budgets hold), except DaemonSet pods and static (mirror) pods, which are not moved. The node's name must be typed
+    as the confirmation. {"cordoned", "evicted", "blocked" (a disruption budget refused, try again), "skipped",
+    "failed"}."""
+    name = body.get("name")
+    if not isinstance(name, str) or not NAME_RE.fullmatch(name):
+        raise ValueError("Select a valid node.")
+    if body.get("confirmation") != name:
+        raise ValueError("Type the node's name to drain it.")
+    current = node_config(urllib.parse.urlencode({"name": name}))
+    if current["uid"] != body.get("uid"):
+        raise ValueError("The node changed. Refresh before draining it.")
+    status, _ = KUBE.call("PATCH", "/api/v1/nodes/" + urllib.parse.quote(name),
+                          {"spec": {"unschedulable": True}}, "application/merge-patch+json")
+    if status == 403:
+        raise PermissionError("Kubernetes denied cordoning the node.")
+    if status != 200:
+        raise RuntimeError("Cordon: Kubernetes HTTP %s" % status)
+    status, pods = KUBE.call("GET", "/api/v1/pods?fieldSelector=" + urllib.parse.quote("spec.nodeName=" + name))
+    if status != 200 or not isinstance(pods, dict):
+        raise RuntimeError("Pods on the node: Kubernetes HTTP %s" % status)
+    out = {"cordoned": True, "evicted": [], "blocked": [], "skipped": [], "failed": []}
+    for pod in pods.get("items") or []:
+        meta = pod.get("metadata") or {}
+        ref = "%s/%s" % (meta.get("namespace"), meta.get("name"))
+        owners = meta.get("ownerReferences") or []
+        if (pod.get("status") or {}).get("phase") in ("Succeeded", "Failed"):
+            continue
+        if any(o.get("kind") == "DaemonSet" for o in owners) or \
+                "kubernetes.io/config.mirror" in (meta.get("annotations") or {}):
+            out["skipped"].append(ref)
+            continue
+        status, result = KUBE.call(
+            "POST", "/api/v1/namespaces/%s/pods/%s/eviction" % (
+                urllib.parse.quote(meta.get("namespace") or ""), urllib.parse.quote(meta.get("name") or "")),
+            {"apiVersion": "policy/v1", "kind": "Eviction",
+             "metadata": {"name": meta.get("name"), "namespace": meta.get("namespace")}})
+        if status in (200, 201):
+            out["evicted"].append(ref)
+        elif status == 429:
+            out["blocked"].append(ref)
+        elif status != 404:
+            out["failed"].append({"pod": ref, "error": "HTTP %s" % status})
+    if LOG:
+        LOG(event="network-node-drained", user_id=user.get("id"), node=name, evicted=len(out["evicted"]),
+            blocked=len(out["blocked"]), failed=len(out["failed"]))
+    return out
+
+
 def delete_cloud_drive_volumes(body, user):
     """Delete accounts' Cloud Drive volumes (their PersistentVolume and claim; the files stay in the Cloud Drive's
     storage, which the volumes only reach, and the platform makes the volume again when one of the account's workspaces
@@ -1550,7 +1600,8 @@ def handle(h, method, path, query):
     if not path.startswith(BASE + "/api/network/"):
         return False
     if method != "GET" and not (method == "POST" and path in (BASE + "/api/network/coder-scale", BASE + "/api/network/restart-pod", BASE + "/api/network/edit-node",
-                                                         BASE + "/api/network/cloud-drive-volumes/delete")):
+                                                         BASE + "/api/network/cloud-drive-volumes/delete",
+                                                         BASE + "/api/network/drain-node")):
         h.send_json(405, {"error": "method not allowed"})
         return True
     user, err = h.user(admin=True)
@@ -1573,6 +1624,12 @@ def handle(h, method, path, query):
             if not h.csrf_ok():
                 return h.send_json(403, {"error": "Cross-site request refused"}) or True
             return h.send_json(202, restart_pod(h.body() or {}, user)) or True
+        if path == BASE + "/api/network/drain-node":
+            if method != "POST":
+                return h.send_json(405, {"error": "method not allowed"}) or True
+            if not h.csrf_ok():
+                return h.send_json(403, {"error": "Cross-site request refused"}) or True
+            return h.send_json(200, drain_node(h.body() or {}, user)) or True
         if path == BASE + "/api/network/cloud-drive-volumes/delete":
             if method != "POST":
                 return h.send_json(405, {"error": "method not allowed"}) or True

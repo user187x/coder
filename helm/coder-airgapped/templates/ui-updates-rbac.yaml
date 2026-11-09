@@ -200,6 +200,10 @@ rules:
   - apiGroups: [""]
     resources: [nodes]
     verbs: [patch]
+  # The HUD's node menu drains a node as kubectl drain does: the Eviction API, so disruption budgets hold.
+  - apiGroups: [""]
+    resources: [pods/eviction]
+    verbs: [create]
   # Node-image cleanup verifies pending workloads and rollback controller templates before removal.
   - apiGroups: [apps]
     resources: [deployments, statefulsets, daemonsets, replicasets]

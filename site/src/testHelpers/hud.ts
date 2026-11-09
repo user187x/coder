@@ -68,4 +68,21 @@ export const MockHudNode: HudNode = {
 		"k3s.io/node-args": '["agent","--node-label","pool=general"]',
 		"node.alpha.kubernetes.io/ttl": "0",
 	},
+	uid: "node-uid",
+	internalIP: "172.18.0.4",
+	externalIP: null,
+	taints: [],
+	resources: {
+		cpu: { allocatable: 8, allocated: 2.5, used: 1.2 },
+		memory: {
+			allocatable: 16 * 1024 ** 3,
+			allocated: 6 * 1024 ** 3,
+			used: null,
+		},
+	},
+	podCount: 2,
+	pods: [
+		{ namespace: "coder", name: "coder-0", phase: "Running" },
+		{ namespace: "kube-system", name: "coredns-1", phase: "Running" },
+	],
 };

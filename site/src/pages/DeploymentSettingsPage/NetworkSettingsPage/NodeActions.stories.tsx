@@ -88,4 +88,4 @@ export const Restart: Story = {
 		return () => query.mockRestore();
 	},
 };
-export const Drain: Story = { ...Restart, args: { action: "drain-node" } };
+export const Drain: Story = { args: { action: "drain-node" } };

@@ -716,6 +716,23 @@ export type HudNode = {
 	labels: Record<string, string>;
 	/** Values longer than 200 characters are cut. */
 	annotations: Record<string, string>;
+	/** The fields below are missing from an older platform service. */
+	uid?: string;
+	internalIP?: string | null;
+	externalIP?: string | null;
+	taints?: { key: string; value?: string; effect: string }[];
+	/** CPU in cores, memory in bytes; used is null without metrics-server. */
+	resources?: Record<"cpu" | "memory", HudNodeResource> | null;
+	podCount?: number;
+	/** The first 300, by namespace and name. */
+	pods?: { namespace: string; name: string; phase: string | null }[];
+};
+
+export type HudNodeResource = {
+	allocatable: number;
+	/** What the node's pods request. */
+	allocated: number;
+	used: number | null;
 };
 
 type HudReport = {

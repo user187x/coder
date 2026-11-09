@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
 	clusterNetworkKey,
+	drainNetworkNode,
 	type NodeConfiguration,
 	networkNodeConfiguration,
 	updateNetworkNode,
@@ -41,7 +42,9 @@ export const NodeActions: React.FC<{ name: string; action: NodeAction }> = ({
 			{query.error && <ErrorAlert error={query.error} />}
 			{query.isLoading && <Loader />}
 			{query.data &&
-				(action === "restart-node" || action === "drain-node" ? (
+				(action === "drain-node" ? (
+					<NodeDrain node={query.data} />
+				) : action === "restart-node" ? (
 					<NodeMaintenance node={query.data} action={action} />
 				) : (
 					<NodeEditor
@@ -278,7 +281,7 @@ const NodeEditor: React.FC<{
 
 const NodeMaintenance: React.FC<{
 	node: NodeConfiguration;
-	action: "restart-node" | "drain-node";
+	action: "restart-node";
 }> = ({ node, action }) => {
 	const { organizations } = useDashboard();
 	const [org, setOrg] = useState("");
@@ -314,9 +317,9 @@ const NodeMaintenance: React.FC<{
 	return (
 		<div className="flex flex-col gap-4 text-sm">
 			<p className="m-0">
-				{action === "drain-node"
-					? "Drain cordons the node and evicts its workloads using disruption budgets. DaemonSets stay. Pods with local temporary storage or unmanaged pods can block the drain. The node stays cordoned until you uncordon it."
-					: "Restart the node through its enrolled host provider. Workspaces and services on this node will lose their connections until it returns. Drain first when workloads need to move away."}
+				Restart the node through its enrolled host provider. Workspaces and
+				services on this node will lose their connections until it returns.
+				Drain first when workloads need to move away.
 			</p>
 			{organizations.length > 1 && (
 				<label className="flex flex-col gap-1">
@@ -346,26 +349,24 @@ const NodeMaintenance: React.FC<{
 					enable maintenance.
 				</p>
 			)}
-			{action === "restart-node" && (
-				<label className="flex flex-col gap-1">
-					Node provider
-					<select
-						className={selectClass}
-						value={profile?.id ?? ""}
-						onChange={(e) => setPicked(e.target.value)}
-						disabled={busy || request.isPending}
-					>
-						{!profiles.length && (
-							<option value="">No restart provider available</option>
-						)}
-						{profiles.map((p) => (
-							<option key={p.id} value={p.id}>
-								{p.label}
-							</option>
-						))}
-					</select>
-				</label>
-			)}
+			<label className="flex flex-col gap-1">
+				Node provider
+				<select
+					className={selectClass}
+					value={profile?.id ?? ""}
+					onChange={(e) => setPicked(e.target.value)}
+					disabled={busy || request.isPending}
+				>
+					{!profiles.length && (
+						<option value="">No restart provider available</option>
+					)}
+					{profiles.map((p) => (
+						<option key={p.id} value={p.id}>
+							{p.label}
+						</option>
+					))}
+				</select>
+			</label>
 			<Label htmlFor={id}>Type the node name to confirm</Label>
 			<Input
 				id={id}
@@ -391,13 +392,13 @@ const NodeMaintenance: React.FC<{
 					busy ||
 					request.isPending ||
 					confirmation !== node.name ||
-					(action === "restart-node" && !profile)
+					!profile
 				}
 				onClick={() =>
 					request.mutate({
 						id: crypto.randomUUID(),
 						previous: operation?.id ?? null,
-						profile: action === "restart-node" ? (profile?.id ?? "") : "",
+						profile: profile?.id ?? "",
 						action,
 						node: node.name,
 						uid: node.uid,
@@ -406,6 +407,65 @@ const NodeMaintenance: React.FC<{
 				}
 			>
 				{nodeActionTitles[action]}
+			</Button>
+		</div>
+	);
+};
+
+/**
+ * Drain through the Kubernetes API: cordon the node, then evict its pods as kubectl drain does, so disruption budgets
+ * hold. DaemonSet and static pods stay. The node stays cordoned until it is uncordoned.
+ */
+const NodeDrain: React.FC<{ node: NodeConfiguration }> = ({ node }) => {
+	const [confirmation, setConfirmation] = useState("");
+	const request = useMutation(drainNetworkNode(useQueryClient()));
+	const id = useId();
+	const result = request.data;
+	return (
+		<div className="flex flex-col gap-4 text-sm">
+			<p className="m-0">
+				Drain cordons the node and evicts its pods through the Eviction API, so
+				disruption budgets hold. DaemonSet and static pods stay. The node stays
+				cordoned until you uncordon it.
+			</p>
+			<Label htmlFor={id}>Type the node name to confirm</Label>
+			<Input
+				id={id}
+				value={confirmation}
+				onChange={(e) => setConfirmation(e.target.value)}
+				autoComplete="off"
+			/>
+			{request.error && <ErrorAlert error={request.error} />}
+			{result && (
+				<div
+					role="status"
+					className="flex flex-col gap-1 rounded-md border border-solid border-border p-3"
+				>
+					<strong>
+						Cordoned. Evicted {result.evicted.length}, left{" "}
+						{result.skipped.length} in place.
+					</strong>
+					{result.blocked.length > 0 && (
+						<span>
+							A disruption budget held {result.blocked.join(", ")}: drain again
+							to retry.
+						</span>
+					)}
+					{result.failed.map((f) => (
+						<span key={f.pod} className="text-content-destructive">
+							{f.pod}: {f.error}
+						</span>
+					))}
+				</div>
+			)}
+			<Button
+				variant="destructive"
+				disabled={request.isPending || confirmation !== node.name}
+				onClick={() =>
+					request.mutate({ name: node.name, uid: node.uid, confirmation })
+				}
+			>
+				{result ? "Drain again" : nodeActionTitles["drain-node"]}
 			</Button>
 		</div>
 	);

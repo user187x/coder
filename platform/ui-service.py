@@ -8013,7 +8013,7 @@ def hud_report(token):
     metrics.extend(hudstorage.metrics(storage))
     out = {"metrics": metrics, "storage": storage, "generatedAt": now(), "live": metrics_live, "uptime": coder_uptime(),
            "cluster": {key: cluster[key] for key in ("cpu", "memory", "live")} if cluster else None,
-           "nodes": hudnodes.summarize(snapshot["nodes"])}
+           "nodes": hudnodes.summarize(snapshot["nodes"], snapshot["pods"], snapshot.get("usage"), quantity)}
     CACHE.put("hud:" + token[:16], out, 5)
     return out
 

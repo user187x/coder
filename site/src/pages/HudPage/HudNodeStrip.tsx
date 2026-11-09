@@ -1,4 +1,12 @@
-import { InfoIcon, NetworkIcon } from "lucide-react";
+import {
+	BanIcon,
+	CircleCheckIcon,
+	InfoIcon,
+	NetworkIcon,
+	ShieldAlertIcon,
+	ShieldOffIcon,
+	Trash2Icon,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { HudNode } from "#/api/platform";
@@ -6,6 +14,7 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
+	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { Dialog, DialogContent, DialogTitle } from "#/components/Dialog/Dialog";
@@ -20,6 +29,12 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { WorkspaceStateOrb } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStateOrb";
+import {
+	type NodeAction,
+	NodeActions,
+	nodeActionTitles,
+} from "#/pages/DeploymentSettingsPage/NetworkSettingsPage/NodeActions";
+import { NodeAddressBadges, NodePodList, NodeUsageBars } from "./HudNodeFacts";
 
 const HEALTH: Record<
 	HudNode["health"],
@@ -59,7 +74,7 @@ export const ringLabels = (names: readonly string[]) => {
 };
 
 /** How many labels and annotations the hover card lists before pointing to the details. */
-const HOVER_ENTRIES = 8;
+const HOVER_ENTRIES = 4;
 
 /**
  * One translucent row with an orb per node, drawn as the workspace status orb, colored by its health. Every node gets an equal share of the row, so any
@@ -98,6 +113,8 @@ export const HudNodeStrip: React.FC<{ nodes: readonly HudNode[] }> = ({
 const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 	const navigate = useNavigate();
 	const [details, setDetails] = useState(false);
+	const [action, setAction] = useState<NodeAction>();
+	const taints = node.taints ?? [];
 	const health = HEALTH[node.health];
 	const edge = useId();
 	const metadata = [
@@ -144,15 +161,27 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 										>
 											<WorkspaceStateOrb state={health.orb} size="100%" />
 										</span>
+										{node.podCount !== undefined && (
+											<span
+												aria-hidden
+												className="pointer-events-none absolute -top-0.5 -right-1 min-w-3.5 rounded-full bg-surface-tertiary px-0.5 text-center text-[8px] leading-3.5 tabular-nums text-content-primary"
+											>
+												{node.podCount}
+											</span>
+										)}
 									</button>
 								</ContextMenuTrigger>
 							</PopoverTrigger>
 						</TooltipTrigger>
-						<TooltipContent className="max-w-sm">
+						<TooltipContent className="flex w-80 max-w-sm flex-col gap-1.5">
 							<p className="m-0 font-semibold">{node.name}</p>
-							<p className="m-0 font-mono text-xs">
-								{node.ip ?? "No address"} · {health.label}
+							<p className="m-0 text-xs">
+								{health.label}
+								{node.unschedulable && " · Cordoned"}
+								{node.podCount !== undefined && ` · ${node.podCount} pods`}
 							</p>
+							<NodeAddressBadges node={node} />
+							<NodeUsageBars node={node} />
 							<ul className="m-0 mt-1 list-none p-0 font-mono text-[11px] text-content-secondary">
 								{metadata.slice(0, HOVER_ENTRIES).map(([key, value]) => (
 									<li key={key} className="truncate">
@@ -180,6 +209,29 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 						<InfoIcon aria-hidden className="size-4" />
 						Details
 					</ContextMenuItem>
+					<ContextMenuSeparator />
+					<ContextMenuItem onSelect={() => setAction("cordon-node")}>
+						{node.unschedulable ? (
+							<CircleCheckIcon aria-hidden className="size-4" />
+						) : (
+							<BanIcon aria-hidden className="size-4" />
+						)}
+						{node.unschedulable ? "Uncordon" : "Cordon"}
+					</ContextMenuItem>
+					<ContextMenuItem onSelect={() => setAction("taint-node")}>
+						<ShieldAlertIcon aria-hidden className="size-4" />
+						Taint
+					</ContextMenuItem>
+					{taints.length > 0 && (
+						<ContextMenuItem onSelect={() => setAction("taint-node")}>
+							<ShieldOffIcon aria-hidden className="size-4" />
+							Untaint
+						</ContextMenuItem>
+					)}
+					<ContextMenuItem onSelect={() => setAction("drain-node")}>
+						<Trash2Icon aria-hidden className="size-4" />
+						Drain
+					</ContextMenuItem>
 				</ContextMenuContent>
 			</ContextMenu>
 			<Dialog open={details} onOpenChange={setDetails}>
@@ -194,6 +246,19 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 						{node.name}
 					</DialogTitle>
 					<NodeDetailsFull node={node} />
+				</DialogContent>
+			</Dialog>
+			<Dialog
+				open={action !== undefined}
+				onOpenChange={(open) => !open && setAction(undefined)}
+			>
+				<DialogContent className="flex max-h-[85vh] max-w-xl flex-col gap-4 p-6">
+					<DialogTitle>
+						{action && nodeActionTitles[action]}: {node.name}
+					</DialogTitle>
+					{action && (
+						<NodeActions key={action} name={node.name} action={action} />
+					)}
 				</DialogContent>
 			</Dialog>
 		</>
@@ -221,6 +286,8 @@ const NodeDetailsFull: React.FC<{ node: HudNode }> = ({ node }) => (
 					</div>
 				))}
 			</dl>
+			<NodeUsageBars node={node} />
+			<NodePodList node={node} />
 			<Link
 				to={networkHref(node)}
 				className="mt-auto flex items-center gap-1.5 self-start pt-2 text-xs text-content-link"
@@ -250,7 +317,8 @@ const NodeDetailsFull: React.FC<{ node: HudNode }> = ({ node }) => (
 /** What the details say of a node, in order. */
 const nodeFacts = (node: HudNode): [string, string][] => [
 	["Health", HEALTH[node.health].label],
-	["Address", node.ip ?? "Unknown"],
+	["Internal address", node.internalIP ?? node.ip ?? "None"],
+	["External address", node.externalIP ?? "None"],
 	["Roles", node.roles.join(", ")],
 	["Kubelet", node.kubelet ?? "Unknown"],
 	[
@@ -259,6 +327,14 @@ const nodeFacts = (node: HudNode): [string, string][] => [
 	],
 	["Conditions", node.pressure.length ? node.pressure.join(", ") : "None"],
 	["Scheduling", node.unschedulable ? "Cordoned" : "Schedulable"],
+	[
+		"Taints",
+		node.taints?.length
+			? node.taints
+					.map((t) => `${t.key}${t.value ? `=${t.value}` : ""}:${t.effect}`)
+					.join(", ")
+			: "None",
+	],
 ];
 
 const NodeDetails: React.FC<{ node: HudNode }> = ({ node }) => {
@@ -282,6 +358,8 @@ const NodeDetails: React.FC<{ node: HudNode }> = ({ node }) => {
 					</div>
 				))}
 			</dl>
+			<NodeUsageBars node={node} />
+			<NodePodList node={node} />
 			<MetadataList title="Labels" entries={node.labels} />
 			<MetadataList title="Annotations" entries={node.annotations} />
 			<Link
