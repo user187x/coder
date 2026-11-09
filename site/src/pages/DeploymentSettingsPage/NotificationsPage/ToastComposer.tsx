@@ -2,6 +2,8 @@ import { BellIcon, XIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { toast } from "sonner";
+import { API } from "#/api/api";
+import { getErrorDetail } from "#/api/errors";
 import { sendCustomNotification } from "#/api/queries/notifications";
 import type { CustomNotificationRequest, User } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
@@ -11,6 +13,7 @@ import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Markdown } from "#/components/Markdown/Markdown";
 import { MultiUserSelect } from "#/components/MultiUserSelect/MultiUserSelect";
+import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
 
 /** Notifications › Toast: a notification of the admin's own, sent to the users they choose. */
@@ -34,19 +37,40 @@ export const ToastComposer = ({ canEdit }: { canEdit: boolean }) => {
 			);
 		},
 	});
+	const sendTest = useMutation({
+		mutationFn: API.postTestNotification,
+		onSuccess: () => toast.success("Test notification sent."),
+		onError: (error) =>
+			toast.error("Failed to send test notification.", {
+				description: getErrorDetail(error),
+			}),
+	});
 	const valid = title.trim() && message.trim() && recipients.length > 0;
 	return (
 		<section
 			className="rounded-xl border border-solid border-border bg-surface-primary p-4 sm:p-6"
 			aria-labelledby={`${id}-heading`}
 		>
-			<h2
-				id={`${id}-heading`}
-				className="m-0 flex items-center gap-2 text-base font-semibold"
-			>
-				<BellIcon className="size-4" />
-				Toast
-			</h2>
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<h2
+					id={`${id}-heading`}
+					className="m-0 flex items-center gap-2 text-base font-semibold"
+				>
+					<BellIcon className="size-4" />
+					Toast
+				</h2>
+				{/* Coder's test notification, to the signed-in admin: checks the notification settings */}
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={sendTest.isPending || !canEdit}
+					title="Send yourself a test notification to check the notification settings"
+					onClick={() => sendTest.mutate()}
+				>
+					<Spinner loading={sendTest.isPending} />
+					Send test notification
+				</Button>
+			</div>
 			<p className="text-sm text-content-secondary">
 				Create a notification for selected users. Delivery follows the
 				notification settings and each user's preferences. Edit the draft before

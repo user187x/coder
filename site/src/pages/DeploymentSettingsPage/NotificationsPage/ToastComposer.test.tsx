@@ -127,3 +127,12 @@ it("searches recipients without double-encoding the filter", async () => {
 		{ timeout: 2000 },
 	);
 });
+
+it("sends a test notification from the Toast card", async () => {
+	const test = vi.spyOn(API, "postTestNotification").mockResolvedValue();
+	render(<ToastComposer canEdit />);
+	await userEvent.click(
+		screen.getByRole("button", { name: "Send test notification" }),
+	);
+	await waitFor(() => expect(test).toHaveBeenCalledTimes(1));
+});
