@@ -86,3 +86,10 @@ export const Page: Story = {
 		);
 	},
 };
+
+/** OpenID Configurations unfolded. */
+export const Open: Story = {
+	play: async ({ canvasElement }) => {
+		within(canvasElement).getByText("OpenID Configurations").click();
+	},
+};
