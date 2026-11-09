@@ -11,6 +11,7 @@ import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { usePreferredColorScheme } from "#/theme/usePreferredColorScheme";
 import { AppearanceForm } from "./AppearanceForm";
 import { CompactAppearanceForm } from "./CompactAppearanceForm";
+import { NavbarLayoutSection } from "./NavbarLayoutSection";
 import { PanelAccentSection } from "./PanelAccentSection";
 
 type MutateAppearanceSettings = (
@@ -89,6 +90,7 @@ const AppearancePage: React.FC<{ compact?: boolean }> = ({
 				onSubmit={submitAppearanceSettings}
 			/>
 			<PanelAccentSection />
+			<NavbarLayoutSection />
 		</>
 	);
 };

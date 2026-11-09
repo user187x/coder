@@ -32,22 +32,11 @@ import { Button } from "#/components/Button/Button";
 import {
 	isNavbarItem,
 	NAVBAR_ITEMS,
+	NAVBAR_LABELS,
 	type NavbarItem,
 	onNavbarArrange,
 	useNavbarOrder,
 } from "./navbarOrder";
-
-const LABELS: Record<NavbarItem, string> = {
-	logo: "Logo",
-	action: "Page action",
-	notifications: "Notifications",
-	account: "Account",
-	workspaces: "Workspaces",
-	banner: "Announcement banner",
-	// admins': the HUD joined to it (one split button)
-	latency: "Latency and HUD",
-	hud: "HUD",
-};
 
 // The banner placeholder is wide: the item under the pointer is the target.
 const itemUnderPointer: CollisionDetection = (args) => {
@@ -205,7 +194,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 			order.map((item) => (!visible.includes(item) ? item : nextVisible[i++])),
 		);
 		setAnnouncement(
-			`${LABELS[id]} moved to position ${to + 1} of ${visible.length}.`,
+			`${NAVBAR_LABELS[id]} moved to position ${to + 1} of ${visible.length}.`,
 		);
 	};
 
@@ -250,17 +239,17 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 					},
 					announcements: {
 						onDragStart: ({ active }) =>
-							`Picked up ${LABELS[active.id as NavbarItem]}.`,
+							`Picked up ${NAVBAR_LABELS[active.id as NavbarItem]}.`,
 						onDragOver: ({ active, over }) =>
 							over
-								? `${LABELS[active.id as NavbarItem]} is over ${LABELS[over.id as NavbarItem]}.`
-								: `${LABELS[active.id as NavbarItem]} is not over a place.`,
+								? `${NAVBAR_LABELS[active.id as NavbarItem]} is over ${NAVBAR_LABELS[over.id as NavbarItem]}.`
+								: `${NAVBAR_LABELS[active.id as NavbarItem]} is not over a place.`,
 						onDragEnd: ({ active, over }) =>
 							over
-								? `${LABELS[active.id as NavbarItem]} dropped in place of ${LABELS[over.id as NavbarItem]}.`
-								: `${LABELS[active.id as NavbarItem]} dropped.`,
+								? `${NAVBAR_LABELS[active.id as NavbarItem]} dropped in place of ${NAVBAR_LABELS[over.id as NavbarItem]}.`
+								: `${NAVBAR_LABELS[active.id as NavbarItem]} dropped.`,
 						onDragCancel: ({ active }) =>
-							`Moving ${LABELS[active.id as NavbarItem]} was cancelled.`,
+							`Moving ${NAVBAR_LABELS[active.id as NavbarItem]} was cancelled.`,
 					},
 				}}
 			>
@@ -331,8 +320,8 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 												<button
 													key={id}
 													type="button"
-													aria-label={`Restore ${LABELS[id]}`}
-													title={`Restore ${LABELS[id]}`}
+													aria-label={`Restore ${NAVBAR_LABELS[id]}`}
+													title={`Restore ${NAVBAR_LABELS[id]}`}
 													className="flex cursor-pointer items-center rounded-lg border border-dashed border-border bg-transparent p-2 hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
 													onClick={() =>
 														save(
@@ -479,7 +468,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 						type="button"
 						{...attributes}
 						{...listeners}
-						aria-label={`Move ${LABELS[id]}`}
+						aria-label={`Move ${NAVBAR_LABELS[id]}`}
 						title="Drag left or right"
 						className={cn(
 							"absolute -inset-1 z-10 touch-none rounded-lg border-0 bg-transparent p-0",
@@ -501,7 +490,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 					{id !== "action" && (
 						<button
 							type="button"
-							aria-label={`Remove ${LABELS[id]}`}
+							aria-label={`Remove ${NAVBAR_LABELS[id]}`}
 							onClick={onRemove}
 							className="absolute -right-2 -top-2 z-20 flex size-6 cursor-pointer items-center justify-center rounded-[0.5rem] border-2 border-solid border-red-400 bg-red-700 p-0 text-white shadow-md hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-primary"
 						>

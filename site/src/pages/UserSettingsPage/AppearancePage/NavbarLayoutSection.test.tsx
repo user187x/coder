@@ -1,0 +1,23 @@
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { PlatformAPI } from "#/api/platform";
+import { render } from "#/testHelpers/renderHelpers";
+import { NavbarLayoutSection } from "./NavbarLayoutSection";
+
+it("starts arranging the top bar, and resets it to the default layout", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+		navbar_layout: { order: ["workspaces", "logo"], hidden: ["hud"] },
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockResolvedValue({ navbar_layout: null });
+	const arranging = vi.fn();
+	window.addEventListener("coder-ui-navbar-arrange", arranging);
+	render(<NavbarLayoutSection />);
+	fireEvent.click(screen.getByRole("button", { name: "Rearrange top bar" }));
+	expect(arranging).toHaveBeenCalledTimes(1);
+	fireEvent.click(screen.getByRole("button", { name: "Reset to default" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({ navbar_layout: null }),
+	);
+	window.removeEventListener("coder-ui-navbar-arrange", arranging);
+});

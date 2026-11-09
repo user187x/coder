@@ -20,6 +20,19 @@ export const NAVBAR_ITEMS = [
 	"action",
 ] as const;
 export type NavbarItem = (typeof NAVBAR_ITEMS)[number];
+
+/** Each item's name, as the arrange bar and Appearance's Navigation bar card show it. */
+export const NAVBAR_LABELS: Record<NavbarItem, string> = {
+	logo: "Logo",
+	action: "Page action",
+	notifications: "Notifications",
+	account: "Account",
+	workspaces: "Workspaces",
+	banner: "Announcement banner",
+	// admins': the HUD joined to it (one split button)
+	latency: "Latency and HUD",
+	hud: "HUD",
+};
 const KEY = "coder-ui-navbar-order";
 const START = "coder-ui-navbar-arrange";
 export const isNavbarItem = (value: unknown): value is NavbarItem =>
