@@ -55,7 +55,6 @@ import {
 import {
 	NetworkCardBody,
 	type NetworkReading,
-	NetworkScopePill,
 	UsageCardBody,
 } from "./LiveCards";
 import { orderCards, type SortableCard, SortableCards } from "./SortableCards";
@@ -433,18 +432,7 @@ const DashboardPage: React.FC = () => {
 					title="Network"
 					icon={NetworkIcon}
 					tone="orange"
-					actions={
-						networkTargets.length > 0 && (
-							<span className="flex items-center gap-1.5">
-								<NetworkScopePill
-									workspaces={networkPerWorkspace}
-									selected={focusIndex === -1 ? null : networkFocus}
-									onSelect={setNetworkFocus}
-								/>
-								<RangePill />
-							</span>
-						)
-					}
+					actions={networkTargets.length > 0 && <RangePill />}
 				>
 					<CardState
 						isLoading={networkTargets.length > 0 && networkLoading && !network}

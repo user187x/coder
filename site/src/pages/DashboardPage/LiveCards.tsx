@@ -193,7 +193,7 @@ export type NetworkReading = {
 const COMBINED = "combined";
 
 /** The Network card's header pill: whose traffic the graphs show, chosen from its menu. */
-export const NetworkScopePill: React.FC<{
+const NetworkScopePill: React.FC<{
 	workspaces: readonly NetworkReading[];
 	selected: string | null;
 	onSelect: (id: string | null) => void;
@@ -206,13 +206,19 @@ export const NetworkScopePill: React.FC<{
 				<button
 					type="button"
 					aria-label={`Network activity shown: ${label}`}
-					className="flex max-w-48 cursor-pointer items-center gap-1 rounded-full border border-solid border-border bg-surface-secondary px-1.5 text-[10px] leading-4 text-content-secondary hover:text-content-primary"
+					className="relative flex w-full cursor-pointer items-center justify-center rounded-full border border-solid border-border bg-surface-secondary px-7 py-1 text-xs text-content-secondary hover:text-content-primary"
 				>
 					<span className="truncate">{label}</span>
-					<ChevronDownIcon aria-hidden className="size-3 shrink-0" />
+					<ChevronDownIcon
+						aria-hidden
+						className="absolute right-2.5 size-3.5 shrink-0"
+					/>
 				</button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end">
+			<DropdownMenuContent
+				align="end"
+				className="min-w-(--radix-dropdown-menu-trigger-width)"
+			>
 				<DropdownMenuRadioGroup
 					value={selected ?? COMBINED}
 					onValueChange={(value) => onSelect(value === COMBINED ? null : value)}
@@ -257,6 +263,14 @@ export const NetworkCardBody: React.FC<{
 	];
 	return (
 		<div className="flex flex-col gap-4">
+			{/* Whose traffic the graphs show: a line of its own, as wide as the graphs */}
+			{onSelect && perWorkspace.length > 0 && (
+				<NetworkScopePill
+					workspaces={perWorkspace}
+					selected={selected}
+					onSelect={onSelect}
+				/>
+			)}
 			<GraphFrame className="flex flex-col gap-4">
 				{rows.map((row) => {
 					const now = row.series.latest;
