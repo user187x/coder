@@ -189,7 +189,7 @@ it("marks a connected workspace that went down: grey, with a dead face", async (
 	expect(screen.getAllByTestId("dead-workspace-face")).toHaveLength(1);
 });
 
-it("maps a tunnel's input port to another output port from its badge", async () => {
+it("maps a tunnel's input port to another output port from its green port orb", async () => {
 	const user = userEvent.setup();
 	setup();
 	vi.mocked(PlatformAPI.getWorkspaceTunnels).mockResolvedValue({
@@ -211,10 +211,10 @@ it("maps a tunnel's input port to another output port from its badge", async () 
 	const save = vi
 		.spyOn(PlatformAPI, "updateWorkspaceTunnelPorts")
 		.mockResolvedValue({ tunnel: {} as never });
-	const [badge] = await screen.findAllByRole("button", {
-		name: "Tunnel ports",
+	const orb = await screen.findByRole("button", {
+		name: /Tunnel ports :5432/,
 	});
-	await user.click(badge);
+	fireEvent.contextMenu(orb);
 	const dialog = await screen.findByRole("dialog", {
 		name: /Tunnel ports: web → db/,
 	});
@@ -344,4 +344,48 @@ it("listens in the workspace's tunnel helper and ripples its orb at each ACK it 
 	expect(
 		await screen.findByTestId("ack-ripple", {}, { timeout: 3000 }),
 	).toBeTruthy();
+});
+
+it("tunnels from one workspace to another dragged onto it and opens its ports", async () => {
+	setup();
+	const create = vi
+		.spyOn(PlatformAPI, "createWorkspaceTunnel")
+		.mockImplementation(async (org, source, target) => ({
+			tunnel: {
+				id: "t-new",
+				organization_id: org,
+				source_workspace_id: source,
+				target_workspace_id: target,
+				source_workspace_name: "web",
+				target_workspace_name: "db",
+				status: "pending",
+				revision: 1,
+				ports: null,
+			},
+		}));
+	const chain = await screen.findByRole("region", { name: "web → db" });
+	const web = within(chain).getByRole("button", {
+		name: "web: show its open ports",
+	});
+	const db = within(chain).getByRole("button", {
+		name: "db: show its open ports",
+	});
+	// jsdom does not lay out: the pointer is "over" db wherever it is released.
+	document.elementFromPoint = () => db;
+	fireEvent.pointerDown(web, { button: 0, clientX: 10, clientY: 10 });
+	fireEvent.pointerMove(window, { clientX: 80, clientY: 10 });
+	fireEvent.pointerUp(window, { clientX: 80, clientY: 10 });
+	await waitFor(() =>
+		expect(create).toHaveBeenCalledWith(
+			MockWorkspace.organization_id,
+			expect.any(String),
+			expect.any(String),
+			"right",
+			"left",
+		),
+	);
+	expect(
+		await screen.findByRole("dialog", { name: /Tunnel ports: web → db/ }),
+	).toBeTruthy();
+	Reflect.deleteProperty(document, "elementFromPoint");
 });

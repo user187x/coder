@@ -32,6 +32,7 @@ import type {
 	TrafficWorkspace,
 	TunnelRate,
 } from "./trafficModel";
+import { useConnectDrag } from "./useConnectDrag";
 
 const MARGIN = 40;
 const GAP = 90;
@@ -399,17 +400,48 @@ const Orb: React.FC<{
 	/** Starts or stops the browser's test emitter on this shared port. */
 	onTestEmit?: (orb: PortOrb) => void;
 	emitting?: boolean;
-}> = ({ orb, at, hovered, onHover, onShareChange, onTestEmit, emitting }) => {
+	/** A tunnel's port orb: picking it sets the tunnel's ports. */
+	onTunnelOpen?: (tunnelId: string) => void;
+}> = ({
+	orb,
+	at,
+	hovered,
+	onHover,
+	onShareChange,
+	onTestEmit,
+	emitting,
+	onTunnelOpen,
+}) => {
 	const colors = PALETTE[orb.kind];
 	const twoLines = at.r >= 24 && orb.tag.length > 0;
 	const portSize = Math.max(8.5, Math.min(14.5, at.r * 0.34));
 	const tagSize = Math.max(7.5, Math.min(11.5, at.r * 0.27));
+	const tunnelId = orb.tunnelId;
+	const opensPorts = Boolean(tunnelId && onTunnelOpen);
+	const openPorts = (event: React.SyntheticEvent) => {
+		if (!tunnelId || !onTunnelOpen) return;
+		event.preventDefault();
+		onTunnelOpen(tunnelId);
+	};
 	const body = (
 		<g
 			data-orb={orb.key}
-			className={cn("cursor-default", !orb.ready && "opacity-50")}
+			className={cn(
+				opensPorts ? "cursor-pointer outline-none" : "cursor-default",
+				!orb.ready && "opacity-50",
+			)}
 			onMouseEnter={() => onHover(orb.key)}
 			onMouseLeave={() => onHover(null)}
+			{...(opensPorts && {
+				role: "button",
+				tabIndex: 0,
+				"aria-label": `Tunnel ports ${orb.port}: set which ports it forwards`,
+				onClick: openPorts,
+				onContextMenu: openPorts,
+				onKeyDown: (event: React.KeyboardEvent) => {
+					if (event.key === "Enter" || event.key === " ") openPorts(event);
+				},
+			})}
 		>
 			<title>{orb.title}</title>
 			<circle
@@ -488,8 +520,9 @@ const Orb: React.FC<{
 
 /**
  * One Traffic Control diagram: port and workspace columns with an arrow for every link, the links of whatever is
- * pointed at in red, and particles along the tunnels as their traffic flows. It only shows what the workspaces'
- * own configuration (their shared ports and tunnels) makes of it: there is nothing to change here.
+ * pointed at in red, and particles along the tunnels as their traffic flows. It shows what the workspaces' own
+ * configuration (their shared ports and tunnels) makes of it; a tunnel's green port orb sets its ports, and a connector
+ * pulled from one workspace's orb onto another's makes a tunnel between them.
  */
 export const TrafficDiagram: React.FC<{
 	topology: TrafficTopology;
@@ -498,8 +531,10 @@ export const TrafficDiagram: React.FC<{
 	selected?: string | null;
 	onSelect?: (workspaceId: string | null) => void;
 	onShareChange?: ShareChange;
-	/** A tunnel's badge clicked: its ports to edit. */
+	/** A tunnel's green port orb picked (click, right-click or Enter): its ports to set. */
 	onTunnelOpen?: (tunnelId: string) => void;
+	/** A connector pulled from a workspace's orb onto another's: a tunnel from the first to the second. */
+	onConnect?: (source: TrafficWorkspace, targetId: string) => void;
 }> = ({
 	topology,
 	rates,
@@ -507,11 +542,24 @@ export const TrafficDiagram: React.FC<{
 	onSelect,
 	onShareChange,
 	onTunnelOpen,
+	onConnect,
 }) => {
 	const navigate = useNavigate();
 	const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 	const [hovered, setHovered] = useState<string | null>(null);
 	const tests = useConnectivityTests();
+	const workspacesById = new Map(
+		topology.columns.flatMap((c) =>
+			c.kind === "workspace" ? c.workspaces.map((w) => [w.id, w] as const) : [],
+		),
+	);
+	const connector = useConnectDrag(
+		onConnect &&
+			((sourceId, targetId) => {
+				const source = workspacesById.get(sourceId);
+				if (source) onConnect(source, targetId);
+			}),
+	);
 	const proxy = useContext(ProxyContext);
 	// A workspace's test asking for its port
 	const [prompt, setPrompt] = useState<{
@@ -727,13 +775,9 @@ export const TrafficDiagram: React.FC<{
 							stroke={active ? PALETTE.active : "hsl(var(--content-secondary))"}
 							strokeWidth={active ? 3.3 : 2.2}
 							strokeDasharray={link.ready ? undefined : "6 5"}
+							// One way, as the connection is set up: shared port into its workspace, a tunnel's source to its
+							// port orb and on to its target.
 							markerEnd={`url(#${active ? arrowActive : arrow})`}
-							// a tunnel carries traffic both ways; a shared port only lets it in
-							markerStart={
-								link.tunnelId
-									? `url(#${active ? arrowActive : arrow})`
-									: undefined
-							}
 						/>
 					);
 				})}
@@ -763,56 +807,6 @@ export const TrafficDiagram: React.FC<{
 
 				<Pulses topology={topology} nodes={nodes} rates={rates} />
 
-				{/* A tunnel's badge on its line, halfway: the Workspace page's tunnel icon */}
-				{topology.links.map((link) => {
-					const from = nodes.get(link.from);
-					const to = nodes.get(link.to);
-					if (!from || !to || !link.tunnelId) {
-						return null;
-					}
-					const { x1, y1, x2, y2 } = ends(from, to);
-					const mx = (x1 + x2) / 2;
-					const my = (y1 + y2) / 2;
-					return (
-						<g
-							key={`tunnel:${link.from}>${link.to}`}
-							data-testid="tunnel-badge"
-							role="button"
-							tabIndex={0}
-							aria-label="Tunnel ports"
-							className="cursor-pointer outline-none"
-							onClick={() => link.tunnelId && onTunnelOpen?.(link.tunnelId)}
-							onKeyDown={(event) => {
-								if (event.key === "Enter" || event.key === " ") {
-									event.preventDefault();
-									if (link.tunnelId) onTunnelOpen?.(link.tunnelId);
-								}
-							}}
-						>
-							<title>
-								Tunnel ports: click to map input ports to output ports
-							</title>
-							<circle
-								cx={mx}
-								cy={my}
-								r={11}
-								fill="#1e293b"
-								stroke={link.ready ? "white" : "hsl(var(--content-secondary))"}
-								strokeWidth={1.5}
-							/>
-							<image
-								href="/icon/workspace-tunnel.svg"
-								x={mx - 7}
-								y={my - 7}
-								width={14}
-								height={14}
-								style={{ filter: "invert(1)" }}
-								opacity={link.ready ? 1 : 0.6}
-							/>
-						</g>
-					);
-				})}
-
 				{placed.map(({ column }) =>
 					column.kind === "workspace"
 						? column.workspaces.map((ws) => {
@@ -820,7 +814,10 @@ export const TrafficDiagram: React.FC<{
 								if (!at) {
 									return null;
 								}
-								const lit = hovered === ws.id || selected === ws.id;
+								const lit =
+									hovered === ws.id ||
+									selected === ws.id ||
+									connector.over === ws.id;
 								// Off or offline while its tunnels still expect it: grey, with a dead face.
 								const alive = ws.running && !ws.offline;
 								const dead =
@@ -837,12 +834,14 @@ export const TrafficDiagram: React.FC<{
 												tabIndex={0}
 												aria-label={`${ws.label}: show its open ports`}
 												aria-pressed={selected === ws.id}
-												className="cursor-pointer outline-none"
+												className="cursor-pointer touch-none outline-none"
 												onMouseEnter={() => setHovered(ws.id)}
 												onMouseLeave={() => setHovered(null)}
-												onClick={() =>
-													onSelect?.(selected === ws.id ? null : ws.id)
-												}
+												onPointerDown={connector.start(ws.id)}
+												onClick={() => {
+													if (connector.consumeDrag()) return;
+													onSelect?.(selected === ws.id ? null : ws.id);
+												}}
 												onKeyDown={(event) => {
 													if (event.key === "Enter" || event.key === " ") {
 														event.preventDefault();
@@ -969,11 +968,13 @@ export const TrafficDiagram: React.FC<{
 										onShareChange={onShareChange}
 										onTestEmit={shareEmit}
 										emitting={tests.shareEmits.has(orb.key)}
+										onTunnelOpen={onTunnelOpen}
 									/>
 								) : null;
 							}),
 				)}
 			</svg>
+			{connector.cable}
 			{prompt && (
 				<TestPortDialog
 					kind={prompt.kind}

@@ -15,7 +15,10 @@ import {
 	agentListeningPorts,
 	workspaces as workspacesQuery,
 } from "#/api/queries/workspaces";
-import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
+import {
+	createWorkspaceTunnel,
+	workspaceTunnels,
+} from "#/api/queries/workspaceTunnels";
 import type {
 	WorkspaceAgentListeningPortsResponse,
 	WorkspaceAgentPortShare,
@@ -147,10 +150,10 @@ const TopologyCard: React.FC<{
 	topology: TrafficTopology;
 	rates: ReadonlyMap<string, ReturnType<typeof tunnelRate>>;
 	onShareChange: ShareChange;
-}> = ({ topology, rates, onShareChange }) => {
+	onTunnelOpen: (tunnelId: string) => void;
+	onConnect: (source: TrafficWorkspace, targetId: string) => void;
+}> = ({ topology, rates, onShareChange, onTunnelOpen, onConnect }) => {
 	const [selected, setSelected] = useState<string | null>(null);
-	const [editing, setEditing] = useState<string | null>(null);
-	const editingTunnel = topology.tunnels.find((t) => t.id === editing);
 	const picked = topology.columns
 		.flatMap((c) => (c.kind === "workspace" ? c.workspaces : []))
 		.find((w) => w.id === selected);
@@ -204,15 +207,10 @@ const TopologyCard: React.FC<{
 					selected={picked ? picked.id : null}
 					onSelect={setSelected}
 					onShareChange={onShareChange}
-					onTunnelOpen={setEditing}
+					onTunnelOpen={onTunnelOpen}
+					onConnect={onConnect}
 				/>
 			</div>
-			{editingTunnel && (
-				<TunnelPortsDialog
-					tunnel={editingTunnel}
-					onClose={() => setEditing(null)}
-				/>
-			)}
 			<footer className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border pt-3 text-xs text-content-secondary">
 				<span>
 					Input ports:{" "}
@@ -339,6 +337,31 @@ const TrafficControlPage: React.FC = () => {
 			changeShare.mutate({ share: orb.share, level });
 		}
 	};
+	// The tunnel whose ports are being set: picked from its green port orb, or just made by dragging one workspace's
+	// orb onto another's (its record from the creation until the list has it).
+	const [editing, setEditing] = useState<{
+		id: string;
+		made?: WorkspaceTunnel;
+	} | null>(null);
+	const editingTunnel = editing
+		? (tunnelResult.tunnels.find((t) => t.id === editing.id) ?? editing.made)
+		: undefined;
+	const connect = useMutation({
+		...createWorkspaceTunnel(queryClient),
+		onSuccess: ({ tunnel }) => setEditing({ id: tunnel.id, made: tunnel }),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, "The tunnel could not be made.")),
+	});
+	const onConnect = (source: TrafficWorkspace, targetId: string) => {
+		if (connect.isPending || source.id === targetId) return;
+		connect.mutate({
+			organizationId: source.organizationId,
+			source: source.id,
+			target: targetId,
+			sourceSide: "right",
+			targetSide: "left",
+		});
+	};
 
 	return (
 		<div className="min-h-full bg-surface-secondary">
@@ -397,14 +420,24 @@ const TrafficControlPage: React.FC = () => {
 									topology={topology}
 									rates={rates}
 									onShareChange={onShareChange}
+									onTunnelOpen={(id) => setEditing({ id })}
+									onConnect={onConnect}
 								/>
 							))}
 						</div>
 					</>
 				)}
+				{editingTunnel && (
+					<TunnelPortsDialog
+						key={editingTunnel.id}
+						tunnel={editingTunnel}
+						onClose={() => setEditing(null)}
+					/>
+				)}
 				<p className="m-0 text-xs text-content-secondary">
 					Shared ports and tunnels come from each workspace's own settings
-					(Ports and Tunnels on its page).
+					(Ports and Tunnels on its page). Drag from one workspace's orb to
+					another's to tunnel to it; a tunnel's green port orb sets its ports.
 				</p>
 			</div>
 		</div>
