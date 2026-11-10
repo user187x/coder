@@ -138,7 +138,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			prefs.data?.admin_nav_in_navbar &&
 			canViewAdminSettings(controls.permissions),
 	);
-	useRegisterSettingsMenu(settingsInNavbar);
+	// Docked, it stays at the screen's side: the breadcrumb then keeps its own Settings link.
+	useRegisterSettingsMenu(settingsInNavbar && !docked);
 	const menuHost = useSettingsMenuHost();
 	const breadcrumbHost = settingsInNavbar && !docked ? menuHost : null;
 	const compact = Boolean(docked && prefs.data?.settings_sidebar_compact);
