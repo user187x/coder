@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useRef } from "react";
-import { Link } from "react-router";
+import { NavLink } from "react-router";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -141,7 +141,7 @@ export const CompactQuickLinks: React.FC<{
 								<DropdownMenuItem
 									aria-label="Chat"
 									title="Chat; right-click to remove or replace, hold to move"
-									className="justify-center"
+									className="settings-strip-key"
 									onSelect={(event) => {
 										event.preventDefault();
 										onChat();
@@ -150,14 +150,14 @@ export const CompactQuickLinks: React.FC<{
 									<link.icon aria-hidden />
 								</DropdownMenuItem>
 							) : (
-								<DropdownMenuItem asChild className="justify-center">
-									<Link
+								<DropdownMenuItem asChild className="settings-strip-key">
+									<NavLink
 										to={link.path}
 										title={`${link.label}; right-click to remove or replace, hold to move`}
 										aria-label={link.label}
 									>
 										<link.icon aria-hidden />
-									</Link>
+									</NavLink>
 								</DropdownMenuItem>
 							)}
 						</CompactQuickLinkMenu>

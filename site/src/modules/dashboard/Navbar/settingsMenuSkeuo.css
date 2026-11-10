@@ -274,3 +274,53 @@
 .settings-menu .settings-controls-chevron svg {
 	filter: var(--skeuo-glyph);
 }
+
+/* The thin strip (docked, collapsed to icons): its buttons as the panel's matte keys, the quick links set in one
+   recessed well like Controls, the page you are on pressed in. */
+.settings-menu .settings-strip-well {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	margin-inline: auto;
+	padding: 4px;
+	border: 1px solid var(--skeuo-well-edge);
+	border-radius: 12px;
+	background: var(--skeuo-well);
+	box-shadow:
+		inset 0 1.5px 3px var(--skeuo-shade),
+		0 1px 0 var(--skeuo-highlight);
+}
+.settings-menu .settings-strip-key {
+	width: 32px;
+	height: 32px;
+	min-height: 32px;
+	padding: 0;
+	justify-content: center;
+	border: 1px solid var(--skeuo-face-edge);
+	border-radius: 9px;
+	background: var(--skeuo-face);
+	color: var(--skeuo-ink);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-highlight),
+		0 1px 1px rgb(0 0 0 / 0.06);
+	transition:
+		background 0.08s ease,
+		box-shadow 0.08s ease;
+}
+.settings-menu .settings-strip-key.rounded-full {
+	border-radius: 9999px;
+}
+.settings-menu .settings-strip-key svg {
+	filter: var(--skeuo-glyph);
+}
+.settings-menu .settings-strip-key:is(:hover, [data-highlighted]) {
+	background: var(--skeuo-face-hover);
+}
+.settings-menu .settings-strip-key:is(:active, [aria-current="page"]) {
+	background: var(--skeuo-face-pressed);
+	box-shadow:
+		inset 0 1.5px 3px rgb(0 0 0 / 0.28),
+		inset 0 1px 1px rgb(0 0 0 / 0.18),
+		0 1px 0 var(--skeuo-highlight);
+}

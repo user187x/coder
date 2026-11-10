@@ -10,7 +10,7 @@ import {
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { Link, NavLink, useLocation, useNavigate } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
 	updateUserUIPreferences,
@@ -274,7 +274,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			className={cn(
 				"min-h-8 justify-center px-1",
 				compact
-					? "mx-auto size-8 shrink-0 rounded-full border border-solid border-border p-0"
+					? "settings-strip-key mx-auto shrink-0 rounded-full"
 					: "flex-1 rounded-none border-0 border-l border-solid border-border",
 			)}
 			onSelect={(event) => {
@@ -519,28 +519,31 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									/>
 								</span>
 								<DropdownMenuSeparator className="mx-auto my-1 w-6 shrink-0" />
-								{!controls?.quickLinks?.some(
-									(link) => link.id === "workspaces",
-								) && (
-									<DropdownMenuItem asChild className="justify-center">
-										<Link
-											to="/workspaces"
-											aria-label="Workspaces"
-											title="Workspaces"
-										>
-											<MonitorIcon aria-hidden />
-										</Link>
-									</DropdownMenuItem>
-								)}
-								<CompactQuickLinks
-									links={controls?.quickLinks ?? []}
-									pages={controls?.pages ?? []}
-									onChange={controls?.quickLinksEditor?.onChange}
-									onChat={() => {
-										docking.mutate({ settings_sidebar_compact: false });
-										setChatExpanded(true);
-									}}
-								/>
+								{/* The quick links as matte keys in one recessed well, as the panel's Controls */}
+								<div className="settings-strip-well">
+									{!controls?.quickLinks?.some(
+										(link) => link.id === "workspaces",
+									) && (
+										<DropdownMenuItem asChild className="settings-strip-key">
+											<NavLink
+												to="/workspaces"
+												aria-label="Workspaces"
+												title="Workspaces"
+											>
+												<MonitorIcon aria-hidden />
+											</NavLink>
+										</DropdownMenuItem>
+									)}
+									<CompactQuickLinks
+										links={controls?.quickLinks ?? []}
+										pages={controls?.pages ?? []}
+										onChange={controls?.quickLinksEditor?.onChange}
+										onChat={() => {
+											docking.mutate({ settings_sidebar_compact: false });
+											setChatExpanded(true);
+										}}
+									/>
+								</div>
 								{controls && canViewAdminSettings(controls.permissions) && (
 									<>
 										{/* A little mark between the quick links and the metrics */}
