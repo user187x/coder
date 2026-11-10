@@ -109,6 +109,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const [openEdge, setOpenEdge] = useState<"left" | "right">("right");
 	// The bottom panel's face (SettingsFacePanel); chat open is its Chat face.
 	const [face, setFace] = useState<SettingsFace>("metrics");
+	// The Chat face expanded over the menu's room below its header row.
+	const [chatFull, setChatFull] = useState(false);
 	const chatExpanded = face === "chat";
 	const setChatExpanded = (next: boolean | ((open: boolean) => boolean)) => {
 		setFace((current) => {
@@ -306,7 +308,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			);
 		}
 		setOpen(next);
-		if (!next) setChatExpanded(false);
+		if (!next) {
+			setChatExpanded(false);
+			setChatFull(false);
+		}
 		// The menu's old "Refresh latencies" row, now each time it opens.
 		if (next) {
 			proxy?.refetchProxyLatencies();
@@ -562,7 +567,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							</>
 						) : (
 							<>
-								{regions && proxy && (
+								{/* With the Chat face expanded, it takes the menu's room below the header row */}
+								{!chatFull && regions && proxy && (
 									<DropdownMenuSub
 										open={regionOpen}
 										onOpenChange={setRegionOpen}
@@ -664,19 +670,23 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								)}
 
 								{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}
-								<WorkspacesLatencyMenu
-									open={open || docked}
-									chatExpanded={chatExpanded}
-									onExpand={() => setChatExpanded(false)}
-									onOpenGrid={(ids, layout) => {
-										setOpen(false);
-										// after the menu has handed the focus back, so the grid keeps it
-										window.setTimeout(() => setWorkspaceView({ ids, layout }));
-									}}
-								/>
+								{!chatFull && (
+									<WorkspacesLatencyMenu
+										open={open || docked}
+										chatExpanded={chatExpanded}
+										onExpand={() => setChatExpanded(false)}
+										onOpenGrid={(ids, layout) => {
+											setOpen(false);
+											// after the menu has handed the focus back, so the grid keeps it
+											window.setTimeout(() =>
+												setWorkspaceView({ ids, layout }),
+											);
+										}}
+									/>
+								)}
 
 								{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
-								{controls && (
+								{!chatFull && controls && (
 									<nav
 										aria-label="Settings"
 										data-testid="controls-group"
@@ -697,7 +707,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								)}
 								<SettingsFacePanel
 									face={face}
-									onFaceChange={setFace}
+									onFaceChange={(next) => {
+										setChatFull(false);
+										setFace(next);
+									}}
+									chatFull={chatFull}
+									onChatFull={setChatFull}
 									metrics={
 										controls && canViewAdminSettings(controls.permissions) ? (
 											<SettingsMetricGraphs

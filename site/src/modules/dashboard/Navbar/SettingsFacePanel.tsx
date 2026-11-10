@@ -31,7 +31,10 @@ export const SettingsFacePanel: React.FC<{
 	onFaceChange: (face: SettingsFace) => void;
 	/** The Metrics face (null: the user may not see the cluster's metrics). */
 	metrics: React.ReactNode;
-}> = ({ face, onFaceChange, metrics }) => {
+	/** The Chat face expanded over the menu's room below its header row (the menu hides the rest meanwhile). */
+	chatFull?: boolean;
+	onChatFull?: (full: boolean) => void;
+}> = ({ face, onFaceChange, metrics, chatFull = false, onChatFull }) => {
 	const chatOn = useChatEnabled();
 	const faces = (["metrics", "chat", "drive"] as const).filter(
 		(f) => (f !== "metrics" || metrics !== null) && (f !== "chat" || chatOn),
@@ -40,6 +43,7 @@ export const SettingsFacePanel: React.FC<{
 	const [turn, setTurn] = useState<"left" | "right">("right");
 	const arrowFill = `settings-face-arrow-${useId()}`;
 	const current = faces.includes(face) ? face : (faces[0] ?? "drive");
+	const full = chatFull && current === "chat";
 	// The tallest face's height so far: the panel holds it whichever face shows.
 	const [tallest, setTallest] = useState(0);
 	const measure = (element: HTMLDivElement | null) => {
@@ -75,7 +79,10 @@ export const SettingsFacePanel: React.FC<{
 			aria-label={`Settings panel: ${NAMES[current]}`}
 			data-testid="settings-face-panel"
 			data-face={current}
-			className="settings-face-panel relative mx-1 mt-2 mb-1 shrink-0"
+			className={cn(
+				"settings-face-panel relative mx-1 mt-2 mb-1",
+				full ? "flex min-h-0 flex-1 flex-col" : "shrink-0",
+			)}
 		>
 			{faces.length > 1 && (
 				<div className="settings-face-arrows">
@@ -129,11 +136,13 @@ export const SettingsFacePanel: React.FC<{
 			)}
 			{/* Every face as tall as the tallest one shown yet, so the panel keeps one height as it turns */}
 			<div
-				className="flex flex-col"
+				className={full ? "flex min-h-0 flex-1 flex-col" : "flex flex-col"}
 				style={
-					current === "chat"
-						? { height: tallest || CHAT_FACE_HEIGHT }
-						: { minHeight: tallest || undefined }
+					full
+						? undefined
+						: current === "chat"
+							? { height: tallest || CHAT_FACE_HEIGHT }
+							: { minHeight: tallest || undefined }
 				}
 			>
 				<div
@@ -152,6 +161,8 @@ export const SettingsFacePanel: React.FC<{
 						<ChatGate>
 							<SettingsChatPanel
 								onClose={() => onFaceChange(faces[0] ?? "drive")}
+								expanded={full}
+								onExpandedChange={onChatFull}
 							/>
 						</ChatGate>
 					) : (

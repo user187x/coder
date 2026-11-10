@@ -449,7 +449,8 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 						/>
 					</div>
 				</div>
-				{location.protocol === "https:" && (
+				{/* Not on the Settings menu's compact chat, which has no room for it */}
+				{!compact && location.protocol === "https:" && (
 					<span
 						role="img"
 						aria-label={TLS_NOTE}

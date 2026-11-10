@@ -1,4 +1,4 @@
-import { XIcon } from "lucide-react";
+import { Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
 import { Button } from "#/components/Button/Button";
@@ -13,8 +13,19 @@ import {
 } from "#/modules/platform/chat/chatStore";
 import { PanelConversation } from "#/modules/platform/chat/PanelConversation";
 
-/** A compact conversation surface using the same history, uploads, and sharing controls as the dock. */
-export const SettingsChatPanel = ({ onClose }: { onClose: () => void }) => {
+/**
+ * A compact conversation surface using the same history, uploads, and sharing controls as the dock. With
+ * `onExpandedChange`, its header has a button that grows it over the Settings menu below the menu's header row and back.
+ */
+export const SettingsChatPanel = ({
+	onClose,
+	expanded = false,
+	onExpandedChange,
+}: {
+	onClose: () => void;
+	expanded?: boolean;
+	onExpandedChange?: (expanded: boolean) => void;
+}) => {
 	const actions = useRef<ConversationActions>(null);
 	const state = useChatSnapshot();
 	useChatConnection(true);
@@ -34,6 +45,17 @@ export const SettingsChatPanel = ({ onClose }: { onClose: () => void }) => {
 			<header className="flex h-9 shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-2">
 				<strong className="flex-1 text-xs">Enable Messaging</strong>
 				{state.me?.admin && <ChatOnSwitch className="h-8" />}
+				{onExpandedChange && (
+					<Button
+						size="icon"
+						variant="subtle"
+						aria-label={expanded ? "Restore quick chat" : "Expand quick chat"}
+						aria-pressed={expanded}
+						onClick={() => onExpandedChange(!expanded)}
+					>
+						{expanded ? <Minimize2Icon /> : <Maximize2Icon />}
+					</Button>
+				)}
 				<Button
 					size="icon"
 					variant="subtle"

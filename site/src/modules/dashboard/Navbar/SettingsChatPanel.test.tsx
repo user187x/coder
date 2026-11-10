@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { PlatformAPI } from "#/api/platform";
 import { ScreenShareAPI } from "#/api/screenShare";
 import {
@@ -129,4 +130,30 @@ it("sends force focus only after composing and submitting a message", async () =
 			}),
 		),
 	);
+});
+
+it("expands over the menu and restores from its header", async () => {
+	const onExpandedChange = vi.fn();
+	const Expandable = () => {
+		const [expanded, setExpanded] = useState(false);
+		return (
+			<SettingsChatPanel
+				onClose={vi.fn()}
+				expanded={expanded}
+				onExpandedChange={(next) => {
+					onExpandedChange(next);
+					setExpanded(next);
+				}}
+			/>
+		);
+	};
+	render(<Expandable />);
+	await userEvent.click(
+		await screen.findByRole("button", { name: "Expand quick chat" }),
+	);
+	expect(onExpandedChange).toHaveBeenLastCalledWith(true);
+	await userEvent.click(
+		screen.getByRole("button", { name: "Restore quick chat" }),
+	);
+	expect(onExpandedChange).toHaveBeenLastCalledWith(false);
 });
