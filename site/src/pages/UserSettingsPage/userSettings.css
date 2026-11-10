@@ -1,5 +1,5 @@
 .user-settings-card {
-	--account-card-padding: clamp(16px, 2vw, 24px);
+	--account-card-padding: clamp(16px, calc(2vw / var(--app-zoom, 1)), 24px);
 	padding: var(--account-card-padding);
 }
 .user-settings-card-head {

@@ -44,7 +44,7 @@ export const BrowserCertificateButton: React.FC<{
 					align="end"
 					side="bottom"
 					aria-label="Browser certificate"
-					className="z-[2147483002] w-[min(380px,calc(100vw-32px))] rounded-xl p-4"
+					className="z-[2147483002] w-[min(380px,calc(calc(100vw/var(--app-zoom,1))-32px))] rounded-xl p-4"
 					onKeyDown={(event) => event.stopPropagation()}
 				>
 					<h3 className="mt-0 mb-2 text-sm font-semibold">

@@ -69,7 +69,7 @@ export const AccountResourcesCell: React.FC<{
 				<PopoverContent
 					align="start"
 					aria-labelledby={titleId}
-					className="account-resource-popover w-[min(42rem,calc(100vw-2rem))] p-4"
+					className="account-resource-popover w-[min(42rem,calc(calc(100vw/var(--app-zoom,1))-2rem))] p-4"
 				>
 					<h3 id={titleId} className="m-0 text-base font-medium">
 						Resources for {user.username}

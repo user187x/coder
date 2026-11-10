@@ -83,7 +83,7 @@ const GateDialog: React.FC<{ me: SchedulerMe; broken: Broken[] }> = ({
 	return (
 		<Dialog open onOpenChange={() => {}}>
 			<DialogContent
-				className="max-h-[90vh] max-w-2xl overflow-y-auto"
+				className="max-h-[calc(90vh/var(--app-zoom,1))] max-w-2xl overflow-y-auto"
 				// Not dismissable: the schedule has to be set first.
 				onEscapeKeyDown={(e) => e.preventDefault()}
 				onPointerDownOutside={(e) => e.preventDefault()}

@@ -210,7 +210,7 @@ export const TemplateIconsDialog: React.FC<{ onClose: () => void }> = ({
 						{icons.length ? (
 							<ul
 								aria-label="Uploaded icons"
-								className="m-0 grid max-h-[50vh] list-none grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2 overflow-y-auto p-0"
+								className="m-0 grid max-h-[calc(50vh/var(--app-zoom,1))] list-none grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2 overflow-y-auto p-0"
 							>
 								{icons.map((icon) => (
 									<li

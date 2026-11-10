@@ -338,7 +338,7 @@ const SortMenu: React.FC<SortMenuProps> = ({
 		</DropdownMenuTrigger>
 		<DropdownMenuContent
 			align="end"
-			className="max-h-[min(70vh,32rem)] w-64 overflow-y-auto"
+			className="max-h-[min(calc(70vh/var(--app-zoom,1)),32rem)] w-64 overflow-y-auto"
 		>
 			<DropdownMenuLabel>Move to the top</DropdownMenuLabel>
 			{metrics.map((m, i) => (

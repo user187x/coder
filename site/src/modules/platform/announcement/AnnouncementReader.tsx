@@ -107,7 +107,7 @@ const AnnouncementMessageContent: React.FC<{ banner: BannerFields }> = ({
 			tabIndex={0}
 			role="region"
 			aria-label="Announcement message"
-			className="max-h-[60vh] overflow-y-auto break-words rounded-lg border border-solid border-border bg-surface-secondary p-5 text-sm leading-relaxed [&>p:not(:has(br))]:mx-auto [&>p:not(:has(br))]:w-fit"
+			className="max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto break-words rounded-lg border border-solid border-border bg-surface-secondary p-5 text-sm leading-relaxed [&>p:not(:has(br))]:mx-auto [&>p:not(:has(br))]:w-fit"
 			style={{ fontFamily: bannerFontStack(banner.font) }}
 		>
 			{banner.picture && safeHref(banner.picture) && (

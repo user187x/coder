@@ -344,7 +344,10 @@
 		[data-radix-popper-content-wrapper]:has(> &) {
 			position: fixed !important;
 			left: var(--mobile-dropdown-left, 1rem) !important;
-			width: var(--mobile-dropdown-width, calc(100vw - 2rem)) !important;
+			width: var(
+				--mobile-dropdown-width,
+				calc(calc(100vw / var(--app-zoom, 1)) - 2rem)
+			) !important;
 			min-width: 0 !important;
 			transform: none !important;
 			bottom: var(--mobile-dropdown-bottom, 5rem) !important;
@@ -381,13 +384,21 @@
 			top: auto !important;
 			max-height: var(
 				--mobile-dropdown-above-composer-max-height,
-				calc(100vh - var(--mobile-dropdown-above-composer-bottom, 9rem) - 1rem)
+				calc(
+					calc(100vh / var(--app-zoom, 1)) -
+					var(--mobile-dropdown-above-composer-bottom, 9rem) -
+					1rem
+				)
 			) !important;
 			overflow: hidden !important;
 		}
 		max-height: var(
 			--mobile-dropdown-above-composer-max-height,
-			calc(100vh - var(--mobile-dropdown-above-composer-bottom, 9rem) - 1rem)
+			calc(
+				calc(100vh / var(--app-zoom, 1)) -
+				var(--mobile-dropdown-above-composer-bottom, 9rem) -
+				1rem
+			)
 		) !important;
 		overflow: hidden !important;
 		display: flex !important;
@@ -984,4 +995,27 @@ a[href^="https://www.coder.com/docs"] {
 		rgb(0 0 0 / 0.12) 0 8px,
 		rgb(250 204 21 / 0.09) 8px 16px
 	);
+}
+
+/* The whole app at 90%, as the browser's own zoom draws it (the size it was found to look right at), for everyone.
+   Viewport units do not follow CSS zoom, so every viewport-based size in the app divides by --app-zoom, and so do
+   Tailwind's screen-sized utilities here; the classification bars' own rules (ClassificationBars) do the same. */
+html {
+	--app-zoom: 0.9;
+	zoom: var(--app-zoom);
+}
+.h-screen {
+	height: calc(100vh / var(--app-zoom, 1));
+}
+.min-h-screen {
+	min-height: calc(100vh / var(--app-zoom, 1));
+}
+.max-h-screen {
+	max-height: calc(100vh / var(--app-zoom, 1));
+}
+.w-screen {
+	width: calc(100vw / var(--app-zoom, 1));
+}
+.h-dvh {
+	height: calc(100dvh / var(--app-zoom, 1));
 }

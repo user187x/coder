@@ -165,7 +165,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 								<PopoverContent
 									id={sidebarId}
 									align="start"
-									className="max-h-[70vh] w-72 overflow-y-auto p-2"
+									className="max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
 									// A category picked from it closes it.
 									onClick={(event) => {
 										if (

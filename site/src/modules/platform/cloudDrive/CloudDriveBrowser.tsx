@@ -252,7 +252,7 @@ export const CloudDriveBrowser: React.FC<{
 	return (
 		<div
 			className={cn(
-				"flex max-h-[min(560px,70vh)] flex-col text-sm",
+				"flex max-h-[min(560px,calc(70vh/var(--app-zoom,1)))] flex-col text-sm",
 				dragging && "cd-drop",
 			)}
 			onDragOver={(event) => {

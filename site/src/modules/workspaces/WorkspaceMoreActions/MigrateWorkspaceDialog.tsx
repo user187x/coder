@@ -122,7 +122,7 @@ export const MigrateWorkspaceDialog = ({
 				if (!value) onClose();
 			}}
 		>
-			<DialogContent className="max-h-[90vh] w-[calc(100vw-32px)] max-w-4xl overflow-y-auto">
+			<DialogContent className="max-h-[calc(90vh/var(--app-zoom,1))] w-[calc(calc(100vw/var(--app-zoom,1))-32px)] max-w-4xl overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Migrate Workspace</DialogTitle>
 					<DialogDescription>

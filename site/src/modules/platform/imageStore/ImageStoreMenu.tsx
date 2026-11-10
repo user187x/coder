@@ -65,7 +65,7 @@ export const ImageStoreMenu: React.FC<{
 				</PopoverTrigger>
 				<PopoverContent
 					align="start"
-					className="w-[min(452px,calc(100vw-32px))] p-3"
+					className="w-[min(452px,calc(calc(100vw/var(--app-zoom,1))-32px))] p-3"
 				>
 					<div className="mb-2 text-sm font-semibold">{label}</div>
 					{onLava && (

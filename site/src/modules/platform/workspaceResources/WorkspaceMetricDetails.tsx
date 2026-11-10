@@ -70,7 +70,7 @@ export const WorkspaceMetricDetails: React.FC<{
 			</TooltipTrigger>
 			<TooltipContent
 				side="top"
-				className="w-[360px] max-w-[calc(100vw-32px)] p-4 shadow-lg"
+				className="w-[360px] max-w-[calc(calc(100vw/var(--app-zoom,1))-32px)] p-4 shadow-lg"
 			>
 				<WorkspaceMetricHistory
 					label={label.toUpperCase()}

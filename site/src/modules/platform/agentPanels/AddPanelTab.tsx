@@ -58,7 +58,7 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
 						align="end"
-						className="max-h-[70vh] min-w-56 overflow-y-auto"
+						className="max-h-[calc(70vh/var(--app-zoom,1))] min-w-56 overflow-y-auto"
 					>
 						{actions}
 						{!apps.some((app) => app.slug === "neko-browser") && (

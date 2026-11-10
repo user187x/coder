@@ -57,11 +57,11 @@ const drawerContentVariants = cva(
 			direction: {
 				// Platform: inside the classification bars (--coder-classification-h, 0 without them), not under them
 				top: cn(
-					"inset-x-0 top-[var(--coder-classification-h,0px)] max-h-[80vh] w-full border-b border-border",
+					"inset-x-0 top-[var(--coder-classification-h,0px)] max-h-[calc(80vh/var(--app-zoom,1))] w-full border-b border-border",
 					"data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top",
 				),
 				bottom: cn(
-					"inset-x-0 bottom-[var(--coder-classification-h,0px)] max-h-[80vh] w-full border-t border-border",
+					"inset-x-0 bottom-[var(--coder-classification-h,0px)] max-h-[calc(80vh/var(--app-zoom,1))] w-full border-t border-border",
 					"data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
 				),
 				left: cn(

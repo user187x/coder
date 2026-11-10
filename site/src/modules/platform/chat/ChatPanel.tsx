@@ -74,7 +74,7 @@ export const ChatPanel: React.FC<{
 					(!floating || compact || state.consoleOverlay) && "hidden",
 				)}
 				style={{
-					width: `min(${size?.width ?? 420}px, calc(100vw - 32px))`,
+					width: `min(${size?.width ?? 420}px, calc(calc(100vw/var(--app-zoom,1)) - 32px))`,
 					height: raised
 						? `min(${size?.height ?? 520}px, var(--chat-space, 520px))`
 						: BAR_HEIGHT,

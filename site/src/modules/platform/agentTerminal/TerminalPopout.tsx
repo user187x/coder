@@ -78,8 +78,8 @@ export const TerminalPopout: React.FC<TerminalPopoutProps> = ({
 			aria-label={title}
 			className="fixed z-50 flex resize flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary shadow-2xl"
 			style={{
-				width: "min(1100px, 92vw)",
-				height: "min(640px, 75vh)",
+				width: "min(1100px, calc(92vw/var(--app-zoom,1)))",
+				height: "min(640px, calc(75vh/var(--app-zoom,1)))",
 				minWidth: 420,
 				minHeight: 260,
 				...(position

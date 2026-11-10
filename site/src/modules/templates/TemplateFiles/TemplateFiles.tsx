@@ -145,14 +145,17 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 						"flex w-[clamp(9rem,22%,15rem)] shrink-0 flex-col gap-2",
 						fill
 							? "min-h-0 [&>section[aria-label=Versions]]:min-h-0 [&>section[aria-label=Versions]]:max-h-none [&>section[aria-label=Versions]]:flex-1"
-							: "sticky top-[calc(112px+var(--coder-classification-h,0px))] max-h-[calc(100dvh-128px-var(--coder-classification-h,0px))]",
+							: "sticky top-[calc(112px+var(--coder-classification-h,0px))] max-h-[calc(calc(100dvh/var(--app-zoom,1))-128px-var(--coder-classification-h,0px))]",
 					)}
 				>
 					{actions}
 					<div
 						className={cn(
 							"min-h-0 overflow-auto rounded-lg border border-solid border-surface-quaternary bg-surface-secondary/50 py-1",
-							sidebar && (fill ? "max-h-[42%] shrink-0" : "max-h-[40vh]"),
+							sidebar &&
+								(fill
+									? "max-h-[42%] shrink-0"
+									: "max-h-[calc(40vh/var(--app-zoom,1))]"),
 						)}
 					>
 						<TemplateFileTree

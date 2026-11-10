@@ -87,7 +87,7 @@ export const TunnelOverviewTooltip = ({
 				<TooltipTrigger asChild>{children}</TooltipTrigger>
 				<TooltipContent
 					side="right"
-					className="z-[100] w-80 max-w-[calc(100vw-2rem)] px-3 py-2.5"
+					className="z-[100] w-80 max-w-[calc(calc(100vw/var(--app-zoom,1))-2rem)] px-3 py-2.5"
 				>
 					{overview}
 				</TooltipContent>

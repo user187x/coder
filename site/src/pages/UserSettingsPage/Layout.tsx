@@ -128,7 +128,7 @@ const Layout: React.FC = () => {
 							<PopoverContent
 								id={sidebarId}
 								align="start"
-								className="max-h-[70vh] w-72 overflow-y-auto p-2"
+								className="max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
 								// A section picked from it closes it.
 								onClick={(event) => {
 									if (
@@ -150,7 +150,12 @@ const Layout: React.FC = () => {
 	const page = (
 		<section
 			aria-label={`${section.label} settings`}
-			className="ws-settings ws-card user-settings-card grow min-w-0 self-stretch lg:self-start"
+			className={
+				inNavbar
+					? // Centred in the window, as the rest of the app (the sections list is up in the navbar)
+						"ws-settings ws-card user-settings-card min-w-0 max-w-full self-center"
+					: "ws-settings ws-card user-settings-card grow min-w-0 self-stretch lg:self-start"
+			}
 		>
 			<Suspense fallback={<PageLoader />}>
 				<Outlet />

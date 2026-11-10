@@ -215,7 +215,7 @@ type ContainerProps = Readonly<{
 const Container: React.FC<ContainerProps> = ({ children, asChild = false }) => {
 	const Wrapper = asChild ? Slot.Root : "div";
 	return (
-		<Wrapper className="max-h-[80vh] flex flex-col flex-nowrap">
+		<Wrapper className="max-h-[calc(80vh/var(--app-zoom,1))] flex flex-col flex-nowrap">
 			{children}
 		</Wrapper>
 	);

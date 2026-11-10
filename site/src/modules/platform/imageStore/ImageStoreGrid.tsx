@@ -42,7 +42,7 @@ export const ImageStoreGrid: React.FC<{
 		data-layout={layout}
 		className={cn(
 			layout === "grid"
-				? "grid max-h-[min(66vh,448px)] auto-rows-max grid-cols-[repeat(auto-fill,minmax(min(100%,7rem),1fr))] content-start items-start gap-3 overflow-y-auto p-0.5 [scrollbar-gutter:stable]"
+				? "grid max-h-[min(calc(66vh/var(--app-zoom,1)),448px)] auto-rows-max grid-cols-[repeat(auto-fill,minmax(min(100%,7rem),1fr))] content-start items-start gap-3 overflow-y-auto p-0.5 [scrollbar-gutter:stable]"
 				: "flex max-h-[232px] flex-wrap content-start gap-2.5 overflow-y-auto p-0.5",
 			className,
 		)}

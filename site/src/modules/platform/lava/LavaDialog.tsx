@@ -89,7 +89,7 @@ export const LavaDialog: React.FC<{
 			}}
 		>
 			<DialogContent
-				className="w-[min(760px,94vw)] max-w-none"
+				className="w-[min(760px,calc(94vw/var(--app-zoom,1)))] max-w-none"
 				data-testid="lava-dialog"
 			>
 				<DialogHeader>
@@ -130,7 +130,7 @@ export const LavaDialog: React.FC<{
 							</div>
 						)}
 					</div>
-					<div className="max-h-[min(60vh,520px)] min-w-0 overflow-y-auto pr-1">
+					<div className="max-h-[min(calc(60vh/var(--app-zoom,1)),520px)] min-w-0 overflow-y-auto pr-1">
 						<LavaControls
 							picture
 							value={settings}

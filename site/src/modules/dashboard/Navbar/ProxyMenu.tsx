@@ -410,7 +410,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					data-testid="navbar-latency-controls-menu"
 					// The floating menu reserves space for the slide-out trays.
 					className={cn(
-						"relative w-max min-w-[240px] max-w-[calc(100vw-32px)] overflow-visible border-0 bg-transparent p-0 shadow-none",
+						"relative w-max min-w-[240px] max-w-[calc(calc(100vw/var(--app-zoom,1))-32px)] overflow-visible border-0 bg-transparent p-0 shadow-none",
 						"settings-menu",
 						!docked && (edge === "left" ? "pr-16" : "pl-16"),
 					)}
@@ -610,7 +610,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 											<DropdownMenuSeparator />
 
-											<div className="max-h-[calc(100vh-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+											<div className="max-h-[calc(calc(100vh/var(--app-zoom,1))-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
 												<DropdownMenuRadioGroup value={selectedProxy?.id}>
 													{sortProxiesByLatency(regions, latencies).map(
 														(region) => (

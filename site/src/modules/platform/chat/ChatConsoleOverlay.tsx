@@ -59,7 +59,7 @@ export const ChatConsoleOverlay: React.FC = () => {
 				>
 					<DialogPrimitive.Content
 						aria-modal="true"
-						className="chat-console-overlay-panel flex h-[min(760px,86vh)] w-[min(1100px,92vw)] rounded-[14px] max-sm:h-dvh max-sm:w-screen max-sm:rounded-none max-sm:pt-[env(safe-area-inset-top)] max-sm:pb-[env(safe-area-inset-bottom)] text-content-primary shadow-[0_24px_80px_rgb(0_0_0/.45),0_2px_8px_rgb(0_0_0/.2)] outline-none"
+						className="chat-console-overlay-panel flex h-[min(760px,calc(86vh/var(--app-zoom,1)))] w-[min(1100px,calc(92vw/var(--app-zoom,1)))] rounded-[14px] max-sm:h-dvh max-sm:w-screen max-sm:rounded-none max-sm:pt-[env(safe-area-inset-top)] max-sm:pb-[env(safe-area-inset-bottom)] text-content-primary shadow-[0_24px_80px_rgb(0_0_0/.45),0_2px_8px_rgb(0_0_0/.2)] outline-none"
 						data-testid="chat-console-overlay-panel"
 						// No conversation to focus the message box of: the panel, not its first checkbox.
 						onOpenAutoFocus={(event) => {

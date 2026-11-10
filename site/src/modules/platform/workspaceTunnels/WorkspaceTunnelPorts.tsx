@@ -395,7 +395,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 				}}
 			>
 				<DialogContent
-					className="z-[95] max-h-[85vh] overflow-y-auto"
+					className="z-[95] max-h-[calc(85vh/var(--app-zoom,1))] overflow-y-auto"
 					overlayClassName="z-[94] backdrop-blur-sm"
 				>
 					<DialogTitle>Connection details</DialogTitle>

@@ -114,7 +114,7 @@ export const GlobalFiles: React.FC = () => {
 								language={languageOf(open.name)}
 								value={open.content}
 								editorProps={{
-									height: "60vh",
+									height: "calc(60vh/var(--app-zoom,1))",
 									options: { readOnly: true, scrollBeyondLastLine: false },
 								}}
 							/>

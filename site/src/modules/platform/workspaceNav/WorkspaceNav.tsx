@@ -89,7 +89,7 @@ export const WorkspaceNav: React.FC<{
 					data-state="open"
 					aria-label={open.label}
 					data-testid="workspace-nav-panel"
-					className="absolute left-3 top-full z-40 mt-2 flex max-h-[min(70vh,640px)] w-72 flex-col overflow-y-auto rounded-2xl border border-solid border-border bg-surface-primary shadow-xl [&>div]:h-auto [&>div]:w-full [&>div]:border-r-0"
+					className="absolute left-3 top-full z-40 mt-2 flex max-h-[min(calc(70vh/var(--app-zoom,1)),640px)] w-72 flex-col overflow-y-auto rounded-2xl border border-solid border-border bg-surface-primary shadow-xl [&>div]:h-auto [&>div]:w-full [&>div]:border-r-0"
 				>
 					{panels[open.value]}
 				</div>

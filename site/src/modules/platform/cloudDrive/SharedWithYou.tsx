@@ -96,7 +96,7 @@ export const SharedWithYou: React.FC<{
 					</DialogHeader>
 					{n > 0 && (
 						<ul
-							className="m-0 -mr-2 flex max-h-[min(560px,65vh)] list-none flex-col gap-3 overflow-y-auto p-0 pr-2"
+							className="m-0 -mr-2 flex max-h-[min(560px,calc(65vh/var(--app-zoom,1)))] list-none flex-col gap-3 overflow-y-auto p-0 pr-2"
 							aria-label="Shared with you"
 							data-testid="cloud-drive-shares-list"
 						>

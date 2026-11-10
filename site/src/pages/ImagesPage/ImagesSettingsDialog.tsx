@@ -68,7 +68,7 @@ export const ImagesSettingsDialog: React.FC<{ onClose: () => void }> = ({
 				{!query.data ? (
 					<Loader />
 				) : (
-					<div className="flex max-h-[65vh] flex-col gap-5 overflow-y-auto pr-1">
+					<div className="flex max-h-[calc(65vh/var(--app-zoom,1))] flex-col gap-5 overflow-y-auto pr-1">
 						<SecurityDataSection />
 						<section className="flex flex-col gap-2">
 							<Label htmlFor="apt-sources">

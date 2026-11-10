@@ -75,7 +75,7 @@ export const EffectGallery: React.FC<EffectGalleryProps> = ({
 			</PopoverTrigger>
 			<PopoverContent
 				align="start"
-				className="w-[min(480px,calc(100vw-32px))] p-3"
+				className="w-[min(480px,calc(calc(100vw/var(--app-zoom,1))-32px))] p-3"
 			>
 				<div id={`${id}-title`} className="mb-2 text-sm font-semibold">
 					{label}
@@ -83,7 +83,7 @@ export const EffectGallery: React.FC<EffectGalleryProps> = ({
 				<div
 					role="radiogroup"
 					aria-labelledby={`${id}-title`}
-					className="grid max-h-[min(60vh,420px)] grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2 overflow-y-auto p-0.5"
+					className="grid max-h-[min(calc(60vh/var(--app-zoom,1)),420px)] grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2 overflow-y-auto p-0.5"
 				>
 					{options.map((effect) => {
 						const selected = effect === value;

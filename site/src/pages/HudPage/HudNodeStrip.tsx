@@ -196,7 +196,7 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 							</ul>
 						</TooltipContent>
 					</Tooltip>
-					<PopoverContent className="w-[420px] max-w-[90vw] p-0">
+					<PopoverContent className="w-[420px] max-w-[calc(90vw/var(--app-zoom,1))] p-0">
 						<NodeDetails node={node} />
 					</PopoverContent>
 				</Popover>
@@ -237,7 +237,7 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 			<Dialog open={details} onOpenChange={setDetails}>
 				<DialogContent
 					overlayClassName="backdrop-blur-md"
-					className="flex h-[75vh] w-[75vw] max-w-none flex-col gap-4 p-6"
+					className="flex h-[calc(75vh/var(--app-zoom,1))] w-[calc(75vw/var(--app-zoom,1))] max-w-none flex-col gap-4 p-6"
 				>
 					<DialogTitle className="flex items-center gap-2">
 						<span aria-hidden className="inline-flex shrink-0">
@@ -252,7 +252,7 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 				open={action !== undefined}
 				onOpenChange={(open) => !open && setAction(undefined)}
 			>
-				<DialogContent className="flex max-h-[85vh] max-w-xl flex-col gap-4 p-6">
+				<DialogContent className="flex max-h-[calc(85vh/var(--app-zoom,1))] max-w-xl flex-col gap-4 p-6">
 					<DialogTitle>
 						{action && nodeActionTitles[action]}: {node.name}
 					</DialogTitle>
@@ -341,7 +341,7 @@ const NodeDetails: React.FC<{ node: HudNode }> = ({ node }) => {
 	const health = HEALTH[node.health];
 	const facts = nodeFacts(node);
 	return (
-		<div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto p-4 text-sm">
+		<div className="flex max-h-[calc(60vh/var(--app-zoom,1))] flex-col gap-3 overflow-y-auto p-4 text-sm">
 			<div className="flex items-center gap-2">
 				<span aria-hidden className="inline-flex shrink-0">
 					<WorkspaceStateOrb state={health.orb} size="0.75rem" />

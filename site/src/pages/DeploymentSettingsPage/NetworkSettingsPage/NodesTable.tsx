@@ -214,7 +214,7 @@ export const NodesTable: React.FC<{ report: ClusterNetworkReport }> = ({
 					if (!open) setView(null);
 				}}
 			>
-				<DialogContent className="flex max-h-none h-[calc(100dvh-4rem)] w-[calc(100vw-3rem)] max-w-none! flex-col gap-4 overflow-hidden bg-surface-primary">
+				<DialogContent className="flex max-h-none h-[calc(calc(100dvh/var(--app-zoom,1))-4rem)] w-[calc(calc(100vw/var(--app-zoom,1))-3rem)] max-w-none! flex-col gap-4 overflow-hidden bg-surface-primary">
 					<EntityProvider>
 						<div className="flex shrink-0 items-center justify-between gap-4">
 							<div>

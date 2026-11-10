@@ -308,7 +308,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 								</DropdownMenuTrigger>
 								<DropdownMenuContent
 									align="start"
-									className="max-h-[60vh] w-64 overflow-y-auto"
+									className="max-h-[calc(60vh/var(--app-zoom,1))] w-64 overflow-y-auto"
 								>
 									{(["dashboard", "admin"] as const).map((group, g) => {
 										const list = addable.filter((c) => c.group === group);

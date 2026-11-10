@@ -917,7 +917,7 @@ const MessageLog: React.FC<MessageLogProps> = ({
 								{Boolean(m.text) && forwardTo.length > 0 && (
 									<ContextMenuSub>
 										<ContextMenuSubTrigger>Forward to</ContextMenuSubTrigger>
-										<ContextMenuSubContent className="z-[111] max-h-[60vh] overflow-y-auto">
+										<ContextMenuSubContent className="z-[111] max-h-[calc(60vh/var(--app-zoom,1))] overflow-y-auto">
 											{forwardTo.map((c) => {
 												const label = c.peer.name || c.peer.username;
 												return (

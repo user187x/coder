@@ -339,7 +339,7 @@ export const ScreenShareController = () => {
 				<aside
 					aria-label="Desktop support session"
 					data-dashboard-support-ignore
-					className="fixed left-1/2 top-20 z-[70] w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border border-solid border-border bg-surface-primary p-3 shadow-xl"
+					className="fixed left-1/2 top-20 z-[70] w-[min(420px,calc(calc(100vw/var(--app-zoom,1))-32px))] -translate-x-1/2 rounded-xl border border-solid border-border bg-surface-primary p-3 shadow-xl"
 				>
 					<div className="flex items-center justify-between gap-3">
 						<strong className="text-sm">
@@ -415,7 +415,7 @@ export const ScreenShareController = () => {
 					{viewingHere && (
 						<SharedDashboardView
 							stream={media.remote}
-							className="max-h-[60vh]"
+							className="max-h-[calc(60vh/var(--app-zoom,1))]"
 						/>
 					)}
 					{(mediaError || captureError || actionError) && (

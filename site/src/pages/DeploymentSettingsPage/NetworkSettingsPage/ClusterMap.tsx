@@ -123,7 +123,7 @@ export const ClusterMap: React.FC = () => {
 													Focus view
 												</Button>
 											</DialogTrigger>
-											<DialogContent className="h-[95vh] max-h-[95vh] w-[96vw] max-w-none content-start">
+											<DialogContent className="h-[calc(95vh/var(--app-zoom,1))] max-h-[calc(95vh/var(--app-zoom,1))] w-[calc(96vw/var(--app-zoom,1))] max-w-none content-start">
 												<div className="flex items-center justify-between gap-3">
 													<DialogTitle>Cluster network focus view</DialogTitle>
 													<DialogClose asChild>

@@ -71,7 +71,7 @@ export const WorkspaceSSHDetails = ({
 			<PopoverContent
 				side="top"
 				align="start"
-				className="w-[420px] max-w-[calc(100vw-32px)] p-4"
+				className="w-[420px] max-w-[calc(calc(100vw/var(--app-zoom,1))-32px)] p-4"
 				aria-label={`SSH access for ${workspace.name}`}
 				onOpenAutoFocus={(event) => event.preventDefault()}
 				onCloseAutoFocus={(event) => event.preventDefault()}

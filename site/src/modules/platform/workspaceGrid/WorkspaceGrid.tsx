@@ -170,7 +170,7 @@ export const WorkspaceGrid: React.FC<WorkspaceGridProps> = ({
 				overlayClassName="z-[70] backdrop-blur-md"
 				className={cn(
 					"z-[70] flex max-h-none max-w-none flex-col gap-0 overflow-hidden p-0",
-					"w-[calc(100vw-48px)] h-[calc(100vh-2*var(--coder-classification-h,0px)-48px)]",
+					"w-[calc(calc(100vw/var(--app-zoom,1))-48px)] h-[calc(calc(100vh/var(--app-zoom,1))-2*var(--coder-classification-h,0px)-48px)]",
 				)}
 			>
 				<GridBody
@@ -613,7 +613,7 @@ const GridBody: React.FC<GridBodyProps> = ({
 					<DialogContent
 						aria-describedby={undefined}
 						overlayClassName="z-[80] backdrop-blur-md"
-						className="z-[80] flex max-h-none w-[calc(100vw-80px)] max-w-[1200px] flex-col gap-0 overflow-hidden p-0"
+						className="z-[80] flex max-h-none w-[calc(calc(100vw/var(--app-zoom,1))-80px)] max-w-[1200px] flex-col gap-0 overflow-hidden p-0"
 						style={{
 							height: Math.min(
 								size.h,

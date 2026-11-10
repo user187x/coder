@@ -43,7 +43,7 @@ export const AccountNotesDialog: React.FC<{
 			}}
 		>
 			<DialogContent
-				className="max-h-[85vh] overflow-y-auto"
+				className="max-h-[calc(85vh/var(--app-zoom,1))] overflow-y-auto"
 				overlayClassName="backdrop-blur-md"
 			>
 				<DialogTitle>Notes for {username}</DialogTitle>

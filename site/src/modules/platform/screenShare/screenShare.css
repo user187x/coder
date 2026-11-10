@@ -47,7 +47,7 @@
 	aspect-ratio: 16 / 9;
 	min-height: 256px;
 	max-height: calc(
-		100dvh -
+		calc(100dvh / var(--app-zoom, 1)) -
 		var(--dashboard-navigation-height, 72px) -
 		var(--admin-breadcrumb-height, 0px) -
 		2 *

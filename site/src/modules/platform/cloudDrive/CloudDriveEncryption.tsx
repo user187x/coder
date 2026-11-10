@@ -70,7 +70,7 @@ export const CloudDriveEncryption: React.FC = () => {
 	}
 	return (
 		<div
-			className="flex max-h-[65vh] flex-col gap-4 overflow-y-auto px-6 py-5"
+			className="flex max-h-[calc(65vh/var(--app-zoom,1))] flex-col gap-4 overflow-y-auto px-6 py-5"
 			data-testid="cloud-drive-encryption"
 		>
 			{enc.state === "encrypting" || enc.state === "decrypting" ? (

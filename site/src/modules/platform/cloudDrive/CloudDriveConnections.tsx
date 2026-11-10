@@ -28,7 +28,7 @@ export const CloudDriveConnections: React.FC = () => {
 	const attaching = new Set(pendingAttachments(connections.data));
 
 	return (
-		<div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto px-6 py-5">
+		<div className="flex max-h-[calc(60vh/var(--app-zoom,1))] flex-col gap-3 overflow-y-auto px-6 py-5">
 			<p className="m-0 text-sm text-content-secondary">
 				A connected workspace has your Cloud Drive at ~/cloud-drive; a new one
 				is connected. On the Workspaces page, drag a cable's plug away from a

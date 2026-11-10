@@ -263,7 +263,7 @@ export const ChatDock: React.FC = () => {
 				onError: () => {
 					const panel = element.querySelector<HTMLElement>("[data-chat-panel]");
 					if (panel) {
-						panel.style.width = `min(${preferences.data?.chat_size?.width ?? 420}px, calc(100vw - 32px))`;
+						panel.style.width = `min(${preferences.data?.chat_size?.width ?? 420}px, calc(calc(100vw/var(--app-zoom,1)) - 32px))`;
 						panel.style.height = `min(${preferences.data?.chat_size?.height ?? 520}px, var(--chat-space, 520px))`;
 					}
 					if (position) placeDock(element, position, top, bottom);

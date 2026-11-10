@@ -479,13 +479,13 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 									width: expanded ? "100%" : (panelSize?.width ?? rect.width),
 									maxWidth: expanded
 										? "100%"
-										: `calc(100vw - ${rect.left + 8}px)`,
+										: `calc(calc(100vw/var(--app-zoom,1)) - ${rect.left + 8}px)`,
 									height: expanded
-										? "calc(100dvh - 2 * var(--coder-classification-h, 0px))"
+										? "calc(calc(100dvh/var(--app-zoom,1)) - 2 * var(--coder-classification-h, 0px))"
 										: panelSize?.height,
 									maxHeight: expanded
-										? "100dvh"
-										: `calc(100dvh - ${rect.top + 8}px)`,
+										? "calc(100dvh/var(--app-zoom,1))"
+										: `calc(calc(100dvh/var(--app-zoom,1)) - ${rect.top + 8}px)`,
 									...(colors
 										? {
 												"--banner-scroll-screen": withBannerAlpha(

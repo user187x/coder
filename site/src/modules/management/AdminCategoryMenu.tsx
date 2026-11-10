@@ -48,7 +48,7 @@ export const AdminCategoryMenu = () => {
 			</ContextMenuTrigger>
 			<ContextMenuContent
 				aria-label="Admin categories"
-				className="max-h-[70vh] overflow-y-auto"
+				className="max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto"
 			>
 				{pages.map((page) => (
 					<ContextMenuItem key={page.id} asChild>

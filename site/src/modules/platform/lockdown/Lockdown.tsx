@@ -430,7 +430,7 @@ export const LockdownBadge: React.FC<{
 			</DropdownMenu>
 			<Dialog open={sandboxOpen} onOpenChange={setSandboxOpen}>
 				<DialogContent
-					className="z-[95] max-h-[85vh] overflow-y-auto"
+					className="z-[95] max-h-[calc(85vh/var(--app-zoom,1))] overflow-y-auto"
 					overlayClassName="z-[95]"
 				>
 					<DialogTitle>Sandbox</DialogTitle>
@@ -439,7 +439,7 @@ export const LockdownBadge: React.FC<{
 			</Dialog>
 			<Dialog open={quarantineOpen} onOpenChange={setQuarantineOpen}>
 				<DialogContent
-					className="z-[95] max-h-[85vh] overflow-y-auto"
+					className="z-[95] max-h-[calc(85vh/var(--app-zoom,1))] overflow-y-auto"
 					overlayClassName="z-[95]"
 				>
 					<DialogTitle>Workspace quarantine</DialogTitle>

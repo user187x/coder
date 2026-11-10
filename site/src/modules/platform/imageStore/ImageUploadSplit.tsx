@@ -63,7 +63,7 @@ export const ImageUploadSplit: React.FC<{
 			</Button>
 			<Dialog open={open} onOpenChange={setOpen}>
 				<DialogContent
-					className="w-[min(880px,94vw)] max-w-none"
+					className="w-[min(880px,calc(94vw/var(--app-zoom,1)))] max-w-none"
 					data-testid={testId && `${testId}-dialog`}
 				>
 					<DialogHeader>

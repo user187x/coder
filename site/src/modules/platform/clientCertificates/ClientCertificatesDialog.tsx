@@ -80,7 +80,7 @@ export const ClientCertificatesDialog = ({
 			}}
 		>
 			<DialogContent
-				className="max-h-[90vh] overflow-y-auto"
+				className="max-h-[calc(90vh/var(--app-zoom,1))] overflow-y-auto"
 				onInteractOutside={(event) => {
 					if (pending || issue.data) event.preventDefault();
 				}}

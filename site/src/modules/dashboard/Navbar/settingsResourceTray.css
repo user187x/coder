@@ -213,7 +213,10 @@ html[data-animations="off"]
 .settings-menu > .settings-menu-surface {
 	min-height: min(
 		var(--settings-rail-height, 0px),
-		var(--radix-dropdown-menu-content-available-height, 80vh)
+		var(
+			--radix-dropdown-menu-content-available-height,
+			calc(80vh / var(--app-zoom, 1))
+		)
 	);
 }
 

@@ -79,7 +79,7 @@ export const EditAccountDialog: React.FC<{
 				if (!open && !save.isPending) onClose();
 			}}
 		>
-			<DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+			<DialogContent className="max-h-[calc(85vh/var(--app-zoom,1))] max-w-2xl overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Edit {user.username}</DialogTitle>
 					<DialogDescription>

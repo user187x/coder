@@ -36,7 +36,7 @@ export const AccountLockdownDialog: React.FC<{
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
 				overlayClassName="backdrop-blur-md"
-				className="max-h-[85vh] overflow-y-auto"
+				className="max-h-[calc(85vh/var(--app-zoom,1))] overflow-y-auto"
 			>
 				<DialogTitle>Lock Down {user.username}</DialogTitle>
 				{query.isLoading && <Spinner loading />}

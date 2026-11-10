@@ -185,7 +185,7 @@ export const QuotaAdjustments: React.FC<{
 				}}
 			>
 				<DialogContent
-					className="max-h-[85vh] max-w-2xl overflow-y-auto"
+					className="max-h-[calc(85vh/var(--app-zoom,1))] max-w-2xl overflow-y-auto"
 					onOpenAutoFocus={() => {
 						markViewed();
 						decide.reset();

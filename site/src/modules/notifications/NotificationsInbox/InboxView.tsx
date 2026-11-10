@@ -23,7 +23,7 @@ export const InboxView: React.FC = () => {
 			style={
 				{
 					"--radix-popover-content-available-height":
-						"max(24rem, calc(100dvh - 18rem))",
+						"max(24rem, calc(calc(100dvh/var(--app-zoom,1)) - 18rem))",
 				} as React.CSSProperties
 			}
 		>

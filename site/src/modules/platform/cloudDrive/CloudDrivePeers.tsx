@@ -422,7 +422,7 @@ export const CloudDrivePeersView: React.FC = () => {
 	const toAnswer = data.ofMine.filter((s) => s.state === "asked");
 	return (
 		<div
-			className="flex max-h-[65vh] flex-col gap-5 overflow-y-auto px-6 py-5"
+			className="flex max-h-[calc(65vh/var(--app-zoom,1))] flex-col gap-5 overflow-y-auto px-6 py-5"
 			data-testid="cloud-drive-peers"
 		>
 			{data.admin && (

@@ -74,7 +74,7 @@ const ClassificationBar: React.FC<ClassificationBarProps> = ({
 			id={`coder-classification-${edge}`}
 			role="note"
 			aria-label="Classification"
-			// 100vw, not right-0: the page reserves a scrollbar gutter that right-0
+			// calc(100vw/var(--app-zoom,1)), not right-0: the page reserves a scrollbar gutter that right-0
 			// would leave uncovered.
 			className="fixed left-0 w-screen z-[2147483000] flex items-center justify-center px-3 overflow-hidden whitespace-nowrap text-ellipsis font-bold tracking-[.06em] pointer-events-none select-none"
 			style={{
@@ -105,7 +105,7 @@ html { --coder-classification-h: ${height}px;
 body { padding-top: ${height}px !important; padding-bottom: ${height}px !important; box-sizing: border-box; }
 div.sticky.top-0 { top: ${height}px !important; }
 .sticky.bottom-0, .fixed.bottom-0 { bottom: ${height}px !important; }
-.h-screen { height: calc(100vh - ${2 * height}px) !important; }
-.min-h-screen { min-height: calc(100vh - ${2 * height}px) !important; }
-.max-h-screen { max-height: calc(100vh - ${2 * height}px) !important; }`;
+.h-screen { height: calc(calc(100vh/var(--app-zoom,1)) - ${2 * height}px) !important; }
+.min-h-screen { min-height: calc(calc(100vh/var(--app-zoom,1)) - ${2 * height}px) !important; }
+.max-h-screen { max-height: calc(calc(100vh/var(--app-zoom,1)) - ${2 * height}px) !important; }`;
 };

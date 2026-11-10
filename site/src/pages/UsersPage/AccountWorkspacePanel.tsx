@@ -247,7 +247,7 @@ export const AccountWorkspacePanelView: React.FC<
 														</Button>
 													</PopoverTrigger>
 													<PopoverContent
-														className="flex w-fit max-w-[calc(100vw-1rem)] flex-col items-start gap-2"
+														className="flex w-fit max-w-[calc(calc(100vw/var(--app-zoom,1))-1rem)] flex-col items-start gap-2"
 														aria-label={`Details for ${w.name}`}
 													>
 														{template}

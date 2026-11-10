@@ -202,7 +202,7 @@ export const SecretDialog: React.FC<SecretDialogProps> = ({
 			}}
 		>
 			<DialogContent
-				className="max-h-[90vh] overflow-y-auto"
+				className="max-h-[calc(90vh/var(--app-zoom,1))] overflow-y-auto"
 				aria-describedby={undefined}
 				onCloseAutoFocus={(event) => {
 					if (returnFocusElement?.isConnected) {

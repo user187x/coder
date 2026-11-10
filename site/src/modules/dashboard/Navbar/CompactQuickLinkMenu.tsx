@@ -50,7 +50,7 @@ const CompactQuickLinkMenu: React.FC<{
 			</ContextMenuTrigger>
 			<ContextMenuContent
 				aria-label={`${link.label} options`}
-				className="z-[2147483647] max-h-[70vh] overflow-y-auto"
+				className="z-[2147483647] max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto"
 				onContextMenu={(event) => event.stopPropagation()}
 			>
 				<ContextMenuItem

@@ -186,7 +186,7 @@ export const QuotaRequestButton: React.FC = () => {
 					if (!create.isPending) setOpen(next);
 				}}
 			>
-				<DialogContent className="max-h-[85vh] overflow-y-auto">
+				<DialogContent className="max-h-[calc(85vh/var(--app-zoom,1))] overflow-y-auto">
 					<DialogTitle>Request extra quota</DialogTitle>
 					<DialogDescription>
 						Request personal resource additions for administrator approval.

@@ -603,7 +603,11 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 					>
 						<div
 							ref={box}
-							style={{ height: fullscreen ? "calc(100dvh - 80px)" : boxHeight }}
+							style={{
+								height: fullscreen
+									? "calc(calc(100dvh/var(--app-zoom,1)) - 80px)"
+									: boxHeight,
+							}}
 							className={cn(
 								"agent-app-frame overflow-hidden rounded-2xl border border-solid border-border",
 								slug === "neko-browser" &&
