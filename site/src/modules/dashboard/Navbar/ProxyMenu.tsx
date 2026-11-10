@@ -383,7 +383,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					onInteractOutside={(e) => {
 						if (
 							docked ||
-							(e.target instanceof Node && trigger.current?.contains(e.target))
+							(e.target instanceof Node &&
+								trigger.current?.contains(e.target)) ||
+							// a window the menu opened (the Cloud Drive face's files) keeps the menu, and so itself, open
+							(e.target instanceof Element &&
+								e.target.closest('[role="dialog"]'))
 						)
 							e.preventDefault();
 					}}

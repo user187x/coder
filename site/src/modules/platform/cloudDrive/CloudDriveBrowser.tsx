@@ -65,8 +65,16 @@ export const CloudDriveBrowser: React.FC<{
 	summary: SafeSummary;
 	initialDrive?: string;
 	initialPath?: string;
+	/** A file in that folder to point at: highlighted and scrolled to (a link to it, e.g. from the Settings panel). */
+	initialFile?: string;
 	inspect?: { owner: string; ownerName: string };
-}> = ({ summary, initialDrive = "", initialPath = "", inspect }) => {
+}> = ({
+	summary,
+	initialDrive = "",
+	initialPath = "",
+	initialFile,
+	inspect,
+}) => {
 	const queryClient = useQueryClient();
 	const [path, setPath] = useState(initialPath);
 	// Which Cloud Drive: the user's own (""), or one shared with them - all of it or parts (its owner's id) - open at
@@ -537,10 +545,21 @@ export const CloudDriveBrowser: React.FC<{
 						})}
 						{data.files.map((file) => {
 							const target = joinPath(path, file.name);
+							const pointed = path === initialPath && file.name === initialFile;
 							return (
 								<li
 									key={`f:${file.name}`}
-									className="group grid grid-cols-[1fr_80px_150px_auto] items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface-secondary"
+									ref={
+										pointed
+											? (row) => row?.scrollIntoView({ block: "center" })
+											: undefined
+									}
+									aria-current={pointed ? "true" : undefined}
+									className={cn(
+										"group grid grid-cols-[1fr_80px_150px_auto] items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface-secondary",
+										pointed &&
+											"bg-surface-secondary ring-1 ring-inset ring-content-link",
+									)}
 								>
 									<span className="flex min-w-0 items-center gap-2 text-content-primary">
 										<FileIcon

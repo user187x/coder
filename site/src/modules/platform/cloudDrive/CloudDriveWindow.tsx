@@ -41,7 +41,7 @@ export const CloudDriveWindow: React.FC<{
 	onView: React.Dispatch<React.SetStateAction<View>>;
 	summary: SafeSummary;
 	/** Where the files open: the user's own drive (""), or one shared with them (its owner), at a folder. */
-	openAt?: { drive: string; path: string };
+	openAt?: { drive: string; path: string; file?: string };
 	/** An admin's look at another account's drive (read only). */
 	inspect?: { owner: string; ownerName: string };
 }> = ({
@@ -170,6 +170,7 @@ export const CloudDriveWindow: React.FC<{
 						summary={summary}
 						initialDrive={openAt.drive}
 						initialPath={openAt.path}
+						initialFile={openAt.file}
 						inspect={inspect}
 					/>
 				) : view === "workspaces" ? (

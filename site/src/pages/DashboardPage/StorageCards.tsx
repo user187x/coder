@@ -43,7 +43,9 @@ export const CloudDriveCardBody: React.FC<{
 	settings: CloudDriveSettings | undefined;
 	/** The account's workspaces and whether each has the drive connected (a workspace can be disconnected). */
 	workspaces?: readonly { id: string; label: string; value: string }[];
-}> = ({ drive, settings, workspaces = [] }) => {
+	/** In place of the Files and Mounted at rows (the Settings panel's face lists the files). */
+	details?: React.ReactNode;
+}> = ({ drive, settings, workspaces = [], details }) => {
 	const shared = drive.shared ?? [];
 	const sharedUsed = shared.reduce((sum, s) => sum + (s.usedBytes ?? 0), 0);
 	const quotas = [drive.quotaBytes, ...shared.map((s) => s.quotaBytes)];
@@ -119,13 +121,18 @@ export const CloudDriveCardBody: React.FC<{
 					<WatermarkBadge level={level} />
 				</div>
 			</GraphFrame>
-			<dl className="m-0 flex flex-col gap-1.5 border-0 border-t border-solid border-border pt-3">
-				<DottedRow label="Files" value={drive.files.toLocaleString("en-US")} />
-				<DottedRow label="Mounted at" value={drive.mountPath || "N/A"} />
-				{shared.length > 0 && (
-					<DottedRow label="Drives shared with you" value={shared.length} />
-				)}
-			</dl>
+			{details ?? (
+				<dl className="m-0 flex flex-col gap-1.5 border-0 border-t border-solid border-border pt-3">
+					<DottedRow
+						label="Files"
+						value={drive.files.toLocaleString("en-US")}
+					/>
+					<DottedRow label="Mounted at" value={drive.mountPath || "N/A"} />
+					{shared.length > 0 && (
+						<DottedRow label="Drives shared with you" value={shared.length} />
+					)}
+				</dl>
+			)}
 			{workspaces.length > 0 && <ShowWorkspaces rows={workspaces} />}
 		</div>
 	);
