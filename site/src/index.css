@@ -1028,3 +1028,9 @@ html {
 [data-radix-popper-content-wrapper] > * {
 	zoom: var(--app-zoom, 1);
 }
+/* Docked, the Settings panel is pinned to the screen's side by its own CSS, not placed by the library: it takes the
+   app's scale with the page (its width is the room the page leaves it, --dashboard-dock-inset). */
+[data-radix-popper-content-wrapper]:has(> [data-settings-docked]),
+[data-radix-popper-content-wrapper] > [data-settings-docked] {
+	zoom: 1;
+}
