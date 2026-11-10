@@ -215,7 +215,7 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'settings_menu_hidden'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'settings_menu_hidden'}:
                 raise ValueError('Unsupported preference.')
             if 'admin_notes_tray_target' in changes and changes['admin_notes_tray_target'] not in ('chat', 'notes'):
                 raise ValueError('Invalid admin notes tray target.')
@@ -245,6 +245,11 @@ class UIState(threading.Thread):
             if changes.get('navbar_strip_radius') is not None and (
                     type(changes['navbar_strip_radius']) is not int or not 0 <= changes['navbar_strip_radius'] <= 24):
                 raise ValueError('Invalid navbar strip radius.')
+            # The Resizable navbar's button group, as a percentage of the bar's width.
+            if changes.get('navbar_resizable_width') is not None and (
+                    type(changes['navbar_resizable_width']) is not int
+                    or not 20 <= changes['navbar_resizable_width'] <= 100):
+                raise ValueError('Invalid navbar width.')
             if changes.get('settings_menu_hidden') is not None:
                 hidden = changes['settings_menu_hidden']
                 if not isinstance(hidden, list) or len(hidden) > 64 or len(set(hidden)) != len(hidden) or not all(

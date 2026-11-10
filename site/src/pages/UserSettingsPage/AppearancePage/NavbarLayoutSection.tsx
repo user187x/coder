@@ -95,10 +95,12 @@ export const NavbarLayoutSection: React.FC<{
 						onCheckedChange={(on) => save.mutate({ navbar_floating: on })}
 					/>
 					<span className="flex flex-col">
-						<Label htmlFor={`${id}-floating`}>Floating</Label>
+						<Label htmlFor={`${id}-floating`}>Resizable</Label>
 						<span className="text-xs text-content-secondary">
-							The bar as one pill, centred and only as wide as its items: it
-							shrinks toward the centre as you take items off it.
+							The bar's buttons, the Settings chevron among them, as one centred
+							pill. Point at it and drag the handles on its ends to resize it;
+							double-click a handle for its natural width. The announcement
+							keeps at least a fifth of the screen.
 						</span>
 					</span>
 				</div>

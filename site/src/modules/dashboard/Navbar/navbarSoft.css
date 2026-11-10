@@ -40,8 +40,10 @@
 	background-color: var(--navbar-strip-bg);
 	pointer-events: none;
 }
-/* Appearance > Navigation bar, Floating: the bar is one pill, centred and only as wide as its items, so it shrinks
-   toward the centre as items leave it; the full-width strip and the bar's bottom line give way to it. */
+/* Appearance > Navigation bar, Resizable: the bar's buttons, the Settings chevron group among them, in one pill
+   centred in the bar (NavbarResizableGroup). Its width is the user's (handles on its ends), else as wide as its items;
+   the announcement keeps at least a fifth of the screen's width either way. The full-width strip and the bar's bottom
+   line give way to it. */
 .navbar-soft[data-navbar-floating] {
 	justify-content: center;
 	border-bottom-width: 0 !important;
@@ -49,12 +51,16 @@
 .navbar-soft[data-navbar-floating]::before {
 	display: none;
 }
-.navbar-soft[data-navbar-floating] .navbar-arrange {
-	flex: 0 1 auto;
+.navbar-resizable-group {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: var(--navbar-control-gap);
+	flex: 0 0 auto;
 	width: fit-content;
+	min-width: min-content;
 	max-width: 100%;
-	height: auto;
-	/* centred between whatever else the bar holds (the logo, a page's navigation) */
+	/* centred between whatever else the bar holds (the logo) */
 	margin-inline: auto;
 	padding: 0.375rem 0.75rem;
 	border: 1px solid hsl(var(--border-default));
@@ -64,11 +70,58 @@
 	interpolate-size: allow-keywords;
 	transition: width 0.3s ease;
 }
-.navbar-soft[data-navbar-floating] [data-navbar-item="banner"] {
-	flex: 0 1 28rem;
+.navbar-resizable-group[data-dragging] {
+	transition: none;
+	user-select: none;
+}
+.navbar-resizable-group .navbar-arrange {
+	flex: 1 1 auto;
+	min-width: auto;
+	height: auto;
+}
+.navbar-resizable-group [data-navbar-item="banner"] {
+	flex: 1 1 auto;
+	/* a fifth of the screen, in the navbar's own zoomed pixels */
+	min-width: calc(20vw / var(--app-zoom, 1) / var(--navbar-zoom, 1));
+}
+.navbar-resize-handle {
+	position: absolute;
+	top: 50%;
+	z-index: 1;
+	width: 0.75rem;
+	height: 2rem;
+	transform: translateY(-50%);
+	cursor: ew-resize;
+	touch-action: none;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+.navbar-resize-handle::after {
+	content: "";
+	position: absolute;
+	inset: 0.25rem 0.25rem;
+	border-radius: 9999px;
+	background-color: hsl(var(--content-secondary));
+}
+.navbar-resize-handle-left {
+	left: -0.375rem;
+}
+.navbar-resize-handle-right {
+	right: -0.375rem;
+}
+.navbar-resizable-group:hover > .navbar-resize-handle,
+.navbar-resizable-group[data-dragging] > .navbar-resize-handle,
+.navbar-resize-handle:focus-visible {
+	opacity: 1;
+}
+.navbar-resize-handle:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: 1px;
+	border-radius: 9999px;
 }
 @media (prefers-reduced-motion: reduce) {
-	.navbar-soft[data-navbar-floating] .navbar-arrange {
+	.navbar-resizable-group,
+	.navbar-resize-handle {
 		transition: none;
 	}
 }

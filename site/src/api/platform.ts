@@ -1489,8 +1489,10 @@ export type UserUIPreferences = {
 	navbar_strip_radius?: number | null;
 	/** The admin settings' breadcrumb and categories in the navbar's top left, not beside the page. */
 	admin_nav_in_navbar?: boolean | null;
-	/** Appearance > Navigation bar: the bar as a floating pill, centred, as wide as its items. */
+	/** Appearance > Navigation bar, Resizable: the bar's buttons as one centred pill the user can resize. */
 	navbar_floating?: boolean | null;
+	/** Appearance > Navigation bar, Resizable: the button group's width in percent of the bar (20 to 100); null: as wide as its items. */
+	navbar_resizable_width?: number | null;
 	/** The Settings menu's fixed items hidden into its Controls list: organizations, audit-logs, connection-logs. */
 	settings_menu_hidden?: string[] | null;
 	/** Appearance > Navigation bar: the backstrip hidden. */

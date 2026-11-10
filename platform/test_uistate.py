@@ -36,9 +36,12 @@ class PreferencesTest(unittest.TestCase):
     def test_navbar_strip_radius_and_switch(self):
         self.state.preferences('user-id', {'navbar_strip_radius': 0, 'navbar_strip_off': True})
         self.state.preferences('user-id', {'navbar_strip_radius': None, 'navbar_strip_off': None})
+        self.state.preferences('user-id', {'navbar_resizable_width': 20})
+        self.state.preferences('user-id', {'navbar_resizable_width': None})
         for bad in ({'navbar_strip_radius': 25}, {'navbar_strip_radius': -1}, {'navbar_strip_radius': 4.5},
                     {'navbar_strip_radius': True}, {'navbar_strip_off': 'yes'}, {'navbar_strip_off': 1},
-                    {'admin_nav_in_navbar': 'yes'}, {'navbar_floating': 1}):
+                    {'admin_nav_in_navbar': 'yes'}, {'navbar_floating': 1}, {'navbar_resizable_width': 19},
+                    {'navbar_resizable_width': 101}, {'navbar_resizable_width': 50.5}, {'navbar_resizable_width': True}):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 self.state.preferences('user-id', bad)
 

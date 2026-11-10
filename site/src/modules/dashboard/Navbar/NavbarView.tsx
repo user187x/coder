@@ -29,6 +29,7 @@ import { canViewAdminSettings } from "./AdminSettings";
 import { addableAdminPages } from "./adminQuickLinks";
 import { MobileMenu } from "./MobileMenu";
 import { NavbarLogo } from "./NavbarLogo";
+import { NavbarResizableGroup } from "./NavbarResizableGroup";
 import { navbarInk, navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
@@ -178,75 +179,83 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			<div className="@[48rem]/dashboard:hidden">
 				<NavbarLogo />
 			</div>
-			{/* A page's own navigation, when its user moved it up here (the admin settings' breadcrumb and categories) */}
-			<div
-				ref={startRef}
-				data-testid="navbar-start"
-				className="navbar-start flex shrink-0 items-center empty:hidden"
-			>
-				{/* Pages without a settings breadcrumb of their own: the Settings chevron alone */}
-				{settingsInNavbar && settingsMenuPresent && !pageCrumb && (
-					<Breadcrumb
-						variant="connected"
-						className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
-					>
-						<BreadcrumbList>
-							<BreadcrumbItem ref={settingsMenuSlot} />
-						</BreadcrumbList>
-					</Breadcrumb>
-				)}
-			</div>
+			{/* Resizable: the Settings chevron group and the bar's items in one pill */}
+			<NavbarResizableGroup resizable={floating}>
+				{/* A page's own navigation, when its user moved it up here (the admin settings' breadcrumb and categories) */}
+				<div
+					ref={startRef}
+					data-testid="navbar-start"
+					className="navbar-start flex shrink-0 items-center empty:hidden"
+				>
+					{/* Pages without a settings breadcrumb of their own: the Settings chevron alone */}
+					{settingsInNavbar && settingsMenuPresent && !pageCrumb && (
+						<Breadcrumb
+							variant="connected"
+							className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
+						>
+							<BreadcrumbList>
+								<BreadcrumbItem ref={settingsMenuSlot} />
+							</BreadcrumbList>
+						</Breadcrumb>
+					)}
+				</div>
 
-			{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
-			<NavbarArrange
-				defaultLayout={defaultLayout}
-				canSetDefault={adminPermissions.canEditDeployment}
-				className="navbar-arrange relative flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
-				items={{
-					logo: logoURL ? <NavbarLogo /> : null,
-					workspaces: (
-						<nav className="flex items-center h-full">
-							<WorkspacesDropdown
-								images={Boolean(adminPermissions.canEditDeployment)}
-								templates={Boolean(adminPermissions.canViewTemplates)}
+				{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
+				<NavbarArrange
+					defaultLayout={defaultLayout}
+					canSetDefault={adminPermissions.canEditDeployment}
+					className="navbar-arrange relative flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
+					items={{
+						logo: logoURL ? <NavbarLogo /> : null,
+						workspaces: (
+							<nav className="flex items-center h-full">
+								<WorkspacesDropdown
+									images={Boolean(adminPermissions.canEditDeployment)}
+									templates={Boolean(adminPermissions.canViewTemplates)}
+								/>
+							</nav>
+						),
+						banner: <AnnouncementBanner placement="navbar" />,
+						// the latency and the Controls in one menu, the HUD joined on as one split button (admins)
+						latency: settingsInNavbar ? null : settingsMenu(false),
+						notifications: (
+							<div className="relative">
+								<NotificationsInbox
+									fetchNotifications={API.getInboxNotifications}
+									markAllAsRead={API.markAllInboxNotificationsAsRead}
+									clearAll={PlatformAPI.clearInbox}
+									markNotificationAsRead={(notificationId) =>
+										API.updateInboxNotificationReadStatus(notificationId, {
+											is_read: true,
+										})
+									}
+								/>
+								<ChatGate>
+									<ChatInboxIndicator />
+								</ChatGate>
+							</div>
+						),
+						account: (
+							<UserDropdown
+								user={user}
+								buildInfo={buildInfo}
+								supportLinks={supportLinks?.filter(
+									(link) => !isNavbarLink(link),
+								)}
+								onSignOut={onSignOut}
 							/>
-						</nav>
-					),
-					banner: <AnnouncementBanner placement="navbar" />,
-					// the latency and the Controls in one menu, the HUD joined on as one split button (admins)
-					latency: settingsInNavbar ? null : settingsMenu(false),
-					notifications: (
-						<div className="relative">
-							<NotificationsInbox
-								fetchNotifications={API.getInboxNotifications}
-								markAllAsRead={API.markAllInboxNotificationsAsRead}
-								clearAll={PlatformAPI.clearInbox}
-								markNotificationAsRead={(notificationId) =>
-									API.updateInboxNotificationReadStatus(notificationId, {
-										is_read: true,
-									})
-								}
+						),
+						// never alone: always joined to the latency menu
+						hud: null,
+						action: (
+							<div
+								ref={actionRef}
+								className="navbar-action flex items-center"
 							/>
-							<ChatGate>
-								<ChatInboxIndicator />
-							</ChatGate>
-						</div>
-					),
-					account: (
-						<UserDropdown
-							user={user}
-							buildInfo={buildInfo}
-							supportLinks={supportLinks?.filter((link) => !isNavbarLink(link))}
-							onSignOut={onSignOut}
-						/>
-					),
-					// never alone: always joined to the latency menu
-					hud: null,
-					action: (
-						<div ref={actionRef} className="navbar-action flex items-center" />
-					),
-				}}
-			/>
+						),
+					}}
+				/>
+			</NavbarResizableGroup>
 			{(settingsInNavbar || navbarHidden.includes("latency")) &&
 				settingsMenu(true)}
 
