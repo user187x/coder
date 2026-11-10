@@ -13,6 +13,7 @@ export const CategoryBreadcrumbButton = ({
 	sidebarOpen,
 	onToggle,
 	focusOnMount = false,
+	singleClick = false,
 }: {
 	label: string;
 	icon: LucideIcon;
@@ -22,6 +23,8 @@ export const CategoryBreadcrumbButton = ({
 	/** Take the focus when it appears: the breadcrumb moves between the list's header and a row of its own as the
 	 * categories show and hide, and the keyboard stays on the toggle. */
 	focusOnMount?: boolean;
+	/** One click anywhere on it toggles (the navbar's User Settings sections), not a double click. */
+	singleClick?: boolean;
 }) => {
 	const ref = useRef<HTMLButtonElement>(null);
 	useEffect(() => {
@@ -43,6 +46,7 @@ export const CategoryBreadcrumbButton = ({
 					: `${label}: double-click to show categories`
 			}
 			onDoubleClick={(event) => {
+				if (singleClick) return;
 				if (
 					!(
 						event.target instanceof Element &&
@@ -53,6 +57,7 @@ export const CategoryBreadcrumbButton = ({
 			}}
 			onClick={(event) => {
 				if (
+					singleClick ||
 					event.detail === 0 ||
 					(event.detail === 1 &&
 						event.target instanceof Element &&

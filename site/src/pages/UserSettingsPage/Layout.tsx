@@ -88,19 +88,7 @@ const Layout: React.FC = () => {
 			</BreadcrumbList>
 		</AdminBreadcrumb>
 	);
-	const userCrumb = (
-		<BreadcrumbItem>
-			<BreadcrumbLink to="/settings/account" end title={me.username}>
-				<Avatar
-					size="sm"
-					fallback={me.username}
-					src={me.avatar_url}
-					className="size-4 shrink-0"
-				/>
-				User Settings
-			</BreadcrumbLink>
-		</BreadcrumbItem>
-	);
+	// In the navbar, one click on User Settings or on its section opens the sections, hanging from User Settings.
 	const navbarBreadcrumb = (
 		<NavbarStart>
 			<AdminBreadcrumb
@@ -110,39 +98,56 @@ const Layout: React.FC = () => {
 			>
 				<BreadcrumbList>
 					{settingsMenu && <BreadcrumbItem ref={settingsMenuSlot} />}
-					{userCrumb}
-					<BreadcrumbItem>
-						<Popover open={sectionsOpen} onOpenChange={setSectionsOpen}>
+					<Popover open={sectionsOpen} onOpenChange={setSectionsOpen}>
+						<BreadcrumbItem>
 							<PopoverAnchor asChild>
-								<span className="inline-flex">
-									<CategoryBreadcrumbButton
-										label={section.label}
-										icon={section.icon}
-										controls={sidebarId}
-										sidebarOpen={sectionsOpen}
-										onToggle={() => setSectionsOpen((value) => !value)}
+								<button
+									type="button"
+									title={`${me.username}: User Settings sections`}
+									aria-expanded={sectionsOpen}
+									aria-controls={sidebarId}
+									onClick={() => setSectionsOpen((value) => !value)}
+								>
+									<Avatar
+										size="sm"
+										fallback={me.username}
+										src={me.avatar_url}
+										className="size-4 shrink-0"
 									/>
-									<span ref={setActionHost} className="category-action-host" />
-								</span>
+									User Settings
+								</button>
 							</PopoverAnchor>
-							<PopoverContent
-								id={sidebarId}
-								align="start"
-								className="max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
-								// A section picked from it closes it.
-								onClick={(event) => {
-									if (
-										event.target instanceof Element &&
-										event.target.closest("a")
-									) {
-										setSectionsOpen(false);
-									}
-								}}
-							>
-								<Sidebar />
-							</PopoverContent>
-						</Popover>
-					</BreadcrumbItem>
+						</BreadcrumbItem>
+						<BreadcrumbItem>
+							<span className="inline-flex">
+								<CategoryBreadcrumbButton
+									label={section.label}
+									icon={section.icon}
+									controls={sidebarId}
+									sidebarOpen={sectionsOpen}
+									singleClick
+									onToggle={() => setSectionsOpen((value) => !value)}
+								/>
+								<span ref={setActionHost} className="category-action-host" />
+							</span>
+						</BreadcrumbItem>
+						<PopoverContent
+							id={sidebarId}
+							align="start"
+							className="max-h-[70vh] w-72 overflow-y-auto p-2"
+							// A section picked from it closes it.
+							onClick={(event) => {
+								if (
+									event.target instanceof Element &&
+									event.target.closest("a")
+								) {
+									setSectionsOpen(false);
+								}
+							}}
+						>
+							<Sidebar />
+						</PopoverContent>
+					</Popover>
 				</BreadcrumbList>
 			</AdminBreadcrumb>
 		</NavbarStart>
