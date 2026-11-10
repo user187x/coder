@@ -215,7 +215,7 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'navbar_settings_side', 'settings_menu_hidden'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'navbar_settings_side', 'settings_unread_glow', 'settings_menu_hidden'}:
                 raise ValueError('Unsupported preference.')
             if 'admin_notes_tray_target' in changes and changes['admin_notes_tray_target'] not in ('chat', 'notes'):
                 raise ValueError('Invalid admin notes tray target.')
@@ -258,7 +258,7 @@ class UIState(threading.Thread):
                 if not isinstance(hidden, list) or len(hidden) > 64 or len(set(hidden)) != len(hidden) or not all(
                         isinstance(item, str) and re.fullmatch(r'[a-z][a-z0-9-]{0,63}', item) for item in hidden):
                     raise ValueError('Invalid hidden Settings menu items.')
-            for key in ('admin_nav_in_navbar', 'navbar_floating'):
+            for key in ('admin_nav_in_navbar', 'navbar_floating', 'settings_unread_glow'):
                 if key in changes and changes[key] is not None and type(changes[key]) is not bool:
                     raise ValueError('Invalid %s.' % key.replace('_', ' '))
             if 'navbar_strip_off' in changes and changes['navbar_strip_off'] is not None and \

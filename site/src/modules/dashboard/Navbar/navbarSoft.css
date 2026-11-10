@@ -564,3 +564,78 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	padding-left: 0.875rem;
 	padding-right: calc(var(--crumb-edge) + 0.75rem);
 }
+
+/* Unread chats or notifications while the chat is not on screen (useUnreadGlow): the closed Settings chevron's outline
+   pulses in the theme's link colour. A drop shadow follows the chevron's clipped shape. */
+@keyframes settings-unread-glow {
+	0%,
+	100% {
+		filter: drop-shadow(0 0 1px var(--settings-glow))
+			drop-shadow(0 0 0 transparent);
+	}
+	50% {
+		filter: drop-shadow(0 0 1.5px var(--settings-glow))
+			drop-shadow(0 0 7px var(--settings-glow));
+	}
+}
+.navbar-split:has(> [data-unread-glow]),
+li:has(> .settings-breadcrumb-trigger[data-unread-glow]) {
+	--settings-glow: hsl(var(--content-link));
+	position: relative;
+	z-index: 1;
+	animation: settings-unread-glow 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+	.navbar-split:has(> [data-unread-glow]),
+	li:has(> .settings-breadcrumb-trigger[data-unread-glow]) {
+		animation: none;
+		filter: drop-shadow(0 0 1.5px var(--settings-glow))
+			drop-shadow(0 0 5px var(--settings-glow));
+	}
+}
+html[data-animations="off"]
+	:is(
+		.navbar-split:has(> [data-unread-glow]),
+		li:has(> .settings-breadcrumb-trigger[data-unread-glow])
+	) {
+	animation: none;
+	filter: drop-shadow(0 0 1.5px var(--settings-glow))
+		drop-shadow(0 0 5px var(--settings-glow));
+}
+
+/* The Chat face header's dimple that turns the chevron's glow on and off: a small recessed well, lit while on. */
+.settings-glow-dimple {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	width: 1.375rem;
+	height: 1.375rem;
+	padding: 0;
+	border: 0;
+	border-radius: 9999px;
+	cursor: pointer;
+	color: hsl(var(--content-secondary));
+	background: hsl(var(--surface-tertiary));
+	box-shadow:
+		inset 0 1px 2px rgb(0 0 0 / 0.35),
+		0 1px 0 rgb(255 255 255 / 0.5);
+}
+.settings-glow-dimple:hover {
+	color: hsl(var(--content-primary));
+}
+.settings-glow-dimple:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: 1px;
+}
+.settings-glow-dimple:disabled {
+	cursor: default;
+	opacity: 0.6;
+}
+.settings-glow-dimple-on {
+	color: hsl(var(--content-link));
+	box-shadow:
+		inset 0 1px 2px rgb(0 0 0 / 0.35),
+		0 0 0 1px hsl(var(--content-link)),
+		0 1px 0 rgb(255 255 255 / 0.5);
+}

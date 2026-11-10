@@ -157,3 +157,19 @@ it("expands over the menu and restores from its header", async () => {
 	);
 	expect(onExpandedChange).toHaveBeenLastCalledWith(false);
 });
+
+it("turns the Settings chevron's unread glow off from its header dimple", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (changes) => changes);
+	render(<SettingsChatPanel onClose={vi.fn()} />);
+	const dimple = await screen.findByRole("button", {
+		name: "Glow the Settings chevron for unread messages",
+	});
+	await waitFor(() => expect(dimple).toBeEnabled());
+	await userEvent.click(dimple);
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({ settings_unread_glow: false }),
+	);
+});

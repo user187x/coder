@@ -1,7 +1,17 @@
 import { cn } from "cn";
-import { Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
+import {
+	BellRingIcon,
+	Maximize2Icon,
+	Minimize2Icon,
+	XIcon,
+} from "lucide-react";
 import { useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
+import { useMutation, useQuery, useQueryClient } from "react-query";
+import {
+	updateUserUIPreferences,
+	userUIPreferences,
+} from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import type { ConversationActions } from "#/modules/platform/chat/ChatConversation";
 import { ChatList, ChatOnSwitch } from "#/modules/platform/chat/ChatPanel";
@@ -46,6 +56,7 @@ export const SettingsChatPanel = ({
 		>
 			<header className="flex h-9 shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-2">
 				<ChatLinkStatus link={state.link} />
+				<UnreadGlowDimple />
 				<strong className="flex-1 text-xs">Enable Messaging</strong>
 				{state.me?.admin && <ChatOnSwitch className="h-8" />}
 				{onExpandedChange && (
@@ -144,5 +155,33 @@ const ChatLinkStatus: React.FC<{ link: ChatLink }> = ({ link }) => {
 			<span aria-hidden className={cn("size-2 rounded-full", dot)} />
 			{link !== "connected" && <span aria-hidden>{label}</span>}
 		</span>
+	);
+};
+
+/**
+ * A dimple in the header: whether the Settings chevron glows while unread chats or notifications wait and the chat is
+ * not on screen (useUnreadGlow).
+ */
+const UnreadGlowDimple: React.FC = () => {
+	const client = useQueryClient();
+	const preferences = useQuery(userUIPreferences());
+	const save = useMutation(updateUserUIPreferences(client));
+	const on = preferences.data?.settings_unread_glow !== false;
+	return (
+		<button
+			type="button"
+			aria-pressed={on}
+			aria-label="Glow the Settings chevron for unread messages"
+			title={
+				on
+					? "The Settings chevron glows for unread messages: turn it off"
+					: "Glow the Settings chevron for unread messages"
+			}
+			disabled={!preferences.isSuccess || save.isPending}
+			onClick={() => save.mutate({ settings_unread_glow: on ? false : null })}
+			className={cn("settings-glow-dimple", on && "settings-glow-dimple-on")}
+		>
+			<BellRingIcon aria-hidden className="size-3" />
+		</button>
 	);
 };

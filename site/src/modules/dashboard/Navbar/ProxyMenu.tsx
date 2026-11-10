@@ -57,6 +57,7 @@ import {
 	useSettingsMenuHost,
 } from "./settingsMenuHost";
 import { UserSettingsShortcut } from "./UserSettingsShortcut";
+import { useUnreadGlow } from "./useUnreadGlow";
 import "./navbarSoft.css";
 
 /** Platform: the Controls menu's items, as its own button had them (AdminSettingsItems). */
@@ -101,6 +102,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	breadcrumbOnly = false,
 }) => {
 	const [open, setOpen] = useState(false);
+	const unreadGlow = useUnreadGlow();
 	// The side of the screen the menu opens on, from where its button is: on the left it hangs from the button's left
 	// edge and its trays and slide-outs open to its right; on the right, the mirror. Docked, always the right.
 	const trigger = useRef<HTMLButtonElement>(null);
@@ -316,6 +318,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		}
 	};
 	const edge = docked ? "right" : openEdge;
+	// Unread chats or notifications while the chat is not on screen: the closed chevron glows (navbarSoft.css).
+	const glow = unreadGlow && !open && !docked;
 	// Only for the breadcrumb: nothing to show until a breadcrumb takes its button, unless it is docked at the side.
 	if (breadcrumbOnly && !breadcrumbHost && !docked) return null;
 
@@ -341,6 +345,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								className="navbar-split-menu relative"
 								title="Settings"
 								data-testid="navbar-latency-controls"
+								data-unread-glow={glow || undefined}
 							>
 								{reading}
 							</button>
@@ -356,6 +361,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								className="settings-breadcrumb-trigger"
 								title="Settings"
 								data-testid="navbar-latency-controls"
+								data-unread-glow={glow || undefined}
 								// One click opens it, and another closes it (the menu's own outside-click is told to leave
 								// this button to it).
 								onPointerDown={(event) => event.preventDefault()}
