@@ -46,6 +46,7 @@ export const SettingsSidePanels = ({
 		anchorVisible: false,
 		resourceHeight: 164,
 		notesHeight: 124,
+		edge: "right" as "left" | "right",
 	});
 	useLayoutEffect(() => {
 		if (!container || !surface) return;
@@ -57,6 +58,11 @@ export const SettingsSidePanels = ({
 			const menu = container.getBoundingClientRect();
 			const metric = anchor?.getBoundingClientRect();
 			const docked = container.hasAttribute("data-settings-docked");
+			// On the screen's left (ProxyMenu), the trays sit on the menu's right and the notes open rightward.
+			const edge: "left" | "right" =
+				container.getAttribute("data-settings-edge") === "left"
+					? "left"
+					: "right";
 			const viewport = Math.max(
 				0,
 				Math.min(
@@ -91,12 +97,18 @@ export const SettingsSidePanels = ({
 				topInset,
 				width: Math.max(
 					0,
-					Math.min(window.innerWidth - 24, menu.left + (docked ? 0 : 65) - 12),
+					Math.min(
+						window.innerWidth - 24,
+						edge === "left"
+							? window.innerWidth - menu.right + 65 - 12
+							: menu.left + (docked ? 0 : 65) - 12,
+					),
 				),
 				anchorTop: metric ? metric.top - menu.top : 0,
 				anchorVisible: Boolean(metric?.height),
 				resourceHeight: resourcePanel?.getBoundingClientRect().height ?? 164,
 				notesHeight: 124,
+				edge,
 			};
 			setBounds((previous) =>
 				Object.entries(next).every(
@@ -163,6 +175,7 @@ export const SettingsSidePanels = ({
 					hidden={!withNotes}
 					onElement={setNotesPanel}
 					maxWidth={bounds.width}
+					edge={bounds.edge}
 					railViewport={Math.max(0, bounds.viewport - 8)}
 					placement={{
 						...layout.notes,

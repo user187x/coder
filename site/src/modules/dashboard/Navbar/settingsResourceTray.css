@@ -264,3 +264,25 @@ html[data-animations="off"]
 .settings-admin-notes-handle .settings-resource-tray-grip {
 	max-height: 100%;
 }
+
+/* Settings on the screen's left (ProxyMenu's data-settings-edge): the trays, their handles and slide-outs mirrored onto
+   its right side, toward the screen's middle. */
+.settings-menu[data-settings-edge="left"] .settings-resource-tray {
+	left: auto;
+	right: 16px;
+}
+.settings-menu[data-settings-edge="left"] .settings-resource-tray-outline {
+	inset: 0 0 0 -1px;
+	border-right: 1px solid hsl(var(--border));
+	border-left: 0;
+	border-radius: 0 var(--settings-tray-radius) var(--settings-tray-radius) 0;
+	clip-path: inset(-24px -24px -24px 0);
+}
+.settings-menu[data-settings-edge="left"] .settings-resource-tray-toggle {
+	left: auto;
+	right: calc(100% + var(--settings-handle-offset, 9px) - 6px);
+}
+.settings-menu[data-settings-edge="left"] .settings-resource-tray-dimple {
+	left: auto;
+	right: calc(100% + var(--settings-handle-offset, 9px) - 10px);
+}

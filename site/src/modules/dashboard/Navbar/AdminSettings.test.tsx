@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
+import { PlatformAPI } from "#/api/platform";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -12,6 +13,8 @@ import { renderComponent } from "#/testHelpers/renderHelpers";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import { AdminSettingsItems } from "./AdminSettings";
 import { adminPagesFor } from "./adminQuickLinks";
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("Admin menu", () => {
 	it("puts an icon before every item", async () => {
@@ -46,9 +49,13 @@ describe("Admin menu", () => {
 		expect(labels).toEqual([
 			...pages.slice(0, 4).map((page) => page.label),
 			"Controls",
+			// each with its button to hide it under Controls
 			"Organizations",
+			"",
 			"Audit logs",
+			"",
 			"Connection logs",
+			"",
 		]);
 		for (const item of items.filter(
 			(item) => item.textContent !== "Controls",
@@ -56,6 +63,52 @@ describe("Admin menu", () => {
 			expect(item.firstElementChild?.tagName.toLowerCase()).toBe("svg");
 		}
 	});
+});
+
+it("hides an item under Controls and shows it again from there", async () => {
+	const user = userEvent.setup();
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockResolvedValue({});
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+		settings_menu_hidden: ["audit-logs"],
+	});
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<MemoryRouter>
+				<DropdownMenu open>
+					<DropdownMenuTrigger>Admin</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<AdminSettingsItems
+							permissions={{
+								canViewOrganizations: true,
+								canViewAuditLog: true,
+							}}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</MemoryRouter>
+		</QueryClientProvider>,
+	);
+	await user.click(
+		await screen.findByRole("menuitem", {
+			name: "Hide Organizations under Controls",
+		}),
+	);
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			settings_menu_hidden: ["audit-logs", "organizations"],
+		}),
+	);
+	await user.click(screen.getByRole("menuitem", { name: "Controls" }));
+	await user.click(
+		await screen.findByRole("menuitem", {
+			name: "Show Audit logs in the menu",
+		}),
+	);
+	await waitFor(() =>
+		expect(save).toHaveBeenLastCalledWith({ settings_menu_hidden: [] }),
+	);
 });
 
 it("adds a setting from the inline picker without navigating", async () => {

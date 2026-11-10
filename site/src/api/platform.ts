@@ -1491,6 +1491,8 @@ export type UserUIPreferences = {
 	admin_nav_in_navbar?: boolean | null;
 	/** Appearance > Navigation bar: the bar as a floating pill, centred, as wide as its items. */
 	navbar_floating?: boolean | null;
+	/** The Settings menu's fixed items hidden into its Controls list: organizations, audit-logs, connection-logs. */
+	settings_menu_hidden?: string[] | null;
 	/** Appearance > Navigation bar: the backstrip hidden. */
 	navbar_strip_off?: boolean | null;
 	/** Appearance > Panel accents' text colour for the Settings and chat panels ("#rrggbb"); null: the theme's. */

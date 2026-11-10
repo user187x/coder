@@ -6,7 +6,7 @@ import {
 	within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MonitorIcon, UsersIcon } from "lucide-react";
+import { MonitorIcon } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
@@ -377,10 +377,11 @@ describe("ProxyMenu", () => {
 		).toBeNull();
 	});
 
-	it("with the settings navigation in the navbar, lists every category and opens from the breadcrumb", async () => {
+	it("with the settings navigation in the navbar, opens from the breadcrumb's Settings chevron on one click", async () => {
 		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 			admin_nav_in_navbar: true,
 		});
+		const user = userEvent.setup();
 		const slot = document.createElement("li");
 		document.body.append(slot);
 		renderWithAuth(
@@ -392,29 +393,19 @@ describe("ProxyMenu", () => {
 				onSignOut={vi.fn()}
 			/>,
 		);
-		act(() =>
-			setSettingsMenuHost({
-				element: slot,
-				label: "Accounts",
-				icon: UsersIcon,
-			}),
-		);
+		act(() => setSettingsMenuHost(slot));
 		const trigger = await within(slot).findByRole("button", {
-			name: "Accounts",
+			name: "Settings",
 		});
-		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
-		const menu = await screen.findByTestId("navbar-latency-controls-menu");
-		const settings = within(menu).getByRole("navigation", { name: "Settings" });
-		const linked = new Set(controls.quickLinks.map((link) => link.id));
-		const rest = adminPagesFor({
-			permissions: MockPermissions,
-			oauth2Provider: true,
-		}).filter((page) => !linked.has(page.id));
-		for (const page of rest) {
-			expect(
-				within(settings).getByRole("menuitem", { name: page.label }),
-			).toHaveAttribute("href", page.path);
-		}
+		await user.click(trigger);
+		expect(
+			(await screen.findByTestId("navbar-latency-controls-menu")).dataset
+				.settingsEdge,
+		).toBe("left");
+		await user.click(trigger);
+		await waitFor(() =>
+			expect(screen.queryByTestId("navbar-latency-controls-menu")).toBeNull(),
+		);
 		act(() => setSettingsMenuHost(null));
 		slot.remove();
 	});

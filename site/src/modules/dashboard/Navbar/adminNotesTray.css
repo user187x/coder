@@ -126,3 +126,34 @@ html[data-animations="off"]
 	.settings-resource-tray-grip {
 	animation: none;
 }
+
+/* Settings on the screen's left: the notes tray on its right side, opening rightward (AdminNotesTray's edge). */
+.settings-menu[data-settings-edge="left"] .settings-admin-notes-tray {
+	left: auto;
+	right: 16px;
+}
+.settings-menu[data-settings-edge="left"] .settings-admin-notes-panel {
+	border-right: 1px solid hsl(var(--border));
+	border-left: 0;
+	border-radius: 0 var(--settings-tray-radius) var(--settings-tray-radius) 0;
+	padding: 8px 8px 8px 12px;
+	clip-path: inset(-24px -24px -24px 0);
+}
+.settings-menu[data-settings-edge="left"] .settings-admin-notes-panel {
+	animation-name: settings-notes-open-right;
+}
+@keyframes settings-notes-open-right {
+	from {
+		opacity: 0;
+		clip-path: inset(
+			0 100% 0 0 round 0 var(--settings-tray-radius) var(--settings-tray-radius)
+				0
+		);
+	}
+	to {
+		opacity: 1;
+		clip-path: inset(
+			0 round 0 var(--settings-tray-radius) var(--settings-tray-radius) 0
+		);
+	}
+}

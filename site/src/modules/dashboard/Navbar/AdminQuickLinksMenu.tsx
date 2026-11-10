@@ -16,6 +16,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
 import {
 	ChevronDownIcon,
+	EyeIcon,
 	GripVerticalIcon,
 	PinIcon,
 	Trash2Icon,
@@ -28,6 +29,7 @@ import {
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import "./adminQuickLinksMenu.css";
 import { useChatEnabled } from "#/modules/platform/chat/useChatEnabled";
+import type { HideableMenuItem } from "./AdminSettings";
 import { AnnouncementMenuItem } from "./AnnouncementMenuItem";
 import { AppearanceMenuItem } from "./AppearanceMenuItem";
 import type { AdminPage } from "./adminQuickLinks";
@@ -51,6 +53,9 @@ type AdminQuickLinksMenuProps = {
 	itemClassName?: string;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
+	/** The menu's other items the user hid: listed under Controls, each with a button to show it again. */
+	hiddenItems?: readonly HideableMenuItem[];
+	onShowItem?: (id: HideableMenuItem["id"]) => void;
 };
 
 /**
@@ -67,6 +72,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	itemClassName,
 	chatExpanded,
 	onChatToggle,
+	hiddenItems = [],
+	onShowItem,
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const chatOn = useChatEnabled();
@@ -239,6 +246,42 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 								)}
 							</div>
 						)}
+						{hiddenItems.map((item) => (
+							<div key={item.id} className="flex flex-wrap items-center">
+								<PageMenuItem
+									to={item.path}
+									icon={item.icon}
+									label={item.label}
+									className="min-w-0 flex-1"
+									panelClassName="order-last"
+									options={
+										onShowItem && (
+											<DropdownMenuItem
+												onSelect={(event) => {
+													event.preventDefault();
+													onShowItem(item.id);
+												}}
+											>
+												Show in the menu
+											</DropdownMenuItem>
+										)
+									}
+								/>
+								{onShowItem && (
+									<DropdownMenuItem
+										aria-label={`Show ${item.label} in the menu`}
+										title={`Show ${item.label}`}
+										onSelect={(event) => {
+											event.preventDefault();
+											onShowItem(item.id);
+											setAnnouncement(`${item.label} shown in the menu.`);
+										}}
+									>
+										<EyeIcon aria-hidden />
+									</DropdownMenuItem>
+								)}
+							</div>
+						))}
 						{onChange &&
 							choices.map((page) => (
 								<div key={page.id} className="flex flex-wrap items-center">

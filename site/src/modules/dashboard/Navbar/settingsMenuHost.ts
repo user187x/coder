@@ -1,19 +1,11 @@
-import type { LucideIcon } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 
 /**
  * Where the Settings dropdown opens from instead of the navbar's Settings button: the admin settings' breadcrumb, moved
- * into the navbar, registers its category slot here, and the Settings menu (ProxyMenu) puts its trigger there. The
- * menu says it is mounted, so the breadcrumb keeps its own categories list when there is no Settings menu to open.
+ * into the navbar, registers its Settings chevron's slot here, and the Settings menu (ProxyMenu) puts its trigger
+ * there. The menu says it is mounted, so the breadcrumb keeps its own Settings link when there is no menu to open.
  */
-type SettingsMenuHost = {
-	element: HTMLElement;
-	/** The settings category the page shows, the trigger's name and icon. */
-	label: string;
-	icon: LucideIcon;
-};
-
-let host: SettingsMenuHost | null = null;
+let host: HTMLElement | null = null;
 let menus = 0;
 const listeners = new Set<() => void>();
 const emit = () => {
@@ -24,7 +16,7 @@ const subscribe = (listener: () => void) => {
 	return () => listeners.delete(listener);
 };
 
-export const setSettingsMenuHost = (next: SettingsMenuHost | null) => {
+export const setSettingsMenuHost = (next: HTMLElement | null) => {
 	host = next;
 	emit();
 };

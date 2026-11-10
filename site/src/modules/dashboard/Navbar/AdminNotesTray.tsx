@@ -26,12 +26,15 @@ import "./adminNotesTray.css";
 export const AdminNotesTray = ({
 	placement,
 	maxWidth,
+	edge = "right",
 	railViewport,
 	hidden,
 	onElement,
 }: {
 	placement: SettingsPanelPlacement;
 	maxWidth: number;
+	/** The screen side Settings is on: the notes open away from it, toward the screen's middle. */
+	edge?: "left" | "right";
 	railViewport?: number;
 	hidden: boolean;
 	onElement: React.RefCallback<HTMLDivElement>;
@@ -172,7 +175,7 @@ export const AdminNotesTray = ({
 				style={{
 					position: "absolute",
 					top: 0,
-					left: 49 - width,
+					left: edge === "left" ? -1 : 49 - width,
 					width,
 					maxHeight: railViewport,
 					transform:

@@ -1,4 +1,17 @@
-import { Building2Icon, CableIcon, ScrollTextIcon } from "lucide-react";
+import { cn } from "cn";
+import {
+	Building2Icon,
+	CableIcon,
+	EyeOffIcon,
+	type LucideIcon,
+	ScrollTextIcon,
+} from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
+import {
+	updateUserUIPreferences,
+	userUIPreferences,
+} from "#/api/queries/platform";
+import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
 import { PageMenuItem } from "./InlineMenu";
@@ -53,6 +66,50 @@ export type AdminSettingsPermissions = {
 	canViewTemplates?: boolean;
 };
 
+/** A Settings menu item that is not a quick link, hidden into the Controls list by the user's choice. */
+export type HideableMenuItem = {
+	/** Stored in the user's preferences (settings_menu_hidden); never change an existing ID. */
+	id: "organizations" | "audit-logs" | "connection-logs";
+	label: string;
+	path: string;
+	icon: LucideIcon;
+};
+
+const hideableItems = (
+	permissions: AdminSettingsPermissions,
+): HideableMenuItem[] => [
+	...(permissions.canViewOrganizations
+		? [
+				{
+					id: "organizations" as const,
+					label: "Organizations",
+					path: "/organizations",
+					icon: Building2Icon,
+				},
+			]
+		: []),
+	...(permissions.canViewAuditLog
+		? [
+				{
+					id: "audit-logs" as const,
+					label: "Audit logs",
+					path: "/audit",
+					icon: ScrollTextIcon,
+				},
+			]
+		: []),
+	...(permissions.canViewConnectionLog
+		? [
+				{
+					id: "connection-logs" as const,
+					label: "Connection logs",
+					path: "/connectionlog",
+					icon: CableIcon,
+				},
+			]
+		: []),
+];
+
 export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	itemClassName,
 	permissions,
@@ -62,6 +119,17 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	chatExpanded,
 	onChatToggle,
 }) => {
+	const client = useQueryClient();
+	const preferences = useQuery(userUIPreferences());
+	const save = useMutation(updateUserUIPreferences(client));
+	const hiddenIds = preferences.data?.settings_menu_hidden ?? [];
+	const items = hideableItems(permissions);
+	const setHidden = (id: HideableMenuItem["id"], hide: boolean) =>
+		save.mutate({
+			settings_menu_hidden: hide
+				? [...hiddenIds.filter((other) => other !== id), id]
+				: hiddenIds.filter((other) => other !== id),
+		});
 	return (
 		<>
 			<AdminQuickLinksMenu
@@ -71,31 +139,47 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				links={quickLinks}
 				addable={quickLinksEditor?.addable ?? []}
 				onChange={quickLinksEditor?.onChange}
+				hiddenItems={items.filter((item) => hiddenIds.includes(item.id))}
+				onShowItem={(id) => setHidden(id, false)}
 			/>
-			{permissions.canViewOrganizations && (
-				<PageMenuItem
-					to="/organizations"
-					icon={Building2Icon}
-					label="Organizations"
-					className={itemClassName}
-				/>
-			)}
-			{permissions.canViewAuditLog && (
-				<PageMenuItem
-					to="/audit"
-					icon={ScrollTextIcon}
-					label="Audit logs"
-					className={itemClassName}
-				/>
-			)}
-			{permissions.canViewConnectionLog && (
-				<PageMenuItem
-					to="/connectionlog"
-					icon={CableIcon}
-					label="Connection logs"
-					className={itemClassName}
-				/>
-			)}
+			{items
+				.filter((item) => !hiddenIds.includes(item.id))
+				.map((item) => (
+					<div
+						key={item.id}
+						className="group/hideable flex flex-wrap items-center rounded-full"
+					>
+						<PageMenuItem
+							to={item.path}
+							icon={item.icon}
+							label={item.label}
+							className={cn("min-w-0 flex-1", itemClassName)}
+							panelClassName="order-last"
+							options={
+								<DropdownMenuItem
+									onSelect={(event) => {
+										event.preventDefault();
+										setHidden(item.id, true);
+									}}
+								>
+									Hide under Controls
+								</DropdownMenuItem>
+							}
+						/>
+						<DropdownMenuItem
+							aria-label={`Hide ${item.label} under Controls`}
+							title="Hide under Controls"
+							className="invisible flex-none px-2 text-content-secondary group-focus-within/hideable:visible group-hover/hideable:visible"
+							onSelect={(event) => {
+								// Stay open, so several items can be hidden in a row.
+								event.preventDefault();
+								setHidden(item.id, true);
+							}}
+						>
+							<EyeOffIcon aria-hidden />
+						</DropdownMenuItem>
+					</div>
+				))}
 			{!externalMetrics && canViewAdminSettings(permissions) && (
 				<SettingsMetricGraphs chatExpanded={Boolean(chatExpanded)} />
 			)}

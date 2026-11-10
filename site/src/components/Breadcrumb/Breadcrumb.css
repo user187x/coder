@@ -40,7 +40,12 @@
 		color 150ms ease-out;
 }
 
-.breadcrumb-connected > ol > li > a:hover {
+.breadcrumb-connected > ol > li > a:hover,
+.breadcrumb-connected > ol > li > .settings-breadcrumb-trigger:hover,
+.breadcrumb-connected
+	> ol
+	> li
+	> .settings-breadcrumb-trigger[data-state="open"] {
 	background: hsl(var(--surface-quaternary));
 	color: hsl(var(--content-primary));
 }
@@ -145,7 +150,12 @@
 	height: 0.875rem;
 	flex-shrink: 0;
 }
-.breadcrumb-connected.deployment-breadcrumb > ol > li:first-child > a {
+/* The Settings chevron as a link, or (in the navbar) as the Settings menu's button. */
+.breadcrumb-connected.deployment-breadcrumb > ol > li:first-child > a,
+.breadcrumb-connected.deployment-breadcrumb
+	> ol
+	> li:first-child
+	> .settings-breadcrumb-trigger:not(:hover):not([data-state="open"]) {
 	background: hsl(var(--surface-tertiary));
 	color: hsl(var(--content-primary));
 }

@@ -7,7 +7,7 @@ import {
 	RadioIcon,
 	SettingsIcon,
 } from "lucide-react";
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link, NavLink } from "react-router";
@@ -37,7 +37,6 @@ import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { WorkspaceGrid } from "#/modules/platform/workspaceGrid/WorkspaceGrid";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
-import { AdminCategoryItems } from "./AdminCategoryItems";
 import {
 	type AdminQuickLinksEditor,
 	AdminSettingsItems,
@@ -95,6 +94,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	controls,
 }) => {
 	const [open, setOpen] = useState(false);
+	// The side of the screen the menu opens on, from where its button is: on the left it hangs from the button's left
+	// edge and its trays and slide-outs open to its right; on the right, the mirror. Docked, always the right.
+	const trigger = useRef<HTMLButtonElement>(null);
+	const [openEdge, setOpenEdge] = useState<"left" | "right">("right");
 	// The bottom panel's face (SettingsFacePanel); chat open is its Chat face.
 	const [face, setFace] = useState<SettingsFace>("metrics");
 	const chatExpanded = face === "chat";
@@ -120,8 +123,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		onError: () => toast.error("Could not save Settings sidebar preference."),
 	});
 	const docked = Boolean(controls && prefs.data?.settings_sidebar);
-	// The admin settings' navigation in the navbar: this menu lists every settings category too, and on a settings page
-	// opens from the breadcrumb's category in place of the navbar's Settings button.
+	// The admin settings' navigation in the navbar: on a settings page this menu opens from the breadcrumb's Settings
+	// chevron, in place of the navbar's Settings button, its panel's left edge on the chevron's.
 	const settingsInNavbar = Boolean(
 		controls &&
 			prefs.data?.admin_nav_in_navbar &&
@@ -282,20 +285,31 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		</InlineMenuPanel>
 	);
 
+	const changeOpen = (next: boolean) => {
+		if (docked && !next) return;
+		if (next) {
+			const button = trigger.current?.getBoundingClientRect();
+			setOpenEdge(
+				button && button.left + button.width / 2 < window.innerWidth / 2
+					? "left"
+					: "right",
+			);
+		}
+		setOpen(next);
+		if (!next) setChatExpanded(false);
+		// The menu's old "Refresh latencies" row, now each time it opens.
+		if (next) {
+			proxy?.refetchProxyLatencies();
+		}
+	};
+	const edge = docked ? "right" : openEdge;
+
 	return (
 		<>
 			<DropdownMenu
 				modal={false}
 				open={open || docked}
-				onOpenChange={(next) => {
-					if (docked && !next) return;
-					setOpen(next);
-					if (!next) setChatExpanded(false);
-					// The menu's old "Refresh latencies" row, now each time it opens.
-					if (next) {
-						proxy?.refetchProxyLatencies();
-					}
-				}}
+				onOpenChange={changeOpen}
 			>
 				<div
 					role="group"
@@ -307,6 +321,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					{!breadcrumbHost && (
 						<DropdownMenuTrigger asChild>
 							<button
+								ref={trigger}
 								type="button"
 								className="navbar-split-menu relative"
 								title="Settings"
@@ -321,40 +336,43 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					createPortal(
 						<DropdownMenuTrigger asChild>
 							<button
+								ref={trigger}
 								type="button"
-								className="category-breadcrumb-button"
-								aria-current="page"
-								aria-label={breadcrumbHost.label}
-								title={`${breadcrumbHost.label}: Settings and categories`}
+								className="settings-breadcrumb-trigger"
+								title="Settings"
 								data-testid="navbar-latency-controls"
+								// One click opens it, and another closes it (the menu's own outside-click is told to leave
+								// this button to it).
+								onPointerDown={(event) => event.preventDefault()}
+								onClick={() => changeOpen(!open)}
 							>
-								<breadcrumbHost.icon aria-hidden className="size-4 shrink-0" />
-								<span
-									aria-hidden="true"
-									className="absolute inset-y-0 right-0 inline-flex items-center justify-center rounded-r-[6px] bg-surface-tertiary text-content-primary hover:bg-surface-quaternary"
-								>
-									<ChevronDownIcon open={open} className="size-3.5" />
-								</span>
+								<SettingsIcon aria-hidden className="size-4 shrink-0" />
+								Settings
 							</button>
 						</DropdownMenuTrigger>,
-						breadcrumbHost.element,
+						breadcrumbHost,
 					)}
 				<DropdownMenuContent
 					ref={setMenuElement}
 					data-settings-docked={docked || undefined}
 					onInteractOutside={(e) => {
-						if (docked) e.preventDefault();
+						if (
+							docked ||
+							(e.target instanceof Node && trigger.current?.contains(e.target))
+						)
+							e.preventDefault();
 					}}
 					onEscapeKeyDown={(e) => {
 						if (docked) e.preventDefault();
 					}}
-					align={breadcrumbHost ? "start" : "end"}
+					align={edge === "left" ? "start" : "end"}
+					data-settings-edge={edge}
 					data-testid="navbar-latency-controls-menu"
 					// The floating menu reserves space for the slide-out trays.
 					className={cn(
 						"relative w-max min-w-[240px] max-w-[calc(100vw-32px)] overflow-visible border-0 bg-transparent p-0 shadow-none",
 						"settings-menu",
-						!docked && "pl-16",
+						!docked && (edge === "left" ? "pr-16" : "pl-16"),
 					)}
 				>
 					{!compact && (
@@ -644,11 +662,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 											quickLinks={controls.quickLinks}
 											quickLinksEditor={controls.quickLinksEditor}
 										/>
-										{settingsInNavbar && (
-											<AdminCategoryItems
-												quickLinks={controls.quickLinks ?? []}
-											/>
-										)}
 									</nav>
 								)}
 								<SettingsFacePanel
