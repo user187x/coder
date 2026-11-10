@@ -268,6 +268,35 @@ describe("ClusterMap", () => {
 		);
 	});
 
+	it("deletes the ticked Cloud Drive volumes in bulk, never a mounted one", async () => {
+		const remove = vi
+			.spyOn(ClusterNetworkAPI, "deleteCloudDriveVolumes")
+			.mockResolvedValue({ deleted: ["coder-safe-u2"], skipped: [] });
+		renderMap();
+		const card = await screen.findByTestId("cluster-ha-card");
+		const drive = await within(card).findByTestId("cloud-drive");
+		// the unmounted one is Released, listed once every volume is shown
+		fireEvent.click(within(card).getByRole("button", { name: /Show all 2/ }));
+		expect(
+			within(drive).getByRole("checkbox", {
+				name: "Select volume coder-safe-u1",
+			}),
+		).toBeDisabled();
+		fireEvent.click(
+			within(drive).getByRole("checkbox", {
+				name: "Select every unmounted volume shown",
+			}),
+		);
+		fireEvent.click(
+			within(drive).getByRole("button", { name: "Delete selected (1)" }),
+		);
+		const dialog = await screen.findByRole("dialog");
+		fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+		await waitFor(() =>
+			expect(remove).toHaveBeenCalledExactlyOnceWith(["coder-safe-u2"]),
+		);
+	});
+
 	it("places every component in the node it runs on", async () => {
 		renderMap();
 		const card = await screen.findByTestId("cluster-nodes-card");

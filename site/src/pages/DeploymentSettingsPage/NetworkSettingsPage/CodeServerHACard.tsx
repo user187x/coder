@@ -10,6 +10,7 @@ import {
 } from "#/api/clusterNetwork";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Loader } from "#/components/Loader/Loader";
 import {
@@ -675,12 +676,25 @@ const CloudDrivePart: React.FC<{
 	const [all, setAll] = useState(false);
 	// The volumes awaiting the admin's confirmation to delete: one, or every unmounted one.
 	const [toDelete, setToDelete] = useState<string[]>([]);
+	// The rows ticked for a bulk delete (only unmounted volumes can be).
+	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const client = useQueryClient();
 	const remove = useMutation(deleteCloudDriveVolumes(client));
 	const items = all
 		? cd.volumes.items
 		: cd.volumes.items.filter((v) => v.phase === "Bound" || v.usedBy.length);
 	const unmounted = cd.volumes.items.filter((v) => !v.usedBy.length);
+	const selectable = items.flatMap((v) =>
+		v.name && !v.usedBy.length ? [v.name] : [],
+	);
+	const chosen = selectable.filter((name) => selected.has(name));
+	const toggle = (name: string, on: boolean) =>
+		setSelected((current) => {
+			const next = new Set(current);
+			if (on) next.add(name);
+			else next.delete(name);
+			return next;
+		});
 	const b = cd.backend;
 	return (
 		<div className="flex flex-col gap-3" data-testid="cloud-drive">
@@ -769,6 +783,21 @@ const CloudDrivePart: React.FC<{
 						<Table aria-label="Account volumes">
 							<TableHeader>
 								<TableRow>
+									<TableHead className="w-0 pr-0">
+										<Checkbox
+											aria-label="Select every unmounted volume shown"
+											disabled={!selectable.length || remove.isPending}
+											checked={
+												selectable.length > 0 &&
+												chosen.length === selectable.length
+											}
+											onCheckedChange={(on) =>
+												setSelected(
+													on === true ? new Set(selectable) : new Set(),
+												)
+											}
+										/>
+									</TableHead>
 									{["Account", "Volume", "State", "Size", "Mounted by"].map(
 										(h) => (
 											<TableHead key={h}>{h}</TableHead>
@@ -783,6 +812,20 @@ const CloudDrivePart: React.FC<{
 								{items.length ? (
 									items.map((v) => (
 										<TableRow key={v.name}>
+											<TableCell className="w-0 pr-0">
+												<Checkbox
+													aria-label={`Select volume ${v.name}`}
+													disabled={
+														!v.name ||
+														Boolean(v.usedBy.length) ||
+														remove.isPending
+													}
+													checked={Boolean(v.name && selected.has(v.name))}
+													onCheckedChange={(on) =>
+														v.name && toggle(v.name, on === true)
+													}
+												/>
+											</TableCell>
 											<TableCell>{v.user ?? "N/A"}</TableCell>
 											<TableCell className="font-mono text-xs">
 												{v.name}
@@ -852,6 +895,16 @@ const CloudDrivePart: React.FC<{
 									: `Show all ${cd.volumes.items.length} (released ones too)`}
 							</Button>
 						) : null}
+						{chosen.length > 0 && (
+							<Button
+								size="sm"
+								variant="destructive"
+								disabled={remove.isPending}
+								onClick={() => setToDelete(chosen)}
+							>
+								Delete selected ({chosen.length})
+							</Button>
+						)}
 						{unmounted.length > 0 && (
 							<Button
 								size="sm"
@@ -896,13 +949,20 @@ const CloudDrivePart: React.FC<{
 						hideCancel={false}
 						disabled={remove.isPending}
 						onConfirm={() =>
-							remove.mutate(toDelete, { onSettled: () => setToDelete([]) })
+							remove.mutate(toDelete, {
+								onSettled: () => {
+									setToDelete([]);
+									setSelected(new Set());
+								},
+							})
 						}
 						description={
 							<p className="m-0">
 								{toDelete.length === 1
 									? toDelete[0]
-									: "Every unmounted account volume"}{" "}
+									: toDelete.length === unmounted.length
+										? "Every unmounted account volume"
+										: `These ${toDelete.length} volumes (${toDelete.join(", ")})`}{" "}
 								will be deleted from Kubernetes. The accounts' files stay in the
 								Cloud Drive's storage, and a volume is made again when one of
 								that account's workspaces connects. Mounted volumes are skipped.
