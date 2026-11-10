@@ -138,17 +138,20 @@ const HudPage: React.FC = () => {
 								className="flex items-center gap-2 text-sm text-content-secondary"
 								aria-live="off"
 							>
-								<span
-									aria-hidden
-									className={cn(
-										"inline-block size-2 rounded-full",
-										data.live ? "bg-content-success" : "bg-content-warning",
-									)}
-								/>
-								{data.live ? "Live" : "Updated"} ·{" "}
-								{new Date(data.generatedAt).toLocaleTimeString("en-US")}
+								{/* The live time as a badge, its dot green while live */}
+								<span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-solid border-border bg-surface-secondary px-2.5 py-0.5 text-xs font-medium tabular-nums text-content-primary">
+									<span
+										aria-hidden
+										className={cn(
+											"inline-block size-2 rounded-full",
+											data.live ? "bg-content-success" : "bg-content-warning",
+										)}
+									/>
+									{data.live ? "Live" : "Updated"} ·{" "}
+									{new Date(data.generatedAt).toLocaleTimeString("en-US")}
+								</span>
 								{!data.live &&
-									" · CPU and memory are what was requested: metrics-server is not answering"}
+									"CPU and memory are what was requested: metrics-server is not answering"}
 							</span>
 						)}
 						{data?.uptime && <SystemUptime uptime={data.uptime} />}
