@@ -161,7 +161,7 @@ const FilesTable: React.FC<{
 										<span className="truncate">{entry.name}</span>
 									</button>
 								</td>
-								<td className="whitespace-nowrap px-1.5 py-0.5 text-right tabular-nums text-content-secondary">
+								<td className="w-px whitespace-nowrap px-1.5 py-0.5 text-right tabular-nums text-content-secondary">
 									{entry.folder ? "Folder" : formatBytes(entry.size)}
 								</td>
 							</tr>
