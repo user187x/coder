@@ -424,3 +424,145 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 		0 100%
 	);
 }
+
+/* Appearance > Navigation bar, Settings on the right: the Settings chevron group at the bar's far end, its breadcrumb
+   running right to left (the root at the right) and every chevron pointing left, a mirror of the left side's shapes. */
+.navbar-soft[data-navbar-settings-side="right"] .navbar-start {
+	order: 99;
+}
+.navbar-soft[data-navbar-settings-side="right"] .navbar-start:not(:empty) {
+	margin-right: 0;
+	margin-left: var(--navbar-control-gap);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol {
+	direction: rtl;
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> * {
+	direction: ltr;
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	+ li {
+	margin-left: 0;
+	margin-right: calc(3px - var(--crumb-edge));
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li:first-child
+	> :is(a, span, button),
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.navbar-settings-crumb.breadcrumb-connected
+	> ol
+	> li:only-child
+	> :is(a, span, button) {
+	border-radius: 0 6px 6px 0;
+	padding-left: calc(8px + var(--crumb-edge));
+	padding-right: 8px;
+	clip-path: polygon(
+		100% 0,
+		var(--crumb-edge) 0,
+		0 50%,
+		var(--crumb-edge) 100%,
+		100% 100%
+	);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li:not(:first-child)
+	> :is(a, span, button) {
+	clip-path: polygon(
+		100% 0,
+		var(--crumb-edge) 0,
+		0 50%,
+		var(--crumb-edge) 100%,
+		100% 100%,
+		calc(100% - var(--crumb-edge)) 50%
+	);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li:last-child:not(:first-child)
+	> :is(a, span, button) {
+	border-radius: 6px 0 0 6px;
+	padding-left: 8px;
+	padding-right: calc(8px + var(--crumb-edge));
+	clip-path: polygon(
+		100% 0,
+		0 0,
+		0 100%,
+		100% 100%,
+		calc(100% - var(--crumb-edge)) 50%
+	);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> button.category-breadcrumb-button {
+	padding-left: calc(var(--toggle-width) - var(--crumb-edge) + 3px);
+	padding-right: var(--crumb-edge);
+	clip-path: polygon(
+		100% 0,
+		var(--crumb-edge) 0,
+		0 50%,
+		var(--crumb-edge) 100%,
+		100% 100%,
+		calc(100% - var(--crumb-edge)) 50%
+	);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	.category-breadcrumb-button::before {
+	inset: 0 0 0 calc(var(--toggle-width) - var(--crumb-edge) + 3px);
+	clip-path: polygon(
+		100% 0,
+		var(--crumb-edge) 0,
+		0 50%,
+		var(--crumb-edge) 100%,
+		100% 100%
+	);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	.category-breadcrumb-button
+	[data-category-toggle] {
+	left: 0;
+	right: auto;
+	clip-path: polygon(
+		100% 0,
+		var(--crumb-edge) 0,
+		0 50%,
+		var(--crumb-edge) 100%,
+		100% 100%,
+		calc(100% - var(--crumb-edge)) 50%
+	);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.admin-navbar-breadcrumb
+	.category-action-host
+	> :is(a, button) {
+	padding-left: 0.875rem;
+	padding-right: calc(var(--crumb-edge) + 0.75rem);
+}

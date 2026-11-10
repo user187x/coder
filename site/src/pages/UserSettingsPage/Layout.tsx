@@ -20,6 +20,7 @@ import {
 	NavbarStart,
 } from "#/modules/dashboard/Navbar/NavbarAction";
 import {
+	navbarSettingsSide,
 	settingsDockedMid,
 	settingsMenuSlot,
 	useRegisterPageSettingsBreadcrumb,
@@ -143,7 +144,11 @@ const Layout: React.FC = () => {
 						</BreadcrumbItem>
 						<PopoverContent
 							id={sidebarId}
-							align="start"
+							align={
+								navbarSettingsSide(preferences.data) === "right"
+									? "end"
+									: "start"
+							}
 							className="skeuo-popover max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
 							// A section picked from it closes it.
 							onClick={(event) => {

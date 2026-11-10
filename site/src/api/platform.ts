@@ -1493,6 +1493,8 @@ export type UserUIPreferences = {
 	navbar_floating?: boolean | null;
 	/** Appearance > Navigation bar, Resizable: the button group's width in percent of the bar (20 to 100); null: as wide as its items. */
 	navbar_resizable_width?: number | null;
+	/** Appearance > Navigation bar: the end of the bar the Settings chevron group sits at, its breadcrumb mirrored on the right; null: left. */
+	navbar_settings_side?: "left" | "right" | null;
 	/** The Settings menu's fixed items hidden into its Controls list: organizations, audit-logs, connection-logs. */
 	settings_menu_hidden?: string[] | null;
 	/** Appearance > Navigation bar: the backstrip hidden. */

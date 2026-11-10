@@ -23,3 +23,19 @@ it("starts arranging the top bar, and resets it to the default layout", async ()
 	);
 	window.removeEventListener("coder-ui-navbar-arrange", arranging);
 });
+
+it("moves the Settings chevron to the navbar's right end", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+		admin_nav_in_navbar: true,
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (changes) => changes);
+	renderWithAuth(<NavbarLayoutSection />);
+	fireEvent.click(
+		await screen.findByRole("switch", { name: "Settings on the right" }),
+	);
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({ navbar_settings_side: "right" }),
+	);
+});

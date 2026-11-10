@@ -71,6 +71,12 @@ export const useRegisterPageSettingsBreadcrumb = (enabled: boolean) => {
 	}, [enabled]);
 };
 
+/** The end of the navbar the Settings chevron group sits at (Appearance > Navigation bar). */
+export const navbarSettingsSide = (
+	preferences: UserUIPreferences | undefined,
+): "left" | "right" =>
+	preferences?.navbar_settings_side === "right" ? "right" : "left";
+
 /**
  * The Settings panel docked at the screen's side at its middle size (not the thin strip): the navbar's top left then
  * shows only the page's action button, the panel at the side being the Settings navigation.

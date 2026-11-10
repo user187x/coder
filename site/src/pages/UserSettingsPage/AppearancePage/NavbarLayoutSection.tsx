@@ -38,6 +38,7 @@ export const NavbarLayoutSection: React.FC<{
 	const { permissions } = useAuthenticated();
 	const adminNav = Boolean(preferences.data?.admin_nav_in_navbar);
 	const floating = Boolean(preferences.data?.navbar_floating);
+	const settingsRight = preferences.data?.navbar_settings_side === "right";
 	const savedRadius = preferences.data?.navbar_strip_radius ?? DEFAULT_RADIUS;
 	const [radius, setRadius] = useState(savedRadius);
 	useEffect(() => setRadius(savedRadius), [savedRadius]);
@@ -119,6 +120,28 @@ export const NavbarLayoutSection: React.FC<{
 							<span className="text-xs text-content-secondary">
 								The settings breadcrumb and categories in the navbar's top left,
 								the page full width. Also from a right-click on the breadcrumb.
+							</span>
+						</span>
+					</div>
+				)}
+				{permissions.viewDeploymentConfig && adminNav && (
+					<div className="flex items-start gap-3">
+						<Switch
+							id={`${id}-settings-side`}
+							checked={settingsRight}
+							disabled={save.isPending || !preferences.isSuccess}
+							onCheckedChange={(on) =>
+								save.mutate({ navbar_settings_side: on ? "right" : null })
+							}
+						/>
+						<span className="flex flex-col">
+							<Label htmlFor={`${id}-settings-side`}>
+								Settings on the right
+							</Label>
+							<span className="text-xs text-content-secondary">
+								The Settings chevron and its breadcrumb at the navbar's right
+								end, running right to left, the Settings menu opening toward the
+								middle. Also from a right-click on the breadcrumb.
 							</span>
 						</span>
 					</div>

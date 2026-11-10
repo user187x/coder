@@ -34,6 +34,7 @@ import { navbarInk, navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
 import {
+	navbarSettingsSide,
 	settingsDockedMid,
 	settingsMenuSlot,
 	usePageSettingsBreadcrumb,
@@ -174,6 +175,10 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			}
 			data-navbar-strip={stripOff ? "off" : undefined}
 			data-navbar-floating={floating || undefined}
+			// The Settings chevron group at the bar's right end, its breadcrumb mirrored (navbarSoft.css)
+			data-navbar-settings-side={
+				navbarSettingsSide(preferences.data) === "right" ? "right" : undefined
+			}
 			className="navbar-soft sticky top-0 z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"
 		>
 			{/* Platform: the logo in a tile like the user's avatar. */}

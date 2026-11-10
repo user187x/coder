@@ -33,6 +33,7 @@ import {
 	NavbarStart,
 } from "#/modules/dashboard/Navbar/NavbarAction";
 import {
+	navbarSettingsSide,
 	settingsDockedMid,
 	settingsMenuSlot,
 	useRegisterPageSettingsBreadcrumb,
@@ -62,6 +63,8 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const preferences = useQuery(userUIPreferences());
 	const placement = useMutation(updateUserUIPreferences(queryClient));
 	const inNavbar = Boolean(preferences.data?.admin_nav_in_navbar);
+	// The navbar's end it sits at; on the right its popover hangs to the left.
+	const side = navbarSettingsSide(preferences.data);
 	const [categoriesOpen, setCategoriesOpen] = useState(false);
 	// In the navbar, the page's action button (NavbarAction) takes the category chevron's place: it renders here.
 	const [actionHost, setActionHost] = useState<HTMLSpanElement | null>(null);
@@ -128,6 +131,20 @@ const DeploymentSettingsLayout: React.FC = () => {
 				>
 					{inNavbar ? "Move back beside the page" : "Move to the navbar"}
 				</ContextMenuItem>
+				{inNavbar && (
+					<ContextMenuItem
+						disabled={placement.isPending}
+						onSelect={() =>
+							placement.mutate({
+								navbar_settings_side: side === "right" ? "left" : "right",
+							})
+						}
+					>
+						{side === "right"
+							? "Move to the left side"
+							: "Move to the right side"}
+					</ContextMenuItem>
+				)}
 			</ContextMenuContent>
 		</ContextMenu>
 	);
@@ -174,7 +191,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 								</PopoverAnchor>
 								<PopoverContent
 									id={sidebarId}
-									align="start"
+									align={side === "right" ? "end" : "start"}
 									className="skeuo-popover max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
 									// A category picked from it closes it.
 									onClick={(event) => {
