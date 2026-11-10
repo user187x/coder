@@ -8,9 +8,12 @@ import { ThemeToggleItem } from "./UserDropdown/ThemeToggleItem";
 export const AppearanceMenuItem = ({
 	to,
 	className,
+	options,
 }: {
 	to: string;
 	className?: string;
+	/** More right-click options, after its own. */
+	options?: React.ReactNode;
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const id = useId();
@@ -58,6 +61,7 @@ export const AppearanceMenuItem = ({
 							Personalize
 						</Link>
 					</DropdownMenuItem>
+					{options}
 				</div>
 			)}
 		</>

@@ -111,6 +111,47 @@ it("hides an item under Controls and shows it again from there", async () => {
 	);
 });
 
+it("sets a quick link's page as the Default View from its right-click options", async () => {
+	const user = userEvent.setup();
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockResolvedValue({ settings_default_view: "/deployment/security" });
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	const pages = adminPagesFor({
+		permissions: MockPermissions,
+		oauth2Provider: true,
+	});
+	const security = pages.find((page) => page.id === "security");
+	if (!security) throw new Error("the Security page is missing");
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<MemoryRouter>
+				<DropdownMenu open>
+					<DropdownMenuTrigger>Admin</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<AdminSettingsItems permissions={{}} quickLinks={[security]} />
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</MemoryRouter>
+		</QueryClientProvider>,
+	);
+	await user.pointer({
+		target: screen.getByRole("menuitem", { name: "Security" }),
+		keys: "[MouseRight]",
+	});
+	await user.click(
+		within(screen.getByRole("group", { name: "Security options" })).getByRole(
+			"menuitem",
+			{ name: "Set Default View" },
+		),
+	);
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			settings_default_view: "/deployment/security",
+		}),
+	);
+});
+
 it("adds a setting from the inline picker without navigating", async () => {
 	const onChange = vi.fn();
 	const pages = adminPagesFor({

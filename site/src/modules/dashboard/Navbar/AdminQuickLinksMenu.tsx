@@ -34,6 +34,7 @@ import { AnnouncementMenuItem } from "./AnnouncementMenuItem";
 import { AppearanceMenuItem } from "./AppearanceMenuItem";
 import type { AdminPage } from "./adminQuickLinks";
 import { ChatMenuItem } from "./ChatMenuItem";
+import { DefaultViewOption, DefaultViewOrb } from "./DefaultViewOption";
 import {
 	InlineMenuPanel,
 	OpenMenuItem,
@@ -388,7 +389,13 @@ function DestinationLink({
 	options?: React.ReactNode;
 }) {
 	if (link.id === "workspaces" || link.id === "templates")
-		return <SettingsDestinationMenu link={link} className={className} />;
+		return (
+			<SettingsDestinationMenu
+				link={link}
+				className={className}
+				options={options}
+			/>
+		);
 	return (
 		<PageMenuItem
 			to={link.path}
@@ -476,25 +483,30 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 				<AppearanceMenuItem
 					to={link.path}
 					className={cn("min-w-0 flex-1", itemClassName)}
+					options={<DefaultViewOption path={link.path} />}
 				/>
 			) : (
 				<DestinationLink
 					link={link}
 					className={itemClassName}
 					options={
-						editable && (
-							<DropdownMenuItem
-								onSelect={(event) => {
-									event.preventDefault();
-									onRemove();
-								}}
-							>
-								Remove from quick links
-							</DropdownMenuItem>
-						)
+						<>
+							<DefaultViewOption path={link.path} />
+							{editable && (
+								<DropdownMenuItem
+									onSelect={(event) => {
+										event.preventDefault();
+										onRemove();
+									}}
+								>
+									Remove from quick links
+								</DropdownMenuItem>
+							)}
+						</>
 					}
 				/>
 			)}
+			{link.id !== "chat" && <DefaultViewOrb path={link.path} />}
 			{editable && (
 				<>
 					<DropdownMenuItem

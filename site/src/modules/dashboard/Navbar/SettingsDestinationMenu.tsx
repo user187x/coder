@@ -14,9 +14,12 @@ import type { AdminPage } from "./adminQuickLinks";
 export function SettingsDestinationMenu({
 	link,
 	className,
+	options,
 }: {
 	link: AdminPage;
 	className?: string;
+	/** More right-click options, after its destinations. */
+	options?: React.ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
 	const id = useId();
@@ -63,6 +66,7 @@ export function SettingsDestinationMenu({
 					) : (
 						<TemplateDestinations />
 					)}
+					{options}
 				</div>
 			)}
 		</>

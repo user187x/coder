@@ -14,6 +14,7 @@ import {
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
+import { DefaultViewOption, DefaultViewOrb } from "./DefaultViewOption";
 import { PageMenuItem } from "./InlineMenu";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 
@@ -170,16 +171,20 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 								className={cn("min-w-0 flex-1", itemClassName)}
 								panelClassName="order-last"
 								options={
-									<DropdownMenuItem
-										onSelect={(event) => {
-											event.preventDefault();
-											setHidden(item.id, true);
-										}}
-									>
-										Hide under Controls
-									</DropdownMenuItem>
+									<>
+										<DefaultViewOption path={item.path} />
+										<DropdownMenuItem
+											onSelect={(event) => {
+												event.preventDefault();
+												setHidden(item.id, true);
+											}}
+										>
+											Hide under Controls
+										</DropdownMenuItem>
+									</>
 								}
 							/>
+							<DefaultViewOrb path={item.path} />
 							<DropdownMenuItem
 								aria-label={`Hide ${item.label} under Controls`}
 								title="Hide under Controls"

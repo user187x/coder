@@ -10,7 +10,7 @@ import {
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { Link, NavLink } from "react-router";
+import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
 	updateUserUIPreferences,
@@ -48,6 +48,7 @@ import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
 import "./settingsMenuSkeuo.css";
+import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
@@ -104,6 +105,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	// edge and its trays and slide-outs open to its right; on the right, the mirror. Docked, always the right.
 	const trigger = useRef<HTMLButtonElement>(null);
 	const [openEdge, setOpenEdge] = useState<"left" | "right">("right");
+	// The root Settings crumb also takes the user to their Default View (a quick link's "Set Default View").
+	const navigate = useNavigate();
+	const location = useLocation();
+	const defaultView = useSettingsDefaultView();
 	// The bottom panel's face (SettingsFacePanel); chat open is its Chat face.
 	const [face, setFace] = useState<SettingsFace>("metrics");
 	const chatExpanded = face === "chat";
@@ -353,7 +358,15 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								// One click opens it, and another closes it (the menu's own outside-click is told to leave
 								// this button to it).
 								onPointerDown={(event) => event.preventDefault()}
-								onClick={() => changeOpen(!open)}
+								onClick={() => {
+									if (
+										!open &&
+										defaultView.path &&
+										location.pathname !== defaultView.path
+									)
+										navigate(defaultView.path);
+									changeOpen(!open);
+								}}
 							>
 								<SettingsIcon aria-hidden className="size-4 shrink-0" />
 								Settings
