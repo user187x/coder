@@ -123,8 +123,9 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	const [choicesMax, setChoicesMax] = useState<number>();
 	useLayoutEffect(() => {
 		const box = choicesBox.current;
+		const content = box?.parentElement;
 		const surface = box?.closest<HTMLElement>(".settings-menu-surface");
-		if (!expanded || !box || !surface) return;
+		if (!expanded || !box || !content || !surface) return;
 		const measure = () => {
 			const top = surface.getBoundingClientRect().top;
 			const cssMax = Number.parseFloat(getComputedStyle(surface).maxHeight);
@@ -132,12 +133,15 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				window.innerHeight - top - 8,
 				Number.isFinite(cssMax) ? cssMax : Number.POSITIVE_INFINITY,
 			);
-			const others = surface.scrollHeight - box.offsetHeight;
-			setChoicesMax(Math.max(96, Math.floor(room - others)));
+			// Everything else in the panel at its full height (the opening animation grows the list's wrapper, so it is
+			// left out whole), and the list's own 8px of margin.
+			const others = surface.scrollHeight - content.offsetHeight;
+			setChoicesMax(Math.max(96, Math.floor(room - others - 8)));
 		};
 		measure();
 		const observer = new ResizeObserver(measure);
 		observer.observe(surface);
+		observer.observe(content);
 		window.addEventListener("resize", measure);
 		return () => {
 			observer.disconnect();

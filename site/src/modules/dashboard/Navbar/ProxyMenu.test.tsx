@@ -401,8 +401,8 @@ describe("ProxyMenu", () => {
 		const menu = await screen.findByTestId("navbar-latency-controls-menu");
 		expect(menu.dataset.settingsEdge).toBe("left");
 		// every category not already a quick link, each hideable under Controls
-		const category = pages[2];
-		if (!category) throw new Error("no third admin page");
+		const category = pages.slice(2).find((page) => page.id !== "chat");
+		if (!category) throw new Error("no admin page past the quick links");
 		expect(
 			within(menu).getByRole("menuitem", {
 				name: `Hide ${category.label} under Controls`,

@@ -131,8 +131,10 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	const save = useMutation(updateUserUIPreferences(client));
 	const hiddenIds = preferences.data?.settings_menu_hidden ?? [];
 	const items = [
+		// Chat has its own entry (ChatMenuItem) under Controls.
 		...categories.filter(
-			(page) => !quickLinks.some((link) => link.id === page.id),
+			(page) =>
+				page.id !== "chat" && !quickLinks.some((link) => link.id === page.id),
 		),
 		...hideableItems(permissions),
 	];
