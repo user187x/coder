@@ -339,3 +339,15 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 .navbar-soft[data-navbar-ink="dark"] [data-ink-icon="on-light"] {
 	display: block;
 }
+
+/* The settings breadcrumb moved into the navbar (NavbarStart): its buttons spaced like every other navbar control,
+   apart from each other and from the controls after them, not interlocked as beside the page. */
+.navbar-start:not(:empty) {
+	margin-right: var(--navbar-control-gap);
+}
+.navbar-start .admin-navbar-breadcrumb > ol {
+	gap: var(--navbar-control-gap);
+}
+.navbar-start .admin-navbar-breadcrumb > ol > li + li {
+	margin-left: 0;
+}
