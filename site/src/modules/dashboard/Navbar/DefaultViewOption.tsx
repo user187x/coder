@@ -24,16 +24,16 @@ export const DefaultViewOption: React.FC<{ path: string }> = ({ path }) => {
 	);
 };
 
-/** The small orb, in the theme's link colour, to the right of the quick link that is the Default View. */
+/** A small badge in the theme's link colour, "Default home", to the right of the quick link that is the Default View. */
 export const DefaultViewOrb: React.FC<{ path: string }> = ({ path }) => {
 	const view = useSettingsDefaultView();
 	if (view.path !== path) return null;
 	return (
 		<span
-			role="img"
-			aria-label="Default view"
-			title="Default view"
-			className="mx-1.5 size-2 shrink-0 rounded-full bg-content-link"
-		/>
+			title="Your default home: where signing in and the announcement banner take you"
+			className="mx-1 shrink-0 whitespace-nowrap rounded-full bg-content-link px-1.5 text-[10px] font-semibold leading-4 text-content-invert"
+		>
+			Default home
+		</span>
 	);
 };
