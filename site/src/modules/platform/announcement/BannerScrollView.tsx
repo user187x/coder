@@ -40,6 +40,7 @@ import {
 } from "./terminalConnector";
 import { useAnnouncementMotion } from "./useAnnouncementMotion";
 import "./bannerScrollView.css";
+import { toCssPx } from "#/utils/appZoom";
 
 const CLOSE_MS = 220;
 /** The longest line the prompt takes, and how many earlier commands it keeps. */
@@ -211,14 +212,18 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	const [completions, setCompletions] = useState<string[] | null>(null);
 	const endDoom = useCallback(() => setDoom(false), []);
 
+	// Flush under the announcement and exactly as wide, in CSS pixels under the app's scale (the panel is portaled
+	// to the body, outside the navbar's own zoom).
 	const place = () => {
 		const r = anchor.current?.getBoundingClientRect();
 		if (!r) {
 			return;
 		}
-		const width = Math.min(window.innerWidth - 16, Math.max(r.width, 560));
-		const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
-		setRect({ top: r.bottom + 6, left, width });
+		setRect({
+			top: toCssPx(r.bottom),
+			left: toCssPx(r.left),
+			width: toCssPx(r.width),
+		});
 	};
 
 	const close = () => {
@@ -245,9 +250,14 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	};
 
 	useLayoutEffect(() => {
-		if (open) {
-			place();
-		}
+		if (!open) return;
+		place();
+		// The announcement resizes with the navbar (its Resizable handles, a docked panel): the panel follows it.
+		const element = anchor.current;
+		if (!element) return;
+		const observer = new ResizeObserver(() => place());
+		observer.observe(element);
+		return () => observer.disconnect();
 	}, [open]);
 
 	// Open: the prompt takes the keyboard, starting empty.
@@ -587,11 +597,11 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 								onResize={({ width, height }) =>
 									setPanelSize({
 										width: Math.min(
-											window.innerWidth - rect.left - 8,
+											toCssPx(window.innerWidth) - rect.left - 8,
 											Math.max(240, width),
 										),
 										height: Math.min(
-											window.innerHeight - rect.top - 8,
+											toCssPx(window.innerHeight) - rect.top - 8,
 											Math.max(140, height),
 										),
 									})
