@@ -487,8 +487,10 @@
 	background: #eceef1;
 	color: #1f2329;
 }
-/* The navbar's matte breadcrumb draws its faces from tokens: the root's gray, the children's white. */
-.breadcrumb-connected.admin-navbar-breadcrumb > ol > li:first-child {
+/* The navbar's matte breadcrumb draws its faces from tokens, zebra striped light and dark for as many crumbs as it
+   has: the root and every other crumb after it light gray, the ones between dark (as a page action standing in for a
+   crumb is). In the dark theme the stripes are dark gray and white. */
+.breadcrumb-connected.admin-navbar-breadcrumb > ol > li:nth-child(odd) {
 	--crumb-face: linear-gradient(180deg, #e3e6ea 0%, #d6dae0 50%, #c8cdd4 100%);
 	--crumb-face-hover: linear-gradient(
 		180deg,
@@ -498,22 +500,33 @@
 	);
 	--crumb-face-pressed: linear-gradient(180deg, #c3c8cf 0%, #cfd3d9 100%);
 	--crumb-ink: #1f2329;
+	--crumb-engrave: 0 1px 0 rgb(255 255 255 / 0.9);
 }
-.breadcrumb-connected.admin-navbar-breadcrumb > ol > li:not(:first-child) {
-	--crumb-face: linear-gradient(180deg, #ffffff 0%, #fbfbfc 50%, #f1f2f4 100%);
-	--crumb-face-hover: linear-gradient(180deg, #ffffff 0%, #f6f7f8 100%);
-	--crumb-face-pressed: linear-gradient(180deg, #e9ebee 0%, #f3f4f6 100%);
-	--crumb-ink: #1f2329;
+.breadcrumb-connected.admin-navbar-breadcrumb > ol > li:nth-child(even) {
+	--crumb-face: linear-gradient(180deg, #3d424a 0%, #2f333a 50%, #262a30 100%);
+	--crumb-face-hover: linear-gradient(180deg, #484d56 0%, #383d44 100%);
+	--crumb-face-pressed: linear-gradient(180deg, #1f2227 0%, #2b2f35 100%);
+	--crumb-ink: #f3f4f6;
+	--crumb-engrave: 0 -1px 0 rgb(0 0 0 / 0.6);
 }
-.dark .breadcrumb-connected.admin-navbar-breadcrumb > ol > li:first-child {
+.dark .breadcrumb-connected.admin-navbar-breadcrumb > ol > li:nth-child(odd) {
 	--crumb-face: linear-gradient(180deg, #5a5f68 0%, #4b5059 50%, #40444c 100%);
 	--crumb-face-hover: linear-gradient(180deg, #636872 0%, #545962 100%);
 	--crumb-face-pressed: linear-gradient(180deg, #3b3f46 0%, #474b53 100%);
 	--crumb-ink: #eef0f3;
+	--crumb-engrave: 0 -1px 0 rgb(0 0 0 / 0.7);
 }
-.dark
-	.breadcrumb-connected.admin-navbar-breadcrumb
-	> ol
-	> li:not(:first-child) {
+.dark .breadcrumb-connected.admin-navbar-breadcrumb > ol > li:nth-child(even) {
+	--crumb-face: linear-gradient(180deg, #ffffff 0%, #fbfbfc 50%, #f1f2f4 100%);
+	--crumb-face-hover: linear-gradient(180deg, #ffffff 0%, #f6f7f8 100%);
+	--crumb-face-pressed: linear-gradient(180deg, #e9ebee 0%, #f3f4f6 100%);
+	--crumb-ink: #1f2329;
 	--crumb-engrave: 0 1px 0 rgb(255 255 255 / 0.9);
+}
+/* The current page's crumb takes its stripe's ink, not the beside-the-page breadcrumb's dark gray. */
+.breadcrumb-connected.deployment-breadcrumb.admin-navbar-breadcrumb
+	> ol
+	> li:last-child
+	> [aria-current="page"] {
+	color: var(--crumb-ink);
 }
