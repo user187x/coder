@@ -3,6 +3,7 @@ import {
 	CableIcon,
 	type LucideIcon,
 	ScrollTextIcon,
+	UserRoundIcon,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
@@ -18,6 +19,7 @@ import type { UserPreferenceSettings } from "#/api/typesGenerated";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
 import { HideableMenuRows } from "./HideableMenuRows";
+import { ProfileSections } from "./ProfileSections";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 
 /**
@@ -82,11 +84,20 @@ export type HideableMenuItem = {
 	label: string;
 	path: string;
 	icon: LucideIcon;
+	/** Its right-click options besides Open and the Default View (Profile: the User Settings sections). */
+	options?: React.ReactNode;
 };
 
 const hideableItems = (
 	permissions: AdminSettingsPermissions,
 ): HideableMenuItem[] => [
+	{
+		id: "profile",
+		label: "Profile",
+		path: "/settings/account",
+		icon: UserRoundIcon,
+		options: <ProfileSections />,
+	},
 	...(permissions.canViewOrganizations
 		? [
 				{

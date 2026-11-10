@@ -121,7 +121,12 @@ const HideableRow: React.FC<{
 				label={item.label}
 				className={cn("min-w-0 flex-1", itemClassName)}
 				panelClassName="order-last"
-				options={<DefaultViewOption path={item.path} />}
+				options={
+					<>
+						{item.options}
+						<DefaultViewOption path={item.path} />
+					</>
+				}
 			/>
 			<DefaultViewOrb path={item.path} />
 			<DropdownMenuItem

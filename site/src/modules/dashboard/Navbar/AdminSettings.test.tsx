@@ -49,6 +49,9 @@ describe("Admin menu", () => {
 		expect(labels).toEqual([
 			...pages.slice(0, 4).map((page) => page.label),
 			// each with its trash can (hide under Controls) and move handle
+			"Profile",
+			"",
+			"",
 			"Organizations",
 			"",
 			"",
