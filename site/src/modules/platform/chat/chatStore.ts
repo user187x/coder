@@ -89,6 +89,19 @@ export type ChatWindowState = {
  */
 type DockMode = "bar" | "compact" | "window" | "side" | "full";
 
+/**
+ * How the chat's link to Coder is doing: "connecting", before its first answer; "connected"; "degraded", a request
+ * just failed and is being retried; "disconnected", Coder has not answered several times in a row; "broken", Coder
+ * answers with an error retrying will not fix; "off", an admin turned chat off.
+ */
+export type ChatLink =
+	| "connecting"
+	| "connected"
+	| "degraded"
+	| "disconnected"
+	| "broken"
+	| "off";
+
 type ChatSnapshot = {
 	me: ChatState["me"] | null;
 	conversations: ReadonlyMap<string, ChatConversation>;
@@ -121,6 +134,7 @@ type ChatSnapshot = {
 	consoleRequest: number;
 	/** Group chats' first messages this user has not clicked yet: in front of everything (ChatFocusOverlay). */
 	focus: readonly ChatFocus[];
+	link: ChatLink;
 };
 
 /**
@@ -169,6 +183,7 @@ const initialSnapshot: ChatSnapshot = {
 	consoleView: null,
 	consoleRequest: 0,
 	focus: [],
+	link: "connecting",
 };
 
 let snapshot = initialSnapshot;
@@ -209,6 +224,18 @@ const sleep = (ms: number) =>
 
 const statusOf = (error: unknown) =>
 	error instanceof PlatformError ? error.status : 0;
+
+/** No answer, or the proxy's: worth one more try. */
+const retryable = (error: unknown) =>
+	[0, 502, 503, 504].includes(statusOf(error));
+
+const setLink = (link: ChatLink) => {
+	if (snapshot.link !== link) update({ link });
+};
+
+/** The link after a failed request, the `failures`th in a row. */
+const linkAfter = (error: unknown, failures: number): ChatLink =>
+	!retryable(error) ? "broken" : failures >= 3 ? "disconnected" : "degraded";
 
 export const displayName = (
 	peer: Pick<ChatPeer, "name" | "username"> & { id?: string },
@@ -755,6 +782,7 @@ const signedOut = () => {
 
 const poll = async () => {
 	let backoff = 2000;
+	let failures = 0;
 	while (docks > 0 && !pageLeaving()) {
 		try {
 			const result = await PlatformAPI.pollChat({
@@ -767,6 +795,8 @@ const poll = async () => {
 				focusVersion,
 			});
 			backoff = 2000;
+			failures = 0;
+			setLink("connected");
 			clearVersion = Math.max(clearVersion, result.clearVersion || 0);
 			for (const peerId of result.cleared ?? []) {
 				cleared(peerId, false);
@@ -786,9 +816,12 @@ const poll = async () => {
 			}
 			if (statusOf(error) === 404) {
 				// An admin turned chat off for everyone: say so, and stop.
+				setLink("off");
 				window.dispatchEvent(new Event(CHAT_OFF_EVENT));
 				break;
 			}
+			failures++;
+			setLink(linkAfter(error, failures));
 			await sleep(backoff);
 			backoff = Math.min(backoff * 2, 30_000);
 		}
@@ -798,12 +831,17 @@ const poll = async () => {
 
 const boot = async () => {
 	let state: ChatState | undefined;
+	let failures = 0;
 	while (!state) {
 		try {
 			state = await PlatformAPI.getChatState(TAB_ID);
 		} catch (error) {
+			failures++;
 			if (statusOf(error) === 404) {
+				setLink("off");
 				window.dispatchEvent(new Event(CHAT_OFF_EVENT));
+			} else if (statusOf(error) !== 401) {
+				setLink(linkAfter(error, failures));
 			}
 			await sleep(
 				statusOf(error) === 401 ? SIGNED_OUT_RETRY_MS : UNAVAILABLE_RETRY_MS,
@@ -814,6 +852,7 @@ const boot = async () => {
 			return;
 		}
 	}
+	setLink("connected");
 	cursor = state.cursor;
 	clearVersion = state.clearVersion || 0;
 	purgeVersion = state.purgeVersion ?? 0;
@@ -1123,10 +1162,6 @@ const newClientId = () =>
 		? crypto.randomUUID()
 		: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 
-/** No answer, or the proxy's: worth one more try. */
-const retryable = (error: unknown) =>
-	[0, 502, 503, 504].includes(statusOf(error));
-
 /**
  * Sends one message. It carries an id of its own, so when the answer is lost
  * (a network hiccup, a busy proxy) the retries do not store it twice.
@@ -1152,6 +1187,8 @@ export const sendChatMessage = async (
 			result = await PlatformAPI.sendChatMessage(request);
 		} catch (error) {
 			if (attempt >= 2 || !retryable(error)) {
+				// The next poll that gets through says connected again.
+				if (statusOf(error) !== 401) setLink(linkAfter(error, attempt + 1));
 				throw error;
 			}
 			await sleep(400 * 2 ** attempt + Math.random() * 300);

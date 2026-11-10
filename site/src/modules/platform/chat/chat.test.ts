@@ -1,6 +1,12 @@
-import type { ChatConversation, ChatMessage } from "#/api/platform";
+import { renderHook, waitFor } from "@testing-library/react";
+import {
+	type ChatConversation,
+	type ChatMessage,
+	PlatformAPI,
+	PlatformError,
+} from "#/api/platform";
 import { consoleList, isWaiting } from "./ChatConsole";
-import { newMessages } from "./chatStore";
+import { newMessages, sendChatMessage, useChatSnapshot } from "./chatStore";
 
 const ME = "me";
 const message = (id: number, from: string, text = `m${id}`): ChatMessage => ({
@@ -120,8 +126,22 @@ describe("peer-to-peer chat", () => {
 			consoleView: null,
 			consoleRequest: 0,
 			focus: [],
+			link: "connected" as const,
 		};
 		expect(noAdminAvailable({ ...base, peers: false })).toBe(true);
 		expect(noAdminAvailable({ ...base, peers: true })).toBe(false);
+	});
+});
+
+describe("the chat's link", () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	it("says broken when Coder refuses a message with an error retrying will not fix", async () => {
+		vi.spyOn(PlatformAPI, "sendChatMessage").mockRejectedValue(
+			new PlatformError("internal error", 500),
+		);
+		const { result } = renderHook(() => useChatSnapshot());
+		await expect(sendChatMessage("peer", "hello")).rejects.toThrow();
+		await waitFor(() => expect(result.current.link).toBe("broken"));
 	});
 });

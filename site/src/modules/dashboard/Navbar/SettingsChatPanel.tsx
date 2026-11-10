@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { Maximize2Icon, Minimize2Icon, XIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
@@ -5,6 +6,7 @@ import { Button } from "#/components/Button/Button";
 import type { ConversationActions } from "#/modules/platform/chat/ChatConversation";
 import { ChatList, ChatOnSwitch } from "#/modules/platform/chat/ChatPanel";
 import {
+	type ChatLink,
 	closePanelView,
 	selectInPanel,
 	setChatMenuOpen,
@@ -43,6 +45,7 @@ export const SettingsChatPanel = ({
 			onKeyDown={(event) => event.stopPropagation()}
 		>
 			<header className="flex h-9 shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-2">
+				<ChatLinkStatus link={state.link} />
 				<strong className="flex-1 text-xs">Enable Messaging</strong>
 				{state.me?.admin && <ChatOnSwitch className="h-8" />}
 				{onExpandedChange && (
@@ -89,5 +92,57 @@ export const SettingsChatPanel = ({
 				/>
 			)}
 		</div>
+	);
+};
+
+const LINK: Record<ChatLink, { label: string; note: string; dot: string }> = {
+	connecting: {
+		label: "Connecting",
+		note: "Connecting to chat.",
+		dot: "bg-content-secondary animate-pulse",
+	},
+	connected: {
+		label: "Connected",
+		note: "Chat is connected.",
+		dot: "bg-content-success",
+	},
+	degraded: {
+		label: "Degraded",
+		note: "Chat is having trouble reaching Coder and is retrying. Messages may be slow or fail to send.",
+		dot: "bg-content-warning",
+	},
+	disconnected: {
+		label: "Disconnected",
+		note: "Chat cannot reach Coder. Messages will not send until it reconnects.",
+		dot: "bg-content-destructive",
+	},
+	broken: {
+		label: "Broken",
+		note: "Chat is failing on Coder's side. Messages will not send.",
+		dot: "bg-content-destructive",
+	},
+	off: {
+		label: "Off",
+		note: "An admin turned chat off.",
+		dot: "bg-content-secondary",
+	},
+};
+
+/**
+ * The chat's link to Coder: a dot, with its word once it is not connected, so a failing chat says so before anyone
+ * types into it.
+ */
+const ChatLinkStatus: React.FC<{ link: ChatLink }> = ({ link }) => {
+	const { label, note, dot } = LINK[link];
+	return (
+		<span
+			role="status"
+			aria-label={`Chat ${label}: ${note}`}
+			title={note}
+			className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-content-secondary"
+		>
+			<span aria-hidden className={cn("size-2 rounded-full", dot)} />
+			{link !== "connected" && <span aria-hidden>{label}</span>}
+		</span>
 	);
 };

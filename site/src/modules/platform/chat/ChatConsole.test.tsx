@@ -97,6 +97,7 @@ const renderConsole = () => {
 		consoleView: null,
 		consoleRequest: 0,
 		focus: [],
+		link: "connected",
 	} satisfies Snapshot;
 	vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockReturnValue(
 		new Promise(() => {}),

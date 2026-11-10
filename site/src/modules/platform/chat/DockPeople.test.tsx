@@ -44,6 +44,7 @@ beforeEach(() => {
 		consoleView: null,
 		consoleRequest: 0,
 		focus: [],
+		link: "connected",
 	});
 	vi.spyOn(PlatformAPI, "getChatPeople").mockResolvedValue({
 		enabled: true,
