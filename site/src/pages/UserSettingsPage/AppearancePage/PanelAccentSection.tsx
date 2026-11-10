@@ -53,7 +53,10 @@ const accentFor = (mode: Mode, color: string): PanelAccent | null =>
  * smaller, as the browser's zoom would. Settings on the left, the Settings panel as it will look on the right.
  * Global (admins): the accent is set for everyone.
  */
-export const PanelAccentSection: React.FC = () => {
+export const PanelAccentSection: React.FC<{
+	/** Inside the Your theme card: its part below a divider, no card of its own. */
+	embedded?: boolean;
+}> = ({ embedded = false }) => {
 	const id = useId();
 	const queryClient = useQueryClient();
 	const { permissions } = useAuthenticated();
@@ -98,14 +101,24 @@ export const PanelAccentSection: React.FC = () => {
 
 	return (
 		<section
-			className="mt-6 rounded-xl border border-solid border-border bg-surface-primary p-6"
+			className={
+				embedded
+					? "mt-6 border-0 border-t border-solid border-border pt-6"
+					: "mt-6 rounded-xl border border-solid border-border bg-surface-primary p-6"
+			}
 			aria-labelledby={`${id}-title`}
 		>
 			{Boolean(save.error) && <ErrorAlert error={save.error} />}
 			{Boolean(saveGlobal.error) && <ErrorAlert error={saveGlobal.error} />}
-			<h2 id={`${id}-title`} className="m-0 text-lg font-semibold">
-				Panel accents
-			</h2>
+			{embedded ? (
+				<h3 id={`${id}-title`} className="m-0 text-base font-semibold">
+					Panel accents
+				</h3>
+			) : (
+				<h2 id={`${id}-title`} className="m-0 text-lg font-semibold">
+					Panel accents
+				</h2>
+			)}
 			<p className="mt-0 mb-4 text-sm text-content-secondary">
 				Colour the cards and rows inside the Settings menu and side panel and
 				the chat, floating or docked, set their text colour, and set how large

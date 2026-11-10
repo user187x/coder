@@ -12,6 +12,7 @@ import { Loader } from "#/components/Loader/Loader";
 import { Switch } from "#/components/Switch/Switch";
 import { navbarStripColor } from "#/modules/dashboard/Navbar/navbarStrip";
 import { BackgroundPreview } from "#/modules/platform/background/BackgroundPreview";
+import { NavbarLayoutSection } from "#/pages/UserSettingsPage/AppearancePage/NavbarLayoutSection";
 
 export function NavbarAppearance() {
 	const id = useId();
@@ -184,6 +185,8 @@ export function NavbarAppearance() {
 					</div>
 				</div>
 			)}
+			{/* The user's own layout of the bar, in the same card */}
+			<NavbarLayoutSection embedded />
 		</section>
 	);
 }

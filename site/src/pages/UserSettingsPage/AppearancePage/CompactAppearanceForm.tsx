@@ -37,12 +37,15 @@ export const CompactAppearanceForm = ({
 	onSubmit,
 	isUpdating,
 	error,
+	children,
 }: {
 	initialValues: UserAppearanceSettings;
 	activeScheme: "dark" | "light";
 	onSubmit: (settings: UpdateUserAppearanceSettingsRequest) => void;
 	isUpdating?: boolean;
 	error?: unknown;
+	/** More of the user's look in the same card, below the theme (Panel accents). */
+	children?: React.ReactNode;
 }) => {
 	const id = useId();
 	const [draft, setDraft] = useState(() =>
@@ -225,6 +228,7 @@ export const CompactAppearanceForm = ({
 					</p>
 				</div>
 			</div>
+			{children}
 		</section>
 	);
 };

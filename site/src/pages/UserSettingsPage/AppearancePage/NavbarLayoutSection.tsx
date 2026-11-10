@@ -24,7 +24,10 @@ const DEFAULT_RADIUS = 10;
  * the account menu's Rearrange top bar starts), a reset to the default layout, and the backstrip behind the bar: its
  * corner radius, or none at all.
  */
-export const NavbarLayoutSection: React.FC = () => {
+export const NavbarLayoutSection: React.FC<{
+	/** Inside another card (Admin Settings > Appearance's Navigation bar card): its part below a divider, no card of its own. */
+	embedded?: boolean;
+}> = ({ embedded = false }) => {
 	const id = useId();
 	const client = useQueryClient();
 	const { order, hidden } = useNavbarOrder();
@@ -44,11 +47,21 @@ export const NavbarLayoutSection: React.FC = () => {
 	return (
 		<section
 			aria-labelledby={`${id}-title`}
-			className="mt-6 rounded-xl border border-solid border-border bg-surface-primary p-6"
+			className={
+				embedded
+					? "mt-6 border-0 border-t border-solid border-border pt-6"
+					: "mt-6 rounded-xl border border-solid border-border bg-surface-primary p-6"
+			}
 		>
-			<h2 id={`${id}-title`} className="m-0 text-lg font-semibold">
-				Navigation bar
-			</h2>
+			{embedded ? (
+				<h3 id={`${id}-title`} className="m-0 text-base font-semibold">
+					Your navigation bar
+				</h3>
+			) : (
+				<h2 id={`${id}-title`} className="m-0 text-lg font-semibold">
+					Navigation bar
+				</h2>
+			)}
 			<p className="mt-0 mb-4 text-sm text-content-secondary">
 				The order of the top bar's items, and which are hidden. Rearrange lets
 				you drag them in place on the bar itself. The backstrip is the band

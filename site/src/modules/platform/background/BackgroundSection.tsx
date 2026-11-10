@@ -56,14 +56,23 @@ export type BackgroundEditorHandle = {
 	reset: () => void;
 };
 
-export const BackgroundSection: React.FC = () => {
+export const BackgroundSection: React.FC<{
+	/** In a tab of another card (Admin Settings > Appearance): no card or heading of its own. */
+	embedded?: boolean;
+}> = ({ embedded = false }) => {
 	const query = useQuery(backgrounds());
 	return (
 		<section
 			aria-label="Dashboard background"
-			className="rounded-xl border border-solid border-border bg-surface-primary p-6"
+			className={
+				embedded
+					? undefined
+					: "rounded-xl border border-solid border-border bg-surface-primary p-6"
+			}
 		>
-			<h2 className="m-0 mb-2 text-lg font-semibold">Dashboard background</h2>
+			{!embedded && (
+				<h2 className="m-0 mb-2 text-lg font-semibold">Dashboard background</h2>
+			)}
 			<p className="m-0 mb-5 text-sm text-content-secondary">
 				Set the background behind signed-in pages.
 			</p>

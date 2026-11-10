@@ -1,12 +1,13 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlatformAPI } from "#/api/platform";
-import { render } from "#/testHelpers/renderHelpers";
+import { renderWithAuth } from "#/testHelpers/renderHelpers";
 import { NavbarAppearance } from "./NavbarAppearance";
 
 afterEach(() => vi.restoreAllMocks());
 
 it("previews the background locally and persists only the saved percentage", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
 	vi.spyOn(PlatformAPI, "getNavbarAppearance").mockResolvedValue({
 		transparency: 20,
 		scale: 100,
@@ -16,7 +17,7 @@ it("previews the background locally and persists only the saved percentage", asy
 		.spyOn(PlatformAPI, "setNavbarAppearance")
 		.mockResolvedValue({ transparency: 65, scale: 110, wireframe: false });
 	const user = userEvent.setup();
-	render(<NavbarAppearance />);
+	renderWithAuth(<NavbarAppearance />);
 	const slider = await screen.findByRole("slider", {
 		name: "Navbar transparency",
 	});
@@ -48,6 +49,7 @@ it("previews the background locally and persists only the saved percentage", asy
 });
 
 it("previews and saves a backstrip colour, and goes back to the theme's", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
 	vi.spyOn(PlatformAPI, "getNavbarAppearance").mockResolvedValue({
 		transparency: 50,
 		scale: 100,
@@ -58,7 +60,7 @@ it("previews and saves a backstrip colour, and goes back to the theme's", async 
 		.spyOn(PlatformAPI, "setNavbarAppearance")
 		.mockResolvedValue({ transparency: 50, scale: 100, wireframe: true });
 	const user = userEvent.setup();
-	render(<NavbarAppearance />);
+	renderWithAuth(<NavbarAppearance />);
 	const picker = await screen.findByLabelText("Navbar backstrip color");
 	fireEvent.change(picker, { target: { value: "#ff8800" } });
 	expect(

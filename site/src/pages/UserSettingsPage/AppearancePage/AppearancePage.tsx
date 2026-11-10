@@ -50,9 +50,11 @@ export const useQueuedAppearanceSubmit = (mutate: MutateAppearanceSettings) => {
 	};
 };
 
-const AppearancePage: React.FC<{ compact?: boolean }> = ({
-	compact = false,
-}) => {
+const AppearancePage: React.FC<{
+	compact?: boolean;
+	/** Leave out the Navigation bar card: Admin Settings > Appearance holds it inside its own Navigation bar card. */
+	navbarLayout?: boolean;
+}> = ({ compact = false, navbarLayout = true }) => {
 	const queryClient = useQueryClient();
 	const updateAppearanceSettingsMutation = useMutation(
 		updateAppearanceSettings(queryClient),
@@ -79,18 +81,27 @@ const AppearancePage: React.FC<{ compact?: boolean }> = ({
 		return <ErrorAlert error={appearanceSettingsQuery.error} />;
 	}
 
-	const Form = compact ? CompactAppearanceForm : AppearanceForm;
+	const formProps = {
+		isUpdating: updateAppearanceSettingsMutation.isPending,
+		error: updateAppearanceSettingsMutation.error,
+		initialValues: appearanceSettingsQuery.data,
+		activeScheme: osColorScheme,
+		onSubmit: submitAppearanceSettings,
+	};
 	return (
 		<>
-			<Form
-				isUpdating={updateAppearanceSettingsMutation.isPending}
-				error={updateAppearanceSettingsMutation.error}
-				initialValues={appearanceSettingsQuery.data}
-				activeScheme={osColorScheme}
-				onSubmit={submitAppearanceSettings}
-			/>
-			<PanelAccentSection />
-			<NavbarLayoutSection />
+			{compact ? (
+				// Admin Settings > Appearance: Panel accents inside the Your theme card
+				<CompactAppearanceForm {...formProps}>
+					<PanelAccentSection embedded />
+				</CompactAppearanceForm>
+			) : (
+				<>
+					<AppearanceForm {...formProps} />
+					<PanelAccentSection />
+				</>
+			)}
+			{navbarLayout && <NavbarLayoutSection />}
 		</>
 	);
 };

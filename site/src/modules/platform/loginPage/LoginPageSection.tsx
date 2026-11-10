@@ -64,7 +64,10 @@ const same = (a: LoginPageSettings, b: LoginPageSettings) =>
  * with that effect's colour and speed, and a message under it for each.
  * Saved by the platform service; boot.js hands it to every page.
  */
-export const LoginPageSection: React.FC = () => {
+export const LoginPageSection: React.FC<{
+	/** In a tab of another card (Admin Settings > Appearance): no card or heading of its own. */
+	embedded?: boolean;
+}> = ({ embedded = false }) => {
 	const queryClient = useQueryClient();
 	const query = useQuery(loginPage());
 	const backgroundQuery = useQuery(backgrounds());
@@ -121,10 +124,17 @@ export const LoginPageSection: React.FC = () => {
 	return (
 		<section
 			aria-labelledby={`${ids}-heading`}
-			className="rounded-xl border border-solid border-border bg-surface-primary p-6"
+			className={
+				embedded
+					? undefined
+					: "rounded-xl border border-solid border-border bg-surface-primary p-6"
+			}
 			data-testid={`${ids}-heading`}
 		>
-			<h2 id={`${ids}-heading`} className="m-0 mb-2 text-lg font-semibold">
+			<h2
+				id={`${ids}-heading`}
+				className={embedded ? "sr-only" : "m-0 mb-2 text-lg font-semibold"}
+			>
 				Sign-in and sign-out page
 			</h2>
 			<p className="m-0 mb-4 text-sm text-content-secondary">

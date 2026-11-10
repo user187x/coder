@@ -81,13 +81,40 @@ const CustomizeSettingsPage: React.FC = () => {
 				<NavbarAppearance />
 				<DeploymentAnimations />
 
-				<LoginPageSection />
+				<PagesAppearanceCard />
 
-				<BackgroundSection />
-
-				<AppearancePage compact />
+				<AppearancePage compact navbarLayout={false} />
 			</div>
 		</>
+	);
+};
+
+/** The dashboard's background and the sign-in and sign-out page, one card with a tab for each. */
+const PagesAppearanceCard: React.FC = () => {
+	const [tab, setTab] = useState<"dashboard" | "login">("dashboard");
+	return (
+		<section
+			aria-label="Dashboard and sign-in pages"
+			className="rounded-xl border border-solid border-border bg-surface-primary p-6"
+		>
+			<Tabs
+				value={tab}
+				onValueChange={(value) => {
+					if (value === "dashboard" || value === "login") setTab(value);
+				}}
+			>
+				<TabsList aria-label="Page" className="mb-5">
+					<TabsTrigger value="dashboard">Dashboard background</TabsTrigger>
+					<TabsTrigger value="login">Sign-in and sign-out page</TabsTrigger>
+				</TabsList>
+				<TabsContent value="dashboard">
+					<BackgroundSection embedded />
+				</TabsContent>
+				<TabsContent value="login">
+					<LoginPageSection embedded />
+				</TabsContent>
+			</Tabs>
+		</section>
 	);
 };
 
