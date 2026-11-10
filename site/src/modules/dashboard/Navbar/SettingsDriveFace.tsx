@@ -55,13 +55,14 @@ export const SettingsDriveFace: React.FC = () => {
 	const [view, setView] = useState<View>("files");
 	return (
 		<div className="flex h-full flex-col gap-3 rounded-lg border border-solid border-border bg-surface-primary p-3">
-			<div className="flex items-center justify-between gap-2">
-				<span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-content-primary">
-					<CloudIcon aria-hidden className="size-3.5" />
+			{/* One line: the icon, the title and the connections badge */}
+			<div className="flex flex-nowrap items-center justify-between gap-2">
+				<span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-content-primary">
+					<CloudIcon aria-hidden className="size-5 shrink-0" />
 					Cloud Drive
 				</span>
 				{workspaces.length > 0 && (
-					<span className="rounded-full border border-solid border-border bg-surface-secondary px-1.5 text-[10px] leading-4 tabular-nums text-content-secondary">
+					<span className="shrink-0 whitespace-nowrap rounded-full border border-solid border-border bg-surface-secondary px-1 text-[9px] leading-[14px] tabular-nums text-content-secondary">
 						{connected} of {workspaces.length} connected
 					</span>
 				)}
