@@ -121,6 +121,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	// in the panel moves.
 	const choicesBox = useRef<HTMLDivElement>(null);
 	const [choicesMax, setChoicesMax] = useState<number>();
+	const [linksMax, setLinksMax] = useState<number>();
 	useLayoutEffect(() => {
 		const box = choicesBox.current;
 		const content = box?.parentElement;
@@ -133,17 +134,23 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				window.innerHeight - top - 8,
 				Number.isFinite(cssMax) ? cssMax : Number.POSITIVE_INFINITY,
 			);
-			// Everything else in the panel at its full height (the opening animation grows the list's wrapper, so it is
-			// left out whole), and the list's own 8px of margin. The quick links above give up their room down to a few
-			// rows (they scroll in their own box), so the panel itself never needs to scroll.
+			// The room left by everything but the quick links and this list (the opening animation grows the list's wrapper,
+			// so it is left out whole), less the list's 8px of margin; it goes to this list first, and the quick links keep
+			// at least a few rows of it, scrolling in their own box, so the panel itself never needs to scroll.
 			const links = surface.querySelector<HTMLElement>(
 				"[data-testid=quick-links-scroll]",
 			);
-			const linksGive = links
-				? Math.max(0, links.offsetHeight - Math.min(links.scrollHeight, 144))
-				: 0;
-			const others = surface.scrollHeight - content.offsetHeight - linksGive;
-			setChoicesMax(Math.max(96, Math.floor(room - others - 8)));
+			const linksNow = links?.offsetHeight ?? 0;
+			const linksFull = links?.scrollHeight ?? 0;
+			const free =
+				room - (surface.scrollHeight - content.offsetHeight - linksNow) - 8;
+			const linksKeep = Math.min(linksFull, 144);
+			const choices = Math.max(
+				96,
+				Math.min(box.scrollHeight, Math.floor(free - linksKeep)),
+			);
+			setChoicesMax(choices);
+			setLinksMax(Math.max(linksKeep, Math.floor(free - choices)));
 		};
 		measure();
 		const observer = new ResizeObserver(measure);
@@ -169,6 +176,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			{/* The links scroll on their own, above Controls, which always stays in view */}
 			<div
 				className="admin-quick-links-scroll min-h-0 flex-1 overflow-y-auto"
+				style={{ maxHeight: expanded ? linksMax : undefined }}
 				data-testid="quick-links-scroll"
 			>
 				<DndContext
