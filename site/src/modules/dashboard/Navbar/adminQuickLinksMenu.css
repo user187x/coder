@@ -37,3 +37,20 @@
 .dark .controls-glyph-dark {
 	display: block;
 }
+
+/* Open, the Controls list lies over the panel's lower parts (the Chats, face panel and its turn buttons): its own
+   opaque fill and the top of the panel's stacking, so nothing below shows through or draws over it. */
+.settings-menu
+[data-testid="controls-group"]:has(
+	.settings-controls-overlay[data-state="open"]
+) {
+	position: relative;
+	z-index: 40;
+}
+.settings-controls-overlay > div {
+	background-color: hsl(var(--surface-primary));
+	background-image: linear-gradient(
+		var(--skeuo-well, transparent),
+		var(--skeuo-well, transparent)
+	);
+}

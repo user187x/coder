@@ -261,7 +261,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				)}
 				<CollapsibleContent
 					id={choicesId}
-					className="admin-quick-link-choices absolute inset-x-0 top-full z-30 overflow-hidden"
+					className="admin-quick-link-choices settings-controls-overlay absolute inset-x-0 top-full z-50 overflow-hidden"
 				>
 					<div
 						style={{ maxHeight: expanded ? choicesMax : undefined }}
