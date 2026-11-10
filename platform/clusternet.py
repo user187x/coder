@@ -1067,7 +1067,8 @@ def storage_report(pods):
                 "accessModes": spec.get("accessModes") or [],
                 "reclaimPolicy": spec.get("persistentVolumeReclaimPolicy"),
                 "driver": (spec.get("csi") or {}).get("driver"), "usedBy": users,
-                "user": (meta.get("annotations") or {}).get("platform.coder/username")}
+                "user": (meta.get("annotations") or {}).get("platform.coder/username"),
+                "created": meta.get("creationTimestamp")}
 
     by_class = collections.defaultdict(list)
     for pv in pvs:

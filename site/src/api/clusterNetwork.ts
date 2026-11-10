@@ -409,6 +409,8 @@ type StorageVolume = {
 	driver: string | null;
 	usedBy: string[];
 	user: string | null;
+	/** When the volume was made (RFC 3339); missing from an older platform service. */
+	created?: string | null;
 };
 
 export type StorageReport = {

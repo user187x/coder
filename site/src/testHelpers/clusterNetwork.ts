@@ -429,6 +429,7 @@ export const MockHAStorageReport: HAStorageReport = {
 					},
 					{
 						name: "coder-safe-u2",
+						created: "2026-11-01T10:00:00Z",
 						claim: "coder/coder-safe-u2",
 						phase: "Released",
 						capacity: "10Gi",

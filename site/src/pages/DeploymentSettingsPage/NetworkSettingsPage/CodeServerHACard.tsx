@@ -798,11 +798,16 @@ const CloudDrivePart: React.FC<{
 											}
 										/>
 									</TableHead>
-									{["Account", "Volume", "State", "Size", "Mounted by"].map(
-										(h) => (
-											<TableHead key={h}>{h}</TableHead>
-										),
-									)}
+									{[
+										"Account",
+										"Volume",
+										"State",
+										"Size",
+										"Created",
+										"Mounted by",
+									].map((h) => (
+										<TableHead key={h}>{h}</TableHead>
+									))}
 									<TableHead>
 										<span className="sr-only">Actions</span>
 									</TableHead>
@@ -846,6 +851,28 @@ const CloudDrivePart: React.FC<{
 											</TableCell>
 											<TableCell className="tabular-nums">
 												{v.capacity ?? "N/A"}
+											</TableCell>
+											<TableCell className="whitespace-nowrap text-xs tabular-nums">
+												{v.created ? (
+													<time
+														dateTime={v.created}
+														title={new Date(v.created).toLocaleString("en-US")}
+													>
+														{new Date(v.created).toLocaleDateString("en-US", {
+															year: "numeric",
+															month: "short",
+															day: "numeric",
+														})}
+														<span className="text-content-secondary">
+															{" "}
+															· {ago(v.created, now)} ago
+														</span>
+													</time>
+												) : (
+													<span className="text-content-secondary">
+														Unknown
+													</span>
+												)}
 											</TableCell>
 											<TableCell className="text-xs">
 												{v.usedBy.length ? (
