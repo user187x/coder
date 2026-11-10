@@ -529,7 +529,8 @@ const DashboardPage: React.FC = () => {
 				    screen: Summary first, so it is always the top-left card, and the others packed by height around it. At most
 				    four columns, which the cards always fill, so a wide window centres them instead of leaving empty columns on
 				    the right. */}
-				<div className="[column-gap:16px] [columns:20rem_4] [&>*]:mb-4 [&>*]:break-inside-avoid">
+				{/* -mb-4 takes back the last card's bottom margin, which only added empty room below the columns */}
+				<div className="-mb-4 [column-gap:16px] [columns:20rem_4] [&>*]:mb-4 [&>*]:break-inside-avoid">
 					<DashboardCard title="Summary" icon={GaugeIcon} tone="purple">
 						<CardState isLoading={scopeQuery.isLoading} error={scopeError}>
 							{scope && (

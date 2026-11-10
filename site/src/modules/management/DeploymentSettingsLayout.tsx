@@ -240,7 +240,13 @@ const DeploymentSettingsLayout: React.FC = () => {
 						inNavbar ? "mx-auto my-auto w-full lg:px-10" : "lg:pr-10 lg:pl-4",
 					)}
 				>
-					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
+					<div
+						className={cn(
+							"flex flex-col gap-4 py-3 lg:flex-row lg:gap-8",
+							// Centred in the window, a page needs less room above and below it.
+							inNavbar ? "lg:py-3" : "lg:py-5",
+						)}
+					>
 						<div
 							id={sidebarId}
 							hidden={!sidebarOpen || inNavbar}
