@@ -529,8 +529,9 @@ const DashboardPage: React.FC = () => {
 				    screen: Summary first, so it is always the top-left card, and the others packed by height around it. At most
 				    four columns, which the cards always fill, so a wide window centres them instead of leaving empty columns on
 				    the right. */}
-				{/* -mb-4 takes back the last card's bottom margin, which only added empty room below the columns */}
-				<div className="-mb-4 [column-gap:16px] [columns:20rem_4] [&>*]:mb-4 [&>*]:break-inside-avoid">
+				{/* Cards spaced by their top margins: one at a column's top is dropped at the column break, and none is left
+				    below the tallest column, so the parent card's padding stays whole at its top and bottom */}
+				<div className="[column-gap:16px] [columns:20rem_4] [&>*]:mt-4 [&>*:first-child]:mt-0 [&>*]:break-inside-avoid">
 					<DashboardCard
 						title="Summary"
 						icon={GaugeIcon}
