@@ -33,6 +33,7 @@ import {
 	NavbarStart,
 } from "#/modules/dashboard/Navbar/NavbarAction";
 import {
+	settingsDockedMid,
 	settingsMenuSlot,
 	useRegisterPageSettingsBreadcrumb,
 	useSettingsMenuPresent,
@@ -131,6 +132,13 @@ const DeploymentSettingsLayout: React.FC = () => {
 		</ContextMenu>
 	);
 
+	// Docked at its middle size, the panel at the side is the Settings navigation: the navbar's top left holds only
+	// the page's action button.
+	const dockedActionOnly = settingsDockedMid(preferences.data) && (
+		<NavbarStart>
+			<span ref={setActionHost} className="navbar-action flex items-center" />
+		</NavbarStart>
+	);
 	const navbarBreadcrumb = (
 		<NavbarStart>
 			{placementMenu(
@@ -231,7 +239,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 				{/* With the categories open the breadcrumb heads their list, in place of its "Settings" label; collapsed
 				    (or on a small screen's Chat, where the list is hidden), it keeps a row of its own. */}
 				{inNavbar
-					? navbarBreadcrumb
+					? dockedActionOnly || navbarBreadcrumb
 					: !sidebarOpen
 						? placementMenu(breadcrumb(false))
 						: chat && breadcrumb(false, "lg:hidden")}

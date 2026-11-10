@@ -20,6 +20,7 @@ import {
 	NavbarStart,
 } from "#/modules/dashboard/Navbar/NavbarAction";
 import {
+	settingsDockedMid,
 	settingsMenuSlot,
 	useRegisterPageSettingsBreadcrumb,
 	useSettingsMenuPresent,
@@ -91,6 +92,13 @@ const Layout: React.FC = () => {
 		</AdminBreadcrumb>
 	);
 	// In the navbar, one click on User Settings or on its section opens the sections, hanging from User Settings.
+	// Docked at its middle size, the panel at the side is the Settings navigation: the navbar's top left holds only
+	// the page's action button.
+	const dockedActionOnly = settingsDockedMid(preferences.data) && (
+		<NavbarStart>
+			<span ref={setActionHost} className="navbar-action flex items-center" />
+		</NavbarStart>
+	);
 	const navbarBreadcrumb = (
 		<NavbarStart>
 			<AdminBreadcrumb
@@ -173,7 +181,7 @@ const Layout: React.FC = () => {
 		return (
 			<>
 				<title>{pageTitle("Settings")}</title>
-				{navbarBreadcrumb}
+				{dockedActionOnly || navbarBreadcrumb}
 				{/* Centred in the window, and filling the page's room so a page that fits does not scroll */}
 				<div data-admin-layout="" className="flex flex-1 flex-col">
 					<div className="mx-auto my-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-10">

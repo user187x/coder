@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
+import type { UserUIPreferences } from "#/api/platform";
 
 /**
  * Where the Settings dropdown opens from instead of the navbar's Settings button: the admin settings' breadcrumb, moved
@@ -69,3 +70,12 @@ export const useRegisterPageSettingsBreadcrumb = (enabled: boolean) => {
 		};
 	}, [enabled]);
 };
+
+/**
+ * The Settings panel docked at the screen's side at its middle size (not the thin strip): the navbar's top left then
+ * shows only the page's action button, the panel at the side being the Settings navigation.
+ */
+export const settingsDockedMid = (preferences: UserUIPreferences | undefined) =>
+	Boolean(
+		preferences?.settings_sidebar && !preferences.settings_sidebar_compact,
+	);

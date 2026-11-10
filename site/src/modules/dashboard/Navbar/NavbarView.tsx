@@ -34,6 +34,7 @@ import { navbarInk, navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
 import {
+	settingsDockedMid,
 	settingsMenuSlot,
 	usePageSettingsBreadcrumb,
 	useSettingsMenuPresent,
@@ -188,16 +189,19 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					className="navbar-start flex shrink-0 items-center empty:hidden"
 				>
 					{/* Pages without a settings breadcrumb of their own: the Settings chevron alone */}
-					{settingsInNavbar && settingsMenuPresent && !pageCrumb && (
-						<Breadcrumb
-							variant="connected"
-							className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
-						>
-							<BreadcrumbList>
-								<BreadcrumbItem ref={settingsMenuSlot} />
-							</BreadcrumbList>
-						</Breadcrumb>
-					)}
+					{settingsInNavbar &&
+						settingsMenuPresent &&
+						!pageCrumb &&
+						!settingsDockedMid(preferences.data) && (
+							<Breadcrumb
+								variant="connected"
+								className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
+							>
+								<BreadcrumbList>
+									<BreadcrumbItem ref={settingsMenuSlot} />
+								</BreadcrumbList>
+							</Breadcrumb>
+						)}
 				</div>
 
 				{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
