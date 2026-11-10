@@ -15,8 +15,8 @@ export const TunnelFlowIndicator = ({
 			aria-hidden
 		>
 			{[
-				{ count: incoming, left: true, color: "#4ade80" },
-				{ count: outgoing, left: false, color: "#94a3b8" },
+				{ count: incoming, left: true, color: "#475569" },
+				{ count: outgoing, left: false, color: "#ef4444" },
 			].map(({ count, left, color }) => {
 				const slots = Math.max(6, count);
 				const points = left

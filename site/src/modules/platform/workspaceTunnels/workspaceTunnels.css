@@ -47,13 +47,14 @@ html[data-animations="off"] .workspace-tunnel-flow {
 	stroke: hsl(var(--content-link));
 }
 
+/* A tunnel's sockets: its input dark gray, its output (and the plug cabled to it) red. */
 .cd-socket.workspace-tunnel-input {
-	stroke: #22c55e;
-	fill: #14532d;
+	stroke: #475569;
+	fill: #1e293b;
 }
 .cd-socket.workspace-tunnel-output {
-	stroke: #94a3b8;
-	fill: #334155;
+	stroke: #ef4444;
+	fill: #7f1d1d;
 }
 .workspace-tunnel-chevron path,
 .workspace-tunnel-chevron-static path {
@@ -104,9 +105,9 @@ html[data-animations="off"] .workspace-tunnel-chevron {
 }
 
 .workspace-tunnel-output-connector .cd-plug-body {
-	fill: #334155;
-	stroke: #94a3b8;
+	fill: #7f1d1d;
+	stroke: #ef4444;
 }
 .workspace-tunnel-output-connector .cd-prong {
-	stroke: #94a3b8;
+	stroke: #ef4444;
 }
