@@ -10,8 +10,8 @@ vi.mock("#/modules/platform/chat/useChatEnabled", () => ({
 vi.mock("./SettingsChatPanel", () => ({
 	SettingsChatPanel: () => <p>chat face</p>,
 }));
-vi.mock("#/modules/platform/cloudDrive/CloudDrive", () => ({
-	CloudDrive: () => <p>drive face</p>,
+vi.mock("./SettingsDriveFace", () => ({
+	SettingsDriveFace: () => <p>drive face</p>,
 }));
 
 const Panel = () => {

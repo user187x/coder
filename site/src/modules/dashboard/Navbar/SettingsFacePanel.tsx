@@ -4,8 +4,8 @@ import {
 	ChatGate,
 	useChatEnabled,
 } from "#/modules/platform/chat/useChatEnabled";
-import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
 import { SettingsChatPanel } from "./SettingsChatPanel";
+import { SettingsDriveFace } from "./SettingsDriveFace";
 import "./settingsFacePanel.css";
 
 /** The faces of the Settings panel's bottom panel, in the order the arrows turn through them. */
@@ -37,6 +37,23 @@ export const SettingsFacePanel: React.FC<{
 	const [turn, setTurn] = useState<"left" | "right">("right");
 	const arrowFill = `settings-face-arrow-${useId()}`;
 	const current = faces.includes(face) ? face : (faces[0] ?? "drive");
+	// The tallest face's height so far: the panel holds it whichever face shows.
+	const [tallest, setTallest] = useState(0);
+	const measure = (element: HTMLDivElement | null) => {
+		if (!element) return;
+		const observer = new ResizeObserver(() => {
+			// The face's own content, not the height the panel already holds it to
+			const height = Math.ceil(
+				[...element.children].reduce(
+					(sum, child) => sum + child.scrollHeight,
+					0,
+				),
+			);
+			setTallest((previous) => Math.max(previous, height));
+		});
+		observer.observe(element);
+		return () => observer.disconnect();
+	};
 	const step = (by: 1 | -1) => {
 		const index = faces.indexOf(current);
 		const next = faces[(index + by + faces.length) % faces.length];
@@ -106,28 +123,33 @@ export const SettingsFacePanel: React.FC<{
 					</div>
 				</div>
 			)}
+			{/* Every face as tall as the tallest one shown yet, so the panel keeps one height as it turns */}
 			<div
-				key={current}
-				className={cn(
-					"settings-face",
-					turn === "right"
-						? "settings-face-turn-right"
-						: "settings-face-turn-left",
-				)}
+				className="flex flex-col"
+				style={{ minHeight: tallest || undefined }}
 			>
-				{current === "metrics" ? (
-					metrics
-				) : current === "chat" ? (
-					<ChatGate>
-						<SettingsChatPanel
-							onClose={() => onFaceChange(faces[0] ?? "drive")}
-						/>
-					</ChatGate>
-				) : (
-					<div className="rounded-lg border border-solid border-border bg-surface-primary p-3">
-						<CloudDrive placement="quota" workspaceIds={[]} />
-					</div>
-				)}
+				<div
+					key={current}
+					ref={measure}
+					className={cn(
+						"settings-face flex flex-1 flex-col [&>*]:flex-1",
+						turn === "right"
+							? "settings-face-turn-right"
+							: "settings-face-turn-left",
+					)}
+				>
+					{current === "metrics" ? (
+						metrics
+					) : current === "chat" ? (
+						<ChatGate>
+							<SettingsChatPanel
+								onClose={() => onFaceChange(faces[0] ?? "drive")}
+							/>
+						</ChatGate>
+					) : (
+						<SettingsDriveFace />
+					)}
+				</div>
 			</div>
 		</section>
 	);
