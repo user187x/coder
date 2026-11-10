@@ -1,0 +1,69 @@
+/* The floating chat (ChatPanel's card) in the Settings panel's matte hardware: the same bezelled, lit-from-above
+   plate, its title bar a matte face, its window buttons and section tabs matte keys, the section rail a recessed well.
+   Colours come from the panel's tokens (settingsMenuSkeuo.css), light and dark; sizes and spacing stay as they were. */
+.chat-skeuo {
+	background: var(--skeuo-panel);
+	border-color: var(--skeuo-panel-edge);
+	color: var(--skeuo-ink);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-panel-lip),
+		inset 0 0 0 1px rgb(255 255 255 / 0.04),
+		0 10px 26px rgb(22 26 34 / 0.25),
+		0 2px 6px rgb(22 26 34 / 0.14);
+}
+/* Its glyphs engraved, as the panel's. */
+.chat-skeuo :is(div[data-chat-drag], .chat-dock-section-tab) svg {
+	filter: var(--skeuo-glyph);
+}
+/* The title bar: a matte face with an engraved heading. */
+.chat-skeuo > div[data-chat-drag] {
+	background: var(--skeuo-face);
+	border-bottom-color: var(--skeuo-face-edge);
+	box-shadow: inset 0 1px 0 var(--skeuo-highlight);
+	text-shadow: var(--skeuo-engrave);
+}
+.chat-skeuo > div[data-chat-drag] > button:hover {
+	background: var(--skeuo-face-hover);
+}
+/* Minimize, maximize, close: small matte orbs. */
+.chat-skeuo > div[data-chat-drag] span > button {
+	border-color: var(--skeuo-face-edge);
+	background: var(--skeuo-face);
+	color: var(--skeuo-ink);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-highlight),
+		0 1px 1px rgb(0 0 0 / 0.08);
+}
+.chat-skeuo > div[data-chat-drag] span > button:hover {
+	background: var(--skeuo-face-hover);
+}
+.chat-skeuo > div[data-chat-drag] span > button:active {
+	background: var(--skeuo-face-pressed);
+	box-shadow: inset 0 1.5px 3px rgb(0 0 0 / 0.28);
+}
+/* The section rail: a recessed well, its tabs matte keys, the open one pressed in. */
+.chat-skeuo [aria-label="Chat sections"] {
+	background: var(--skeuo-well);
+	border-right-color: var(--skeuo-well-edge);
+	box-shadow: inset -1px 0 2px var(--skeuo-shade);
+}
+.chat-skeuo .chat-dock-section-tab {
+	border: 1px solid var(--skeuo-face-edge);
+	background: var(--skeuo-face);
+	color: var(--skeuo-ink);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-highlight),
+		0 1px 1px rgb(0 0 0 / 0.06);
+}
+.chat-skeuo .chat-dock-section-tab:hover {
+	background: var(--skeuo-face-hover);
+	color: var(--skeuo-ink);
+}
+.chat-skeuo .chat-dock-section-tab[data-state="active"] {
+	background: var(--skeuo-face-pressed);
+	color: var(--skeuo-ink);
+	box-shadow:
+		inset 0 1.5px 3px rgb(0 0 0 / 0.28),
+		inset 0 1px 1px rgb(0 0 0 / 0.18),
+		0 1px 0 var(--skeuo-highlight);
+}

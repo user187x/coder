@@ -1,8 +1,9 @@
 /* The Settings menu's top part as brushed, matte hardware: a bezelled panel, recessed pill wells and engraved text and
    glyphs. Only the surface, its header row, the Workspaces pill and the Controls list are dressed; the bottom face panel
    (SettingsFacePanel) keeps its own look. Sizes, paddings and margins stay as they were, so AdminQuickLinksMenu's
-   fit-to-panel measurements are unchanged. */
-.settings-menu {
+   fit-to-panel measurements are unchanged. The floating chat (.chat-skeuo, chatSkeuo.css) shares these tokens. */
+.settings-menu,
+.chat-skeuo {
 	--skeuo-panel: linear-gradient(180deg, #f2f4f7 0%, #eaedf2 30%, #e2e5ec 100%);
 	--skeuo-panel-edge: #8a909b;
 	--skeuo-panel-lip: rgb(255 255 255 / 0.98);
@@ -50,7 +51,8 @@
 	);
 	--skeuo-footer-edge: #99a0ac;
 }
-.dark .settings-menu {
+.dark .settings-menu,
+.dark .chat-skeuo {
 	--skeuo-panel: linear-gradient(180deg, #3a3d44 0%, #33363c 30%, #2b2d33 100%);
 	--skeuo-panel-edge: #111214;
 	--skeuo-panel-lip: rgb(255 255 255 / 0.1);

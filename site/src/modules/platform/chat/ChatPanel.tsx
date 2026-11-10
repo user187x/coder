@@ -29,6 +29,8 @@ import {
 	unreadTotal,
 	useChatSnapshot,
 } from "./chatStore";
+import "#/modules/dashboard/Navbar/settingsMenuSkeuo.css";
+import "./chatSkeuo.css";
 import { DockSections } from "./DockSections";
 
 /** The bar alone: its 44 px and the card's border. */
@@ -68,7 +70,7 @@ export const ChatPanel: React.FC<{
 				data-testid={raised ? "chat-window-raised" : "chat-bar"}
 				// Platform: a card floating clear of the page's bottom bar (ChatDock lifts it), rounded all round; it rises from its bottom edge
 				className={cn(
-					"relative flex flex-col overflow-hidden rounded-[14px] border border-solid border-border bg-surface-primary shadow-[0_8px_28px_rgb(0_0_0/.16),0_1px_3px_rgb(0_0_0/.08)] transition-[height] duration-250 ease-out motion-reduce:transition-none",
+					"chat-skeuo relative flex flex-col overflow-hidden rounded-[14px] border border-solid border-border bg-surface-primary shadow-[0_8px_28px_rgb(0_0_0/.16),0_1px_3px_rgb(0_0_0/.08)] transition-[height] duration-250 ease-out motion-reduce:transition-none",
 					(!floating || compact || state.consoleOverlay) && "hidden",
 				)}
 				style={{
