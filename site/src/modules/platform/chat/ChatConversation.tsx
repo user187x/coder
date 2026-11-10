@@ -17,7 +17,12 @@ import {
 import { useMutation } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
-import { type ChatFile, type ChatMessage, PlatformAPI } from "#/api/platform";
+import {
+	type ChatFile,
+	type ChatMessage,
+	isChatGroupId,
+	PlatformAPI,
+} from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import {
@@ -28,6 +33,10 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
@@ -42,6 +51,7 @@ import {
 	loadOlderMessages,
 	markRead,
 	messageSide,
+	openChatWith,
 	reportTyping,
 	sendChatMessage,
 	setFocusedWindow,
@@ -426,6 +436,16 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 							name={name}
 							actionsRef={selectionRef}
 							unreadRef={unreadRef}
+							onQuote={(quoted) => {
+								setText(
+									(current) =>
+										`${quoted
+											.split("\n")
+											.map((line) => `> ${line}`)
+											.join("\n")}\n${current}`,
+								);
+								inputRef.current?.focus();
+							}}
 						/>
 					</div>
 				</div>
@@ -705,6 +725,8 @@ type MessageLogProps = {
 	meId: string;
 	name: string;
 	unreadRef: React.Ref<HTMLDivElement>;
+	/** Quote in reply: the message's text into the message box, as a quote. */
+	onQuote: (text: string) => void;
 };
 
 const MessageLog: React.FC<MessageLogProps> = ({
@@ -714,8 +736,32 @@ const MessageLog: React.FC<MessageLogProps> = ({
 	name,
 	actionsRef,
 	unreadRef,
+	onQuote,
 }) => {
 	const [selected, setSelected] = useState<Set<number>>(new Set());
+	// The bulk bar folds away when compact; an action that needs it opens it.
+	const [barOpen, setBarOpen] = useState(!compact);
+	const state = useChatSnapshot();
+	const forwardTo = [...state.conversations.values()]
+		.filter((c) => c.peer.id !== w.peer.id)
+		.slice(0, 12);
+	const selectAll = () => {
+		setBarOpen(true);
+		setSelected(new Set(w.messages.map((m) => m.id)));
+	};
+	const copy = (text: string) =>
+		void navigator.clipboard.writeText(text).then(
+			() => toast.success("Copied."),
+			() => toast.error("Could not copy."),
+		);
+	const forward = (peerId: string, label: string, m: ChatMessage) =>
+		void sendChatMessage(
+			peerId,
+			`Forwarded from ${m.fromDisplay || m.fromName}:\n${m.text}`,
+		).then(
+			() => toast.success(`Forwarded to ${label}.`),
+			(error) => toast.error(getErrorMessage(error, "Not forwarded.")),
+		);
 	const [deleting, setDeleting] = useState<number[] | null | undefined>();
 	const remove = useMutation({
 		mutationFn: (ids: number[] | null) =>
@@ -741,7 +787,7 @@ const MessageLog: React.FC<MessageLogProps> = ({
 			return next;
 		});
 	useImperativeHandle(actionsRef, () => ({
-		selectAll: () => setSelected(new Set(w.messages.map((m) => m.id))),
+		selectAll,
 		clearSelection: () => setSelected(new Set()),
 		clearAll: () => setDeleting(null),
 	}));
@@ -767,7 +813,11 @@ const MessageLog: React.FC<MessageLogProps> = ({
 	let previousFrom: string | null = null;
 	return (
 		<>
-			<details open={compact ? undefined : true} className="shrink-0">
+			<details
+				open={barOpen}
+				onToggle={(event) => setBarOpen(event.currentTarget.open)}
+				className="shrink-0"
+			>
 				<summary
 					hidden={!compact}
 					className="cursor-pointer py-1 text-xs text-content-secondary"
@@ -776,11 +826,7 @@ const MessageLog: React.FC<MessageLogProps> = ({
 				</summary>
 				<div className="bulk-action-surface sticky top-0 z-10 flex flex-wrap items-center justify-center gap-1 rounded-md bg-surface-primary p-1 text-xs">
 					<span>{ids.length} selected</span>
-					<Button
-						size="sm"
-						variant="subtle"
-						onClick={() => setSelected(new Set(w.messages.map((m) => m.id)))}
-					>
+					<Button size="sm" variant="subtle" onClick={selectAll}>
 						Select all loaded
 					</Button>
 					<Button
@@ -856,16 +902,82 @@ const MessageLog: React.FC<MessageLogProps> = ({
 									<MessageBubble message={m} side={side} meId={meId} />
 								</div>
 							</ContextMenuTrigger>
+							{/* As Google Chat's message menu: reply, copy, forward, the sender, selection, delete */}
 							<ContextMenuContent className="z-[110]">
-								<ContextMenuItem onSelect={() => toggle(m.id)}>
-									Select message
-								</ContextMenuItem>
+								{Boolean(m.text) && (
+									<ContextMenuItem onSelect={() => onQuote(m.text)}>
+										Quote in reply
+									</ContextMenuItem>
+								)}
+								{Boolean(m.text) && (
+									<ContextMenuItem onSelect={() => copy(m.text)}>
+										Copy text
+									</ContextMenuItem>
+								)}
+								{Boolean(m.text) && forwardTo.length > 0 && (
+									<ContextMenuSub>
+										<ContextMenuSubTrigger>Forward to</ContextMenuSubTrigger>
+										<ContextMenuSubContent className="z-[111] max-h-[60vh] overflow-y-auto">
+											{forwardTo.map((c) => {
+												const label = c.peer.name || c.peer.username;
+												return (
+													<ContextMenuItem
+														key={c.peer.id}
+														onSelect={() => forward(c.peer.id, label, m)}
+													>
+														{label}
+													</ContextMenuItem>
+												);
+											})}
+										</ContextMenuSubContent>
+									</ContextMenuSub>
+								)}
+								{!mine && isChatGroupId(w.peer.id) && (
+									<ContextMenuItem
+										onSelect={() =>
+											void openChatWith({
+												id: m.from,
+												username: m.fromName,
+												name: m.fromDisplay || m.fromName,
+												admin: m.fromAdmin,
+											})
+										}
+									>
+										Message {m.fromDisplay || m.fromName} privately
+									</ContextMenuItem>
+								)}
 								<ContextMenuItem
+									onSelect={() => copy(new Date(m.at).toLocaleString("en-US"))}
+								>
+									Copy time sent
+								</ContextMenuItem>
+								<ContextMenuSeparator />
+								<ContextMenuItem
+									onSelect={() => {
+										setBarOpen(true);
+										toggle(m.id);
+									}}
+								>
+									{selected.has(m.id) ? "Unselect message" : "Select message"}
+								</ContextMenuItem>
+								<ContextMenuItem onSelect={selectAll}>
+									Select all messages
+								</ContextMenuItem>
+								{ids.length > 0 && (
+									<ContextMenuItem onSelect={() => setSelected(new Set())}>
+										Clear selection
+									</ContextMenuItem>
+								)}
+								<ContextMenuSeparator />
+								<ContextMenuItem
+									className="text-content-destructive"
 									onSelect={() =>
 										setDeleting(selected.has(m.id) && ids.length ? ids : [m.id])
 									}
 								>
-									Delete message
+									{selected.has(m.id) && ids.length > 1
+										? `Delete ${ids.length} messages`
+										: "Delete message"}
 								</ContextMenuItem>
 							</ContextMenuContent>
 						</ContextMenu>

@@ -2,13 +2,17 @@ import { cn } from "cn";
 import {
 	ArrowLeftIcon,
 	CameraIcon,
+	CheckCheckIcon,
 	ChevronDownIcon,
 	ChevronUpIcon,
 	ClockIcon,
 	CloudIcon,
+	CopyIcon,
 	CrosshairIcon,
+	ExternalLinkIcon,
 	KeyboardIcon,
 	ListChecksIcon,
+	MessageSquareIcon,
 	MonitorIcon,
 	PictureInPicture2Icon,
 	SearchIcon,
@@ -51,6 +55,7 @@ import {
 	deleteConversations,
 	displayName,
 	forceResponse,
+	markRead,
 	popOutOfConsole,
 	selectInConsole,
 	startGroupChat,
@@ -379,6 +384,8 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 			void userWorkspaceHref(queryClient, c.peer.username).then(visit),
 		onCloudDrive: (c) =>
 			visit(userCloudDriveHref({ id: c.peer.id, username: c.peer.username })),
+		onOpen: (c) => go(c, list.indexOf(c) < index ? "prev" : "next"),
+		onSelect: (c) => toggle(c),
 		onForce: (c) =>
 			void forceResponse(c.peer.id).then(
 				() =>
@@ -887,6 +894,8 @@ type RowMenu = {
 	onWorkspace: (c: Conversation) => void;
 	onCloudDrive: (c: Conversation) => void;
 	onForce: (c: Conversation) => void;
+	onOpen: (c: Conversation) => void;
+	onSelect: (c: Conversation) => void;
 };
 
 const isWaitingSelected = (
@@ -1074,7 +1083,39 @@ const RolodexList: React.FC<RolodexListProps> = ({
 										</span>
 									</div>
 								</ContextMenuTrigger>
+								{/* As Google Chat's conversation menu: open, mark read, pop out, copy the name, choose, then
+								    the person's places, and delete */}
 								<ContextMenuContent data-testid="chat-console-row-menu">
+									<ContextMenuItem onSelect={() => menu.onOpen(c)}>
+										<MessageSquareIcon />
+										Open
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={c.unread === 0}
+										onSelect={() => markRead(c.peer.id, true)}
+									>
+										<CheckCheckIcon />
+										Mark as read
+									</ContextMenuItem>
+									<ContextMenuItem onSelect={() => popOutOfConsole(c.peer)}>
+										<ExternalLinkIcon />
+										Pop out
+									</ContextMenuItem>
+									<ContextMenuItem
+										onSelect={() =>
+											void navigator.clipboard
+												.writeText(displayName(c.peer))
+												.then(() => toast.success("Copied."))
+										}
+									>
+										<CopyIcon />
+										Copy name
+									</ContextMenuItem>
+									<ContextMenuItem onSelect={() => menu.onSelect(c)}>
+										<ListChecksIcon />
+										{picked.has(c.peer.id) ? "Unchoose" : "Choose"}
+									</ContextMenuItem>
+									<ContextMenuSeparator />
 									<ContextMenuItem
 										disabled={group}
 										onSelect={() => menu.onWorkspace(c)}

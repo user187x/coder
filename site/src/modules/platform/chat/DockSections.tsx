@@ -67,7 +67,7 @@ export const DockSections: React.FC<{
 		>
 			<TabsList
 				aria-label="Chat sections"
-				className="flex w-12 shrink-0 flex-col items-center gap-2 border-0 border-r border-solid border-border bg-surface-secondary/30 py-2"
+				className="flex w-10 shrink-0 flex-col items-center gap-1.5 border-0 border-r border-solid border-border bg-surface-secondary/30 py-1.5"
 			>
 				<SectionTab
 					value="people"
@@ -178,33 +178,45 @@ const SectionTab: React.FC<
 	React.ComponentProps<typeof TabsTrigger> & {
 		actionsRef: React.RefObject<DockListActions | null>;
 	}
-> = ({ actionsRef, children, ...props }) => (
-	<ContextMenu>
-		<ContextMenuTrigger asChild>
-			<TabsTrigger {...props}>{children}</TabsTrigger>
-		</ContextMenuTrigger>
-		<ContextMenuContent className="bulk-action-surface z-[110]">
-			<ContextMenuItem
-				onSelect={() => {
-					if (
-						props.value === "people" ||
-						props.value === "chat" ||
-						props.value === "notifications"
-					)
-						setDockTab(props.value);
-				}}
-			>
-				Open {props.title}
-			</ContextMenuItem>
-			<ContextMenuItem onSelect={() => actionsRef.current?.selectAll()}>
-				Select all
-			</ContextMenuItem>
-			<ContextMenuItem onSelect={() => actionsRef.current?.clearSelection()}>
-				Clear selection
-			</ContextMenuItem>
-			<ContextMenuItem onSelect={() => actionsRef.current?.clearAll()}>
-				Clear all
-			</ContextMenuItem>
-		</ContextMenuContent>
-	</ContextMenu>
-);
+> = ({ actionsRef, children, ...props }) => {
+	// A bulk action from the rail acts on its section, opened so its result shows.
+	const run = (action: (actions: DockListActions) => void) => {
+		if (
+			props.value === "people" ||
+			props.value === "chat" ||
+			props.value === "notifications"
+		)
+			setDockTab(props.value);
+		if (actionsRef.current) action(actionsRef.current);
+	};
+	return (
+		<ContextMenu>
+			<ContextMenuTrigger asChild>
+				<TabsTrigger {...props}>{children}</TabsTrigger>
+			</ContextMenuTrigger>
+			<ContextMenuContent className="bulk-action-surface z-[110]">
+				<ContextMenuItem
+					onSelect={() => {
+						if (
+							props.value === "people" ||
+							props.value === "chat" ||
+							props.value === "notifications"
+						)
+							setDockTab(props.value);
+					}}
+				>
+					Open {props.title}
+				</ContextMenuItem>
+				<ContextMenuItem onSelect={() => run((a) => a.selectAll())}>
+					Select all
+				</ContextMenuItem>
+				<ContextMenuItem onSelect={() => run((a) => a.clearSelection())}>
+					Clear selection
+				</ContextMenuItem>
+				<ContextMenuItem onSelect={() => run((a) => a.clearAll())}>
+					Clear all
+				</ContextMenuItem>
+			</ContextMenuContent>
+		</ContextMenu>
+	);
+};

@@ -40,6 +40,38 @@ export const ContextMenuContent: React.FC<
 	);
 };
 
+/** A submenu: its trigger is an item that opens another menu beside it. */
+export const ContextMenuSub = ContextMenuPrimitive.Sub;
+
+export const ContextMenuSubTrigger: React.FC<
+	React.ComponentProps<typeof ContextMenuPrimitive.SubTrigger>
+> = ({ className, children, ...props }) => (
+	<ContextMenuPrimitive.SubTrigger
+		className={cn(
+			menuItemClass,
+			"data-[state=open]:bg-surface-secondary",
+			className,
+		)}
+		{...props}
+	>
+		{children}
+		<span aria-hidden className="ml-auto pl-3 text-content-secondary">
+			›
+		</span>
+	</ContextMenuPrimitive.SubTrigger>
+);
+
+export const ContextMenuSubContent: React.FC<
+	React.ComponentProps<typeof ContextMenuPrimitive.SubContent>
+> = ({ className, ...props }) => (
+	<ContextMenuPrimitive.Portal>
+		<ContextMenuPrimitive.SubContent
+			className={cn(menuContentClass, className)}
+			{...props}
+		/>
+	</ContextMenuPrimitive.Portal>
+);
+
 type ContextMenuItemProps = React.ComponentProps<
 	typeof ContextMenuPrimitive.Item
 > & {

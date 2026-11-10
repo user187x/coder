@@ -125,8 +125,12 @@ export const DockPeople: React.FC<{
 		setHidden((old) => new Set([...old, ...ids]));
 		setSelected(new Set());
 	};
+	// The section's right-click actions open the bulk bar, so their result shows.
 	useImperativeHandle(actionsRef, () => ({
-		selectAll: () => setSelected(new Set(entries.map((p) => p.id))),
+		selectAll: () => {
+			setSelecting(true);
+			setSelected(new Set(entries.map((p) => p.id)));
+		},
 		clearSelection: () => setSelected(new Set()),
 		clearAll: () => hide(entries.map((p) => p.id)),
 	}));
@@ -160,6 +164,7 @@ export const DockPeople: React.FC<{
 			</div>
 			<details
 				className="text-xs"
+				open={selecting}
 				onToggle={(event) => setSelecting(event.currentTarget.open)}
 			>
 				<summary className="cursor-pointer p-2">
