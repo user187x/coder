@@ -16,7 +16,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
 import {
 	ChevronDownIcon,
-	EyeIcon,
 	GripVerticalIcon,
 	PinIcon,
 	Trash2Icon,
@@ -337,7 +336,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 											setAnnouncement(`${item.label} shown in the menu.`);
 										}}
 									>
-										<EyeIcon aria-hidden />
+										<PinIcon aria-hidden />
 									</DropdownMenuItem>
 								)}
 							</div>

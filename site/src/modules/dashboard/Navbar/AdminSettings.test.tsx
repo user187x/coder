@@ -48,12 +48,15 @@ describe("Admin menu", () => {
 		const labels = items.map((item) => item.textContent?.trim());
 		expect(labels).toEqual([
 			...pages.slice(0, 4).map((page) => page.label),
-			// each with its button to hide it under Controls
+			// each with its trash can (hide under Controls) and move handle
 			"Organizations",
+			"",
 			"",
 			"Audit logs",
 			"",
+			"",
 			"Connection logs",
+			"",
 			"",
 			"Controls",
 		]);

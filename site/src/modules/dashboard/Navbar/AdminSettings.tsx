@@ -1,8 +1,6 @@
-import { cn } from "cn";
 import {
 	Building2Icon,
 	CableIcon,
-	EyeOffIcon,
 	type LucideIcon,
 	ScrollTextIcon,
 } from "lucide-react";
@@ -11,11 +9,15 @@ import {
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
-import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import {
+	preferenceSettings,
+	preferenceSettingsKey,
+	updatePreferenceSettings,
+} from "#/api/queries/users";
+import type { UserPreferenceSettings } from "#/api/typesGenerated";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
-import { DefaultViewOption, DefaultViewOrb } from "./DefaultViewOption";
-import { PageMenuItem } from "./InlineMenu";
+import { HideableMenuRows } from "./HideableMenuRows";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 
 /**
@@ -130,6 +132,8 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
 	const save = useMutation(updateUserUIPreferences(client));
+	const sidebar = useQuery(preferenceSettings());
+	const saveOrder = useMutation(updatePreferenceSettings(client));
 	const hiddenIds = preferences.data?.settings_menu_hidden ?? [];
 	const items = [
 		// Chat has its own entry (ChatMenuItem) under Controls.
@@ -139,6 +143,24 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 		),
 		...hideableItems(permissions),
 	];
+	// The rows after the quick links in the admin's own order (their sidebar order), the rest after them.
+	const order = sidebar.data?.admin_sidebar_order ?? [];
+	const rank = (id: string) => {
+		const index = order.indexOf(id);
+		return index < 0 ? Number.POSITIVE_INFINITY : index;
+	};
+	const shown = items
+		.filter((item) => !hiddenIds.includes(item.id))
+		.map((item, index) => ({ item, index }))
+		.sort((a, b) => rank(a.item.id) - rank(b.item.id) || a.index - b.index)
+		.map(({ item }) => item);
+	const reorder = (ids: string[]) => {
+		const next = [...ids, ...order.filter((id) => !ids.includes(id))];
+		client.setQueryData<UserPreferenceSettings>(preferenceSettingsKey, (old) =>
+			old ? { ...old, admin_sidebar_order: next } : old,
+		);
+		saveOrder.mutate({ admin_sidebar_order: next });
+	};
 	const setHidden = (id: string, hide: boolean) =>
 		save.mutate({
 			settings_menu_hidden: hide
@@ -156,52 +178,17 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				onChange={quickLinksEditor?.onChange}
 				hiddenItems={items.filter((item) => hiddenIds.includes(item.id))}
 				onShowItem={(id) => setHidden(id, false)}
-				shownIds={items
-					.filter((item) => !hiddenIds.includes(item.id))
-					.map((item) => item.id)}
-				// The other items in the quick links' list, each hideable under Controls like a quick link.
-				moreLinks={items
-					.filter((item) => !hiddenIds.includes(item.id))
-					.map((item) => (
-						<div
-							key={item.id}
-							className="group/hideable flex flex-wrap items-center rounded-full"
-						>
-							<PageMenuItem
-								to={item.path}
-								icon={item.icon}
-								label={item.label}
-								className={cn("min-w-0 flex-1", itemClassName)}
-								panelClassName="order-last"
-								options={
-									<>
-										<DefaultViewOption path={item.path} />
-										<DropdownMenuItem
-											onSelect={(event) => {
-												event.preventDefault();
-												setHidden(item.id, true);
-											}}
-										>
-											Hide under Controls
-										</DropdownMenuItem>
-									</>
-								}
-							/>
-							<DefaultViewOrb path={item.path} />
-							<DropdownMenuItem
-								aria-label={`Hide ${item.label} under Controls`}
-								title="Hide under Controls"
-								className="invisible flex-none px-2 text-content-secondary group-focus-within/hideable:visible group-hover/hideable:visible"
-								onSelect={(event) => {
-									// Stay open, so several items can be hidden in a row.
-									event.preventDefault();
-									setHidden(item.id, true);
-								}}
-							>
-								<EyeOffIcon aria-hidden />
-							</DropdownMenuItem>
-						</div>
-					))}
+				shownIds={shown.map((item) => item.id)}
+				// The other items in the quick links' list, as the quick links: a hover trash can hides one under
+				// Controls, a hover handle moves it (saved as the admin's sidebar order).
+				moreLinks={
+					<HideableMenuRows
+						items={shown}
+						itemClassName={itemClassName}
+						onHide={(id) => setHidden(id, true)}
+						onReorder={reorder}
+					/>
+				}
 			/>
 			{!externalMetrics && canViewAdminSettings(permissions) && (
 				<SettingsMetricGraphs chatExpanded={Boolean(chatExpanded)} />
