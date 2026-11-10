@@ -13,6 +13,7 @@ import type { Workspace } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Loader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
+import { WorkspaceNavbarBreadcrumb } from "#/modules/dashboard/Navbar/WorkspaceNavbarBreadcrumb";
 import {
 	setWorkspaceContact,
 	useWorkspaceContactLost,
@@ -178,18 +179,23 @@ const WorkspacePage: React.FC = () => {
 		workspaceQuery.error ?? templateQuery.error ?? permissionsQuery.error;
 	const isLoading = !workspace || !template || !permissions;
 
-	return pageError ? (
-		<Margins>
-			<ErrorAlert error={pageError} className="my-4" />
-		</Margins>
-	) : isLoading ? (
-		<Loader />
-	) : (
-		<WorkspaceReadyPage
-			workspace={workspace}
-			template={template}
-			permissions={permissions}
-		/>
+	return (
+		<>
+			<WorkspaceNavbarBreadcrumb workspaceName={workspaceName} />
+			{pageError ? (
+				<Margins>
+					<ErrorAlert error={pageError} className="my-4" />
+				</Margins>
+			) : isLoading ? (
+				<Loader />
+			) : (
+				<WorkspaceReadyPage
+					workspace={workspace}
+					template={template}
+					permissions={permissions}
+				/>
+			)}
+		</>
 	);
 };
 
