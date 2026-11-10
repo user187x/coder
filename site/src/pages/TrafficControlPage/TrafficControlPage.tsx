@@ -283,6 +283,7 @@ const TrafficControlPage: React.FC = () => {
 				agentIds: w.latest_build.resources.flatMap((res) =>
 					(res.agents ?? []).map((a) => a.id),
 				),
+				organizationId: w.organization_id,
 			}),
 		);
 		const shares = new Map<string, WorkspaceAgentPortShare[]>();

@@ -21,7 +21,7 @@ export const TestPortDialog: React.FC<{
 	onCancel: () => void;
 }> = ({ kind, workspace, peers, onStart, onCancel }) => {
 	const id = useId();
-	const [port, setPort] = useState("7777");
+	const [port, setPort] = useState("");
 	const n = Number(port);
 	const valid = Number.isInteger(n) && n >= 1 && n <= 65535;
 	const blocked = kind === "emit" && peers === 0;

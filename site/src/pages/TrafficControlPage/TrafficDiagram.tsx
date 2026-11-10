@@ -989,6 +989,7 @@ export const TrafficDiagram: React.FC<{
 							ws.agentIds[0],
 							port,
 							peers(ws.id).map((p) => p.address),
+							ws.organizationId,
 						).catch((error) =>
 							toast.error(getErrorMessage(error, "The test did not start.")),
 						);

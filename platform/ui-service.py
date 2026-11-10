@@ -184,6 +184,7 @@ import hudnodes
 import hudstorage
 import workspaceconnections
 import workspacetunnels
+import trafficprobes  # noqa: E402  (Traffic Control: connectivity tests run in the tunnel helper)
 import workspacepower
 import vmreconcile
 import quarantine
@@ -8890,6 +8891,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if workspacetunnels.handle(self, "GET", path, url.query):
             return
+        if trafficprobes.handle(self, "GET", path, url.query):
+            return
         if quarantine.handle(self, "GET", path, QUARANTINE_ENFORCER, workspace_info):
             return
         if sandbox.handle(self, "GET", path):
@@ -10091,6 +10094,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if workspacepower.handle(self, "DELETE", url.path, url.query):
             return
+        if trafficprobes.handle(self, "DELETE", url.path, url.query):
+            return
         if not workspacetunnels.handle(self, "DELETE", url.path, url.query):
             self.send(404, "not found\n")
 
@@ -10137,6 +10142,8 @@ class Handler(BaseHTTPRequestHandler):
         if workspacepower.handle(self, "POST", path, url.query):
             return
         if workspacetunnels.handle(self, "POST", path, url.query):
+            return
+        if trafficprobes.handle(self, "POST", path, url.query):
             return
         if sandbox.handle(self, "POST", path):
             return
@@ -10924,6 +10931,7 @@ def main():
     sandbox.LOCKDOWN = lockdown
     workspacetunnels.PAIR_ALLOWED = sandbox.pair_allowed
     lockdown.setup(log, KUBE, workspace_info, ADMIN_ROLES, CODER_ACCESS_URL)
+    trafficprobes.setup(KUBE, workspacetunnels.NAMESPACE, log)
     provisioners.setup(log, KUBE, ADMIN_ROLES, _coder_get, _coder_send)
     clusternet.setup(log, KUBE, _coder_get, cluster_snapshot, lambda: LOGOS.pool if LOGOS else None, quantity,
                      safe=safe, tls=TLS)

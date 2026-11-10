@@ -1,11 +1,14 @@
 import { useSyncExternalStore } from "react";
+import { PlatformAPI, PlatformError } from "#/api/platform";
 import { terminalWebsocketUrl } from "#/utils/terminal";
 
 /**
  * Traffic Control's connectivity tests: a workspace emits "ACK" every second on a port (to its tunnels' other ends,
  * or, from the browser, to one of its shared ports), and a workspace listens on a port, its orb rippling green at
- * each "ACK" that arrives. A test is a command run in the workspace through its agent's terminal (no session of the
- * user's own is used), stopped with Ctrl-C when the test stops or the page closes.
+ * each "ACK" that arrives. A test runs in the workspace's tunnel helper, started by the platform (it works where the
+ * agent blocks terminal access, as in browser workspaces); in a workspace without one, it is a command run through
+ * its agent's terminal (no session of the user's own is used), stopped with Ctrl-C. Either way it stops when the test
+ * stops or the page closes.
  */
 
 export type TestKind = "emit" | "listen";
@@ -133,15 +136,82 @@ const counting = (workspaceId: string, kind: TestKind, line: string) => {
 		putTest(workspaceId, kind, { ...test, failed: test.failed + 1 });
 };
 
-/** Starts a workspace's test (stopping one of the same kind it runs). */
+/** Through the platform: started in the workspace's tunnel helper, its counts read back every second. */
+const startInHelper = async (
+	kind: TestKind,
+	organizationId: string,
+	workspaceId: string,
+	port: number,
+	addresses: readonly string[],
+) => {
+	await PlatformAPI.startTrafficTest(
+		organizationId,
+		workspaceId,
+		kind,
+		port,
+		addresses,
+	);
+	let seen = 0;
+	const timer = window.setInterval(() => {
+		PlatformAPI.getTrafficTests(organizationId, [workspaceId])
+			.then(({ tests }) => {
+				const current = state.tests.get(workspaceId)?.[kind];
+				if (current?.stop !== stop) return;
+				const test = tests[workspaceId]?.[kind];
+				if (!test?.running) {
+					window.clearInterval(timer);
+					putTest(workspaceId, kind);
+					return;
+				}
+				if (test.received > seen) {
+					const received = new Map(state.received);
+					received.set(
+						workspaceId,
+						(received.get(workspaceId) ?? 0) + test.received - seen,
+					);
+					seen = test.received;
+					set({ received });
+				}
+				putTest(workspaceId, kind, {
+					...current,
+					sent: test.sent,
+					failed: test.failed,
+				});
+			})
+			.catch(() => undefined);
+	}, 1000);
+	const stop = () => {
+		window.clearInterval(timer);
+		void PlatformAPI.stopTrafficTest(organizationId, workspaceId, kind).catch(
+			() => undefined,
+		);
+	};
+	putTest(workspaceId, kind, { port, stop, sent: 0, failed: 0 });
+};
+
+/**
+ * Starts a workspace's test (stopping one of the same kind it runs): in its tunnel helper, else, where it has none,
+ * through its agent's terminal.
+ */
 export const startTest = async (
 	kind: TestKind,
 	workspaceId: string,
 	agentId: string,
 	port: number,
 	addresses: readonly string[] = [],
+	organizationId?: string,
 ) => {
 	stopTest(workspaceId, kind);
+	if (organizationId) {
+		try {
+			await startInHelper(kind, organizationId, workspaceId, port, addresses);
+			return;
+		} catch (error) {
+			// 404: no tunnel helper runs in this workspace; the terminal is the way.
+			if (!(error instanceof PlatformError && error.status === 404))
+				throw error;
+		}
+	}
 	const command =
 		kind === "emit" ? emitCommand(port, addresses) : listenCommand(port);
 	const stop = await run(

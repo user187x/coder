@@ -13,6 +13,8 @@ export type TrafficWorkspace = {
 	href: string;
 	/** Its agents, whose listening ports are its open ports. */
 	agentIds: readonly string[];
+	/** Its organization, whose tunnels and connectivity tests it has. */
+	organizationId: string;
 };
 
 /** A port orb: a shared port into a workspace (input), or a port a tunnel opens to its target (output). */

@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { API } from "#/api/api";
-import { PlatformAPI } from "#/api/platform";
+import { PlatformAPI, PlatformError } from "#/api/platform";
 import type { Workspace } from "#/api/typesGenerated";
 import { MockUserMember, MockWorkspace } from "#/testHelpers/entities";
 import { render } from "#/testHelpers/renderHelpers";
@@ -231,7 +231,7 @@ it("maps a tunnel's input port to another output port from its badge", async () 
 	);
 });
 
-it("listens on a workspace's port and ripples its orb at each ACK", async () => {
+it("listens on a workspace's port through its terminal where it has no tunnel helper", async () => {
 	const user = userEvent.setup();
 	const sockets: FakeSocket[] = [];
 	class FakeSocket extends EventTarget {
@@ -245,6 +245,9 @@ it("listens on a workspace's port and ripples its orb at each ACK", async () => 
 		close() {}
 	}
 	vi.stubGlobal("WebSocket", Object.assign(FakeSocket, { OPEN: 1 }));
+	vi.spyOn(PlatformAPI, "startTrafficTest").mockRejectedValue(
+		new PlatformError("no tunnel helper", 404),
+	);
 	setup();
 	const chain = await screen.findByRole("region", { name: "web → db" });
 	fireEvent.contextMenu(
@@ -254,6 +257,10 @@ it("listens on a workspace's port and ripples its orb at each ACK", async () => 
 		await screen.findByRole("menuitem", { name: "Test Listen…" }),
 	);
 	const dialog = await screen.findByRole("dialog", { name: /Test Listen: db/ });
+	await user.type(
+		within(dialog).getByRole("spinbutton", { name: "Port" }),
+		"7777",
+	);
 	await user.click(
 		within(dialog).getByRole("button", { name: "Start listening" }),
 	);
@@ -266,4 +273,75 @@ it("listens on a workspace's port and ripples its orb at each ACK", async () => 
 	);
 	expect(await screen.findByTestId("ack-ripple")).toBeTruthy();
 	vi.unstubAllGlobals();
+});
+
+it("listens in the workspace's tunnel helper and ripples its orb at each ACK it counts", async () => {
+	const user = userEvent.setup();
+	const start = vi
+		.spyOn(PlatformAPI, "startTrafficTest")
+		.mockImplementation(async (_org, _ws, kind, port) => ({
+			test: {
+				kind,
+				port,
+				sent: 0,
+				failed: 0,
+				received: 0,
+				listening: true,
+				running: true,
+				error: null,
+			},
+		}));
+	vi.spyOn(PlatformAPI, "getTrafficTests").mockImplementation(
+		async (_org, [id]) => ({
+			tests: {
+				[id]: {
+					listen: {
+						kind: "listen",
+						port: 8888,
+						sent: 0,
+						failed: 0,
+						received: 2,
+						listening: true,
+						running: true,
+						error: null,
+					},
+				},
+			},
+		}),
+	);
+	setup();
+	const chain = await screen.findByRole("region", { name: "web → db" });
+	const orb = within(chain).getByRole("button", {
+		name: "db: show its open ports",
+	});
+	fireEvent.contextMenu(orb);
+	// A listener the previous test left running (the tests' store outlives a render) is stopped first.
+	const stopIt = screen.queryByRole("menuitem", { name: /Stop test listen/ });
+	if (stopIt) {
+		await user.click(stopIt);
+		fireEvent.contextMenu(orb);
+	}
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Test Listen…" }),
+	);
+	const dialog = await screen.findByRole("dialog", { name: /Test Listen: db/ });
+	await user.type(
+		within(dialog).getByRole("spinbutton", { name: "Port" }),
+		"8888",
+	);
+	await user.click(
+		within(dialog).getByRole("button", { name: "Start listening" }),
+	);
+	await waitFor(() =>
+		expect(start).toHaveBeenCalledWith(
+			expect.any(String),
+			expect.any(String),
+			"listen",
+			8888,
+			[],
+		),
+	);
+	expect(
+		await screen.findByTestId("ack-ripple", {}, { timeout: 3000 }),
+	).toBeTruthy();
 });

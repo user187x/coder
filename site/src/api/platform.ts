@@ -2345,6 +2345,18 @@ export type WorkspaceTunnelPort = {
 	port: number;
 	target_port?: number;
 };
+/** A connectivity test the platform runs in a workspace's tunnel helper (Traffic Control). */
+type TrafficTest = {
+	kind: "emit" | "listen";
+	port: number;
+	sent: number;
+	failed: number;
+	received: number;
+	listening: boolean;
+	running: boolean;
+	error: string | null;
+};
+
 export type WorkspaceTunnel = {
 	ports?: WorkspaceTunnelPort[] | null;
 	revision?: number;
@@ -2459,6 +2471,32 @@ export const PlatformAPI = {
 		post<{ tunnel: WorkspaceTunnel }>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
 			{ revision, ports },
+		),
+	/** Traffic Control's connectivity tests the platform runs in a workspace's tunnel helper. */
+	getTrafficTests: (organizationId: string, workspaceIds: readonly string[]) =>
+		get<{
+			tests: Record<string, Partial<Record<"emit" | "listen", TrafficTest>>>;
+		}>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-traffic-tests?${workspaceIds.map((id) => `workspace_id=${encodeURIComponent(id)}`).join("&")}`,
+		),
+	startTrafficTest: (
+		organizationId: string,
+		workspaceId: string,
+		kind: "emit" | "listen",
+		port: number,
+		addresses: readonly string[],
+	) =>
+		post<{ test: TrafficTest }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-traffic-tests/${encodeURIComponent(workspaceId)}/${kind}`,
+			{ port, addresses },
+		),
+	stopTrafficTest: (
+		organizationId: string,
+		workspaceId: string,
+		kind: "emit" | "listen",
+	) =>
+		deleteJSON<{ test: TrafficTest | null }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-traffic-tests/${encodeURIComponent(workspaceId)}/${kind}`,
 		),
 	deleteWorkspaceTunnel: (organizationId: string, id: string) =>
 		deleteJSON<{ tunnel: WorkspaceTunnel }>(

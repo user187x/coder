@@ -13,6 +13,7 @@ const ws = (id: string, running = true): TrafficWorkspace => ({
 	running,
 	href: `/@me/${id}`,
 	agentIds: [],
+	organizationId: "org",
 });
 
 const tunnel = (
