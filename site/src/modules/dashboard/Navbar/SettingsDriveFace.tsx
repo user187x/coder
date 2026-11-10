@@ -18,6 +18,7 @@ import {
 	type View,
 } from "#/modules/platform/cloudDrive/CloudDriveWindow";
 import { formatBytes } from "#/modules/platform/cloudDrive/drivePaths";
+import { GraphFrame } from "#/pages/DashboardPage/DashboardCard";
 import { CloudDriveCardBody } from "#/pages/DashboardPage/StorageCards";
 
 /**
@@ -106,8 +107,8 @@ export const SettingsDriveFace: React.FC = () => {
 };
 
 /**
- * The face's Files: the count and mount path, then the drive's top folders and files in a compact, scrollable zebra
- * table, each a link that opens the Cloud Drive window at it.
+ * The face's Files, in a rounded frame like the usage above it: the count and mount path, then the drive's top folders
+ * and files in a compact, scrollable zebra table, each a link that opens the Cloud Drive window at it.
  */
 const FilesTable: React.FC<{
 	files: number;
@@ -116,7 +117,7 @@ const FilesTable: React.FC<{
 	entries: readonly { name: string; size: number }[];
 	onOpen: (path: string, file?: string) => void;
 }> = ({ files, mountPath, folders, entries, onOpen }) => (
-	<div className="flex min-h-0 flex-col gap-1.5 border-0 border-t border-solid border-border pt-2 text-[11px]">
+	<GraphFrame className="flex min-h-0 flex-col gap-1.5 text-[11px]">
 		<div className="flex justify-between gap-2 text-content-secondary">
 			<span>
 				Files{" "}
@@ -171,5 +172,5 @@ const FilesTable: React.FC<{
 		) : (
 			<p className="m-0 text-content-secondary">No files yet.</p>
 		)}
-	</div>
+	</GraphFrame>
 );
