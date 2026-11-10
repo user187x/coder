@@ -1,29 +1,194 @@
-/* The Settings panel's bottom panel (SettingsFacePanel): two dimples at its top, just left and right of its centre,
-   turn it between its faces; each new face turns in from the side it was turned toward. */
-.settings-face-dimples {
+/* The Settings panel's bottom panel (SettingsFacePanel): a segmented pair of arrow buttons at its top centre, set in a
+   recessed well, turns it between its faces; each new face turns in from the side it was turned toward. */
+.settings-face-arrows {
 	display: flex;
 	justify-content: center;
-	gap: 0.75rem;
 	padding-bottom: 0.375rem;
+	--sfa-well-top: #9da1aa;
+	--sfa-well-bottom: #c4c7cf;
+	--sfa-well-lip: rgb(255 255 255 / 0.6);
+	--sfa-rim: #666a73;
+	--sfa-groove: #757982;
+	--sfa-face: linear-gradient(
+		180deg,
+		#fff 0%,
+		#fbfbfc 38%,
+		#eef0f3 42%,
+		#e1e3e8 72%,
+		#cbced4 95%,
+		#b2b5bd 100%
+	);
+	--sfa-face-hover: linear-gradient(
+		180deg,
+		#fff 0%,
+		#f6f8fb 38%,
+		#e8ebf0 42%,
+		#dcdfe5 72%,
+		#c6cad1 95%,
+		#aab0b9 100%
+	);
+	--sfa-face-pressed: linear-gradient(
+		180deg,
+		#a8acb5 0%,
+		#b9bdc5 20%,
+		#cbced5 60%,
+		#dde0e6 100%
+	);
+	--sfa-gloss: rgb(255 255 255 / 0.85);
+	--sfa-highlight: rgb(255 255 255 / 0.95);
+	--sfa-arrow-top: #555860;
+	--sfa-arrow-mid: #6a6e77;
+	--sfa-arrow-bottom: #848994;
+	--sfa-engrave: rgb(255 255 255 / 0.95);
 }
-.settings-face-dimple {
-	width: 0.875rem;
-	height: 0.875rem;
+.dark .settings-face-arrows {
+	--sfa-well-top: #0d0e11;
+	--sfa-well-bottom: #22252b;
+	--sfa-well-lip: rgb(255 255 255 / 0.08);
+	--sfa-rim: #0b0c0e;
+	--sfa-groove: #15171b;
+	--sfa-face: linear-gradient(
+		180deg,
+		#5d6169 0%,
+		#4c5058 38%,
+		#43464e 42%,
+		#393c43 72%,
+		#2f3238 95%,
+		#26282d 100%
+	);
+	--sfa-face-hover: linear-gradient(
+		180deg,
+		#686c75 0%,
+		#575b63 38%,
+		#4d5159 42%,
+		#42454c 72%,
+		#373a41 95%,
+		#2c2f34 100%
+	);
+	--sfa-face-pressed: linear-gradient(
+		180deg,
+		#1e2024 0%,
+		#26282d 20%,
+		#2f3238 60%,
+		#393c43 100%
+	);
+	--sfa-gloss: rgb(255 255 255 / 0.22);
+	--sfa-highlight: rgb(255 255 255 / 0.28);
+	--sfa-arrow-top: #c9ccd3;
+	--sfa-arrow-mid: #b4b8c0;
+	--sfa-arrow-bottom: #9a9ea7;
+	--sfa-engrave: rgb(0 0 0 / 0.7);
+}
+.settings-face-arrow-stop-top {
+	stop-color: var(--sfa-arrow-top);
+}
+.settings-face-arrow-stop-mid {
+	stop-color: var(--sfa-arrow-mid);
+}
+.settings-face-arrow-stop-bottom {
+	stop-color: var(--sfa-arrow-bottom);
+}
+/* The recessed well carved into the panel. */
+.settings-face-arrow-well {
+	display: inline-flex;
+	padding: 2px;
+	border-radius: 11px;
+	background: linear-gradient(
+		180deg,
+		var(--sfa-well-top) 0%,
+		var(--sfa-well-bottom) 100%
+	);
+	box-shadow:
+		inset 0 1px 3px rgb(0 0 0 / 0.45),
+		inset 0 2px 4px rgb(0 0 0 / 0.25),
+		inset 0 -1px 1px var(--sfa-well-lip),
+		0 1px 1px var(--sfa-well-lip);
+}
+/* The two-segment button body sitting in the well. */
+.settings-face-arrow-pair {
+	display: flex;
+	overflow: hidden;
+	border: 1px solid var(--sfa-rim);
+	border-radius: 9px;
+	background: var(--sfa-rim);
+	box-shadow:
+		0 1px 2px rgb(0 0 0 / 0.35),
+		0 2px 4px rgb(0 0 0 / 0.15);
+}
+.settings-face-arrow {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.75rem;
+	height: 1.5rem;
 	padding: 0;
 	border: 0;
-	border-radius: 9999px;
 	cursor: pointer;
-	background: hsl(var(--surface-tertiary));
+	background: var(--sfa-face);
+	-webkit-tap-highlight-color: transparent;
+	transition:
+		background 0.08s ease,
+		box-shadow 0.08s ease;
+}
+.settings-face-arrow-prev {
+	border-radius: 8px 0 0 8px;
+	border-right: 1px solid var(--sfa-groove);
 	box-shadow:
-		inset 0 2px 3px rgb(0 0 0 / 0.5),
-		inset 0 -1px 1px rgb(255 255 255 / 0.12);
+		inset 0 1.5px 0.5px var(--sfa-highlight),
+		inset 0 -1px 1.5px rgb(0 0 0 / 0.18),
+		inset 1.5px 0 1px rgb(255 255 255 / 0.2);
 }
-.settings-face-dimple:hover {
-	background: hsl(var(--surface-quaternary, var(--surface-tertiary)));
+.settings-face-arrow-next {
+	border-radius: 0 8px 8px 0;
+	box-shadow:
+		inset 1px 0 0 var(--sfa-highlight),
+		inset 0 1.5px 0.5px var(--sfa-highlight),
+		inset 0 -1px 1.5px rgb(0 0 0 / 0.18),
+		inset -1.5px 0 1px rgb(255 255 255 / 0.2);
 }
-.settings-face-dimple:focus-visible {
+/* The glossy lens reflection over the top half of each segment. */
+.settings-face-arrow::before {
+	content: "";
+	position: absolute;
+	top: 1px;
+	left: 1px;
+	right: 1px;
+	height: 48%;
+	border-radius: 7px 7px 3px 3px;
+	background: linear-gradient(180deg, var(--sfa-gloss) 0%, transparent 100%);
+	pointer-events: none;
+}
+.settings-face-arrow:hover {
+	background: var(--sfa-face-hover);
+}
+.settings-face-arrow:active {
+	background: var(--sfa-face-pressed);
+	box-shadow:
+		inset 0 2px 4px rgb(0 0 0 / 0.4),
+		inset 0 4px 8px rgb(0 0 0 / 0.25),
+		inset 0 -1px 1px var(--sfa-well-lip);
+}
+.settings-face-arrow:active::before {
+	opacity: 0.15;
+}
+.settings-face-arrow:focus-visible {
+	z-index: 1;
 	outline: 2px solid hsl(var(--content-link));
-	outline-offset: 2px;
+	outline-offset: -2px;
+}
+/* The engraved arrow: a dark bevel above and a crisp highlight below. */
+.settings-face-arrow-glyph {
+	position: relative;
+	z-index: 1;
+	width: 0.5rem;
+	height: 0.625rem;
+	filter: drop-shadow(0 1px 0 var(--sfa-engrave))
+		drop-shadow(0 -0.5px 0.5px rgb(0 0 0 / 0.45));
+	transition: transform 0.05s ease;
+}
+.settings-face-arrow:active .settings-face-arrow-glyph {
+	transform: translateY(1px);
 }
 .settings-face {
 	perspective: 900px;

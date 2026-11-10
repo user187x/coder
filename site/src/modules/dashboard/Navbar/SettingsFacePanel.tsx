@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
 	ChatGate,
 	useChatEnabled,
@@ -8,7 +8,7 @@ import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
 import { SettingsChatPanel } from "./SettingsChatPanel";
 import "./settingsFacePanel.css";
 
-/** The faces of the Settings panel's bottom panel, in the order the dimples turn through them. */
+/** The faces of the Settings panel's bottom panel, in the order the arrows turn through them. */
 export type SettingsFace = "metrics" | "chat" | "drive";
 
 const NAMES: Record<SettingsFace, string> = {
@@ -19,7 +19,7 @@ const NAMES: Record<SettingsFace, string> = {
 
 /**
  * The Settings panel's bottom panel, which turns between its faces: Metrics (admins), Chat (where chat is on) and the
- * Cloud Drive, compact. Two dimples at its top, just left and just right of its centre, turn it one face that way, in
+ * Cloud Drive, compact. A pair of arrow buttons at its top, at its centre, turn it one face that way, in
  * a loop, with a turning animation (none with reduced motion). It replaces the separate quick chat spot: opening chat
  * from the Settings menu turns it to its Chat face.
  */
@@ -35,6 +35,7 @@ export const SettingsFacePanel: React.FC<{
 	);
 	// The direction of the last turn, for its animation.
 	const [turn, setTurn] = useState<"left" | "right">("right");
+	const arrowFill = `settings-face-arrow-${useId()}`;
 	const current = faces.includes(face) ? face : (faces[0] ?? "drive");
 	const step = (by: 1 | -1) => {
 		const index = faces.indexOf(current);
@@ -56,21 +57,53 @@ export const SettingsFacePanel: React.FC<{
 			className="settings-face-panel relative mx-1 mt-2 mb-1"
 		>
 			{faces.length > 1 && (
-				<div className="settings-face-dimples">
-					<button
-						type="button"
-						className="settings-face-dimple"
-						aria-label={`Turn to ${nameAt(-1)}`}
-						title={`Turn to ${nameAt(-1)}`}
-						onClick={() => step(-1)}
-					/>
-					<button
-						type="button"
-						className="settings-face-dimple"
-						aria-label={`Turn to ${nameAt(1)}`}
-						title={`Turn to ${nameAt(1)}`}
-						onClick={() => step(1)}
-					/>
+				<div className="settings-face-arrows">
+					<svg width="0" height="0" className="absolute" aria-hidden="true">
+						<defs>
+							<linearGradient id={arrowFill} x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" className="settings-face-arrow-stop-top" />
+								<stop offset="50%" className="settings-face-arrow-stop-mid" />
+								<stop
+									offset="100%"
+									className="settings-face-arrow-stop-bottom"
+								/>
+							</linearGradient>
+						</defs>
+					</svg>
+					<div className="settings-face-arrow-well">
+						<div
+							role="group"
+							aria-label="Turn the panel"
+							className="settings-face-arrow-pair"
+						>
+							{([-1, 1] as const).map((by) => (
+								<button
+									key={by}
+									type="button"
+									className={cn(
+										"settings-face-arrow",
+										by === -1
+											? "settings-face-arrow-prev"
+											: "settings-face-arrow-next",
+									)}
+									aria-label={`Turn to ${nameAt(by)}`}
+									title={`Turn to ${nameAt(by)}`}
+									onClick={() => step(by)}
+								>
+									<svg
+										className="settings-face-arrow-glyph"
+										viewBox="0 0 12 14"
+										aria-hidden="true"
+									>
+										<polygon
+											fill={`url(#${arrowFill})`}
+											points={by === -1 ? "11,1 11,13 1,7" : "1,1 1,13 11,7"}
+										/>
+									</svg>
+								</button>
+							))}
+						</div>
+					</div>
 				</div>
 			)}
 			<div

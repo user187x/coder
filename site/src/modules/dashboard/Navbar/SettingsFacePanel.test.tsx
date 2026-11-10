@@ -36,10 +36,10 @@ it("turns between Metrics, Chat and Cloud Drive in a loop, either way", () => {
 	expect(screen.getByText("chat face")).toBeTruthy();
 	fireEvent.click(screen.getByRole("button", { name: "Turn to Cloud Drive" }));
 	expect(screen.getByText("drive face")).toBeTruthy();
-	// the right dimple loops back to the first face
+	// the right arrow loops back to the first face
 	fireEvent.click(screen.getByRole("button", { name: "Turn to Metrics" }));
 	expect(screen.getByText("metrics face")).toBeTruthy();
-	// and the left dimple goes the other way round
+	// and the left arrow goes the other way round
 	fireEvent.click(
 		screen.getAllByRole("button", { name: "Turn to Cloud Drive" })[0]!,
 	);
