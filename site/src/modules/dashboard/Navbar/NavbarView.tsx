@@ -144,6 +144,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				permissions: adminPermissions,
 				quickLinks: adminQuickLinks?.links,
 				categories: adminQuickLinks?.categories,
+				pages: adminQuickLinks?.pages,
 				quickLinksEditor,
 				bellShown: !navbarHidden.includes("notifications"),
 			}}

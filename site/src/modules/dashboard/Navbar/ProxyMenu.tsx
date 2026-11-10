@@ -44,6 +44,7 @@ import {
 	canViewAdminSettings,
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
+import { CompactQuickLinks } from "./CompactQuickLinkMenu";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
@@ -64,6 +65,8 @@ type ProxyMenuControls = {
 	permissions: AdminSettingsPermissions;
 	quickLinks?: readonly AdminPage[];
 	quickLinksEditor?: AdminQuickLinksEditor;
+	/** Every page a quick link can be (the thin strip's right-click menus offer the others in a link's place). */
+	pages?: readonly AdminPage[];
 	/** The admin settings' categories, listed (each hideable under Controls) with the settings navigation in the navbar. */
 	categories?: readonly AdminPage[];
 	/** The navbar's notification bell is shown: it badges the inbox and chats, Settings does not. */
@@ -506,6 +509,16 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							<>
 								{compactToggle}
 								{compactOptions}
+								{/* The account as in the dropdown, between thin dividers */}
+								<DropdownMenuSeparator className="mx-auto my-1 w-6 shrink-0" />
+								<span className="flex justify-center">
+									<UserSettingsShortcut
+										user={user}
+										buildInfo={buildInfo}
+										onSignOut={onSignOut}
+									/>
+								</span>
+								<DropdownMenuSeparator className="mx-auto my-1 w-6 shrink-0" />
 								{!controls?.quickLinks?.some(
 									(link) => link.id === "workspaces",
 								) && (
@@ -519,39 +532,21 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										</Link>
 									</DropdownMenuItem>
 								)}
-								{controls?.quickLinks?.map((link) =>
-									link.id === "chat" ? (
-										<DropdownMenuItem
-											key={link.id}
-											aria-label="Chat"
-											title="Chat"
-											className="justify-center"
-											onSelect={(event) => {
-												event.preventDefault();
-												docking.mutate({ settings_sidebar_compact: false });
-												setChatExpanded(true);
-											}}
-										>
-											<link.icon aria-hidden />
-										</DropdownMenuItem>
-									) : (
-										<DropdownMenuItem
-											key={link.id}
-											asChild
-											className="justify-center"
-										>
-											<Link
-												to={link.path}
-												title={link.label}
-												aria-label={link.label}
-											>
-												<link.icon aria-hidden />
-											</Link>
-										</DropdownMenuItem>
-									),
-								)}
+								<CompactQuickLinks
+									links={controls?.quickLinks ?? []}
+									pages={controls?.pages ?? []}
+									onChange={controls?.quickLinksEditor?.onChange}
+									onChat={() => {
+										docking.mutate({ settings_sidebar_compact: false });
+										setChatExpanded(true);
+									}}
+								/>
 								{controls && canViewAdminSettings(controls.permissions) && (
-									<SettingsMetricGraphs compact chatExpanded={false} />
+									<>
+										{/* A little mark between the quick links and the metrics */}
+										<DropdownMenuSeparator className="mx-auto my-1 w-3 shrink-0" />
+										<SettingsMetricGraphs compact chatExpanded={false} />
+									</>
 								)}
 							</>
 						) : (
