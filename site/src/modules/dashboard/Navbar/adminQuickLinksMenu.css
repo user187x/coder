@@ -47,10 +47,12 @@
 	position: relative;
 	z-index: 40;
 }
+/* The menu's surface colours are see-through (panel accents), so the base is a solid colour of its own, with the
+   menu's recessed-well texture (a gradient) over it. */
 .settings-controls-overlay > div {
-	background-color: hsl(var(--surface-primary));
-	background-image: linear-gradient(
-		var(--skeuo-well, transparent),
-		var(--skeuo-well, transparent)
-	);
+	background-color: #fff;
+	background-image: var(--skeuo-well, none);
+}
+.dark .settings-controls-overlay > div {
+	background-color: #18181b;
 }

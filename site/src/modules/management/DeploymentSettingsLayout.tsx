@@ -216,7 +216,17 @@ const DeploymentSettingsLayout: React.FC = () => {
 
 	return (
 		<RequirePermission isFeatureVisible={canViewDeploymentSettingsPage}>
-			<div data-admin-layout="" className={chat ? "flex-1 min-h-0" : undefined}>
+			<div
+				data-admin-layout=""
+				className={cn(
+					chat && "flex-1 min-h-0",
+					// With the navigation in the navbar, a page shorter than the window sits in its middle, as Workspaces
+					// does; a taller one starts at the top.
+					inNavbar &&
+						!chat &&
+						"flex min-h-[calc(100dvh-var(--dashboard-navigation-height,72px))] flex-col",
+				)}
+			>
 				{/* With the categories open the breadcrumb heads their list, in place of its "Settings" label; collapsed
 				    (or on a small screen's Chat, where the list is hidden), it keeps a row of its own. */}
 				{inNavbar
@@ -228,7 +238,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 				<section
 					className={cn(
 						"max-w-[1920px] px-4 sm:px-6",
-						inNavbar ? "mx-auto lg:px-10" : "lg:pr-10 lg:pl-4",
+						inNavbar ? "mx-auto my-auto w-full lg:px-10" : "lg:pr-10 lg:pl-4",
 					)}
 				>
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
