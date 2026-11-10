@@ -212,7 +212,13 @@ const DeploymentSettingsLayout: React.FC = () => {
 					: !sidebarOpen
 						? placementMenu(breadcrumb(false))
 						: chat && breadcrumb(false, "lg:hidden")}
-				<section className="max-w-[1920px] px-4 sm:px-6 lg:pr-10 lg:pl-4">
+				{/* With the navigation in the navbar there is no categories list beside the page: the page sits centred. */}
+				<section
+					className={cn(
+						"max-w-[1920px] px-4 sm:px-6",
+						inNavbar ? "mx-auto lg:px-10" : "lg:pr-10 lg:pl-4",
+					)}
+				>
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
 						<div
 							id={sidebarId}
@@ -229,7 +235,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 								<DeploymentSidebar header={placementMenu(breadcrumb(true))} />
 							)}
 						</div>
-						<div className="grow min-w-0">
+						<div className={cn("grow min-w-0", inNavbar && "[&>*]:mx-auto")}>
 							<Suspense fallback={<PageLoader />}>
 								<Outlet />
 							</Suspense>
