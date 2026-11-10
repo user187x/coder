@@ -10,8 +10,6 @@ import uuid
 METRICS = {'cpu_usage': 'cpu', 'mem_usage': 'ram', 'ram_usage': 'ram', 'home_disk': 'disk', 'disk_usage': 'disk', 'load': 'load'}
 RESOURCE_RETENTION = 14400
 PERCENT = re.compile(r'(-?\d+(?:\.\d+)?)\s*%')
-# The Settings menu's fixed items a user can hide into its Controls list (AdminSettingsItems).
-SETTINGS_MENU_ITEMS = {'organizations', 'audit-logs', 'connection-logs'}
 READINGS = """SELECT w.organization_id::text, w.id::text, a.id::text, m.key, m.value,
     (extract(epoch FROM m.collected_at) * 1000)::bigint
     FROM workspaces w
@@ -249,8 +247,8 @@ class UIState(threading.Thread):
                 raise ValueError('Invalid navbar strip radius.')
             if changes.get('settings_menu_hidden') is not None:
                 hidden = changes['settings_menu_hidden']
-                if not isinstance(hidden, list) or len(set(hidden)) != len(hidden) or not all(
-                        item in SETTINGS_MENU_ITEMS for item in hidden):
+                if not isinstance(hidden, list) or len(hidden) > 64 or len(set(hidden)) != len(hidden) or not all(
+                        isinstance(item, str) and re.fullmatch(r'[a-z][a-z0-9-]{0,63}', item) for item in hidden):
                     raise ValueError('Invalid hidden Settings menu items.')
             for key in ('admin_nav_in_navbar', 'navbar_floating'):
                 if key in changes and changes[key] is not None and type(changes[key]) is not bool:

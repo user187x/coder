@@ -33,6 +33,8 @@ type AdminSettingsItemsProps = {
 	externalMetrics?: boolean;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
+	/** The admin settings' categories to list too (those not already quick links), each hideable under Controls. */
+	categories?: readonly AdminPage[];
 };
 
 /** Changes to an admin's quick links, made from the Admin menu. */
@@ -49,6 +51,9 @@ export type AdminQuickLinks = {
 	pages: readonly AdminPage[];
 	/** The links, in the admin's order. */
 	links: readonly AdminPage[];
+	/** The admin settings' categories, in the admin's sidebar order (the Settings menu lists them with the settings
+	 * navigation in the navbar). */
+	categories?: readonly AdminPage[];
 	/** Saves the new list of page IDs, in order. */
 	onChange: (ids: string[]) => void;
 };
@@ -68,8 +73,9 @@ export type AdminSettingsPermissions = {
 
 /** A Settings menu item that is not a quick link, hidden into the Controls list by the user's choice. */
 export type HideableMenuItem = {
-	/** Stored in the user's preferences (settings_menu_hidden); never change an existing ID. */
-	id: "organizations" | "audit-logs" | "connection-logs";
+	/** Stored in the user's preferences (settings_menu_hidden): a category's page ID, or organizations, audit-logs or
+	 * connection-logs; never change an existing ID. */
+	id: string;
 	label: string;
 	path: string;
 	icon: LucideIcon;
@@ -81,7 +87,7 @@ const hideableItems = (
 	...(permissions.canViewOrganizations
 		? [
 				{
-					id: "organizations" as const,
+					id: "organizations",
 					label: "Organizations",
 					path: "/organizations",
 					icon: Building2Icon,
@@ -91,7 +97,7 @@ const hideableItems = (
 	...(permissions.canViewAuditLog
 		? [
 				{
-					id: "audit-logs" as const,
+					id: "audit-logs",
 					label: "Audit logs",
 					path: "/audit",
 					icon: ScrollTextIcon,
@@ -101,7 +107,7 @@ const hideableItems = (
 	...(permissions.canViewConnectionLog
 		? [
 				{
-					id: "connection-logs" as const,
+					id: "connection-logs",
 					label: "Connection logs",
 					path: "/connectionlog",
 					icon: CableIcon,
@@ -118,13 +124,19 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	externalMetrics,
 	chatExpanded,
 	onChatToggle,
+	categories = [],
 }) => {
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
 	const save = useMutation(updateUserUIPreferences(client));
 	const hiddenIds = preferences.data?.settings_menu_hidden ?? [];
-	const items = hideableItems(permissions);
-	const setHidden = (id: HideableMenuItem["id"], hide: boolean) =>
+	const items = [
+		...categories.filter(
+			(page) => !quickLinks.some((link) => link.id === page.id),
+		),
+		...hideableItems(permissions),
+	];
+	const setHidden = (id: string, hide: boolean) =>
 		save.mutate({
 			settings_menu_hidden: hide
 				? [...hiddenIds.filter((other) => other !== id), id]

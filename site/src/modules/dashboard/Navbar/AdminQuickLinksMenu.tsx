@@ -55,7 +55,7 @@ type AdminQuickLinksMenuProps = {
 	onChatToggle?: () => void;
 	/** The menu's other items the user hid: listed under Controls, each with a button to show it again. */
 	hiddenItems?: readonly HideableMenuItem[];
-	onShowItem?: (id: HideableMenuItem["id"]) => void;
+	onShowItem?: (id: string) => void;
 };
 
 /**

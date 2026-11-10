@@ -16,7 +16,12 @@ import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { canSeeTemplates } from "#/modules/permissions/templates";
 import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { useFeatureVisibility } from "../useFeatureVisibility";
-import { resolveAdminQuickLinks, settingsPagesFor } from "./adminQuickLinks";
+import {
+	type AdminPage,
+	adminPagesFor,
+	resolveAdminQuickLinks,
+	settingsPagesFor,
+} from "./adminQuickLinks";
 import { NavbarView } from "./NavbarView";
 
 export const Navbar: React.FC<{
@@ -83,6 +88,13 @@ export const Navbar: React.FC<{
 			}}
 			adminQuickLinks={{
 				pages: adminPages,
+				categories: sortedCategories(
+					adminPagesFor({
+						permissions,
+						oauth2Provider: Boolean(buildInfoQuery.data?.oauth2_provider),
+					}),
+					preferencesQuery.data?.admin_sidebar_order ?? [],
+				),
 				links: resolveAdminQuickLinks(
 					preferencesQuery.data?.admin_quick_links ?? [],
 					adminPages,
@@ -111,5 +123,19 @@ export const Navbar: React.FC<{
 			}}
 			proxyContextValue={proxyContextValue}
 		/>
+	);
+};
+
+/** The admin settings' categories in the order the admin arranged their sidebar, the rest after them by name. */
+const sortedCategories = (
+	pages: AdminPage[],
+	order: readonly string[],
+): AdminPage[] => {
+	const rank = (page: AdminPage) => {
+		const index = order.indexOf(page.id);
+		return index < 0 ? Number.POSITIVE_INFINITY : index;
+	};
+	return pages.sort(
+		(a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label, "en-US"),
 	);
 };

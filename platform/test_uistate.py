@@ -45,7 +45,7 @@ class PreferencesTest(unittest.TestCase):
     def test_settings_menu_hidden(self):
         self.state.preferences('user-id', {'settings_menu_hidden': ['audit-logs', 'organizations']})
         self.state.preferences('user-id', {'settings_menu_hidden': None})
-        for bad in (['audit-logs', 'audit-logs'], ['accounts'], 'audit-logs', [1]):
+        for bad in (['audit-logs', 'audit-logs'], ['Accounts'], 'audit-logs', [1], ['x'] * 65):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 self.state.preferences('user-id', {'settings_menu_hidden': bad})
 

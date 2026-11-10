@@ -108,6 +108,28 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 		return () => element.removeEventListener("contextmenu", onContextMenu);
 	}, []);
 
+	// The latency and Settings menu; with the navbar's item hidden, still the settings breadcrumb's Settings chevron menu.
+	const settingsMenu = (breadcrumbOnly: boolean) => (
+		<ProxyMenu
+			breadcrumbOnly={breadcrumbOnly}
+			user={user}
+			buildInfo={buildInfo}
+			supportLinks={supportLinks.filter((link) => !isNavbarLink(link))}
+			onSignOut={onSignOut}
+			tunnelActorId={user.id}
+			canManageTunnels={user.roles.some((role) => role.name === "owner")}
+			proxyContextValue={proxyContextValue}
+			hud={adminPermissions.canViewHud}
+			controls={{
+				permissions: adminPermissions,
+				quickLinks: adminQuickLinks?.links,
+				categories: adminQuickLinks?.categories,
+				quickLinksEditor,
+				bellShown: !navbarHidden.includes("notifications"),
+			}}
+		/>
+	);
+
 	return (
 		<div
 			ref={root}
@@ -159,26 +181,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					),
 					banner: <AnnouncementBanner placement="navbar" />,
 					// the latency and the Controls in one menu, the HUD joined on as one split button (admins)
-					latency: (
-						<ProxyMenu
-							user={user}
-							buildInfo={buildInfo}
-							supportLinks={supportLinks.filter((link) => !isNavbarLink(link))}
-							onSignOut={onSignOut}
-							tunnelActorId={user.id}
-							canManageTunnels={user.roles.some(
-								(role) => role.name === "owner",
-							)}
-							proxyContextValue={proxyContextValue}
-							hud={adminPermissions.canViewHud}
-							controls={{
-								permissions: adminPermissions,
-								quickLinks: adminQuickLinks?.links,
-								quickLinksEditor,
-								bellShown: !navbarHidden.includes("notifications"),
-							}}
-						/>
-					),
+					latency: settingsMenu(false),
 					notifications: (
 						<div className="relative">
 							<NotificationsInbox
@@ -211,6 +214,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					),
 				}}
 			/>
+			{navbarHidden.includes("latency") && settingsMenu(true)}
 
 			<div
 				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "@[48rem]/dashboard:ml-3" : "@[48rem]/dashboard:hidden"}`}

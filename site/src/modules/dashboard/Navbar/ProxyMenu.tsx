@@ -62,6 +62,8 @@ type ProxyMenuControls = {
 	permissions: AdminSettingsPermissions;
 	quickLinks?: readonly AdminPage[];
 	quickLinksEditor?: AdminQuickLinksEditor;
+	/** The admin settings' categories, listed (each hideable under Controls) with the settings navigation in the navbar. */
+	categories?: readonly AdminPage[];
 	/** The navbar's notification bell is shown: it badges the inbox and chats, Settings does not. */
 	bellShown?: boolean;
 };
@@ -77,6 +79,8 @@ type ProxyMenuProps = {
 	tunnelActorId?: string;
 	/** Whether the user can open the HUD from Settings. */
 	hud?: boolean;
+	/** Only for the settings breadcrumb's Settings chevron: no navbar button (the navbar's Settings item is hidden). */
+	breadcrumbOnly?: boolean;
 	/** Platform: the Controls menu, under the Workspaces row; the button then says "Settings". */
 	controls?: ProxyMenuControls;
 };
@@ -92,6 +96,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	tunnelActorId,
 	hud = false,
 	controls,
+	breadcrumbOnly = false,
 }) => {
 	const [open, setOpen] = useState(false);
 	// The side of the screen the menu opens on, from where its button is: on the left it hangs from the button's left
@@ -122,7 +127,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		...updateUserUIPreferences(client),
 		onError: () => toast.error("Could not save Settings sidebar preference."),
 	});
-	const docked = Boolean(controls && prefs.data?.settings_sidebar);
+	const docked = Boolean(
+		!breadcrumbOnly && controls && prefs.data?.settings_sidebar,
+	);
 	// The admin settings' navigation in the navbar: on a settings page this menu opens from the breadcrumb's Settings
 	// chevron, in place of the navbar's Settings button, its panel's left edge on the chevron's.
 	const settingsInNavbar = Boolean(
@@ -303,6 +310,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		}
 	};
 	const edge = docked ? "right" : openEdge;
+	if (breadcrumbOnly && !breadcrumbHost) return null;
 
 	return (
 		<>
@@ -661,6 +669,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 											permissions={controls.permissions}
 											quickLinks={controls.quickLinks}
 											quickLinksEditor={controls.quickLinksEditor}
+											categories={
+												settingsInNavbar ? controls.categories : undefined
+											}
 										/>
 									</nav>
 								)}

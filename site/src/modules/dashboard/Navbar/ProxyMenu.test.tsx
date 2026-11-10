@@ -387,7 +387,7 @@ describe("ProxyMenu", () => {
 		renderWithAuth(
 			<ProxyMenu
 				proxyContextValue={value}
-				controls={controls}
+				controls={{ ...controls, categories: pages }}
 				user={MockUserOwner}
 				supportLinks={[]}
 				onSignOut={vi.fn()}
@@ -398,10 +398,16 @@ describe("ProxyMenu", () => {
 			name: "Settings",
 		});
 		await user.click(trigger);
+		const menu = await screen.findByTestId("navbar-latency-controls-menu");
+		expect(menu.dataset.settingsEdge).toBe("left");
+		// every category not already a quick link, each hideable under Controls
+		const category = pages[2];
+		if (!category) throw new Error("no third admin page");
 		expect(
-			(await screen.findByTestId("navbar-latency-controls-menu")).dataset
-				.settingsEdge,
-		).toBe("left");
+			within(menu).getByRole("menuitem", {
+				name: `Hide ${category.label} under Controls`,
+			}),
+		).toBeTruthy();
 		await user.click(trigger);
 		await waitFor(() =>
 			expect(screen.queryByTestId("navbar-latency-controls-menu")).toBeNull(),
