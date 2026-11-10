@@ -1,0 +1,124 @@
+/* The navbar's controls as the Settings breadcrumb's hardware: each item (NavbarArrange's [data-navbar-item]) sits in
+   the same recessed well as the breadcrumb's chevrons, its buttons on matte, engraved faces, and the announcement's
+   screen in a well of its own. Every well is the breadcrumb's height (the action height plus the well's 3.5px rim), one
+   --navbar-control-gap apart. The breadcrumb's own chevrons are drawn in Breadcrumb.css from the tokens below. */
+.navbar-soft,
+.admin-navbar-breadcrumb {
+	--crumb-face: linear-gradient(180deg, #f5f6f8 0%, #eceef2 50%, #dfe2e8 100%);
+	--crumb-face-hover: linear-gradient(
+		180deg,
+		#fafbfc 0%,
+		#f0f2f6 50%,
+		#e4e7ed 100%
+	);
+	--crumb-face-pressed: linear-gradient(
+		180deg,
+		#cfd3dc 0%,
+		#d8dce4 50%,
+		#e2e5ec 100%
+	);
+	--crumb-well: linear-gradient(180deg, #52565e 0%, #737882 48%, #a6abb4 100%);
+	--crumb-seam: #33363d;
+	--crumb-ink: #2f333b;
+	--crumb-engrave: 0 1px 0 rgb(255 255 255 / 0.9);
+	--crumb-lip: rgb(255 255 255 / 0.92);
+}
+.dark :is(.navbar-soft, .admin-navbar-breadcrumb) {
+	--crumb-face: linear-gradient(180deg, #50545c 0%, #44474f 50%, #393c43 100%);
+	--crumb-face-hover: linear-gradient(
+		180deg,
+		#5a5e67 0%,
+		#4d5159 50%,
+		#41444b 100%
+	);
+	--crumb-face-pressed: linear-gradient(
+		180deg,
+		#24262b 0%,
+		#2b2e33 50%,
+		#33363c 100%
+	);
+	--crumb-well: linear-gradient(180deg, #0d0e11 0%, #1c1e23 48%, #3a3d44 100%);
+	--crumb-seam: #0b0c0e;
+	--crumb-ink: #e4e6ea;
+	--crumb-engrave: 0 -1px 0 rgb(0 0 0 / 0.7);
+	--crumb-lip: rgb(255 255 255 / 0.1);
+}
+.navbar-soft {
+	--navbar-well-rim: 3.5px;
+}
+.navbar-soft
+	[data-navbar-item]:is(
+		:has(#coder-system-banner),
+		:not([data-navbar-item="banner"]):has(:is(button, a))
+	) {
+	display: flex;
+	align-items: stretch;
+	box-sizing: border-box;
+	height: calc(var(--navbar-action-height) + 2 * var(--navbar-well-rim));
+	padding: var(--navbar-well-rim);
+	border-radius: 10px;
+	background:
+		linear-gradient(var(--crumb-seam), var(--crumb-seam)) content-box,
+		var(--crumb-well) border-box;
+	box-shadow:
+		inset 0 1px 2.5px rgb(0 0 0 / 0.65),
+		0 1px 0 var(--crumb-lip);
+}
+/* The controls fill their well: as tall as the action height, joined where an item holds several. */
+.navbar-soft [data-navbar-item]:not([data-navbar-item="banner"]) > * {
+	display: flex;
+	align-items: stretch;
+	gap: 1px;
+	height: 100%;
+}
+.navbar-soft
+	[data-navbar-item]:not([data-navbar-item="banner"])
+	:is(button, a.inline-flex, .navbar-split) {
+	height: 100%;
+	min-height: 0;
+	border: 0;
+	border-radius: 7px;
+	background: var(--crumb-face);
+	color: var(--crumb-ink);
+	font-weight: 600;
+	text-shadow: var(--crumb-engrave);
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6);
+}
+/* A split control (the Settings button with its HUD) keeps one face; its parts lie on it. */
+.navbar-soft [data-navbar-item] .navbar-split :is(button, a) {
+	background: transparent;
+	box-shadow: none;
+}
+.navbar-soft
+	[data-navbar-item]:not([data-navbar-item="banner"])
+	:is(button, a.inline-flex)
+	svg {
+	filter: drop-shadow(var(--crumb-engrave));
+}
+.navbar-soft
+	[data-navbar-item]:not([data-navbar-item="banner"])
+	:is(button, a.inline-flex):hover {
+	background: var(--crumb-face-hover);
+}
+.navbar-soft
+	[data-navbar-item]:not([data-navbar-item="banner"])
+	:is(button, a.inline-flex):is(:active, [data-state="open"]) {
+	background: var(--crumb-face-pressed);
+	box-shadow:
+		inset 0 1.5px 3px rgb(0 0 0 / 0.28),
+		inset 0 1px 1px rgb(0 0 0 / 0.18);
+}
+.navbar-soft
+	[data-navbar-item]:not([data-navbar-item="banner"])
+	:is(button, a.inline-flex):focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: -3px;
+}
+/* The announcement: its screen fills the well (no margin of its own, so the gaps are the navbar's), its corners the
+   chevrons'. Its colours and effects stay the announcement's. */
+.navbar-soft [data-navbar-item="banner"] #coder-system-banner {
+	height: 100%;
+	min-height: 0;
+	margin-left: 0;
+	border-radius: 7px;
+}

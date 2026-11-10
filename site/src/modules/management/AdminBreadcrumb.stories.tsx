@@ -7,6 +7,7 @@ import {
 	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
 import { Button } from "#/components/Button/Button";
+import "#/modules/dashboard/Navbar/navbarSkeuo.css";
 import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
 import {
 	withAuthProvider,

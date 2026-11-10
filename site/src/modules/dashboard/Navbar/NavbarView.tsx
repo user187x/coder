@@ -28,6 +28,7 @@ import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
 import { UserDropdown } from "./UserDropdown/UserDropdown";
 import { WorkspacesDropdown } from "./WorkspacesDropdown";
+import "./navbarSkeuo.css";
 import "./navbarSoft.css";
 
 type NavbarViewProps = {
