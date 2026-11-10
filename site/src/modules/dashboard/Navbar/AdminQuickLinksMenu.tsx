@@ -134,8 +134,15 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				Number.isFinite(cssMax) ? cssMax : Number.POSITIVE_INFINITY,
 			);
 			// Everything else in the panel at its full height (the opening animation grows the list's wrapper, so it is
-			// left out whole), and the list's own 8px of margin.
-			const others = surface.scrollHeight - content.offsetHeight;
+			// left out whole), and the list's own 8px of margin. The quick links above give up their room down to a few
+			// rows (they scroll in their own box), so the panel itself never needs to scroll.
+			const links = surface.querySelector<HTMLElement>(
+				"[data-testid=quick-links-scroll]",
+			);
+			const linksGive = links
+				? Math.max(0, links.offsetHeight - Math.min(links.scrollHeight, 144))
+				: 0;
+			const others = surface.scrollHeight - content.offsetHeight - linksGive;
 			setChoicesMax(Math.max(96, Math.floor(room - others - 8)));
 		};
 		measure();
@@ -161,11 +168,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		<>
 			{/* The links scroll on their own, above Controls, which always stays in view */}
 			<div
-				className={cn(
-					"admin-quick-links-scroll",
-					// with Controls open, its list is what scrolls
-					expanded ? "flex-none" : "min-h-0 flex-1 overflow-y-auto",
-				)}
+				className="admin-quick-links-scroll min-h-0 flex-1 overflow-y-auto"
 				data-testid="quick-links-scroll"
 			>
 				<DndContext
