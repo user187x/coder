@@ -11,9 +11,13 @@ import {
  * breadcrumb's Settings): the one they set with a category's right-click "Default View". Kept with their UI
  * preferences; none set: the usual first page.
  */
-export const useSettingsDefaultView = () => {
+export const useSettingsDefaultView = (enabled = true) => {
 	const client = useQueryClient();
-	const preferences = useQuery({ ...userUIPreferences(), retry: false });
+	const preferences = useQuery({
+		...userUIPreferences(),
+		retry: false,
+		enabled,
+	});
 	const save = useMutation({
 		...updateUserUIPreferences(client),
 		onSuccess: (settings, changes) => {

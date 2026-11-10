@@ -96,7 +96,7 @@ export const InboxPanel: React.FC<
 	);
 
 	return (
-		<div className="flex max-h-(--radix-popover-content-available-height) flex-col">
+		<div className="flex max-h-[calc(var(--radix-popover-content-available-height)/var(--app-zoom,1))] flex-col">
 			<div className="flex shrink-0 items-center gap-2 p-3 border-0 border-b border-solid border-border">
 				<div className="flex shrink-0 items-center gap-2">
 					<span className="text-xl font-semibold">Inbox</span>
@@ -175,7 +175,7 @@ export const InboxPanel: React.FC<
 				</div>
 			</div>
 
-			<ScrollArea className="min-h-0 flex-1 [&>[data-radix-scroll-area-viewport]]:max-h-[calc(var(--radix-popover-content-available-height)-4.5rem)]">
+			<ScrollArea className="min-h-0 flex-1 [&>[data-radix-scroll-area-viewport]]:max-h-[calc(var(--radix-popover-content-available-height)/var(--app-zoom,1)-4.5rem)]">
 				<div className="p-2" data-testid="inbox-list">
 					{shown ? (
 						shown.length > 0 ? (
@@ -276,7 +276,7 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 				{trigger ?? <InboxButton unreadCount={inbox.unreadCount} />}
 			</PopoverTrigger>
 			<PopoverContent
-				className="w-(--radix-popper-available-width) max-w-[466px]"
+				className="w-[calc(var(--radix-popper-available-width)/var(--app-zoom,1))] max-w-[466px]"
 				align="end"
 				onKeyDown={(event) => event.stopPropagation()}
 			>

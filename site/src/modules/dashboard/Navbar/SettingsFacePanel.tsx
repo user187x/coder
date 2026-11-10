@@ -8,6 +8,9 @@ import { SettingsChatPanel } from "./SettingsChatPanel";
 import { SettingsDriveFace } from "./SettingsDriveFace";
 import "./settingsFacePanel.css";
 
+/** The Chat face's height when it is the first face shown (the Metrics face's usual height). */
+const CHAT_FACE_HEIGHT = 436;
+
 /** The faces of the Settings panel's bottom panel, in the order the arrows turn through them. */
 export type SettingsFace = "metrics" | "chat" | "drive";
 
@@ -40,7 +43,8 @@ export const SettingsFacePanel: React.FC<{
 	// The tallest face's height so far: the panel holds it whichever face shows.
 	const [tallest, setTallest] = useState(0);
 	const measure = (element: HTMLDivElement | null) => {
-		if (!element) return;
+		// Chat sizes to the faces, not they to it: its conversation scrolls inside, its message box in view.
+		if (!element || current === "chat") return;
 		const observer = new ResizeObserver(() => {
 			// The face's own content, not the height the panel already holds it to
 			const height = Math.ceil(
@@ -126,7 +130,11 @@ export const SettingsFacePanel: React.FC<{
 			{/* Every face as tall as the tallest one shown yet, so the panel keeps one height as it turns */}
 			<div
 				className="flex flex-col"
-				style={{ minHeight: tallest || undefined }}
+				style={
+					current === "chat"
+						? { height: tallest || CHAT_FACE_HEIGHT }
+						: { minHeight: tallest || undefined }
+				}
 			>
 				<div
 					key={current}

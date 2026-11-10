@@ -551,7 +551,7 @@ export function FilterCombobox({
 					align="start"
 					side="bottom"
 					avoidCollisions={!isMobile}
-					className="relative left-0 w-(--radix-popover-trigger-width) max-w-(--radix-popper-available-width) overflow-visible border-0 bg-transparent shadow-none data-[state=closed]:hidden sm:w-fit"
+					className="relative left-0 w-(--radix-popover-trigger-width) max-w-[calc(var(--radix-popper-available-width)/var(--app-zoom,1))] overflow-visible border-0 bg-transparent shadow-none data-[state=closed]:hidden sm:w-fit"
 				>
 					{/* Keep mounted so polite status announcements stay consistent. */}
 					<FilterComboboxStatus>{liveRegionMessage}</FilterComboboxStatus>
@@ -1072,7 +1072,7 @@ function OptionsPanel({
 					? undefined
 					: {
 							top,
-							maxHeight: `min(20rem, calc(var(--radix-popper-available-height) - ${top}px))`,
+							maxHeight: `min(20rem, calc(var(--radix-popper-available-height) / var(--app-zoom,1) - ${top}px))`,
 						}
 			}
 		>

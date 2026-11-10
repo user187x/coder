@@ -156,6 +156,9 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				onChange={quickLinksEditor?.onChange}
 				hiddenItems={items.filter((item) => hiddenIds.includes(item.id))}
 				onShowItem={(id) => setHidden(id, false)}
+				shownIds={items
+					.filter((item) => !hiddenIds.includes(item.id))
+					.map((item) => item.id)}
 				// The other items in the quick links' list, each hideable under Controls like a quick link.
 				moreLinks={items
 					.filter((item) => !hiddenIds.includes(item.id))

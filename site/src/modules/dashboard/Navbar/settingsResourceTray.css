@@ -213,10 +213,18 @@ html[data-animations="off"]
 .settings-menu > .settings-menu-surface {
 	min-height: min(
 		var(--settings-rail-height, 0px),
-		var(
-			--radix-dropdown-menu-content-available-height,
-			calc(80vh / var(--app-zoom, 1))
+		calc(
+			var(--radix-dropdown-menu-content-available-height, 80vh) /
+			var(--app-zoom, 1)
 		)
+	);
+}
+/* As a dropdown, the panel fills from under its button down to just above the screen's foot (the classification
+   banner, ProxyMenu's collision padding), the same gap at top and bottom. */
+.settings-menu:not([data-settings-docked]) > .settings-menu-surface {
+	min-height: calc(
+		var(--radix-dropdown-menu-content-available-height, 80vh) /
+		var(--app-zoom, 1)
 	);
 }
 

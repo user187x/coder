@@ -28,7 +28,8 @@ import {
  * viewport edge, and for each menu inside it when the caller makes the popup
  * `overflow-visible` so flyouts can extend past it, as `FilterCombobox` does.
  */
-export const menuMaxHeightClassName = "max-h-(--radix-popper-available-height)";
+export const menuMaxHeightClassName =
+	"max-h-[calc(var(--radix-popper-available-height)/var(--app-zoom,1))]";
 
 const LIST_NAVIGATION_KEYS = new Set(["ArrowUp", "ArrowDown", "Home", "End"]);
 // cmdk's Ctrl bindings for next (`n`, `j`) and previous (`p`, `k`).

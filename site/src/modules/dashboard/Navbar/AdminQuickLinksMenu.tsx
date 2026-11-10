@@ -58,6 +58,8 @@ type AdminQuickLinksMenuProps = {
 	hiddenItems?: readonly HideableMenuItem[];
 	/** More rows for the quick links' list, after the links: the menu's other items not hidden under Controls. */
 	moreLinks?: React.ReactNode;
+	/** The page IDs those rows show, kept out of Controls' pages to add. */
+	shownIds?: readonly string[];
 	onShowItem?: (id: string) => void;
 };
 
@@ -78,11 +80,18 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	hiddenItems = [],
 	onShowItem,
 	moreLinks,
+	shownIds = [],
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const chatOn = useChatEnabled();
 	const choicesId = useId();
-	const choices = addable.filter((page) => page.id !== "chat");
+	// The pages to add, each once: not those already shown in the menu's list or listed hidden under Controls.
+	const choices = addable.filter(
+		(page) =>
+			page.id !== "chat" &&
+			!shownIds.includes(page.id) &&
+			!hiddenItems.some((item) => item.id === page.id),
+	);
 	const ids = links.map((link) => link.id);
 	// The page being moved with the keyboard, if any.
 	const [moving, setMoving] = useState<string>();

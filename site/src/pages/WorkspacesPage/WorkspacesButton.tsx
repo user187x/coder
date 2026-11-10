@@ -82,7 +82,7 @@ export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 					// the remaining space clips the footer on short viewports.
 					style={{
 						maxHeight:
-							"min(380px, calc(var(--radix-popper-available-height) - 8rem))",
+							"min(380px, calc(calc(var(--radix-popper-available-height)/var(--app-zoom,1)) - 8rem))",
 					}}
 				>
 					{templatesFetchStatus === "pending" ? (

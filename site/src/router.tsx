@@ -12,6 +12,7 @@ import { Loader } from "./components/Loader/Loader";
 import { RequireAuth } from "./contexts/auth/RequireAuth";
 import { DashboardLayout } from "./modules/dashboard/DashboardLayout";
 import { AdminSettingsFrame } from "./modules/management/AdminSettingsFrame";
+import { DefaultViewRedirect } from "./modules/management/DefaultViewRedirect";
 import { LeaseLoginPage } from "./modules/platform/shortTermLeases/LeaseLoginPage";
 import AuditPage from "./pages/AuditPage/AuditPage";
 import ConnectionLogPage from "./pages/ConnectionLogPage/ConnectionLogPage";
@@ -461,7 +462,7 @@ export const router = createBrowserRouter(
 			{/* Dashboard routes */}
 			<Route element={<RequireAuth />}>
 				<Route element={<DashboardLayout />}>
-					<Route index element={<Navigate to="/dashboard" replace />} />
+					<Route index element={<DefaultViewRedirect />} />
 
 					<Route
 						path="/external-auth/:provider"

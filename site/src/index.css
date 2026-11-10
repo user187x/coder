@@ -1019,3 +1019,12 @@ html {
 .h-dvh {
 	height: calc(100dvh / var(--app-zoom, 1));
 }
+/* Menus, popovers and tooltips are placed in true pixels (their placement library measures the screen, not the
+   zoomed page): their positioned wrapper is drawn at full size, so the placement lands where it should, and only
+   what is inside it is drawn at the app's scale. Their available-size variables divide by --app-zoom where used. */
+[data-radix-popper-content-wrapper] {
+	zoom: calc(1 / var(--app-zoom, 1));
+}
+[data-radix-popper-content-wrapper] > * {
+	zoom: var(--app-zoom, 1);
+}

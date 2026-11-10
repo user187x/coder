@@ -2,7 +2,7 @@ import { cn } from "cn";
 import { XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import type { Banner, BannerFields } from "#/api/platform";
 import { globalLockdown } from "#/api/queries/globalLockdown";
 import {
@@ -13,6 +13,7 @@ import {
 } from "#/api/queries/platform";
 import { workspaceByOwnerAndName } from "#/api/queries/workspaces";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
+import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
 import { GlobalLockdownNotice } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import {
 	useWorkspaceRestricted,
@@ -230,6 +231,22 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const receipts = placement !== "login" && banner.receipts !== false && !blank;
 	const compact = placement !== "page";
 	const inNavbar = placement === "navbar";
+	// A single click on the banner (not on its buttons or links) takes the user to their Default View.
+	const navigate = useNavigate();
+	const location = useLocation();
+	const defaultView = useSettingsDefaultView(placement !== "login");
+	const goToDefaultView = (event: React.MouseEvent) => {
+		if (
+			placement === "login" ||
+			event.detail !== 1 ||
+			!defaultView.path ||
+			location.pathname === defaultView.path ||
+			(event.target instanceof Element &&
+				event.target.closest("button, a, input, [role=button]"))
+		)
+			return;
+		navigate(defaultView.path);
+	};
 	const statusQuery = useQuery({
 		...announcementStatus(banner.id),
 		enabled: receipts,
@@ -292,9 +309,11 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 
 	return (
 		<AnnouncementReader banner={banner}>
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: a pointer shortcut to the Default View, which the keyboard reaches from the Settings menu's quick links */}
 			<div
 				ref={card}
 				id="coder-system-banner"
+				onClick={goToDefaultView}
 				data-announcement-motion={motion.effects ? "on" : "off"}
 				role={blank ? undefined : "status"}
 				data-closing={motion.effects ? close.props["data-closing"] : undefined}
