@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { useEffect, useRef } from "react";
 import { Breadcrumb } from "#/components/Breadcrumb/Breadcrumb";
+import { toCssPx } from "#/utils/appZoom";
 
 /**
  * Keeps admin navigation below the navbar and the category rail below the breadcrumb. The connected
@@ -36,12 +37,12 @@ export const AdminBreadcrumb: React.FC<
 			if (!inline) {
 				parent.style.setProperty(
 					"--admin-breadcrumb-height",
-					`${nav.getBoundingClientRect().height}px`,
+					`${toCssPx(nav.getBoundingClientRect().height)}px`,
 				);
 			}
 			parent.style.setProperty(
 				"--dashboard-navigation-height",
-				`${(navbar?.getBoundingClientRect().height ?? 72) + (mobileBanner?.getBoundingClientRect().height ?? 0)}px`,
+				`${toCssPx((navbar?.getBoundingClientRect().height ?? 72) + (mobileBanner?.getBoundingClientRect().height ?? 0))}px`,
 			);
 		};
 		const observer = new ResizeObserver(update);

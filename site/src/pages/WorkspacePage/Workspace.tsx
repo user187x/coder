@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CornerExpandButton } from "#/components/Button/CornerExpandButton";
+import { toCssPx } from "#/utils/appZoom";
 import { bottomBarsHeight } from "#/utils/bottomBars";
 import "./workspaceDashboard.css";
 import type * as TypesGen from "#/api/typesGenerated";
@@ -109,8 +110,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 				page.getBoundingClientRect().top,
 				navbar?.getBoundingClientRect().bottom ?? 0,
 			);
-			page.style.setProperty("--workspace-top", `${top}px`);
-			page.style.setProperty("--workspace-bottom", `${bottomBarsHeight()}px`);
+			// Measured on the screen, set under the app's scale
+			page.style.setProperty("--workspace-top", `${toCssPx(top)}px`);
+			page.style.setProperty(
+				"--workspace-bottom",
+				`${toCssPx(bottomBarsHeight())}px`,
+			);
 		};
 
 		root.setAttribute("data-workspace-expanded", "");

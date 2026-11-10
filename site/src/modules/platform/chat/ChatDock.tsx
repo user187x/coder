@@ -17,6 +17,7 @@ import {
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
+import { toCssPx } from "#/utils/appZoom";
 import { DriveShareNotification } from "../cloudDrive/DriveShareNotification";
 import { ChatFullScreen, ChatSidePanel } from "./ChatAttached";
 import { ChatConsoleOverlay } from "./ChatConsoleOverlay";
@@ -62,10 +63,11 @@ const useDockMeasurements = (
 ) => {
 	useEffect(() => {
 		const last = new Map<string, number>();
+		// The measurements are screen pixels; the variables are CSS lengths under the app's scale.
 		const set = (element: HTMLElement, name: string, px: number) => {
 			if (last.get(name) !== px) {
 				last.set(name, px);
-				element.style.setProperty(name, `${px}px`);
+				element.style.setProperty(name, `${toCssPx(px)}px`);
 			}
 		};
 		const measure = () => {
