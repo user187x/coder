@@ -7,8 +7,13 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
+import { useState } from "react";
 import { Link, Outlet } from "react-router";
 import { type Banner, PlatformAPI } from "#/api/platform";
+import {
+	NavbarAction,
+	NavbarStartTarget,
+} from "#/modules/dashboard/Navbar/NavbarAction";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { MockBanner } from "#/testHelpers/platform";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
@@ -274,4 +279,46 @@ describe("Default View", () => {
 			within(pill).getByRole("link", { name: "Accounts" }),
 		).toHaveAttribute("href", "/deployment/users");
 	});
+});
+
+it("puts the page's action button in the category chevron's place when the navigation is in the navbar", async () => {
+	const user = userEvent.setup();
+	const onCreate = vi.fn();
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+		admin_nav_in_navbar: true,
+	});
+	const WithNavbarStart = () => {
+		const [start, setStart] = useState<HTMLDivElement | null>(null);
+		return (
+			<NavbarStartTarget.Provider value={start}>
+				<div ref={setStart} />
+				<DeploymentSettingsLayout />
+			</NavbarStartTarget.Provider>
+		);
+	};
+	renderWithAuth(<WithNavbarStart />, {
+		path: "/deployment",
+		route: "/deployment/users",
+		children: [
+			{
+				path: "users",
+				element: (
+					<NavbarAction>
+						<button type="button" onClick={onCreate}>
+							New account
+						</button>
+					</NavbarAction>
+				),
+			},
+		],
+	});
+	// In the navbar, the page no longer lists the categories beside itself.
+	const breadcrumb = await waitFor(() => {
+		expect(screen.queryByRole("link", { name: "Accounts" })).toBeNull();
+		return screen.getByRole("navigation", { name: "breadcrumb" });
+	});
+	await user.click(
+		await within(breadcrumb).findByRole("button", { name: "New account" }),
+	);
+	expect(onCreate).toHaveBeenCalledOnce();
 });

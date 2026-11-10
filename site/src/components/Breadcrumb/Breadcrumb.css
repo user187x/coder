@@ -415,49 +415,43 @@
 .admin-navbar-breadcrumb > ol > li:empty {
 	display: none;
 }
-/* The category chevron's caret (CategoryActionsMenu): a divider, then a caret that points down while its menu of the
-   page's actions is open. */
-.admin-navbar-breadcrumb .category-actions-trigger {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
+/* A page with an action (NavbarAction) puts its button in the category chevron's place: the button keeps its own
+   colours and dropdown, cut to the chevron's notched shape; the category's icon button steps aside meanwhile. */
+.admin-navbar-breadcrumb .category-action-host:empty {
+	display: none;
+}
+.admin-navbar-breadcrumb .category-action-host {
+	display: flex;
 	align-self: stretch;
-	margin-left: 2px;
-	padding: 0 4px 0 2px;
-	border: 0;
+	width: 100%;
+	text-shadow: none;
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> span:has(> .category-action-host:not(:empty)) {
+	padding: 0;
 	background: transparent;
-	color: var(--crumb-ink);
-	cursor: pointer;
-}
-.admin-navbar-breadcrumb .category-actions-trigger:focus-visible {
-	outline: 2px solid hsl(var(--content-link));
-	outline-offset: -2px;
-	border-radius: 4px;
-}
-.admin-navbar-breadcrumb .category-actions-divider {
-	width: 1px;
-	height: 16px;
-	background: linear-gradient(
-		180deg,
-		rgb(130 136 148 / 0.2) 0%,
-		rgb(118 124 136 / 0.85) 50%,
-		rgb(130 136 148 / 0.2) 100%
-	);
-	box-shadow: 1px 0 0 var(--crumb-lip);
-}
-.admin-navbar-breadcrumb .category-actions-caret {
-	width: 12px;
-	height: 12px;
-	transform: rotate(-90deg);
-	transition: transform 0.16s ease;
+	overflow: hidden;
 }
 .admin-navbar-breadcrumb
-	.category-actions-trigger[data-state="open"]
-	.category-actions-caret {
-	transform: none;
+	span:has(> .category-action-host:not(:empty))
+	> .category-breadcrumb-button {
+	display: none;
 }
-@media (prefers-reduced-motion: reduce) {
-	.admin-navbar-breadcrumb .category-actions-caret {
-		transition: none;
-	}
+.admin-navbar-breadcrumb .category-action-host > :is(a, button) {
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	border-radius: 0;
+	padding-left: calc(var(--crumb-edge) + 0.75rem);
+	padding-right: 0.875rem;
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> :is(a, span, button)
+	.category-action-host
+	svg {
+	filter: none;
 }

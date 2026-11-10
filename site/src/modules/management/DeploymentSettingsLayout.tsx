@@ -28,7 +28,10 @@ import {
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
-import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
+import {
+	NavbarActionTarget,
+	NavbarStart,
+} from "#/modules/dashboard/Navbar/NavbarAction";
 import {
 	setSettingsMenuHost,
 	useSettingsMenuPresent,
@@ -38,7 +41,6 @@ import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { useAnnounceSection } from "#/modules/platform/announcement/sectionIntroductions";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { AdminCategoryMenu } from "./AdminCategoryMenu";
-import { CategoryActionsMenu } from "./CategoryActionsMenu";
 import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 import { DeploymentSidebar } from "./DeploymentSidebar";
 import { useSettingsDefaultView } from "./settingsDefaultView";
@@ -57,6 +59,8 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const placement = useMutation(updateUserUIPreferences(queryClient));
 	const inNavbar = Boolean(preferences.data?.admin_nav_in_navbar);
 	const [categoriesOpen, setCategoriesOpen] = useState(false);
+	// In the navbar, the page's action button (NavbarAction) takes the category chevron's place: it renders here.
+	const [actionHost, setActionHost] = useState<HTMLSpanElement | null>(null);
 	// In the navbar, the Settings chevron opens the navbar's Settings menu, where there is one.
 	const settingsMenu = useSettingsMenuPresent();
 	const { data: introduction } = useQuery({
@@ -149,7 +153,10 @@ const DeploymentSettingsLayout: React.FC = () => {
 											sidebarOpen={categoriesOpen}
 											onToggle={() => setCategoriesOpen((open) => !open)}
 										/>
-										<CategoryActionsMenu label={category?.label ?? "General"} />
+										<span
+											ref={setActionHost}
+											className="category-action-host"
+										/>
 									</span>
 								</PopoverAnchor>
 								<PopoverContent
@@ -239,7 +246,13 @@ const DeploymentSettingsLayout: React.FC = () => {
 						</div>
 						<div className={cn("grow min-w-0", inNavbar && "[&>*]:mx-auto")}>
 							<Suspense fallback={<PageLoader />}>
-								<Outlet />
+								{inNavbar ? (
+									<NavbarActionTarget.Provider value={actionHost}>
+										<Outlet />
+									</NavbarActionTarget.Provider>
+								) : (
+									<Outlet />
+								)}
 							</Suspense>
 						</div>
 					</div>

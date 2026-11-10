@@ -6,7 +6,7 @@ import {
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
-import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
+import { Button } from "#/components/Button/Button";
 import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
 import {
 	withAuthProvider,
@@ -14,7 +14,6 @@ import {
 } from "#/testHelpers/storybook";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { AdminCategoryMenu } from "./AdminCategoryMenu";
-import { CategoryActionsMenu } from "./CategoryActionsMenu";
 import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 
 const meta: Meta<typeof AdminBreadcrumb> = {
@@ -79,8 +78,8 @@ export const Categories: Story = {
 	},
 };
 
-/** In the navbar: the chevrons in their recessed well, and the category's caret open on the page's action items. */
-export const NavbarCategoryActions: Story = {
+/** In the navbar: the chevrons in their recessed well, the page's action button in the category chevron's place. */
+export const NavbarPageAction: Story = {
 	render: () => (
 		<div className="navbar-start flex h-[72px] items-center bg-surface-primary px-6">
 			<AdminBreadcrumb
@@ -101,21 +100,16 @@ export const NavbarCategoryActions: Story = {
 								sidebarOpen={false}
 								onToggle={() => {}}
 							/>
-							<CategoryActionsMenu label="Images" />
+							<span className="category-action-host">
+								<Button size="lg">
+									<BoxIcon />
+									New Image
+								</Button>
+							</span>
 						</span>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</AdminBreadcrumb>
-			<NavbarAction
-				menu={[{ label: "New Image", icon: BoxIcon, onSelect: () => {} }]}
-			>
-				{null}
-			</NavbarAction>
 		</div>
 	),
-	play: async ({ canvasElement }) => {
-		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: "Images actions" }),
-		);
-	},
 };
