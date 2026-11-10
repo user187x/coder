@@ -128,9 +128,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		...updateUserUIPreferences(client),
 		onError: () => toast.error("Could not save Settings sidebar preference."),
 	});
-	const docked = Boolean(
-		!breadcrumbOnly && controls && prefs.data?.settings_sidebar,
-	);
+	const docked = Boolean(controls && prefs.data?.settings_sidebar);
 	// The admin settings' navigation in the navbar: on a settings page this menu opens from the breadcrumb's Settings
 	// chevron, in place of the navbar's Settings button, its panel's left edge on the chevron's.
 	const settingsInNavbar = Boolean(
@@ -312,7 +310,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		}
 	};
 	const edge = docked ? "right" : openEdge;
-	if (breadcrumbOnly && !breadcrumbHost) return null;
+	// Only for the breadcrumb: nothing to show until a breadcrumb takes its button, unless it is docked at the side.
+	if (breadcrumbOnly && !breadcrumbHost && !docked) return null;
 
 	return (
 		<>

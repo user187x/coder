@@ -298,6 +298,15 @@ export const cloudDriveConnections = (enabled = true) => ({
 			: 30_000,
 });
 
+/** Admins: every account's Cloud Drive and its workspaces, for Admin Settings > Cloud Drive's diagram. */
+export const cloudDriveConnectionsOverview = (enabled = true) => ({
+	queryKey: [...cloudDriveConnectionsKey, "all"],
+	queryFn: PlatformAPI.getCloudDriveConnectionsOverview,
+	enabled,
+	retry: false,
+	refetchInterval: 30_000,
+});
+
 export const setCloudDriveConnection = (queryClient: QueryClient) => ({
 	mutationFn: ({
 		workspaceId,

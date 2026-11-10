@@ -130,9 +130,8 @@ export const WorkspacesFilter: React.FC<WorkspaceFilterProps> = ({
 				onChange={filter.update}
 				categories={categories}
 				placeholder="Search and filter workspaces…"
-				// Full width on mobile. From `sm` up it starts at a compact width
-				// and widens to fit chips before wrapping.
-				className="w-full min-w-0 self-start sm:w-auto sm:min-w-lg sm:max-w-full"
+				// The table's full width, as the other tables' searches are.
+				className="w-full min-w-0"
 				errorMessage={
 					showValidationError ? getValidationErrorMessage(error) : undefined
 				}

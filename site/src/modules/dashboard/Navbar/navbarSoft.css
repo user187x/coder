@@ -351,3 +351,20 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 .navbar-start .admin-navbar-breadcrumb > ol > li + li {
 	margin-left: 0;
 }
+
+/* The navbar's own Settings chevron (pages without a settings breadcrumb): shaped as the breadcrumb's first chevron,
+   not as a lone rounded crumb. */
+.navbar-settings-crumb.breadcrumb-connected
+	> ol
+	> li:only-child
+	> :is(a, span, button) {
+	border-radius: 6px 0 0 6px;
+	padding-inline: 8px calc(8px + var(--crumb-edge));
+	clip-path: polygon(
+		0 0,
+		calc(100% - var(--crumb-edge)) 0,
+		100% 50%,
+		calc(100% - var(--crumb-edge)) 100%,
+		0 100%
+	);
+}

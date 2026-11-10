@@ -72,12 +72,6 @@ import {
 	normalizeWorkspaceApps,
 } from "#/modules/apps/workspaceApps";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
-import { CloudDriveAttachBadge } from "#/modules/platform/cloudDrive/CloudDriveAttachBadge";
-import { CloudDriveLockBadge } from "#/modules/platform/cloudDrive/CloudDriveLockBadge";
-import {
-	CloudDriveSocket,
-	useCloudDriveLinks,
-} from "#/modules/platform/cloudDrive/CloudDriveSocket";
 import {
 	LockdownBadge,
 	useAllLockdowns,
@@ -148,14 +142,11 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 }) => {
 	const { data: icons } = useWorkspaceIcons();
 	const dashboard = useDashboard();
-	const { user: me } = useAuthenticated();
 	const isLoading = !workspaces;
 	const isEmpty = workspaces && workspaces.length === 0;
 	const hideHeaders = isLoading || isEmpty;
 	// Platform: admins' Lock Down badges, in a column of their own before Name (no heading).
 	const locks = useAllLockdowns();
-	// Platform: the Cloud Drive's socket on each row, its own column at the end (none without a Cloud Drive).
-	const drive = useCloudDriveLinks();
 
 	const table = (
 		<Table aria-label="Workspaces">
@@ -222,16 +213,6 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					>
 						Controls
 					</TableHead>
-					{drive.enabled && (
-						<TableHead
-							className={cn(
-								"w-16 px-2 text-center",
-								hideHeaders && "invisible",
-							)}
-						>
-							Drive
-						</TableHead>
-					)}
 				</TableRow>
 			</TableHeader>
 			<TableBody className="[&_td]:h-[78px]">
@@ -369,19 +350,13 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 										className="inline-flex max-w-56 items-center gap-2 rounded-[10px] border border-solid border-border bg-surface-primary py-1 pl-1 pr-2.5"
 										data-hint={`Made from the ${templateName} template`}
 									>
-										{/* Platform: a lock over it while its Cloud Drive is encrypted. */}
-										<CloudDriveLockBadge
-											workspaceId={workspace.id}
-											ownerId={workspace.owner_id}
-										>
-											<Avatar
-												variant="icon"
-												src={icons?.[workspace.id] || workspace.template_icon}
-												fallback={templateName}
-												size="md"
-												className="rounded-[7px]"
-											/>
-										</CloudDriveLockBadge>
+										<Avatar
+											variant="icon"
+											src={icons?.[workspace.id] || workspace.template_icon}
+											fallback={templateName}
+											size="md"
+											className="rounded-[7px]"
+										/>
 										<span className="truncate text-[13px] font-semibold text-content-primary">
 											{templateName}
 										</span>
@@ -396,7 +371,6 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							</TableCell>
 
 							<TableCell className="text-center">
-								{/* Platform: an orange cloud beside Running until its Cloud Drive is attached */}
 								<WorkspaceRowStatus
 									workspace={workspace}
 									agentUpdateAvailable={agentUpdateAvailable}
@@ -406,7 +380,6 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 										dashboard.buildInfo.agent_api_version,
 									)}
 									pill
-									after={<CloudDriveAttachBadge workspace={workspace} />}
 								/>
 								<WorkspaceTunnelStatus workspaceId={workspace.id} />
 							</TableCell>
@@ -417,16 +390,6 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 								onActionSuccess={onActionSuccess}
 								onActionError={onActionError}
 							/>
-
-							{drive.enabled && (
-								<TableCell className="w-16 px-2 text-center">
-									<CloudDriveSocket
-										workspace={workspace}
-										links={drive}
-										mine={workspace.owner_id === me.id}
-									/>
-								</TableCell>
-							)}
 						</WorkspacesRow>
 					);
 				})}

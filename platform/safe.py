@@ -41,6 +41,9 @@ account a PersistentVolume (Retain: removing it never removes files) and its cla
                                               others (never connected), whether it is encrypted, its source workspace;
                                               how the drive is in each started one (attachment: attached, waiting, ...)
   POST /__coder-ui/api/safe/connections/<workspace id> {connected}   the caller's own workspace (dis)connected
+  GET  /__coder-ui/api/safe/connections/all   admins: every account's Cloud Drive and its workspaces, each connected,
+                                              disconnected by its owner, or shared with others (Admin Settings >
+                                              Cloud Drive's diagram)
   GET  /__coder-ui/api/safe/encryption        the caller's encryption: off / encrypting / on / decrypting, how
   POST /__coder-ui/api/safe/encryption/prepare {method: password, password} | {method: pki, certificate}
                                               a new data key and its recovery kit (to download); nothing changes yet
@@ -859,6 +862,33 @@ def connections(user):
             "encrypted": encryption_on(user["id"]), "restart": stale_mounts(user["id"], src, set(shared)),
             "source": source_view(user["id"], src) if src else None, "attachment": attachment(user["id"]),
             "workspaceConnections": drivepeers.workspace_connections(user)}
+
+
+def all_connections(user):
+    """Admins: every account that has a workspace, its Cloud Drive's source workspace (if a folder of one is it) and
+    whether it is encrypted, and each of its workspaces: "connected" to its Cloud Drive, "disconnected" by its owner,
+    or "shared" with others (never connected)."""
+    if not (IS_ADMIN and IS_ADMIN(user)):
+        raise PermissionError("Only admins see every account's Cloud Drive connections.")
+    accounts = USERS() if USERS else None
+    if accounts is None or not WORKSPACES:
+        raise RuntimeError("Coder's database cannot be read yet.")
+    off, shared, src, keys = disconnected(), shared_now(), sources(), encryption_records()
+    drives = []
+    for uid, username in sorted(accounts, key=lambda a: (a[1] or "").lower()):
+        workspaces = WORKSPACES(uid) or []
+        if not workspaces:
+            continue
+        drives.append({
+            "owner": {"id": uid, "username": username},
+            "encrypted": (keys.get(uid) or {}).get("state") in ("on", "encrypting", "decrypting"),
+            "source": (src.get(uid) or {}).get("workspace"),
+            "workspaces": [{"id": w["id"], "name": w["name"],
+                            "state": "shared" if w["id"] in shared else
+                                     "disconnected" if w["id"] in off else "connected"}
+                           for w in workspaces],
+        })
+    return {"drives": drives}
 
 
 PEER_MOUNT_DIRS = ("/mnt/cloud-drive-peers/", "/mnt/cloud-drive-items/")
@@ -2925,6 +2955,8 @@ def handle(h, method, path, query):
             h.send_json(200, save_quota(user, read_json(h)))
         elif method == "GET" and path == BASE + "/api/safe/connections":
             h.send_json(200, connections(user))
+        elif method == "GET" and path == BASE + "/api/safe/connections/all":
+            h.send_json(200, all_connections(user))
         elif method == "GET" and path == BASE + "/api/safe/encryption":
             h.send_json(200, encryption_view(user))
         elif method == "POST" and path == BASE + "/api/safe/encryption/prepare":

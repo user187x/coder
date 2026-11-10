@@ -2096,6 +2096,26 @@ export type CloudDriveConnections = {
 	attachment?: Record<string, CloudDriveAttachment>;
 };
 
+/** How one of an account's workspaces is to its Cloud Drive: connected, disconnected by its owner, or shared with
+ * others (never connected). */
+export type CloudDriveWorkspaceState = "connected" | "disconnected" | "shared";
+
+/** Admins: every account that has a workspace, its Cloud Drive and each of its workspaces (safe.py's
+ * all_connections). */
+export type CloudDriveConnectionsOverview = {
+	drives: {
+		owner: { id: string; username: string };
+		encrypted: boolean;
+		/** The workspace whose folder is the Cloud Drive, if one is. */
+		source: string | null;
+		workspaces: {
+			id: string;
+			name: string;
+			state: CloudDriveWorkspaceState;
+		}[];
+	}[];
+};
+
 /** The Cloud Drive in a workspace (workspace-platform cloud-runtime status): attached (linked, its storage answers), or not yet -
  * starting (no word from it yet), waiting (on its way), unanswered (linked, its storage does not answer), offline (no
  * volume: its source workspace was not running at the start), stale (its agent went quiet); none there - shared (with
@@ -2491,6 +2511,11 @@ export const PlatformAPI = {
 	/** Which of the caller's workspaces are disconnected from their Cloud Drive. */
 	getCloudDriveConnections: () =>
 		get<CloudDriveConnections>(`${PLATFORM_BASE}/api/safe/connections`),
+	/** Admins: every account's Cloud Drive and the workspaces connected to it. */
+	getCloudDriveConnectionsOverview: () =>
+		get<CloudDriveConnectionsOverview>(
+			`${PLATFORM_BASE}/api/safe/connections/all`,
+		),
 	/** One of the caller's workspaces connected to their Cloud Drive, or disconnected from it (at once, if it runs). */
 	setCloudDriveConnection: (workspaceId: string, connected: boolean) =>
 		post<

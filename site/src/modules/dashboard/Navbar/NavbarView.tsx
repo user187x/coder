@@ -4,6 +4,11 @@ import { API } from "#/api/api";
 import { type NavbarLayout, PlatformAPI } from "#/api/platform";
 import { userUIPreferences } from "#/api/queries/platform";
 import type * as TypesGen from "#/api/typesGenerated";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+} from "#/components/Breadcrumb/Breadcrumb";
 import { Button } from "#/components/Button/Button";
 import { useProductLogoURL } from "#/components/Icons/ProductLogo";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
@@ -20,12 +25,18 @@ import type {
 	AdminQuickLinks,
 	AdminSettingsPermissions,
 } from "./AdminSettings";
+import { canViewAdminSettings } from "./AdminSettings";
 import { addableAdminPages } from "./adminQuickLinks";
 import { MobileMenu } from "./MobileMenu";
 import { NavbarLogo } from "./NavbarLogo";
 import { navbarInk, navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
+import {
+	settingsMenuSlot,
+	usePageSettingsBreadcrumb,
+	useSettingsMenuPresent,
+} from "./settingsMenuHost";
 import { UserDropdown } from "./UserDropdown/UserDropdown";
 import { WorkspacesDropdown } from "./WorkspacesDropdown";
 import "./navbarSkeuo.css";
@@ -76,6 +87,14 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	// The items taken off the navbar: the notification bell among them or not (the Settings badge leaves the inbox
 	// and chats to the bell while it shows).
 	const { hidden: navbarHidden } = useNavbarOrder(defaultLayout);
+	// The admin settings' navigation in the navbar (the user's choice, everywhere): the Settings menu opens from the
+	// Settings chevron on every page, never the navbar's own Settings button; settings pages put the chevron in their
+	// breadcrumb, every other page in the navbar's own.
+	const settingsInNavbar =
+		Boolean(preferences.data?.admin_nav_in_navbar) &&
+		canViewAdminSettings(adminPermissions);
+	const pageCrumb = usePageSettingsBreadcrumb();
+	const settingsMenuPresent = useSettingsMenuPresent();
 	// Editable where there is anything to link to.
 	const quickLinksEditor =
 		adminQuickLinks && adminQuickLinks.pages.length > 0
@@ -163,7 +182,19 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				ref={startRef}
 				data-testid="navbar-start"
 				className="navbar-start flex shrink-0 items-center empty:hidden"
-			/>
+			>
+				{/* Pages without a settings breadcrumb of their own: the Settings chevron alone */}
+				{settingsInNavbar && settingsMenuPresent && !pageCrumb && (
+					<Breadcrumb
+						variant="connected"
+						className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
+					>
+						<BreadcrumbList>
+							<BreadcrumbItem ref={settingsMenuSlot} />
+						</BreadcrumbList>
+					</Breadcrumb>
+				)}
+			</div>
 
 			{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
 			<NavbarArrange
@@ -182,7 +213,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					),
 					banner: <AnnouncementBanner placement="navbar" />,
 					// the latency and the Controls in one menu, the HUD joined on as one split button (admins)
-					latency: settingsMenu(false),
+					latency: settingsInNavbar ? null : settingsMenu(false),
 					notifications: (
 						<div className="relative">
 							<NotificationsInbox
@@ -215,7 +246,8 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					),
 				}}
 			/>
-			{navbarHidden.includes("latency") && settingsMenu(true)}
+			{(settingsInNavbar || navbarHidden.includes("latency")) &&
+				settingsMenu(true)}
 
 			<div
 				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "@[48rem]/dashboard:ml-3" : "@[48rem]/dashboard:hidden"}`}

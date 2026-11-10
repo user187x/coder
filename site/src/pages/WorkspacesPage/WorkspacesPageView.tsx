@@ -7,7 +7,6 @@ import {
 	TrashIcon,
 	XIcon,
 } from "lucide-react";
-import { useMemo } from "react";
 import type { UseQueryResult } from "react-query";
 import { hasError, isApiValidationError } from "#/api/errors";
 import type { Template, Workspace } from "#/api/typesGenerated";
@@ -20,18 +19,12 @@ import { PageHeaderTitle } from "#/components/PageHeader/PageHeader";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
-import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
-import {
-	isLinked,
-	useCloudDriveLinks,
-} from "#/modules/platform/cloudDrive/CloudDriveSocket";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { WorkspaceQuotaPill } from "#/modules/platform/workspaceQuota/WorkspaceQuotaPill";
 import { WorkspaceTableTunnels } from "#/modules/platform/workspaceTunnels/WorkspaceTableTunnels";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
-import { isDeleting } from "./startingRows";
 import { WorkspacesButton } from "./WorkspacesButton";
 
 type TemplateQuery = UseQueryResult<Template[]>;
@@ -92,25 +85,12 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 	// does not exist. In this case, the page is not valid and we want to show a
 	// better error message.
 	const pageNumberIsInvalid = page !== 1 && workspaces?.length === 0;
-	// Platform: the signed-in user's own workspaces on this page, each roped to the Cloud Drive.
 	const { user: me } = useAuthenticated();
-	const mine = useMemo(
-		() =>
-			(workspaces ?? []).filter((w) => w.owner_id === me.id).map((w) => w.id),
-		[workspaces, me.id],
-	);
-	// Platform: being deleted - a cable to one pops off its row and reels back into the Cloud Drive before the row goes
-	const deleting = useMemo(
-		() => (workspaces ?? []).filter(isDeleting).map((w) => w.id),
-		[workspaces],
-	);
-	// Platform: the table's footer - what the page shows, how many run, how many have the Cloud Drive
-	const drive = useCloudDriveLinks();
+	// Platform: the table's footer - what the page shows and how many run
 	const shown = workspaces?.length ?? 0;
 	const running = (workspaces ?? []).filter(
 		(w) => w.latest_build.status === "running",
 	).length;
-	const mounted = mine.filter((id) => isLinked(drive, id)).length;
 	const first = (page - 1) * limit + 1;
 	const summary =
 		workspaces && shown > 0 && count !== undefined ? (
@@ -123,16 +103,11 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				<strong className="font-semibold text-content-primary">{count}</strong>{" "}
 				{count === 1 ? "workspace" : "workspaces"}
 				{filter.query.trim() !== "" && " (filtered)"} · {running} running
-				{drive.enabled && ` · ${mounted} with Cloud Drive mounted`}
 			</span>
 		) : undefined;
 
 	return (
-		// Platform: relative for the Cloud Drive's ropes over the table.
-		<Margins
-			className="relative flex grow flex-col pb-12"
-			data-cloud-drive-area
-		>
+		<Margins className="relative flex grow flex-col pb-12">
 			{/* Platform: Workspaces | Templates | Images. */}
 			{/* The announcement banner names the section, so the heading is for assistive technology only. */}
 			<PageHeaderTitle className="sr-only">Workspaces</PageHeaderTitle>
@@ -158,30 +133,13 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					</div>
 				)}
 
-				{/* Platform: the user's quota, where an admin set one for them (Health > User Quota), and their Cloud Drive */}
+				{/* Platform: the user's quota, where an admin set one for them (Health > User Quota) */}
 				<WorkspaceQuotaPill
 					workspacesKey={workspaces
 						?.map(
 							(w) => `${w.id}:${w.latest_build.id}:${w.latest_build.status}`,
 						)
 						.join(",")}
-					cloudDrive={
-						drive.enabled && (
-							// Platform: the account's Cloud Drive, the quota table's last column.
-							<CloudDrive
-								placement="quota"
-								workspaceIds={mine}
-								shareWorkspaceIds={
-									me.roles.some((role) => role.name === "owner")
-										? (workspaces ?? [])
-												.filter((w) => w.owner_id !== me.id)
-												.map((w) => w.id)
-										: []
-								}
-								deleting={deleting}
-							/>
-						)
-					}
 				/>
 				{/* Platform: the search (and, with rows selected, its bulk actions) in one rounded bar right above the table,
 				    no border lines and see-through, padded above and below as far as the Chats card floats above the page's
@@ -311,11 +269,7 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 									? `Selected ${checkedWorkspaces.length} of ${workspaces?.length ?? 0} workspaces`
 									: undefined
 							}
-							hint={
-								drive.enabled && mine.length > 0
-									? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"
-									: "Point at anything in the table to read what it does"
-							}
+							hint="Point at anything in the table to read what it does"
 						>
 							<WorkspacesTable
 								canCreateTemplate={canCreateTemplate}

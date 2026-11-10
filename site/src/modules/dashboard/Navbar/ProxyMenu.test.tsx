@@ -27,7 +27,7 @@ import { MockClusterUsage } from "#/testHelpers/platform";
 import { renderComponent, renderWithAuth } from "#/testHelpers/renderHelpers";
 import { adminPagesFor } from "./adminQuickLinks";
 import { ProxyMenu } from "./ProxyMenu";
-import { setSettingsMenuHost } from "./settingsMenuHost";
+import { settingsMenuSlot } from "./settingsMenuHost";
 
 const value = {
 	latenciesLoaded: true,
@@ -393,7 +393,10 @@ describe("ProxyMenu", () => {
 				onSignOut={vi.fn()}
 			/>,
 		);
-		act(() => setSettingsMenuHost(slot));
+		let leave: (() => void) | undefined;
+		act(() => {
+			leave = settingsMenuSlot(slot);
+		});
 		const trigger = await within(slot).findByRole("button", {
 			name: "Settings",
 		});
@@ -412,7 +415,7 @@ describe("ProxyMenu", () => {
 		await waitFor(() =>
 			expect(screen.queryByTestId("navbar-latency-controls-menu")).toBeNull(),
 		);
-		act(() => setSettingsMenuHost(null));
+		act(() => leave?.());
 		slot.remove();
 	});
 });

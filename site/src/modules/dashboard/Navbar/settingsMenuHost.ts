@@ -16,9 +16,19 @@ const subscribe = (listener: () => void) => {
 	return () => listeners.delete(listener);
 };
 
-export const setSettingsMenuHost = (next: HTMLElement | null) => {
-	host = next;
+/**
+ * The Settings chevron's slot, as a ref: the navbar's own breadcrumb and a settings page's both offer one, and a slot
+ * leaving clears the host only while it is still the host, so one replacing the other never loses it.
+ */
+export const settingsMenuSlot = (element: HTMLElement | null) => {
+	if (!element) return;
+	host = element;
 	emit();
+	return () => {
+		if (host !== element) return;
+		host = null;
+		emit();
+	};
 };
 
 export const useSettingsMenuHost = () =>
@@ -36,6 +46,25 @@ export const useRegisterSettingsMenu = (enabled: boolean) => {
 		emit();
 		return () => {
 			menus -= 1;
+			emit();
+		};
+	}, [enabled]);
+};
+
+let pageCrumbs = 0;
+
+/** Whether a page put its own settings breadcrumb (with the Settings chevron's slot) in the navbar. */
+export const usePageSettingsBreadcrumb = () =>
+	useSyncExternalStore(subscribe, () => pageCrumbs > 0);
+
+/** Marks a page's settings breadcrumb in the navbar while the calling component shows one. */
+export const useRegisterPageSettingsBreadcrumb = (enabled: boolean) => {
+	useEffect(() => {
+		if (!enabled) return;
+		pageCrumbs += 1;
+		emit();
+		return () => {
+			pageCrumbs -= 1;
 			emit();
 		};
 	}, [enabled]);

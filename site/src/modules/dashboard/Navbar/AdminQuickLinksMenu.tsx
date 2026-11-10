@@ -117,45 +117,28 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	};
 
 	const controlsMenu = useInlineMenu();
-	// Open, Controls reaches only down to the Settings panel's bottom; its own list scrolls the rest, and nothing else
-	// in the panel moves.
-	const choicesBox = useRef<HTMLDivElement>(null);
+	// Open, the Controls list drops over whatever is below it, down to the Settings panel's bottom, and scrolls the rest:
+	// the panel never grows for it.
+	const controlsRoot = useRef<HTMLDivElement>(null);
 	const [choicesMax, setChoicesMax] = useState<number>();
-	const [linksMax, setLinksMax] = useState<number>();
 	useLayoutEffect(() => {
-		const box = choicesBox.current;
-		const content = box?.parentElement;
-		const surface = box?.closest<HTMLElement>(".settings-menu-surface");
-		if (!expanded || !box || !content || !surface) return;
-		const measure = () => {
-			const top = surface.getBoundingClientRect().top;
-			const cssMax = Number.parseFloat(getComputedStyle(surface).maxHeight);
-			const room = Math.min(
-				window.innerHeight - top - 8,
-				Number.isFinite(cssMax) ? cssMax : Number.POSITIVE_INFINITY,
+		const root = controlsRoot.current;
+		const surface = root?.closest<HTMLElement>(".settings-menu-surface");
+		if (!expanded || !root || !surface) return;
+		const measure = () =>
+			setChoicesMax(
+				Math.max(
+					96,
+					Math.floor(
+						surface.getBoundingClientRect().bottom -
+							root.getBoundingClientRect().bottom -
+							12,
+					),
+				),
 			);
-			// The room left by everything but the quick links and this list (the opening animation grows the list's wrapper,
-			// so it is left out whole), less the list's 8px of margin; it goes to this list first, and the quick links keep
-			// at least a few rows of it, scrolling in their own box, so the panel itself never needs to scroll.
-			const links = surface.querySelector<HTMLElement>(
-				"[data-testid=quick-links-scroll]",
-			);
-			const linksNow = links?.offsetHeight ?? 0;
-			const linksFull = links?.scrollHeight ?? 0;
-			const free =
-				room - (surface.scrollHeight - content.offsetHeight - linksNow) - 8;
-			const linksKeep = Math.min(linksFull, 144);
-			const choices = Math.max(
-				96,
-				Math.min(box.scrollHeight, Math.floor(free - linksKeep)),
-			);
-			setChoicesMax(choices);
-			setLinksMax(Math.max(linksKeep, Math.floor(free - choices)));
-		};
 		measure();
 		const observer = new ResizeObserver(measure);
 		observer.observe(surface);
-		observer.observe(content);
 		window.addEventListener("resize", measure);
 		return () => {
 			observer.disconnect();
@@ -176,7 +159,6 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			{/* The links scroll on their own, above Controls, which always stays in view */}
 			<div
 				className="admin-quick-links-scroll min-h-0 flex-1 overflow-y-auto"
-				style={{ maxHeight: expanded ? linksMax : undefined }}
 				data-testid="quick-links-scroll"
 			>
 				<DndContext
@@ -229,9 +211,10 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			</div>
 
 			<Collapsible
+				ref={controlsRoot}
 				open={expanded}
 				onOpenChange={setExpanded}
-				className="shrink-0"
+				className="relative shrink-0"
 			>
 				<DropdownMenuItem
 					{...controlsMenu.trigger}
@@ -278,12 +261,11 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				)}
 				<CollapsibleContent
 					id={choicesId}
-					className="admin-quick-link-choices overflow-hidden"
+					className="admin-quick-link-choices absolute inset-x-0 top-full z-30 overflow-hidden"
 				>
 					<div
-						ref={choicesBox}
 						style={{ maxHeight: expanded ? choicesMax : undefined }}
-						className="my-1 overflow-y-auto overscroll-contain rounded-lg border border-solid border-border bg-surface-secondary p-1 scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+						className="my-1 overflow-y-auto shadow-lg overscroll-contain rounded-lg border border-solid border-border bg-surface-secondary p-1 scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
 					>
 						{chatOn && (
 							<div className="flex items-center">

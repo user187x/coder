@@ -33,7 +33,8 @@ import {
 	NavbarStart,
 } from "#/modules/dashboard/Navbar/NavbarAction";
 import {
-	setSettingsMenuHost,
+	settingsMenuSlot,
+	useRegisterPageSettingsBreadcrumb,
 	useSettingsMenuPresent,
 } from "#/modules/dashboard/Navbar/settingsMenuHost";
 import { canViewDeploymentSettings } from "#/modules/permissions";
@@ -63,6 +64,8 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const [actionHost, setActionHost] = useState<HTMLSpanElement | null>(null);
 	// In the navbar, the Settings chevron opens the navbar's Settings menu, where there is one.
 	const settingsMenu = useSettingsMenuPresent();
+	// The navbar shows its own Settings chevron on every other page; here this breadcrumb holds it.
+	useRegisterPageSettingsBreadcrumb(inNavbar);
 	const { data: introduction } = useQuery({
 		...bannerQuery(false),
 		enabled: !isEmbeddedFrame(),
@@ -136,7 +139,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 				>
 					<BreadcrumbList>
 						{settingsMenu ? (
-							<BreadcrumbItem ref={setSettingsMenuHost} />
+							<BreadcrumbItem ref={settingsMenuSlot} />
 						) : (
 							<BreadcrumbItem>
 								<AdminCategoryMenu />

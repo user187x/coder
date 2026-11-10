@@ -9,11 +9,13 @@ import { Loader } from "#/components/Loader/Loader";
 import { Switch } from "#/components/Switch/Switch";
 import { CloudDriveSettings } from "#/modules/platform/cloudDrive/CloudDriveSettings";
 import { pageTitle } from "#/utils/page";
+import { CloudDriveConnectionsCard } from "./CloudDriveConnectionsDiagram";
 
 /**
  * Platform: Admin Settings > Cloud Drive. At the top, the Cloud Drive on or off for everyone - off, every workspace's
  * drive is unlinked at once and no one is shown one (the platform service: safe.py's save_enabled); then where it
- * keeps files and every account's capacity (CloudDriveSettings, as in the Cloud Drive window's Settings).
+ * keeps files and every account's capacity (CloudDriveSettings, as in the Cloud Drive window's Settings); while it is
+ * on, a diagram of the workspaces connected to each user's Cloud Drive (CloudDriveConnectionsCard).
  */
 const CloudDriveSettingsPage: React.FC = () => {
 	const queryClient = useQueryClient();
@@ -88,6 +90,7 @@ const CloudDriveSettingsPage: React.FC = () => {
 						<div className="rounded-lg border border-solid border-border bg-surface-primary">
 							<CloudDriveSettings settings={settings.data} />
 						</div>
+						{on && <CloudDriveConnectionsCard />}
 					</div>
 				)
 			)}
