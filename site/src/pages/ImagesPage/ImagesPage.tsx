@@ -164,7 +164,15 @@ const ImagesPage: React.FC = () => {
 					</Button>
 				)}
 				{canEdit && (
-					<NavbarAction>
+					<NavbarAction
+						menu={[
+							{
+								label: "New Image",
+								icon: BoxIcon,
+								onSelect: () => setCreating(true),
+							},
+						]}
+					>
 						<Button size="lg" onClick={() => setCreating(true)}>
 							<BoxIcon />
 							New Image

@@ -47,6 +47,7 @@ import type { AdminPage } from "./adminQuickLinks";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
+import "./settingsMenuSkeuo.css";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
@@ -411,7 +412,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							<div
 								role="group"
 								aria-label="Settings navigation"
-								className="mx-1 mb-1 flex flex-wrap items-center gap-1"
+								className="settings-menu-header mx-1 mb-1 flex flex-wrap items-center gap-1"
 							>
 								<UserSettingsShortcut
 									user={user}
@@ -422,7 +423,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									<DropdownMenuItem
 										asChild
 										{...hudMenu.trigger}
-										className="min-h-8 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
+										className="settings-pill min-h-8 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
 									>
 										<NavLink to="/hud" title="HUD">
 											<GaugeIcon aria-hidden />
@@ -444,7 +445,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									<div
 										role="group"
 										aria-label="Docking"
-										className="flex min-h-8 flex-1 items-stretch overflow-hidden rounded-full border border-solid border-border"
+										className="settings-pill flex min-h-8 flex-1 items-stretch overflow-hidden rounded-full border border-solid border-border"
 									>
 										<DropdownMenuItem
 											{...dockMenu.trigger}

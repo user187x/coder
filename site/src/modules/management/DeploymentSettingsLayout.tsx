@@ -38,6 +38,7 @@ import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { useAnnounceSection } from "#/modules/platform/announcement/sectionIntroductions";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { AdminCategoryMenu } from "./AdminCategoryMenu";
+import { CategoryActionsMenu } from "./CategoryActionsMenu";
 import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 import { DeploymentSidebar } from "./DeploymentSidebar";
 import { useSettingsDefaultView } from "./settingsDefaultView";
@@ -148,6 +149,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 											sidebarOpen={categoriesOpen}
 											onToggle={() => setCategoriesOpen((open) => !open)}
 										/>
+										<CategoryActionsMenu label={category?.label ?? "General"} />
 									</span>
 								</PopoverAnchor>
 								<PopoverContent

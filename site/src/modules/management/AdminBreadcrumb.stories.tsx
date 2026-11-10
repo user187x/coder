@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { BoxIcon, ImagesIcon } from "lucide-react";
 import { userEvent, within } from "storybook/test";
 import {
 	BreadcrumbItem,
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
+import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
 import {
 	withAuthProvider,
@@ -12,6 +14,8 @@ import {
 } from "#/testHelpers/storybook";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { AdminCategoryMenu } from "./AdminCategoryMenu";
+import { CategoryActionsMenu } from "./CategoryActionsMenu";
+import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 
 const meta: Meta<typeof AdminBreadcrumb> = {
 	title: "modules/management/AdminBreadcrumb",
@@ -72,5 +76,46 @@ export const Categories: Story = {
 			}),
 			keys: "[MouseRight]",
 		});
+	},
+};
+
+/** In the navbar: the chevrons in their recessed well, and the category's caret open on the page's action items. */
+export const NavbarCategoryActions: Story = {
+	render: () => (
+		<div className="navbar-start flex h-[72px] items-center bg-surface-primary px-6">
+			<AdminBreadcrumb
+				variant="connected"
+				inline
+				className="deployment-breadcrumb admin-navbar-breadcrumb"
+			>
+				<BreadcrumbList>
+					<BreadcrumbItem>
+						<AdminCategoryMenu />
+					</BreadcrumbItem>
+					<BreadcrumbItem>
+						<span className="inline-flex">
+							<CategoryBreadcrumbButton
+								label="Images"
+								icon={ImagesIcon}
+								controls="categories"
+								sidebarOpen={false}
+								onToggle={() => {}}
+							/>
+							<CategoryActionsMenu label="Images" />
+						</span>
+					</BreadcrumbItem>
+				</BreadcrumbList>
+			</AdminBreadcrumb>
+			<NavbarAction
+				menu={[{ label: "New Image", icon: BoxIcon, onSelect: () => {} }]}
+			>
+				{null}
+			</NavbarAction>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Images actions" }),
+		);
 	},
 };

@@ -37,7 +37,7 @@ export const UserSettingsShortcut: React.FC<{
 				onContextMenu={(event) => event.stopPropagation()}
 			>
 				<DropdownMenuItem
-					className="size-8 shrink-0 justify-center rounded-full border border-solid border-border p-0"
+					className="settings-orb size-8 shrink-0 justify-center rounded-full border border-solid border-border p-0"
 					aria-label="Account: User Settings"
 					title="User Settings; right-click for its sections"
 					onSelect={() => void navigate("/settings/account")}

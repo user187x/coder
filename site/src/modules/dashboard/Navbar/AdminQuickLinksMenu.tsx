@@ -165,7 +165,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	const controlsChevron = (
 		<span
 			aria-hidden
-			className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-content-secondary/5 ring-1 ring-inset ring-content-secondary/15"
+			className="settings-controls-chevron inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-content-secondary/5 ring-1 ring-inset ring-content-secondary/15"
 		>
 			<ChevronDownIcon className={cn("size-3", expanded && "rotate-180")} />
 		</span>
@@ -240,7 +240,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					aria-controls={choicesId}
 					className={cn(
 						itemClassName,
-						"my-1 rounded-full border border-solid border-border text-content-secondary focus:bg-surface-secondary",
+						"settings-controls-bar my-1 rounded-full border border-solid border-border text-content-secondary focus:bg-surface-secondary",
 					)}
 					onSelect={(event) => {
 						event.preventDefault();

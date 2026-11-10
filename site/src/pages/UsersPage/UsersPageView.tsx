@@ -174,7 +174,24 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 		<>
 			<h1 className="sr-only">Accounts</h1>
 			{canCreateUser && (
-				<NavbarAction>
+				<NavbarAction
+					menu={[
+						{
+							label: "New account",
+							icon: UserPlusIcon,
+							to: "/deployment/users/create",
+						},
+						...(onCreateLease
+							? [
+									{
+										label: "Create Lease",
+										icon: HourglassIcon,
+										onSelect: onCreateLease,
+									},
+								]
+							: []),
+					]}
+				>
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button size="lg">

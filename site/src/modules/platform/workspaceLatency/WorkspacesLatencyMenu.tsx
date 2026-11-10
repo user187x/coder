@@ -375,7 +375,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 					<span
 						data-testid="workspaces-latency-count"
 						title={query.data ? `${running.length} running` : undefined}
-						className="inline-flex items-center justify-center min-w-6 h-5 px-1.5 rounded-full bg-surface-tertiary text-xs tabular-nums text-content-primary"
+						className="workspaces-pill-count inline-flex items-center justify-center min-w-6 h-5 px-1.5 rounded-full bg-surface-tertiary text-xs tabular-nums text-content-primary"
 					>
 						{query.data ? list.length : "…"}
 					</span>

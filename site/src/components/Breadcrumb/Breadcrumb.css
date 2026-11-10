@@ -294,3 +294,170 @@
 .deployment-breadcrumb[data-inline] > ol > li:last-child {
 	flex: 0 0 auto;
 }
+
+/* The Settings breadcrumb in the navbar as the Settings menu's hardware (settingsMenuSkeuo.css): its chevrons are matte
+   faces in a recessed well, the seam between them a dark channel. The copy in the category list keeps its look. */
+.admin-navbar-breadcrumb {
+	--crumb-face: linear-gradient(180deg, #f5f6f8 0%, #eceef2 50%, #dfe2e8 100%);
+	--crumb-face-hover: linear-gradient(
+		180deg,
+		#fafbfc 0%,
+		#f0f2f6 50%,
+		#e4e7ed 100%
+	);
+	--crumb-face-pressed: linear-gradient(
+		180deg,
+		#cfd3dc 0%,
+		#d8dce4 50%,
+		#e2e5ec 100%
+	);
+	--crumb-well: linear-gradient(180deg, #52565e 0%, #737882 48%, #a6abb4 100%);
+	--crumb-seam: #33363d;
+	--crumb-ink: #2f333b;
+	--crumb-engrave: 0 1px 0 rgb(255 255 255 / 0.9);
+	--crumb-lip: rgb(255 255 255 / 0.92);
+}
+.dark .admin-navbar-breadcrumb {
+	--crumb-face: linear-gradient(180deg, #50545c 0%, #44474f 50%, #393c43 100%);
+	--crumb-face-hover: linear-gradient(
+		180deg,
+		#5a5e67 0%,
+		#4d5159 50%,
+		#41444b 100%
+	);
+	--crumb-face-pressed: linear-gradient(
+		180deg,
+		#24262b 0%,
+		#2b2e33 50%,
+		#33363c 100%
+	);
+	--crumb-well: linear-gradient(180deg, #0d0e11 0%, #1c1e23 48%, #3a3d44 100%);
+	--crumb-seam: #0b0c0e;
+	--crumb-ink: #e4e6ea;
+	--crumb-engrave: 0 -1px 0 rgb(0 0 0 / 0.7);
+	--crumb-lip: rgb(255 255 255 / 0.1);
+}
+/* Interlocked in the well (navbarSoft.css spaces them apart elsewhere in the navbar): the seam a narrow dark V. */
+.navbar-start .breadcrumb-connected.admin-navbar-breadcrumb > ol > li + li {
+	margin-left: calc(3px - var(--crumb-edge));
+}
+.navbar-start .breadcrumb-connected.admin-navbar-breadcrumb > ol,
+.breadcrumb-connected.admin-navbar-breadcrumb > ol {
+	gap: 0;
+	padding: 3.5px;
+	border-radius: 10px;
+	background:
+		linear-gradient(var(--crumb-seam), var(--crumb-seam)) content-box,
+		var(--crumb-well) border-box;
+	box-shadow:
+		inset 0 1px 2.5px rgb(0 0 0 / 0.65),
+		0 1px 0 var(--crumb-lip);
+}
+.breadcrumb-connected.admin-navbar-breadcrumb > ol > li > :is(a, span, button),
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li:first-child
+	> .settings-breadcrumb-trigger:not(:hover):not([data-state="open"]),
+.breadcrumb-connected.admin-navbar-breadcrumb
+	.category-breadcrumb-button::before,
+.breadcrumb-connected.admin-navbar-breadcrumb
+	.category-breadcrumb-button
+	[data-category-toggle] {
+	background: var(--crumb-face);
+	color: var(--crumb-ink);
+	font-weight: 600;
+	text-shadow: var(--crumb-engrave);
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> button.category-breadcrumb-button {
+	background: transparent;
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> :is(a, span, button)
+	svg {
+	filter: drop-shadow(var(--crumb-engrave));
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> :is(a, .settings-breadcrumb-trigger):hover,
+.breadcrumb-connected.admin-navbar-breadcrumb
+	.category-breadcrumb-button:hover::before,
+.breadcrumb-connected.admin-navbar-breadcrumb
+	.category-breadcrumb-button
+	[data-category-toggle]:hover {
+	background: var(--crumb-face-hover);
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> .settings-breadcrumb-trigger[data-state="open"],
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> :is(a, button):active {
+	background: var(--crumb-face-pressed);
+	box-shadow:
+		inset 0 1.5px 3px rgb(0 0 0 / 0.28),
+		inset 0 1px 1px rgb(0 0 0 / 0.18);
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li:last-child
+	> [aria-current="page"] {
+	color: var(--crumb-ink);
+}
+/* An empty Settings slot (no Settings menu to put its button there) leaves no gap in the well. */
+.admin-navbar-breadcrumb > ol > li:empty {
+	display: none;
+}
+/* The category chevron's caret (CategoryActionsMenu): a divider, then a caret that points down while its menu of the
+   page's actions is open. */
+.admin-navbar-breadcrumb .category-actions-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	align-self: stretch;
+	margin-left: 2px;
+	padding: 0 4px 0 2px;
+	border: 0;
+	background: transparent;
+	color: var(--crumb-ink);
+	cursor: pointer;
+}
+.admin-navbar-breadcrumb .category-actions-trigger:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: -2px;
+	border-radius: 4px;
+}
+.admin-navbar-breadcrumb .category-actions-divider {
+	width: 1px;
+	height: 16px;
+	background: linear-gradient(
+		180deg,
+		rgb(130 136 148 / 0.2) 0%,
+		rgb(118 124 136 / 0.85) 50%,
+		rgb(130 136 148 / 0.2) 100%
+	);
+	box-shadow: 1px 0 0 var(--crumb-lip);
+}
+.admin-navbar-breadcrumb .category-actions-caret {
+	width: 12px;
+	height: 12px;
+	transform: rotate(-90deg);
+	transition: transform 0.16s ease;
+}
+.admin-navbar-breadcrumb
+	.category-actions-trigger[data-state="open"]
+	.category-actions-caret {
+	transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.admin-navbar-breadcrumb .category-actions-caret {
+		transition: none;
+	}
+}

@@ -1,0 +1,276 @@
+/* The Settings menu's top part as brushed, matte hardware: a bezelled panel, recessed pill wells and engraved text and
+   glyphs. Only the surface, its header row, the Workspaces pill and the Controls list are dressed; the bottom face panel
+   (SettingsFacePanel) keeps its own look. Sizes, paddings and margins stay as they were, so AdminQuickLinksMenu's
+   fit-to-panel measurements are unchanged. */
+.settings-menu {
+	--skeuo-panel: linear-gradient(180deg, #f2f4f7 0%, #eaedf2 30%, #e2e5ec 100%);
+	--skeuo-panel-edge: #8a909b;
+	--skeuo-panel-lip: rgb(255 255 255 / 0.98);
+	--skeuo-face: linear-gradient(180deg, #f3f4f7 0%, #e9ecf1 52%, #dfe3ea 100%);
+	--skeuo-face-hover: linear-gradient(
+		180deg,
+		#fafbfc 0%,
+		#f0f2f6 50%,
+		#e4e7ed 100%
+	);
+	--skeuo-face-pressed: linear-gradient(
+		180deg,
+		#cfd3dc 0%,
+		#d8dce4 50%,
+		#e2e5ec 100%
+	);
+	--skeuo-face-edge: #8c929d;
+	--skeuo-well: linear-gradient(
+		180deg,
+		#e5e8ef 0%,
+		#eaedf3 15%,
+		#e8ebf1 85%,
+		#e1e5ec 100%
+	);
+	--skeuo-well-edge: #aeb4c0;
+	--skeuo-bezel: linear-gradient(180deg, #8b919c 0%, #b5bbc5 55%, #eef0f4 100%);
+	--skeuo-highlight: rgb(255 255 255 / 0.95);
+	--skeuo-shade: rgb(0 0 0 / 0.14);
+	--skeuo-ink: #363a42;
+	--skeuo-ink-soft: #434852;
+	--skeuo-engrave: 0 1px 0 rgb(255 255 255 / 0.9);
+	--skeuo-glyph: drop-shadow(0 1px 0 rgb(255 255 255 / 0.95))
+		drop-shadow(0 -0.5px 0.5px rgb(0 0 0 / 0.3));
+	--skeuo-row-hover: rgb(255 255 255 / 0.45);
+	--skeuo-row-hover-edge: rgb(168 174 186 / 0.5);
+	--skeuo-row-selected: linear-gradient(180deg, #f2f4f8 0%, #e8ebf1 100%);
+	--skeuo-row-selected-edge: #c5cad4;
+	--skeuo-count: linear-gradient(180deg, #d5d9e2 0%, #e2e5ed 100%);
+	--skeuo-count-edge: #b5bbc6;
+	--skeuo-footer: linear-gradient(
+		180deg,
+		#eaedf2 0%,
+		#e2e6ed 50%,
+		#d8dde6 100%
+	);
+	--skeuo-footer-edge: #99a0ac;
+}
+.dark .settings-menu {
+	--skeuo-panel: linear-gradient(180deg, #3a3d44 0%, #33363c 30%, #2b2d33 100%);
+	--skeuo-panel-edge: #111214;
+	--skeuo-panel-lip: rgb(255 255 255 / 0.1);
+	--skeuo-face: linear-gradient(180deg, #50545c 0%, #44474f 52%, #393c43 100%);
+	--skeuo-face-hover: linear-gradient(
+		180deg,
+		#5a5e67 0%,
+		#4d5159 50%,
+		#41444b 100%
+	);
+	--skeuo-face-pressed: linear-gradient(
+		180deg,
+		#24262b 0%,
+		#2b2e33 50%,
+		#33363c 100%
+	);
+	--skeuo-face-edge: #141518;
+	--skeuo-well: linear-gradient(
+		180deg,
+		#24262b 0%,
+		#282a30 15%,
+		#272a2f 85%,
+		#222429 100%
+	);
+	--skeuo-well-edge: #15161a;
+	--skeuo-bezel: linear-gradient(180deg, #0d0e11 0%, #1c1e23 55%, #3a3d44 100%);
+	--skeuo-highlight: rgb(255 255 255 / 0.12);
+	--skeuo-shade: rgb(0 0 0 / 0.45);
+	--skeuo-ink: #e4e6ea;
+	--skeuo-ink-soft: #c9ccd3;
+	--skeuo-engrave: 0 -1px 0 rgb(0 0 0 / 0.7);
+	--skeuo-glyph: drop-shadow(0 -1px 0 rgb(0 0 0 / 0.7));
+	--skeuo-row-hover: rgb(255 255 255 / 0.05);
+	--skeuo-row-hover-edge: rgb(255 255 255 / 0.08);
+	--skeuo-row-selected: linear-gradient(180deg, #3c3f46 0%, #33363c 100%);
+	--skeuo-row-selected-edge: #15161a;
+	--skeuo-count: linear-gradient(180deg, #1d1f23 0%, #26282d 100%);
+	--skeuo-count-edge: #111214;
+	--skeuo-footer: linear-gradient(
+		180deg,
+		#43464e 0%,
+		#3a3d44 50%,
+		#31343a 100%
+	);
+	--skeuo-footer-edge: #141518;
+}
+
+/* The panel: a bezelled, lit-from-above plate. */
+.settings-menu > .settings-menu-surface {
+	background: var(--skeuo-panel);
+	border-color: var(--skeuo-panel-edge);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-panel-lip),
+		inset 0 0 0 1px rgb(255 255 255 / 0.04),
+		0 10px 26px rgb(22 26 34 / 0.25),
+		0 2px 6px rgb(22 26 34 / 0.14);
+	color: var(--skeuo-ink);
+}
+
+/* Header row and Workspaces: matte pill buttons sitting in a shallow well. */
+.settings-menu .settings-pill,
+.settings-menu .workspaces-pill {
+	background: var(--skeuo-face);
+	border-color: var(--skeuo-face-edge);
+	color: var(--skeuo-ink);
+	font-weight: 600;
+	text-shadow: var(--skeuo-engrave);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-highlight),
+		0 1px 0 var(--skeuo-highlight),
+		0 1px 1px rgb(0 0 0 / 0.06);
+	transition:
+		background 0.08s ease,
+		box-shadow 0.08s ease;
+}
+.settings-menu .settings-pill > [role="menuitem"] {
+	background: transparent;
+}
+.settings-menu .settings-pill > [role="menuitem"] + [role="menuitem"] {
+	border-left-color: var(--skeuo-face-edge);
+	box-shadow: inset 1px 0 0 var(--skeuo-highlight);
+}
+.settings-menu :is(.settings-pill, .workspaces-pill) svg {
+	filter: var(--skeuo-glyph);
+}
+.settings-menu
+	:is(
+		a.settings-pill:hover,
+		.settings-pill > [role="menuitem"]:hover,
+		[role="menuitem"]:hover > .workspaces-pill
+	) {
+	background: var(--skeuo-face-hover);
+}
+.settings-menu
+	:is(
+		a.settings-pill:active,
+		a.settings-pill[aria-current="page"],
+		.settings-pill > [role="menuitem"]:active,
+		[role="menuitem"]:active > .workspaces-pill,
+		[data-workspaces-expanded="true"] .workspaces-pill
+	) {
+	background: var(--skeuo-face-pressed);
+	box-shadow:
+		inset 0 1.5px 3px rgb(0 0 0 / 0.28),
+		inset 0 1px 1px rgb(0 0 0 / 0.18),
+		0 1px 0 var(--skeuo-highlight);
+}
+.settings-menu .workspaces-pill-count {
+	background: var(--skeuo-count);
+	border: 1px solid var(--skeuo-count-edge);
+	color: var(--skeuo-ink);
+	font-weight: 700;
+	box-shadow:
+		inset 0 1px 1.5px var(--skeuo-shade),
+		0 1px 0 var(--skeuo-highlight);
+}
+
+/* The account button: the avatar as an orb set in a round bezel. */
+.settings-menu .settings-orb {
+	padding: 2px;
+	border: 0;
+	background: var(--skeuo-bezel);
+	box-shadow:
+		inset 0 1px 2px rgb(0 0 0 / 0.38),
+		0 1px 0 var(--skeuo-highlight);
+}
+.settings-menu .settings-orb > * {
+	width: 100%;
+	height: 100%;
+	box-shadow:
+		inset 0 1px 1px rgb(255 255 255 / 0.65),
+		0 1px 1.5px rgb(0 0 0 / 0.25);
+}
+.settings-menu .settings-orb:hover > * {
+	filter: brightness(1.06);
+}
+.settings-menu .settings-orb:active > * {
+	transform: scale(0.96);
+	filter: brightness(0.94);
+}
+
+/* Controls: the list in a recessed well, rows engraved, the one in hand on a crisp bar. */
+.settings-menu [data-testid="controls-group"] {
+	background: var(--skeuo-well);
+	border-color: var(--skeuo-well-edge);
+	box-shadow:
+		inset 0 1.5px 3px var(--skeuo-shade),
+		0 1px 0 var(--skeuo-highlight);
+}
+.settings-menu [data-testid="controls-group"] [role="menuitem"] {
+	color: var(--skeuo-ink-soft);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	text-shadow: var(--skeuo-engrave);
+}
+.settings-menu [data-testid="controls-group"] [role="menuitem"] svg {
+	filter: var(--skeuo-glyph);
+}
+.settings-menu [data-testid="admin-quick-link"] {
+	border: 1px solid transparent;
+	border-radius: 6px;
+}
+.settings-menu [data-testid="admin-quick-link"]:hover {
+	background: var(--skeuo-row-hover);
+	border-color: var(--skeuo-row-hover-edge);
+	box-shadow: none;
+}
+.settings-menu [data-testid="admin-quick-link"]:focus-within,
+.settings-menu [data-testid="admin-quick-link"]:has([aria-current="page"]) {
+	background: var(--skeuo-row-selected);
+	border-color: var(--skeuo-row-selected-edge);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-highlight),
+		0 1px 1.5px rgb(0 0 0 / 0.06);
+}
+.settings-menu
+	[data-testid="admin-quick-link"]
+	[role="menuitem"]:is(:hover, [data-highlighted]) {
+	background: transparent;
+}
+.settings-menu
+	[data-testid="admin-quick-link"]:is(
+		:focus-within,
+		:has([aria-current="page"])
+	)
+	[role="menuitem"] {
+	color: var(--skeuo-ink);
+}
+
+/* The Controls bar at the list's foot: a taller matte pill with domed round end buttons. */
+.settings-menu .settings-controls-bar {
+	min-height: 2.5rem;
+	background: var(--skeuo-footer);
+	border-color: var(--skeuo-footer-edge);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-highlight),
+		0 1px 1px rgb(0 0 0 / 0.06);
+}
+.settings-menu .settings-controls-bar:is(:hover, [data-highlighted]) {
+	background: var(--skeuo-face-hover);
+}
+.settings-menu .settings-controls-bar[aria-expanded="true"] {
+	background: var(--skeuo-face-pressed);
+	box-shadow:
+		inset 0 1.5px 3px rgb(0 0 0 / 0.22),
+		0 1px 0 var(--skeuo-highlight);
+}
+.settings-menu .settings-controls-bar .controls-glyph {
+	filter: var(--skeuo-glyph);
+}
+.settings-menu .settings-controls-chevron {
+	width: 1.5rem;
+	height: 1.5rem;
+	background: var(--skeuo-face);
+	border: 1px solid var(--skeuo-face-edge);
+	box-shadow:
+		inset 0 1px 0 var(--skeuo-highlight),
+		0 1px 1px rgb(0 0 0 / 0.08);
+	--tw-ring-shadow: 0 0 #0000;
+}
+.settings-menu .settings-controls-chevron svg {
+	filter: var(--skeuo-glyph);
+}
