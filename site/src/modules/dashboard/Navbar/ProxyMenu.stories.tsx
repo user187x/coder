@@ -5,6 +5,7 @@ import { API } from "#/api/api";
 import { PlatformAPI, type UserUIPreferences } from "#/api/platform";
 import { getAuthorizationKey } from "#/api/queries/authCheck";
 import {
+	chatEnabled,
 	clusterUsageKey,
 	hudHistory,
 	userUIPreferences,
@@ -363,6 +364,7 @@ export const HiddenChatMenu: Story = {
 		queries: [
 			...(ResourceTrayOpened.parameters?.queries ?? []),
 			{ key: userUIPreferences().queryKey, data: { chat_hidden: true } },
+			{ key: chatEnabled().queryKey, data: { enabled: true } },
 		],
 	},
 	play: async ({ canvasElement }) => {
@@ -419,6 +421,7 @@ export const CentralAdminMenu: Story = {
 				return preferences;
 			},
 		);
+		spyOn(PlatformAPI, "getChatEnabled").mockResolvedValue({ enabled: true });
 		spyOn(PlatformAPI, "getBanner").mockResolvedValue(MockBanner);
 		spyOn(API, "getHealth").mockResolvedValue(MockHealth);
 		spyOn(PlatformAPI, "getNetworkReport").mockResolvedValue(

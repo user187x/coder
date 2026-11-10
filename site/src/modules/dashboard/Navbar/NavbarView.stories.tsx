@@ -162,6 +162,10 @@ export const RemovingQuickLink: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: /^Settings/ }));
 		const body = within(canvasElement.ownerDocument.body);
+		// A row's remove and move controls show while it is pointed at.
+		await userEvent.hover(
+			await body.findByRole("menuitem", { name: "Health" }),
+		);
 		await userEvent.click(
 			await body.findByRole("menuitem", {
 				name: "Remove Health from the quick links",
@@ -193,6 +197,10 @@ export const ReorderingQuickLinkWithKeyboard: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: /^Settings/ }));
 		const body = within(canvasElement.ownerDocument.body);
+		// A row's move control shows while the row is pointed at or holds the focus.
+		await userEvent.hover(
+			await body.findByRole("menuitem", { name: "Monitoring" }),
+		);
 		(await body.findByRole("menuitem", { name: "Reorder Monitoring" })).focus();
 		await userEvent.keyboard("{Enter}{ArrowUp}");
 	},
