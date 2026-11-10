@@ -17,7 +17,7 @@ export function DeploymentAnimations() {
 			className="rounded-xl border border-solid border-border bg-surface-primary p-6"
 		>
 			<h2 id={id} className="m-0 text-base font-semibold">
-				Deployment animations
+				Animation
 			</h2>
 			<p className="text-sm text-content-secondary">
 				Choose which animations people can enable. Turning a category off pauses

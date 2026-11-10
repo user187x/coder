@@ -206,7 +206,7 @@ export const LogoView: React.FC<LogoViewProps> = ({
 							id={`${visibilityId}-heading`}
 							className="m-0 text-base font-semibold"
 						>
-							Deployment branding
+							Logo
 						</h2>
 						<Badge variant={logo.set ? "green" : "default"}>
 							{!logo.available
