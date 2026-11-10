@@ -1,4 +1,4 @@
-# Install Coder fork 1.8.73
+# Install Coder fork 1.8.74
 
 This guide uses the small source build kit. To install the supplied images without building,
 use INSTALL.md instead.
@@ -45,8 +45,8 @@ Open a terminal in that folder. Run:
 
 ```bash
 sha256sum -c SOURCE-SHA256SUMS
-tar -xzf coder-build-kit-1.8.73.tar.gz
-cd coder-build-kit-1.8.73
+tar -xzf coder-build-kit-1.8.74.tar.gz
+cd coder-build-kit-1.8.74
 ```
 
 Every checksum must say `OK`. Stop if one fails and download that file again.
@@ -81,12 +81,12 @@ The script does not export large image archives.
 When it prints `Build finished`, your output folder is:
 
 ```text
-build/release-1.8.73/
+build/release-1.8.74/
 ```
 
 That folder contains:
 
-- `coder-airgapped-1.8.73.tgz`: the single Helm chart to install.
+- `coder-airgapped-1.8.74.tgz`: the single Helm chart to install.
 - `values.yaml`: the settings file you will edit next.
 - `BUILT-IMAGES.txt`: every fork image pushed to your registry.
 - `PUBLIC-IMAGES.txt`: common public images the cluster also needs.
@@ -189,7 +189,7 @@ namespace also has the pull credentials required by your registry.
 Run from the generated output folder:
 
 ```bash
-helm upgrade --install coder-fork ./coder-airgapped-1.8.73.tgz \
+helm upgrade --install coder-fork ./coder-airgapped-1.8.74.tgz \
   --namespace coder-fork --create-namespace \
   --values values.yaml --timeout 20m
 ```
