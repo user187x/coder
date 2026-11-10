@@ -222,9 +222,8 @@ const DeploymentSettingsLayout: React.FC = () => {
 					chat && "flex-1 min-h-0",
 					// With the navigation in the navbar, a page shorter than the window sits in its middle, as Workspaces
 					// does; a taller one starts at the top.
-					inNavbar &&
-						!chat &&
-						"flex min-h-[calc(100dvh-var(--dashboard-navigation-height,72px))] flex-col",
+					// It fills the page's room (main then drops its bottom padding), so a page that fits does not scroll.
+					inNavbar && !chat && "flex flex-1 flex-col",
 				)}
 			>
 				{/* With the categories open the breadcrumb heads their list, in place of its "Settings" label; collapsed

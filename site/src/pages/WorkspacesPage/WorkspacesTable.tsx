@@ -73,6 +73,10 @@ import {
 } from "#/modules/apps/workspaceApps";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import {
+	CloudDriveSocket,
+	useCloudDriveLinks,
+} from "#/modules/platform/cloudDrive/CloudDriveSocket";
+import {
 	LockdownBadge,
 	useAllLockdowns,
 } from "#/modules/platform/lockdown/Lockdown";
@@ -147,6 +151,10 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 	const hideHeaders = isLoading || isEmpty;
 	// Platform: admins' Lock Down badges, in a column of their own before Name (no heading).
 	const locks = useAllLockdowns();
+	// Platform: each row's Cloud Drive plug, its own column at the end (none without a Cloud Drive): a click connects or
+	// disconnects that workspace's Cloud Drive.
+	const drive = useCloudDriveLinks();
+	const { user: me } = useAuthenticated();
 
 	const table = (
 		<Table aria-label="Workspaces">
@@ -213,6 +221,16 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					>
 						Controls
 					</TableHead>
+					{drive.enabled && (
+						<TableHead
+							className={cn(
+								"w-16 px-2 text-center",
+								hideHeaders && "invisible",
+							)}
+						>
+							Drive
+						</TableHead>
+					)}
 				</TableRow>
 			</TableHeader>
 			<TableBody className="[&_td]:h-[78px]">
@@ -390,6 +408,16 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 								onActionSuccess={onActionSuccess}
 								onActionError={onActionError}
 							/>
+
+							{drive.enabled && (
+								<TableCell className="w-16 px-2 text-center">
+									<CloudDriveSocket
+										workspace={workspace}
+										links={drive}
+										mine={workspace.owner_id === me.id}
+									/>
+								</TableCell>
+							)}
 						</WorkspacesRow>
 					);
 				})}
