@@ -531,7 +531,21 @@ const DashboardPage: React.FC = () => {
 				    the right. */}
 				{/* -mb-4 takes back the last card's bottom margin, which only added empty room below the columns */}
 				<div className="-mb-4 [column-gap:16px] [columns:20rem_4] [&>*]:mb-4 [&>*]:break-inside-avoid">
-					<DashboardCard title="Summary" icon={GaugeIcon} tone="purple">
+					<DashboardCard
+						title="Summary"
+						icon={GaugeIcon}
+						tone="purple"
+						actions={
+							scope?.exempt && (
+								<span
+									title="Your account is exempt from the quota; the limits are shown for reference."
+									className="whitespace-nowrap rounded-full bg-surface-green px-2 text-[11px] font-semibold leading-5 text-content-success"
+								>
+									Quota Exempt
+								</span>
+							)
+						}
+					>
 						<CardState isLoading={scopeQuery.isLoading} error={scopeError}>
 							{scope && (
 								<SummaryCardBody

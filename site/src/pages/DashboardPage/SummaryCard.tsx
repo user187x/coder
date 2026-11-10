@@ -171,12 +171,6 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 					})}
 				</ul>
 			</div>
-			{scope.exempt && (
-				<p className="m-0 text-xs text-content-secondary">
-					Your account is exempt from the quota; the limits are shown for
-					reference.
-				</p>
-			)}
 			{/* Three columns only where the card has room for each reading on one line. */}
 			<div className="grid grid-cols-1 gap-4 border-0 border-t border-solid border-border pt-4 @min-[600px]:grid-cols-3">
 				<div className="flex flex-col gap-1.5">
