@@ -55,6 +55,8 @@ type AdminQuickLinksMenuProps = {
 	onChatToggle?: () => void;
 	/** The menu's other items the user hid: listed under Controls, each with a button to show it again. */
 	hiddenItems?: readonly HideableMenuItem[];
+	/** More rows for the quick links' list, after the links: the menu's other items not hidden under Controls. */
+	moreLinks?: React.ReactNode;
 	onShowItem?: (id: string) => void;
 };
 
@@ -74,6 +76,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	onChatToggle,
 	hiddenItems = [],
 	onShowItem,
+	moreLinks,
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const chatOn = useChatEnabled();
@@ -176,6 +179,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						))}
 					</SortableContext>
 				</DndContext>
+				{moreLinks}
 			</div>
 
 			<Collapsible

@@ -48,7 +48,6 @@ describe("Admin menu", () => {
 		const labels = items.map((item) => item.textContent?.trim());
 		expect(labels).toEqual([
 			...pages.slice(0, 4).map((page) => page.label),
-			"Controls",
 			// each with its button to hide it under Controls
 			"Organizations",
 			"",
@@ -56,6 +55,7 @@ describe("Admin menu", () => {
 			"",
 			"Connection logs",
 			"",
+			"Controls",
 		]);
 		for (const item of items.filter(
 			(item) => item.textContent !== "Controls",

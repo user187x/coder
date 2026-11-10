@@ -279,10 +279,10 @@ describe("ProxyMenu", () => {
 		expect(items.map((item) => item.textContent?.trim())).toEqual([
 			expect.stringMatching(/^Workspaces/),
 			...pages.slice(0, 2).map((page) => page.label),
-			"Controls",
 			"Organizations",
 			"Audit logs",
 			"Connection logs",
+			"Controls",
 		]);
 		expect(items[0]).toBe(within(menu).getByTestId("workspaces-latency"));
 		// the old first row (the region, its latency and its house) and the refresh row are gone

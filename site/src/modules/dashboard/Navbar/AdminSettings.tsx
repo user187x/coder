@@ -153,45 +153,46 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				onChange={quickLinksEditor?.onChange}
 				hiddenItems={items.filter((item) => hiddenIds.includes(item.id))}
 				onShowItem={(id) => setHidden(id, false)}
-			/>
-			{items
-				.filter((item) => !hiddenIds.includes(item.id))
-				.map((item) => (
-					<div
-						key={item.id}
-						className="group/hideable flex flex-wrap items-center rounded-full"
-					>
-						<PageMenuItem
-							to={item.path}
-							icon={item.icon}
-							label={item.label}
-							className={cn("min-w-0 flex-1", itemClassName)}
-							panelClassName="order-last"
-							options={
-								<DropdownMenuItem
-									onSelect={(event) => {
-										event.preventDefault();
-										setHidden(item.id, true);
-									}}
-								>
-									Hide under Controls
-								</DropdownMenuItem>
-							}
-						/>
-						<DropdownMenuItem
-							aria-label={`Hide ${item.label} under Controls`}
-							title="Hide under Controls"
-							className="invisible flex-none px-2 text-content-secondary group-focus-within/hideable:visible group-hover/hideable:visible"
-							onSelect={(event) => {
-								// Stay open, so several items can be hidden in a row.
-								event.preventDefault();
-								setHidden(item.id, true);
-							}}
+				// The other items in the quick links' list, each hideable under Controls like a quick link.
+				moreLinks={items
+					.filter((item) => !hiddenIds.includes(item.id))
+					.map((item) => (
+						<div
+							key={item.id}
+							className="group/hideable flex flex-wrap items-center rounded-full"
 						>
-							<EyeOffIcon aria-hidden />
-						</DropdownMenuItem>
-					</div>
-				))}
+							<PageMenuItem
+								to={item.path}
+								icon={item.icon}
+								label={item.label}
+								className={cn("min-w-0 flex-1", itemClassName)}
+								panelClassName="order-last"
+								options={
+									<DropdownMenuItem
+										onSelect={(event) => {
+											event.preventDefault();
+											setHidden(item.id, true);
+										}}
+									>
+										Hide under Controls
+									</DropdownMenuItem>
+								}
+							/>
+							<DropdownMenuItem
+								aria-label={`Hide ${item.label} under Controls`}
+								title="Hide under Controls"
+								className="invisible flex-none px-2 text-content-secondary group-focus-within/hideable:visible group-hover/hideable:visible"
+								onSelect={(event) => {
+									// Stay open, so several items can be hidden in a row.
+									event.preventDefault();
+									setHidden(item.id, true);
+								}}
+							>
+								<EyeOffIcon aria-hidden />
+							</DropdownMenuItem>
+						</div>
+					))}
+			/>
 			{!externalMetrics && canViewAdminSettings(permissions) && (
 				<SettingsMetricGraphs chatExpanded={Boolean(chatExpanded)} />
 			)}
