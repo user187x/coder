@@ -395,6 +395,17 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						if (docked) e.preventDefault();
 					}}
 					align={edge === "left" ? "start" : "end"}
+					// Clear of the classification banners fixed at the window's top and bottom, so the panel's foot shows.
+					collisionPadding={{
+						top: 8,
+						bottom:
+							8 +
+							(Number.parseFloat(
+								getComputedStyle(document.documentElement).getPropertyValue(
+									"--coder-classification-h",
+								),
+							) || 0),
+					}}
 					data-settings-edge={edge}
 					data-testid="navbar-latency-controls-menu"
 					// The floating menu reserves space for the slide-out trays.

@@ -27,8 +27,8 @@ export const SettingsChatPanel = ({ onClose }: { onClose: () => void }) => {
 			role="region"
 			aria-label="Quick chat"
 			data-settings-chat
-			className="settings-compact-chat flex min-w-0 flex-col overflow-hidden rounded-lg border border-solid border-border mt-2 bg-surface-primary"
-			style={{ height: "min(420px, 50vh)", minHeight: 220 }}
+			// It fills its face of the Settings panel's bottom panel, the faces' one height, inside its border.
+			className="settings-compact-chat flex h-full min-h-[220px] min-w-0 flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary"
 			onKeyDown={(event) => event.stopPropagation()}
 		>
 			<header className="flex h-9 shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-2">
@@ -58,7 +58,7 @@ export const SettingsChatPanel = ({ onClose }: { onClose: () => void }) => {
 				/>
 			) : (
 				<ChatList
-					className="min-h-0 flex-1 text-xs"
+					className="min-h-0 flex-1 pb-2 text-xs"
 					onOpen={(peer) => selectInPanel(peer, true)}
 					onSendFile={(peer) => {
 						flushSync(() => selectInPanel(peer, true));
