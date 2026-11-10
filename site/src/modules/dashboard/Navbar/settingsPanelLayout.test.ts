@@ -1,53 +1,27 @@
-import { settingsPanelLayout } from "./settingsPanelLayout";
+import { settingsNotesPlacement } from "./settingsPanelLayout";
 
 it.each([420, 600, 900])(
-	"contains both drawers when a menu resizes to %s pixels",
+	"keeps the notes drawer inside a menu %s pixels tall",
 	(height) => {
-		const layout = settingsPanelLayout({
-			height,
-			resourceHeight: 220,
-			notesHeight: 300,
-			resourceTop: 2000,
-			notesTop: -1000,
-			withNotes: true,
-		});
-		const resources = Math.min(220, layout.resources.maxHeight);
-		const notes = Math.min(300, layout.notes.maxHeight);
-		expect(layout.resources.top).toBeGreaterThanOrEqual(8);
-		expect(layout.notes.top).toBeGreaterThanOrEqual(
-			layout.resources.top + resources + 12,
-		);
-		expect(layout.notes.top + notes).toBeLessThanOrEqual(height - 8);
-		expect(layout.resources.maxTop + resources + 12).toBe(layout.notes.top);
-		expect(layout.notes.minTop).toBe(layout.resources.top + resources + 12);
+		for (const notesTop of [-1000, 200, 2000]) {
+			const notes = settingsNotesPlacement({
+				height,
+				topInset: 40,
+				notesHeight: 124,
+				notesTop,
+			});
+			expect(notes.top).toBeGreaterThanOrEqual(48);
+			expect(notes.top + 124).toBeLessThanOrEqual(height - 8);
+			expect(notes.maxHeight).toBe(height - 56);
+		}
 	},
 );
 
-it("reserves room for the notes grip when shortcuts grow beyond the menu", () => {
-	const layout = settingsPanelLayout({
-		height: 500,
-		resourceHeight: 900,
+it("pins the drawer to the top when the menu is shorter than it", () => {
+	const notes = settingsNotesPlacement({
+		height: 100,
 		notesHeight: 124,
-		resourceTop: 56,
-		notesTop: 260,
-		withNotes: true,
+		notesTop: 50,
 	});
-	expect(layout.resources.maxHeight).toBe(348);
-	expect(layout.resources.top).toBe(8);
-	expect(layout.notes.top).toBe(368);
-	expect(layout.notes.maxHeight).toBe(124);
-});
-
-it("allows shortcuts to use the whole menu when notes are unavailable", () => {
-	const layout = settingsPanelLayout({
-		height: 500,
-		resourceHeight: 220,
-		notesHeight: 124,
-		resourceTop: 2000,
-		notesTop: 260,
-		withNotes: false,
-	});
-	expect(layout.resources.maxHeight).toBe(484);
-	expect(layout.resources.top).toBe(272);
-	expect(layout.resources.maxTop).toBe(272);
+	expect(notes).toEqual({ top: 8, minTop: 8, maxTop: 8, maxHeight: 84 });
 });

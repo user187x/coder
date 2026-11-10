@@ -160,7 +160,9 @@ export const SettingsFacePanel: React.FC<{
 					) : current === "chat" ? (
 						<ChatGate>
 							<SettingsChatPanel
-								onClose={() => onFaceChange(faces[0] ?? "drive")}
+								onClose={() =>
+									onFaceChange(faces.find((f) => f !== "chat") ?? "drive")
+								}
 								expanded={full}
 								onExpandedChange={onChatFull}
 							/>

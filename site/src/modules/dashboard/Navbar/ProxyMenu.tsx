@@ -16,7 +16,7 @@ import {
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
-import type { BuildInfoResponse, LinkConfig, User } from "#/api/typesGenerated";
+import type { BuildInfoResponse, User } from "#/api/typesGenerated";
 import { Abbr } from "#/components/Abbr/Abbr";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import {
@@ -75,7 +75,6 @@ type ProxyMenuControls = {
 type ProxyMenuProps = {
 	user: User;
 	buildInfo?: BuildInfoResponse;
-	supportLinks: readonly LinkConfig[];
 	onSignOut: () => void;
 	/** The regions and the latency to them; without it (or when it cannot be had) the button has no latency pill. */
 	proxyContextValue?: ProxyContextValue;
@@ -93,7 +92,6 @@ type ProxyMenuProps = {
 export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	user,
 	buildInfo,
-	supportLinks,
 	onSignOut,
 	proxyContextValue,
 	canManageTunnels = false,
@@ -413,18 +411,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							container={menuElement}
 							surface={menuSurface}
 							anchor={metricsElement}
-							hud={hud}
-							chatExpanded={chatExpanded}
-							onChatToggle={() => setChatExpanded((open) => !open)}
 							images={Boolean(controls?.permissions.canEditDeployment)}
-							user={user}
-							buildInfo={buildInfo}
-							supportLinks={supportLinks}
-							onSignOut={onSignOut}
-							pages={[
-								...(controls?.quickLinks ?? []),
-								...(controls?.quickLinksEditor?.addable ?? []),
-							]}
 						/>
 					)}
 

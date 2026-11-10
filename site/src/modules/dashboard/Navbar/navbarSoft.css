@@ -249,7 +249,6 @@ html[data-settings-side] {
 	);
 }
 html[data-settings-side] {
-	/* The mini-panel (the resource tray) is not part of it: opened, it lies over the page. */
 	--settings-dock-inset: calc(
 		var(--settings-dock-width) +
 		var(--settings-panel-right)
@@ -303,8 +302,7 @@ html[data-settings-side="compact"] {
 	overflow-y: auto;
 	scrollbar-width: none;
 }
-.settings-menu[data-settings-docked]
-	:is(.settings-resource-tray, .settings-admin-notes-tray) {
+.settings-menu[data-settings-docked] .settings-admin-notes-tray {
 	/* The tray's right edge meets the panel's left edge exactly. */
 	left: -48px;
 }

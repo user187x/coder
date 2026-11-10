@@ -70,7 +70,6 @@ describe("NavbarView", () => {
 
 	it.each([
 		["Settings", "menu", undefined],
-		["Settings", "menuitem", "Account"],
 		["Resources", "menuitem", "Workspaces"],
 		["User menu", "menuitem", "Account"],
 	])(
@@ -212,11 +211,15 @@ describe("NavbarView", () => {
 				await user.click(
 					await screen.findByRole("menuitem", { name: "Controls" }),
 				);
-			await user.click(
-				await screen.findByRole("menuitem", {
-					name: mobile ? "Chat" : "Open quick chat",
-				}),
-			);
+			if (mobile)
+				await user.click(await screen.findByRole("menuitem", { name: "Chat" }));
+			else {
+				// The Settings panel's bottom panel turns to its Chat face.
+				const [toChat] = await screen.findAllByRole("button", {
+					name: "Turn to Chat",
+				});
+				if (toChat) await user.click(toChat);
+			}
 			expect(setOpen).toHaveBeenCalledWith(true);
 			await user.click(
 				screen.getByRole("button", { name: "Dismiss quick chat" }),

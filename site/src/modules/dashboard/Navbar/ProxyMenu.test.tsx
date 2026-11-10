@@ -64,20 +64,12 @@ const controls = {
 };
 
 const renderMenu = (
-	props: Omit<
-		React.ComponentProps<typeof ProxyMenu>,
-		"user" | "supportLinks" | "onSignOut"
-	>,
+	props: Omit<React.ComponentProps<typeof ProxyMenu>, "user" | "onSignOut">,
 ) =>
 	renderComponent(
 		<QueryClientProvider client={new QueryClient()}>
 			<MemoryRouter>
-				<ProxyMenu
-					{...props}
-					user={MockUserOwner}
-					supportLinks={[]}
-					onSignOut={vi.fn()}
-				/>
+				<ProxyMenu {...props} user={MockUserOwner} onSignOut={vi.fn()} />
 			</MemoryRouter>
 		</QueryClientProvider>,
 	);
@@ -260,9 +252,6 @@ describe("ProxyMenu", () => {
 			name: "Cluster CPU, memory, network and disk",
 		});
 		const list = within(menu).getByTestId("workspaces-latency-list");
-		const tray = within(menu).getByRole("group", {
-			name: "Resource shortcuts",
-		});
 		const navigation = within(menu).getByRole("group", {
 			name: "Settings navigation",
 		});
@@ -273,7 +262,6 @@ describe("ProxyMenu", () => {
 					!navigation.contains(item) &&
 					!cluster.contains(item) &&
 					!list.contains(item) &&
-					!tray.contains(item) &&
 					item.textContent?.trim(),
 			);
 		expect(items.map((item) => item.textContent?.trim())).toEqual([
@@ -389,7 +377,6 @@ describe("ProxyMenu", () => {
 				proxyContextValue={value}
 				controls={{ ...controls, categories: pages }}
 				user={MockUserOwner}
-				supportLinks={[]}
 				onSignOut={vi.fn()}
 			/>,
 		);

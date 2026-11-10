@@ -28,7 +28,6 @@ import {
 import { MockClusterNetworkReport } from "#/testHelpers/clusterNetwork";
 import {
 	MockAuthMethodsAll,
-	MockBuildInfo,
 	MockHealth,
 	MockNotification,
 	MockOrganization,
@@ -106,7 +105,6 @@ const meta: Meta<typeof ProxyMenu> = {
 	component: ProxyMenu,
 	args: {
 		user: MockUserOwner,
-		supportLinks: [],
 		onSignOut: fn(),
 		proxyContextValue: defaultProxyContextValue,
 	},
@@ -256,7 +254,7 @@ export const LongWorkspaceNames: Story = {
 	},
 };
 
-export const ResourceTrayOpened: Story = {
+export const SettingsMenuOpened: Story = {
 	args: {
 		hud: true,
 		controls: {
@@ -288,33 +286,8 @@ export const ResourceTrayOpened: Story = {
 		);
 	},
 };
-export const ResourceTrayHidden: Story = {
-	...ResourceTrayOpened,
-	play: async ({ canvasElement }) => {
-		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: /^Settings/ }),
-		);
-		await userEvent.click(
-			within(canvasElement.ownerDocument.body).getByRole("menuitem", {
-				name: "Hide resource shortcuts",
-			}),
-		);
-	},
-};
-export const ResourceTrayWithShortcuts: Story = {
-	...ResourceTrayOpened,
-	parameters: {
-		queries: [
-			...(ResourceTrayOpened.parameters?.queries ?? []),
-			{
-				key: userUIPreferences().queryKey,
-				data: { resource_shortcuts: ["workspaces", "hud"] },
-			},
-		],
-	},
-};
 export const TemplatesOnly: Story = {
-	...ResourceTrayOpened,
+	...SettingsMenuOpened,
 	args: {
 		controls: {
 			permissions: { canViewHud: true, canEditDeployment: false },
@@ -322,47 +295,16 @@ export const TemplatesOnly: Story = {
 	},
 };
 
-export const ResourceTrayLockedOpen: Story = {
-	...ResourceTrayOpened,
-	parameters: {
-		queries: [
-			...(ResourceTrayOpened.parameters?.queries ?? []),
-			{
-				key: userUIPreferences().queryKey,
-				data: {
-					resource_tray: { expanded: true, lock: "up" },
-					admin_notes_tray: { expanded: false, lock: "down" },
-				},
-			},
-		],
-	},
-};
-export const ResourceTrayLockedClosed: Story = {
-	...ResourceTrayOpened,
-	parameters: {
-		queries: [
-			...(ResourceTrayOpened.parameters?.queries ?? []),
-			{
-				key: userUIPreferences().queryKey,
-				data: {
-					resource_tray: { expanded: false, lock: "down" },
-					admin_notes_tray: { expanded: false, lock: "up" },
-				},
-			},
-		],
-	},
-};
-
 export const HiddenChatMenu: Story = {
-	...ResourceTrayOpened,
+	...SettingsMenuOpened,
 	args: {
-		...ResourceTrayOpened.args,
+		...SettingsMenuOpened.args,
 		hud: false,
 		controls: { permissions: { canViewUsers: true } },
 	},
 	parameters: {
 		queries: [
-			...(ResourceTrayOpened.parameters?.queries ?? []),
+			...(SettingsMenuOpened.parameters?.queries ?? []),
 			{ key: userUIPreferences().queryKey, data: { chat_hidden: true } },
 			{ key: chatEnabled().queryKey, data: { enabled: true } },
 		],
@@ -390,9 +332,9 @@ export const HiddenChatMenu: Story = {
 };
 
 export const CentralAdminMenu: Story = {
-	...ResourceTrayOpened,
+	...SettingsMenuOpened,
 	args: {
-		...ResourceTrayOpened.args,
+		...SettingsMenuOpened.args,
 		user: { ...MockUserOwner, avatar_url: MockLavaAvatar },
 		controls: {
 			permissions: { canEditDeployment: true, canViewHealth: true },
@@ -612,52 +554,6 @@ export const QuickAnnouncement: Story = {
 	},
 };
 
-export const ShortcutPicker: Story = {
-	...CentralAdminMenu,
-	play: async (context) => {
-		await CentralAdminMenu.play?.(context);
-		await userEvent.click(
-			await within(document.body).findByRole("menuitem", {
-				name: "Add resource shortcut",
-			}),
-		);
-	},
-};
-
-export const TrayUserMenu: Story = {
-	...CentralAdminMenu,
-	args: { ...CentralAdminMenu.args, buildInfo: MockBuildInfo },
-	play: async (context) => {
-		await CentralAdminMenu.play?.(context);
-		await userEvent.click(
-			await within(document.body).findByRole("menuitem", { name: "Account" }),
-		);
-	},
-};
-export const ShortcutLimitReached: Story = {
-	...ShortcutPicker,
-	parameters: {
-		queries: [
-			...(CentralAdminMenu.parameters?.queries ?? []),
-			{
-				key: userUIPreferences().queryKey,
-				data: { resource_shortcuts: ["hud", "images", "leases"] },
-			},
-		],
-	},
-};
-export const TrayUserAppearance: Story = {
-	...TrayUserMenu,
-	play: async (context) => {
-		await TrayUserMenu.play?.(context);
-		await userEvent.click(
-			await within(document.body).findByRole("menuitem", {
-				name: "Appearance",
-			}),
-		);
-	},
-};
-
 export const UnreadAdminNotes: Story = {
 	...CentralAdminMenu,
 	beforeEach: async (context) => {
@@ -734,30 +630,6 @@ export const NoNotifications: Story = {
 	play: async () => {},
 };
 
-export const TrayAccountActions: Story = {
-	...CentralAdminMenu,
-	play: async (context) => {
-		await CentralAdminMenu.play?.(context);
-		await userEvent.pointer({
-			target: await within(document.body).findByRole("menuitem", {
-				name: "Account",
-			}),
-			keys: "[MouseRight]",
-		});
-	},
-};
-export const AdjustedResourceTray: Story = {
-	...CentralAdminMenu,
-	play: async (context) => {
-		await CentralAdminMenu.play?.(context);
-		const grip = await within(document.body).findByRole("menuitem", {
-			name: "Hide resource shortcuts",
-		});
-		grip.focus();
-		await userEvent.keyboard("{Alt>}{ArrowDown>40/}{/Alt}");
-	},
-};
-
 export const NotesAtBottom: Story = {
 	...CentralAdminNotes,
 	play: async (context) => {
@@ -768,14 +640,14 @@ export const NotesAtBottom: Story = {
 		await userEvent.keyboard("{Alt>}{ArrowDown>50/}{/Alt}");
 	},
 };
-export const BothPanelsAtTop: Story = {
+export const NotesAtTop: Story = {
 	...CentralAdminNotes,
 	play: async (context) => {
 		await CentralAdminNotes.play?.(context);
-		for (const name of ["Hide resource shortcuts", "Hide admin notes"]) {
-			within(document.body).getByRole("menuitem", { name }).focus();
-			await userEvent.keyboard("{Alt>}{ArrowUp>50/}{/Alt}");
-		}
+		within(document.body)
+			.getByRole("menuitem", { name: "Hide admin notes" })
+			.focus();
+		await userEvent.keyboard("{Alt>}{ArrowUp>50/}{/Alt}");
 	},
 };
 
@@ -783,7 +655,7 @@ export const AnchoredPanelsAfterToggle: Story = {
 	...CentralAdminNotes,
 	play: async (context) => {
 		await CentralAdminNotes.play?.(context);
-		for (const label of ["resource shortcuts", "admin notes"]) {
+		for (const label of ["admin notes"]) {
 			await userEvent.click(
 				within(document.body).getByRole("menuitem", { name: `Hide ${label}` }),
 			);
@@ -798,41 +670,11 @@ export const AnchoredPanelsHidden: Story = {
 	...CentralAdminNotes,
 	play: async (context) => {
 		await CentralAdminNotes.play?.(context);
-		for (const label of ["resource shortcuts", "admin notes"]) {
+		for (const label of ["admin notes"]) {
 			await userEvent.click(
 				within(document.body).getByRole("menuitem", { name: `Hide ${label}` }),
 			);
 		}
-	},
-};
-
-export const ShortcutPickerAboveClosedNotes: Story = {
-	...CentralAdminNotes,
-	play: async ({ canvasElement }) => {
-		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: /^Settings/ }),
-		);
-		const body = within(canvasElement.ownerDocument.body);
-		await userEvent.click(
-			body.getByRole("menuitem", { name: "Add resource shortcut" }),
-		);
-	},
-};
-
-export const RemoveAddedResourceShortcut: Story = {
-	...ResourceTrayWithShortcuts,
-	play: async ({ canvasElement }) => {
-		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: /^Settings/ }),
-		);
-		await userEvent.pointer({
-			target: await within(
-				await within(canvasElement.ownerDocument.body).findByRole("group", {
-					name: "Resource shortcuts",
-				}),
-			).findByRole("menuitem", { name: "HUD" }),
-			keys: "[MouseRight]",
-		});
 	},
 };
 
@@ -887,9 +729,9 @@ export const PanelHandleLockMenu: Story = {
 
 /** An entry's right-click options, under it: Audit logs has only Open. */
 export const EntryOptions: Story = {
-	...ResourceTrayOpened,
+	...SettingsMenuOpened,
 	args: {
-		...ResourceTrayOpened.args,
+		...SettingsMenuOpened.args,
 		controls: {
 			permissions: {
 				canEditDeployment: true,

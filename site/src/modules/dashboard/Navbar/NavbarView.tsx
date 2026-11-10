@@ -137,7 +137,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			breadcrumbOnly={breadcrumbOnly}
 			user={user}
 			buildInfo={buildInfo}
-			supportLinks={supportLinks.filter((link) => !isNavbarLink(link))}
 			onSignOut={onSignOut}
 			tunnelActorId={user.id}
 			canManageTunnels={user.roles.some((role) => role.name === "owner")}
