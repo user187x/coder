@@ -416,3 +416,104 @@
 	svg {
 	filter: none;
 }
+
+/* Every connected breadcrumb alike: the root crumb gray, each crumb after it white (the current page's too), in the
+   light and the dark theme. A page action standing in for a crumb (NavbarAction) keeps its own colours. */
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:first-child
+	> :is(a, span, button),
+.breadcrumb-connected.deployment-breadcrumb:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:first-child
+	> a {
+	background: #d9dce1;
+	color: #1f2329;
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:first-child
+	> a:hover {
+	background: #cbcfd6;
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:not(:first-child)
+	> :is(a, span, button),
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:not(:first-child)
+	> :is(a, span)[aria-current="page"],
+.breadcrumb-connected.deployment-breadcrumb:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:last-child
+	> [aria-current="page"] {
+	background: #fff;
+	color: #1f2329;
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:not(:first-child)
+	> a:hover {
+	background: #f1f2f4;
+}
+.dark
+	.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:first-child
+	> :is(a, span, button),
+.dark
+	.breadcrumb-connected.deployment-breadcrumb:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:first-child
+	> a {
+	background: #4b5059;
+	color: #eef0f3;
+}
+/* The category chevron: its face white like any child crumb (its toggle a shade darker, as a control). */
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li
+	> button.category-breadcrumb-button {
+	background: transparent;
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	.category-breadcrumb-button::before {
+	background: #fff;
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	.category-breadcrumb-button
+	[data-category-toggle] {
+	background: #eceef1;
+	color: #1f2329;
+}
+/* The navbar's matte breadcrumb draws its faces from tokens: the root's gray, the children's white. */
+.breadcrumb-connected.admin-navbar-breadcrumb > ol > li:first-child {
+	--crumb-face: linear-gradient(180deg, #e3e6ea 0%, #d6dae0 50%, #c8cdd4 100%);
+	--crumb-face-hover: linear-gradient(
+		180deg,
+		#e9ecef 0%,
+		#dde0e5 50%,
+		#cfd3da 100%
+	);
+	--crumb-face-pressed: linear-gradient(180deg, #c3c8cf 0%, #cfd3d9 100%);
+	--crumb-ink: #1f2329;
+}
+.breadcrumb-connected.admin-navbar-breadcrumb > ol > li:not(:first-child) {
+	--crumb-face: linear-gradient(180deg, #ffffff 0%, #fbfbfc 50%, #f1f2f4 100%);
+	--crumb-face-hover: linear-gradient(180deg, #ffffff 0%, #f6f7f8 100%);
+	--crumb-face-pressed: linear-gradient(180deg, #e9ebee 0%, #f3f4f6 100%);
+	--crumb-ink: #1f2329;
+}
+.dark .breadcrumb-connected.admin-navbar-breadcrumb > ol > li:first-child {
+	--crumb-face: linear-gradient(180deg, #5a5f68 0%, #4b5059 50%, #40444c 100%);
+	--crumb-face-hover: linear-gradient(180deg, #636872 0%, #545962 100%);
+	--crumb-face-pressed: linear-gradient(180deg, #3b3f46 0%, #474b53 100%);
+	--crumb-ink: #eef0f3;
+}
+.dark
+	.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li:not(:first-child) {
+	--crumb-engrave: 0 1px 0 rgb(255 255 255 / 0.9);
+}
