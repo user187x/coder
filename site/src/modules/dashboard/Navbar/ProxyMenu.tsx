@@ -425,7 +425,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 					<div
 						ref={setMenuSurface}
-						className="settings-menu-surface flex flex-col rounded-2xl border border-solid border-border bg-surface-primary p-2 shadow-md max-h-[calc(var(--radix-dropdown-menu-content-available-height)/var(--app-zoom,1))] overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+						// No scrollbar of its own: its top part (quick links) and its bottom panel scroll inside themselves
+						// (the thin strip, compact, still scrolls as a whole).
+						className={cn(
+							"settings-menu-surface flex flex-col rounded-2xl border border-solid border-border bg-surface-primary p-2 shadow-md max-h-[calc(var(--radix-dropdown-menu-content-available-height)/var(--app-zoom,1))] scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]",
+							compact ? "overflow-y-auto" : "overflow-hidden",
+						)}
 					>
 						{!compact && (
 							<div
@@ -675,7 +680,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									<nav
 										aria-label="Settings"
 										data-testid="controls-group"
-										className="mx-1 mt-2 mb-1 flex flex-auto flex-col rounded-lg border border-solid border-border p-1 bg-surface-primary"
+										className="mx-1 mt-2 mb-1 flex min-h-0 flex-auto flex-col rounded-lg border border-solid border-border p-1 bg-surface-primary"
 									>
 										<AdminSettingsItems
 											externalMetrics

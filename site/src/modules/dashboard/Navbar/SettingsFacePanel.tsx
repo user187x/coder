@@ -75,7 +75,7 @@ export const SettingsFacePanel: React.FC<{
 			aria-label={`Settings panel: ${NAMES[current]}`}
 			data-testid="settings-face-panel"
 			data-face={current}
-			className="settings-face-panel relative mx-1 mt-2 mb-1"
+			className="settings-face-panel relative mx-1 mt-2 mb-1 shrink-0"
 		>
 			{faces.length > 1 && (
 				<div className="settings-face-arrows">
@@ -140,7 +140,7 @@ export const SettingsFacePanel: React.FC<{
 					key={current}
 					ref={measure}
 					className={cn(
-						"settings-face flex flex-1 flex-col [&>*]:flex-1",
+						"settings-face flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain [&>*]:flex-1",
 						turn === "right"
 							? "settings-face-turn-right"
 							: "settings-face-turn-left",
