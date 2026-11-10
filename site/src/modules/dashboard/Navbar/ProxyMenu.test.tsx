@@ -1,6 +1,12 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MonitorIcon } from "lucide-react";
+import { MonitorIcon, UsersIcon } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
@@ -18,9 +24,10 @@ import {
 } from "#/testHelpers/entities";
 import { MockHudHistory } from "#/testHelpers/hud";
 import { MockClusterUsage } from "#/testHelpers/platform";
-import { renderComponent } from "#/testHelpers/renderHelpers";
+import { renderComponent, renderWithAuth } from "#/testHelpers/renderHelpers";
 import { adminPagesFor } from "./adminQuickLinks";
 import { ProxyMenu } from "./ProxyMenu";
+import { setSettingsMenuHost } from "./settingsMenuHost";
 
 const value = {
 	latenciesLoaded: true,
@@ -368,5 +375,47 @@ describe("ProxyMenu", () => {
 		expect(
 			within(menu).queryByRole("group", { name: "Your workspaces" }),
 		).toBeNull();
+	});
+
+	it("with the settings navigation in the navbar, lists every category and opens from the breadcrumb", async () => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+			admin_nav_in_navbar: true,
+		});
+		const slot = document.createElement("li");
+		document.body.append(slot);
+		renderWithAuth(
+			<ProxyMenu
+				proxyContextValue={value}
+				controls={controls}
+				user={MockUserOwner}
+				supportLinks={[]}
+				onSignOut={vi.fn()}
+			/>,
+		);
+		act(() =>
+			setSettingsMenuHost({
+				element: slot,
+				label: "Accounts",
+				icon: UsersIcon,
+			}),
+		);
+		const trigger = await within(slot).findByRole("button", {
+			name: "Accounts",
+		});
+		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+		const menu = await screen.findByTestId("navbar-latency-controls-menu");
+		const settings = within(menu).getByRole("navigation", { name: "Settings" });
+		const linked = new Set(controls.quickLinks.map((link) => link.id));
+		const rest = adminPagesFor({
+			permissions: MockPermissions,
+			oauth2Provider: true,
+		}).filter((page) => !linked.has(page.id));
+		for (const page of rest) {
+			expect(
+				within(settings).getByRole("menuitem", { name: page.label }),
+			).toHaveAttribute("href", page.path);
+		}
+		act(() => setSettingsMenuHost(null));
+		slot.remove();
 	});
 });

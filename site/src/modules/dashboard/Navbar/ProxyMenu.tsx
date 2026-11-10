@@ -8,6 +8,7 @@ import {
 	SettingsIcon,
 } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link, NavLink } from "react-router";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { WorkspaceGrid } from "#/modules/platform/workspaceGrid/WorkspaceGrid";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
+import { AdminCategoryItems } from "./AdminCategoryItems";
 import {
 	type AdminQuickLinksEditor,
 	AdminSettingsItems,
@@ -49,6 +51,10 @@ import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
+import {
+	useRegisterSettingsMenu,
+	useSettingsMenuHost,
+} from "./settingsMenuHost";
 import { UserSettingsShortcut } from "./UserSettingsShortcut";
 import "./navbarSoft.css";
 
@@ -114,6 +120,16 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		onError: () => toast.error("Could not save Settings sidebar preference."),
 	});
 	const docked = Boolean(controls && prefs.data?.settings_sidebar);
+	// The admin settings' navigation in the navbar: this menu lists every settings category too, and on a settings page
+	// opens from the breadcrumb's category in place of the navbar's Settings button.
+	const settingsInNavbar = Boolean(
+		controls &&
+			prefs.data?.admin_nav_in_navbar &&
+			canViewAdminSettings(controls.permissions),
+	);
+	useRegisterSettingsMenu(settingsInNavbar);
+	const menuHost = useSettingsMenuHost();
+	const breadcrumbHost = settingsInNavbar && !docked ? menuHost : null;
 	const compact = Boolean(docked && prefs.data?.settings_sidebar_compact);
 	useLayoutEffect(() => {
 		if (!docked) return;
@@ -284,21 +300,45 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				<div
 					role="group"
 					aria-label="Dashboard navigation"
-					className={docked ? "hidden" : "navbar-split"}
-					hidden={docked}
+					className={docked || breadcrumbHost ? "hidden" : "navbar-split"}
+					hidden={docked || Boolean(breadcrumbHost)}
 					data-testid={hud ? "navbar-hud-latency" : undefined}
 				>
-					<DropdownMenuTrigger asChild>
-						<button
-							type="button"
-							className="navbar-split-menu relative"
-							title="Settings"
-							data-testid="navbar-latency-controls"
-						>
-							{reading}
-						</button>
-					</DropdownMenuTrigger>
+					{!breadcrumbHost && (
+						<DropdownMenuTrigger asChild>
+							<button
+								type="button"
+								className="navbar-split-menu relative"
+								title="Settings"
+								data-testid="navbar-latency-controls"
+							>
+								{reading}
+							</button>
+						</DropdownMenuTrigger>
+					)}
 				</div>
+				{breadcrumbHost &&
+					createPortal(
+						<DropdownMenuTrigger asChild>
+							<button
+								type="button"
+								className="category-breadcrumb-button"
+								aria-current="page"
+								aria-label={breadcrumbHost.label}
+								title={`${breadcrumbHost.label}: Settings and categories`}
+								data-testid="navbar-latency-controls"
+							>
+								<breadcrumbHost.icon aria-hidden className="size-4 shrink-0" />
+								<span
+									aria-hidden="true"
+									className="absolute inset-y-0 right-0 inline-flex items-center justify-center rounded-r-[6px] bg-surface-tertiary text-content-primary hover:bg-surface-quaternary"
+								>
+									<ChevronDownIcon open={open} className="size-3.5" />
+								</span>
+							</button>
+						</DropdownMenuTrigger>,
+						breadcrumbHost.element,
+					)}
 				<DropdownMenuContent
 					ref={setMenuElement}
 					data-settings-docked={docked || undefined}
@@ -308,7 +348,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					onEscapeKeyDown={(e) => {
 						if (docked) e.preventDefault();
 					}}
-					align="end"
+					align={breadcrumbHost ? "start" : "end"}
 					data-testid="navbar-latency-controls-menu"
 					// The floating menu reserves space for the slide-out trays.
 					className={cn(
@@ -604,6 +644,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 											quickLinks={controls.quickLinks}
 											quickLinksEditor={controls.quickLinksEditor}
 										/>
+										{settingsInNavbar && (
+											<AdminCategoryItems
+												quickLinks={controls.quickLinks ?? []}
+											/>
+										)}
 									</nav>
 								)}
 								<SettingsFacePanel

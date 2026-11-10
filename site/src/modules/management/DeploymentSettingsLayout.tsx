@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { SettingsIcon } from "lucide-react";
-import { Suspense, useId, useState } from "react";
+import { Suspense, useEffect, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { INTRO_DURATION } from "#/api/platform";
@@ -29,6 +29,10 @@ import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
+import {
+	setSettingsMenuHost,
+	useSettingsMenuPresent,
+} from "#/modules/dashboard/Navbar/settingsMenuHost";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { useAnnounceSection } from "#/modules/platform/announcement/sectionIntroductions";
@@ -52,6 +56,9 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const placement = useMutation(updateUserUIPreferences(queryClient));
 	const inNavbar = Boolean(preferences.data?.admin_nav_in_navbar);
 	const [categoriesOpen, setCategoriesOpen] = useState(false);
+	// In the navbar, the category opens the navbar's Settings menu (which lists the categories too) where there is one.
+	const settingsMenu = useSettingsMenuPresent();
+	const [menuSlot, setMenuSlot] = useState<HTMLElement | null>(null);
 	const { data: introduction } = useQuery({
 		...bannerQuery(false),
 		enabled: !isEmbeddedFrame(),
@@ -66,6 +73,18 @@ const DeploymentSettingsLayout: React.FC = () => {
 		introduction?.enabled === true,
 		introduction?.durationMs,
 	);
+	// the category's quick-link icon in the breadcrumb (General: the Admin menu's Settings icon)
+	const CategoryIcon = category?.icon ?? SettingsIcon;
+	const categoryLabel = category?.label ?? "General";
+	useEffect(() => {
+		if (!menuSlot) return;
+		setSettingsMenuHost({
+			element: menuSlot,
+			label: categoryLabel,
+			icon: CategoryIcon,
+		});
+		return () => setSettingsMenuHost(null);
+	}, [menuSlot, categoryLabel, CategoryIcon]);
 
 	if (location.pathname === "/deployment") {
 		// The user's Default View, else the usual first page
@@ -95,10 +114,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 		location.pathname.startsWith("/ai/settings") ||
 		(location.pathname.startsWith("/health") && canViewHealth);
 
-	// the category's quick-link icon in the breadcrumb (General: the Admin menu's Settings icon)
 	const chat = location.pathname === "/deployment/chat";
-
-	const CategoryIcon = category?.icon ?? SettingsIcon;
 
 	// Right-click on the breadcrumb, where it is: move it (and the categories) up into the navbar, or back.
 	const placementMenu = (children: React.ReactElement) => (
@@ -127,37 +143,41 @@ const DeploymentSettingsLayout: React.FC = () => {
 						<BreadcrumbItem>
 							<AdminCategoryMenu />
 						</BreadcrumbItem>
-						<BreadcrumbItem>
-							<Popover open={categoriesOpen} onOpenChange={setCategoriesOpen}>
-								<PopoverAnchor asChild>
-									<span className="inline-flex">
-										<CategoryBreadcrumbButton
-											label={category?.label ?? "General"}
-											icon={CategoryIcon}
-											controls={sidebarId}
-											sidebarOpen={categoriesOpen}
-											onToggle={() => setCategoriesOpen((open) => !open)}
-										/>
-									</span>
-								</PopoverAnchor>
-								<PopoverContent
-									id={sidebarId}
-									align="start"
-									className="max-h-[70vh] w-72 overflow-y-auto p-2"
-									// A category picked from it closes it.
-									onClick={(event) => {
-										if (
-											event.target instanceof Element &&
-											event.target.closest("a")
-										) {
-											setCategoriesOpen(false);
-										}
-									}}
-								>
-									<DeploymentSidebar />
-								</PopoverContent>
-							</Popover>
-						</BreadcrumbItem>
+						{settingsMenu ? (
+							<BreadcrumbItem ref={setMenuSlot} />
+						) : (
+							<BreadcrumbItem>
+								<Popover open={categoriesOpen} onOpenChange={setCategoriesOpen}>
+									<PopoverAnchor asChild>
+										<span className="inline-flex">
+											<CategoryBreadcrumbButton
+												label={category?.label ?? "General"}
+												icon={CategoryIcon}
+												controls={sidebarId}
+												sidebarOpen={categoriesOpen}
+												onToggle={() => setCategoriesOpen((open) => !open)}
+											/>
+										</span>
+									</PopoverAnchor>
+									<PopoverContent
+										id={sidebarId}
+										align="start"
+										className="max-h-[70vh] w-72 overflow-y-auto p-2"
+										// A category picked from it closes it.
+										onClick={(event) => {
+											if (
+												event.target instanceof Element &&
+												event.target.closest("a")
+											) {
+												setCategoriesOpen(false);
+											}
+										}}
+									>
+										<DeploymentSidebar />
+									</PopoverContent>
+								</Popover>
+							</BreadcrumbItem>
+						)}
 					</BreadcrumbList>
 				</AdminBreadcrumb>,
 			)}
