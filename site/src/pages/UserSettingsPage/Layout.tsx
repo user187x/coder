@@ -31,6 +31,8 @@ import { pageTitle } from "#/utils/page";
 import { Sidebar } from "./Sidebar";
 import { settingsSections } from "./settingsSections";
 import "./userSettings.css";
+import "#/modules/dashboard/Navbar/settingsMenuSkeuo.css";
+import "#/modules/dashboard/Navbar/skeuoPopover.css";
 
 const Layout: React.FC = () => {
 	const { user: me } = useAuthenticated();
@@ -134,7 +136,7 @@ const Layout: React.FC = () => {
 						<PopoverContent
 							id={sidebarId}
 							align="start"
-							className="max-h-[70vh] w-72 overflow-y-auto p-2"
+							className="skeuo-popover max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
 							// A section picked from it closes it.
 							onClick={(event) => {
 								if (

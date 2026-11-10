@@ -45,6 +45,8 @@ import { AdminCategoryMenu } from "./AdminCategoryMenu";
 import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 import { DeploymentSidebar } from "./DeploymentSidebar";
 import { useSettingsDefaultView } from "./settingsDefaultView";
+import "#/modules/dashboard/Navbar/settingsMenuSkeuo.css";
+import "#/modules/dashboard/Navbar/skeuoPopover.css";
 
 const DeploymentSettingsLayout: React.FC = () => {
 	const { permissions } = useAuthenticated();
@@ -165,7 +167,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 								<PopoverContent
 									id={sidebarId}
 									align="start"
-									className="max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
+									className="skeuo-popover max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
 									// A category picked from it closes it.
 									onClick={(event) => {
 										if (
