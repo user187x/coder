@@ -26,3 +26,14 @@
 		animation: quick-links-collapse 180ms ease-out;
 	}
 }
+
+/* The Controls glyph for the theme: the dark one on light themes, the light one on dark. */
+.controls-glyph-dark {
+	display: none;
+}
+.dark .controls-glyph-light {
+	display: none;
+}
+.dark .controls-glyph-dark {
+	display: block;
+}

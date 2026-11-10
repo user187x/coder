@@ -21,7 +21,7 @@ import {
 	PinIcon,
 	Trash2Icon,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -117,6 +117,33 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	};
 
 	const controlsMenu = useInlineMenu();
+	// Open, Controls reaches only down to the Settings panel's bottom; its own list scrolls the rest, and nothing else
+	// in the panel moves.
+	const choicesBox = useRef<HTMLDivElement>(null);
+	const [choicesMax, setChoicesMax] = useState<number>();
+	useLayoutEffect(() => {
+		const box = choicesBox.current;
+		const surface = box?.closest<HTMLElement>(".settings-menu-surface");
+		if (!expanded || !box || !surface) return;
+		const measure = () => {
+			const top = surface.getBoundingClientRect().top;
+			const cssMax = Number.parseFloat(getComputedStyle(surface).maxHeight);
+			const room = Math.min(
+				window.innerHeight - top - 8,
+				Number.isFinite(cssMax) ? cssMax : Number.POSITIVE_INFINITY,
+			);
+			const others = surface.scrollHeight - box.offsetHeight;
+			setChoicesMax(Math.max(96, Math.floor(room - others)));
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(surface);
+		window.addEventListener("resize", measure);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", measure);
+		};
+	}, [expanded]);
 	const controlsChevron = (
 		<span
 			aria-hidden
@@ -130,7 +157,11 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		<>
 			{/* The links scroll on their own, above Controls, which always stays in view */}
 			<div
-				className="admin-quick-links-scroll min-h-0 flex-1 overflow-y-auto"
+				className={cn(
+					"admin-quick-links-scroll",
+					// with Controls open, its list is what scrolls
+					expanded ? "flex-none" : "min-h-0 flex-1 overflow-y-auto",
+				)}
 				data-testid="quick-links-scroll"
 			>
 				<DndContext
@@ -202,7 +233,21 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					}}
 				>
 					{controlsChevron}
-					<span className="flex-1 text-center">Controls</span>
+					{/* The Controls glyph, drawn for the theme (light-controls.png, dark-controls.png); its name for
+					    assistive technology */}
+					<span className="flex flex-1 items-center justify-center">
+						<img
+							src="/light-controls.png"
+							alt=""
+							className="controls-glyph controls-glyph-light size-6"
+						/>
+						<img
+							src="/dark-controls.png"
+							alt=""
+							className="controls-glyph controls-glyph-dark size-6"
+						/>
+						<span className="sr-only">Controls</span>
+					</span>
 					{controlsChevron}
 				</DropdownMenuItem>
 				{controlsMenu.open && (
@@ -220,7 +265,11 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					id={choicesId}
 					className="admin-quick-link-choices overflow-hidden"
 				>
-					<div className="my-1 rounded-lg border border-solid border-border bg-surface-secondary p-1">
+					<div
+						ref={choicesBox}
+						style={{ maxHeight: expanded ? choicesMax : undefined }}
+						className="my-1 overflow-y-auto overscroll-contain rounded-lg border border-solid border-border bg-surface-secondary p-1 scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+					>
 						{chatOn && (
 							<div className="flex items-center">
 								<ChatMenuItem
