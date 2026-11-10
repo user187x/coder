@@ -29,6 +29,7 @@ import {
 import { createPortal } from "react-dom";
 import type { NavbarLayout } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
+import { toCssPx } from "#/utils/appZoom";
 import {
 	isNavbarItem,
 	NAVBAR_ITEMS,
@@ -126,8 +127,10 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		const previousFocus = document.activeElement;
 		const previousLayer = navbar.style.zIndex;
 		navbar.style.zIndex = "121";
+		// The backdrop is portaled to the body, under the app's scale: from the navbar's bottom in CSS pixels, so it
+		// never covers the navbar's strip.
 		const measure = () =>
-			setNavbarBottom(navbar.getBoundingClientRect().bottom);
+			setNavbarBottom(toCssPx(navbar.getBoundingClientRect().bottom));
 		measure();
 		const observer = new ResizeObserver(measure);
 		observer.observe(navbar);
