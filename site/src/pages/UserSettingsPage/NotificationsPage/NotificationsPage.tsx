@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useMutation, useQueries, useQueryClient } from "react-query";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
 } from "#/api/queries/notifications";
 import type { NotificationTemplate } from "#/api/typesGenerated";
 import { Loader } from "#/components/Loader/Loader";
+import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
@@ -90,6 +91,7 @@ const NotificationsPage: React.FC = () => {
 			});
 	}, [searchParams.delete, disabledId, disableMutation]);
 
+	const [groupPage, setGroupPage] = useState(1);
 	const ready =
 		disabledPreferences.data &&
 		systemTemplatesByGroup.data &&
@@ -100,6 +102,12 @@ const NotificationsPage: React.FC = () => {
 		...systemTemplatesByGroup.data,
 		...customTemplatesByGroup.data,
 	};
+	// One group a page: the list is long, and the card keeps the Account card's size.
+	const groups = Object.entries(allTemplatesByGroup).filter(([group]) =>
+		canSeeNotificationGroup(group, permissions),
+	);
+	const pageCount = Math.max(1, groups.length);
+	const shownPage = Math.min(groupPage, pageCount);
 
 	return (
 		<>
@@ -114,11 +122,7 @@ const NotificationsPage: React.FC = () => {
 
 			{ready ? (
 				<div className="flex flex-col gap-8">
-					{Object.entries(allTemplatesByGroup).map(([group, templates]) => {
-						if (!canSeeNotificationGroup(group, permissions)) {
-							return null;
-						}
-
+					{groups.slice(shownPage - 1, shownPage).map(([group, templates]) => {
 						const allDisabled = templates.some((tpl) => {
 							return notificationIsDisabled(disabledPreferences.data, tpl);
 						});
@@ -238,6 +242,14 @@ const NotificationsPage: React.FC = () => {
 							</article>
 						);
 					})}
+					<PaginationWidgetBase
+						currentPage={shownPage}
+						pageSize={1}
+						totalRecords={groups.length}
+						onPageChange={setGroupPage}
+						hasPreviousPage={shownPage > 1}
+						hasNextPage={shownPage < pageCount}
+					/>
 				</div>
 			) : (
 				<Loader />

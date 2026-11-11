@@ -15,3 +15,13 @@
 .user-settings-card form {
 	max-width: 48rem;
 }
+
+/* In the navbar layout every section's card is the Account card's size (its natural size): a section with more
+   (a wide table, a long list) scrolls inside it, and the page does not. */
+.user-settings-card-sized {
+	box-sizing: border-box;
+	width: min(100%, 51.25rem);
+	height: min(45.5rem, calc(100dvh / var(--app-zoom, 1) - 10rem));
+	overflow: auto;
+	overscroll-behavior: contain;
+}

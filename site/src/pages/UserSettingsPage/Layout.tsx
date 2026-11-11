@@ -173,7 +173,7 @@ const Layout: React.FC = () => {
 			className={
 				inNavbar
 					? // Centred in the window, as the rest of the app (the sections list is up in the navbar)
-						"ws-settings ws-card user-settings-card min-w-0 max-w-full self-center"
+						"ws-settings ws-card user-settings-card user-settings-card-sized min-w-0 max-w-full self-center"
 					: "ws-settings ws-card user-settings-card grow min-w-0 self-stretch lg:self-start"
 			}
 		>
