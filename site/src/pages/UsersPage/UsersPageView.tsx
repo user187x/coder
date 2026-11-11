@@ -36,6 +36,7 @@ import {
 } from "#/modules/users/UserActionDialogs";
 import { WorkspaceSchedulerSection } from "#/pages/HealthPage/WorkspaceSchedulerSection";
 import { UsersTable, type UsersTableProps } from "./UsersTable";
+import "./accountsPanels.css";
 
 type UsersPageViewProps = Omit<
 	UsersTableProps,
@@ -114,10 +115,12 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 				<Button
 					ref={focused ? undefined : focusTrigger}
 					variant="outline"
+					size="icon"
+					aria-label={focused ? "Exit focus" : "Focus"}
+					title={focused ? "Exit focus" : "Focus"}
 					onClick={() => onFocusChange(!focused)}
 				>
-					{focused ? <Minimize2Icon /> : <Maximize2Icon />}{" "}
-					{focused ? "Exit focus" : "Focus"}
+					{focused ? <Minimize2Icon /> : <Maximize2Icon />}
 				</Button>
 			</div>
 
@@ -225,7 +228,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 				<section
 					aria-label="User Quota"
 					data-testid="user-quota"
-					className="mb-6 rounded-lg border border-solid border-border p-6 bg-surface-primary"
+					className="accounts-panel"
 				>
 					{quota}
 				</section>
@@ -234,7 +237,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			{quota && (
 				<section
 					aria-label="Global Workspace Scheduler"
-					className="mb-6 rounded-lg border border-solid border-border p-6 bg-surface-primary"
+					className="accounts-panel"
 				>
 					<WorkspaceSchedulerSection />
 				</section>

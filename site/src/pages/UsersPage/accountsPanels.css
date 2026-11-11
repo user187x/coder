@@ -1,0 +1,15 @@
+/* The Accounts view's sections in the users table's panel (the Dashboard's: 40px corners, 20px padding), all as
+   wide as it. Their text keeps to one line, shortened with an ellipsis where the panel is narrower than it. */
+.accounts-panel {
+	margin-bottom: 1.5rem;
+	border-radius: 40px;
+	background: hsl(var(--surface-secondary));
+	padding: 20px;
+}
+.accounts-panel
+	:where(p, h2, h3, h4, label, td, th, li, dt, dd, legend, span:not(:has(*))) {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
