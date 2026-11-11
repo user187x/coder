@@ -85,7 +85,8 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			className={
 				focused
 					? "flex min-w-0 flex-col gap-3"
-					: "mb-6 flex min-w-0 flex-col gap-3 rounded-lg border border-solid border-border p-2 sm:p-6"
+					: // The Dashboard's panel: its card's corners concentric with the cards inside, 20px between them
+						"mb-6 flex min-w-0 flex-col gap-3 rounded-[40px] bg-surface-secondary p-5"
 			}
 		>
 			<div className="flex flex-wrap items-start gap-2">
