@@ -570,7 +570,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					<div
 						id={overviewId}
 						className={cn(
-							"w-full min-w-0 [&>header]:m-0 [&>header]:w-full [&>header]:max-w-none [&>header]:rounded-2xl",
+							"w-full min-w-0 [&>header]:m-0 [&>header]:w-full [&>header]:max-w-none [&>header]:rounded-[20px]",
 							overviewCollapsed && "hidden",
 						)}
 					>
