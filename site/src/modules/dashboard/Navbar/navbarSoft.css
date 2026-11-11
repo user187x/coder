@@ -38,6 +38,10 @@
 	border-bottom-color: inherit;
 	border-radius: inherit;
 	background-color: var(--navbar-strip-bg);
+	/* A see-through strip (Appearance: its transparency) frosts what scrolls under it, so the page reads as passing
+	   beneath the bar rather than over it. */
+	-webkit-backdrop-filter: blur(18px) saturate(1.1);
+	backdrop-filter: blur(18px) saturate(1.1);
 	pointer-events: none;
 }
 /* Appearance > Navigation bar, Resizable: the bar's buttons, the Settings chevron group among them, in one pill
