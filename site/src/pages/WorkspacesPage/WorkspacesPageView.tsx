@@ -125,8 +125,8 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				</NavbarAction>
 			)}
 
-			{/* Centers the quota and the table in the room below the navbar when they are shorter than it; taller content starts at the top and the page scrolls. */}
-			<div className="my-auto">
+			{/* Centers the quota and the table in the room below the navbar when they are shorter than it; taller content starts at the top and the page scrolls. In the Dashboard's panel (dashboardPanel.css). */}
+			<div className="dashboard-panel my-auto">
 				{hasError(error) && !isApiValidationError(error) && (
 					<div className="mb-4">
 						<ErrorAlert error={error} />
