@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
+import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import {
 	DropdownMenu,
@@ -106,7 +107,11 @@ it("hides an item under Controls and shows it again from there", async () => {
 			settings_menu_hidden: ["audit-logs", "organizations"],
 		}),
 	);
-	await user.click(screen.getByRole("menuitem", { name: "Controls" }));
+	await user.click(
+		within(screen.getByRole("menuitem", { name: "Controls" })).getByTitle(
+			"Controls",
+		),
+	);
 	await user.click(
 		await screen.findByRole("menuitem", {
 			name: "Show Audit logs in the menu",
@@ -181,7 +186,11 @@ it("adds a setting from the inline picker without navigating", async () => {
 		</QueryClientProvider>,
 	);
 	const user = userEvent.setup();
-	await user.click(screen.getByRole("menuitem", { name: "Controls" }));
+	await user.click(
+		within(screen.getByRole("menuitem", { name: "Controls" })).getByTitle(
+			"Controls",
+		),
+	);
 	await user.pointer({
 		target: screen.getByRole("menuitem", { name: "Chat" }),
 		keys: "[MouseRight]",
@@ -278,4 +287,73 @@ describe("Admin menu right-click options", () => {
 		);
 		expect(controls).toHaveAttribute("aria-expanded", "true");
 	});
+});
+
+it("moves Profile among the quick links and saves the whole list's order", async () => {
+	const user = userEvent.setup();
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	vi.spyOn(API, "getUserPreferenceSettings").mockResolvedValue({
+		admin_sidebar_order: [],
+	} as never);
+	const save = vi
+		.spyOn(API, "updateUserPreferenceSettings")
+		.mockImplementation(async (changes) => changes as never);
+	const onChange = vi.fn();
+	const pages = adminPagesFor({
+		permissions: MockPermissions,
+		oauth2Provider: true,
+	});
+	const links = pages.slice(0, 2);
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<MemoryRouter>
+				<DropdownMenu open>
+					<DropdownMenuTrigger>Admin</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<AdminSettingsItems
+							permissions={{}}
+							quickLinks={links}
+							quickLinksEditor={{ addable: [], onChange }}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</MemoryRouter>
+		</QueryClientProvider>,
+	);
+	const handle = await screen.findByRole("menuitem", {
+		name: "Reorder Profile",
+	});
+	handle.focus();
+	await user.keyboard("{Enter}{ArrowUp}");
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith(
+			expect.objectContaining({
+				admin_sidebar_order: [links[0].id, "profile", links[1].id],
+			}),
+		),
+	);
+	// The quick links themselves keep their order.
+	expect(onChange).not.toHaveBeenCalled();
+});
+
+it("opens Controls from its icon only, not from the rest of its bar", async () => {
+	const user = userEvent.setup();
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<MemoryRouter>
+				<DropdownMenu open>
+					<DropdownMenuTrigger>Admin</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<AdminSettingsItems permissions={{}} />
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</MemoryRouter>
+		</QueryClientProvider>,
+	);
+	const bar = await screen.findByRole("menuitem", { name: "Controls" });
+	await user.click(bar);
+	expect(bar).toHaveAttribute("aria-expanded", "false");
+	await user.click(within(bar).getByTitle("Controls"));
+	expect(bar).toHaveAttribute("aria-expanded", "true");
 });

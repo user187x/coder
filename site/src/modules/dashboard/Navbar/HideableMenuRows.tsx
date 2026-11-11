@@ -1,84 +1,18 @@
-import {
-	closestCenter,
-	DndContext,
-	type DragEndEvent,
-	PointerSensor,
-	useSensor,
-	useSensors,
-} from "@dnd-kit/core";
-import {
-	arrayMove,
-	SortableContext,
-	useSortable,
-	verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
 import { GripVerticalIcon, Trash2Icon } from "lucide-react";
-import { useState } from "react";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import type { HideableMenuItem } from "./AdminSettings";
 import { DefaultViewOption, DefaultViewOrb } from "./DefaultViewOption";
 import { PageMenuItem } from "./InlineMenu";
 
 /**
- * The Settings menu's rows after its quick links (the admin categories and its other pages), as the quick links: each
- * opens its page, and while pointed at (or holding the focus) shows a trash can that hides it under Controls and a
- * handle that moves it, by dragging or with Enter then the arrow keys.
+ * One of the Settings menu's rows besides its quick links (an admin category, Profile, the logs), sortable among the
+ * quick links: it opens its page, and while pointed at (or holding the focus) shows a trash can that hides it under
+ * Controls and a handle that moves it, by dragging or with Enter then the arrow keys.
  */
-export const HideableMenuRows: React.FC<{
-	items: readonly HideableMenuItem[];
-	itemClassName?: string;
-	onHide: (id: string) => void;
-	onReorder: (ids: string[]) => void;
-}> = ({ items, itemClassName, onHide, onReorder }) => {
-	const ids = items.map((item) => item.id);
-	const [moving, setMoving] = useState<string>();
-	// A drag starts after a short move, so a click on the handle stays a click.
-	const sensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-	);
-	const move = (id: string, to: number) => {
-		const from = ids.indexOf(id);
-		if (from === -1 || to < 0 || to >= ids.length || to === from) return;
-		onReorder(arrayMove(ids, from, to));
-	};
-	const onDragEnd = ({ active, over }: DragEndEvent) => {
-		if (over && active.id !== over.id) {
-			move(String(active.id), ids.indexOf(String(over.id)));
-		}
-	};
-	return (
-		<DndContext
-			sensors={sensors}
-			collisionDetection={closestCenter}
-			modifiers={[({ transform }) => ({ ...transform, x: 0 })]}
-			onDragEnd={onDragEnd}
-		>
-			<SortableContext items={ids} strategy={verticalListSortingStrategy}>
-				{items.map((item, index) => (
-					<HideableRow
-						key={item.id}
-						item={item}
-						itemClassName={itemClassName}
-						moving={moving === item.id}
-						onHide={() => {
-							setMoving(undefined);
-							onHide(item.id);
-						}}
-						onToggleMoving={() =>
-							setMoving((now) => (now === item.id ? undefined : item.id))
-						}
-						onStopMoving={() => setMoving(undefined)}
-						onMove={(by) => move(item.id, index + by)}
-					/>
-				))}
-			</SortableContext>
-		</DndContext>
-	);
-};
-
-const HideableRow: React.FC<{
+export const HideableRow: React.FC<{
 	item: HideableMenuItem;
 	itemClassName?: string;
 	moving: boolean;

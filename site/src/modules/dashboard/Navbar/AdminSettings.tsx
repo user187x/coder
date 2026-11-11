@@ -18,7 +18,6 @@ import {
 import type { UserPreferenceSettings } from "#/api/typesGenerated";
 import { AdminQuickLinksMenu, type TopSection } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
-import { HideableMenuRows } from "./HideableMenuRows";
 import { ProfileSections } from "./ProfileSections";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 
@@ -183,6 +182,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	return (
 		<>
 			<AdminQuickLinksMenu
+				itemClassName={itemClassName}
 				admin={permissions.canEditDeployment}
 				chatExpanded={chatExpanded}
 				onChatToggle={onChatToggle}
@@ -193,16 +193,14 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				onShowItem={(id) => setHidden(id, false)}
 				shownIds={shown.map((item) => item.id)}
 				topSection={topSection}
-				// The other items in the quick links' list, as the quick links: a hover trash can hides one under
-				// Controls, a hover handle moves it (saved as the admin's sidebar order).
-				moreLinks={
-					<HideableMenuRows
-						items={shown}
-						itemClassName={itemClassName}
-						onHide={(id) => setHidden(id, true)}
-						onReorder={reorder}
-					/>
-				}
+				// The other items in the quick links' list, sorted and dragged among the quick links: a hover trash can hides
+				// one under Controls, a hover handle moves it (the whole list's order saved as the admin's sidebar order).
+				rows={{
+					items: shown,
+					onHide: (id) => setHidden(id, true),
+					order,
+					onReorder: reorder,
+				}}
 			/>
 			{!externalMetrics && canViewAdminSettings(permissions) && (
 				<SettingsMetricGraphs chatExpanded={Boolean(chatExpanded)} />

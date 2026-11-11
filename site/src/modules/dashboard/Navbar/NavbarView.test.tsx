@@ -209,7 +209,9 @@ describe("NavbarView", () => {
 			}
 			if (mobile)
 				await user.click(
-					await screen.findByRole("menuitem", { name: "Controls" }),
+					within(
+						await screen.findByRole("menuitem", { name: "Controls" }),
+					).getByTitle("Controls"),
 				);
 			if (mobile)
 				await user.click(await screen.findByRole("menuitem", { name: "Chat" }));
@@ -236,7 +238,11 @@ describe("NavbarView", () => {
 		renderNavbar({ canEditDeployment: true });
 		const user = userEvent.setup();
 		await user.click(screen.getByRole("button", { name: /^Settings/ }));
-		await user.click(await screen.findByRole("menuitem", { name: "Controls" }));
+		await user.click(
+			within(
+				await screen.findByRole("menuitem", { name: "Controls" }),
+			).getByTitle("Controls"),
+		);
 		const pill = screen.getByTestId("workspaces-latency");
 		pill.focus();
 		await user.keyboard("{Enter}");
@@ -276,7 +282,11 @@ describe("NavbarView", () => {
 		expect(save).toHaveBeenLastCalledWith({
 			settings_metrics: { expanded: false, locked: false },
 		});
-		await user.click(screen.getByRole("menuitem", { name: "Controls" }));
+		await user.click(
+			within(screen.getByRole("menuitem", { name: "Controls" })).getByTitle(
+				"Controls",
+			),
+		);
 		await user.click(screen.getByRole("menuitem", { name: "Chat" }));
 		await user.click(
 			screen.getByRole("button", { name: "Dismiss quick chat" }),
@@ -309,7 +319,11 @@ describe("NavbarView", () => {
 		renderNavbar({}, MockUserMember);
 		const user = userEvent.setup();
 		await user.click(screen.getByRole("button", { name: /^Settings/ }));
-		await user.click(await screen.findByRole("menuitem", { name: "Controls" }));
+		await user.click(
+			within(
+				await screen.findByRole("menuitem", { name: "Controls" }),
+			).getByTitle("Controls"),
+		);
 		await user.pointer({
 			target: await screen.findByRole("menuitem", { name: "Chat" }),
 			keys: "[MouseRight]",

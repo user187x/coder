@@ -35,6 +35,7 @@ import { AppearanceMenuItem } from "./AppearanceMenuItem";
 import type { AdminPage } from "./adminQuickLinks";
 import { ChatMenuItem } from "./ChatMenuItem";
 import { DefaultViewOption, DefaultViewOrb } from "./DefaultViewOption";
+import { HideableRow } from "./HideableMenuRows";
 import {
 	InlineMenuPanel,
 	OpenMenuItem,
@@ -56,13 +57,23 @@ type AdminQuickLinksMenuProps = {
 	onChatToggle?: () => void;
 	/** The menu's other items the user hid: listed under Controls, each with a button to show it again. */
 	hiddenItems?: readonly HideableMenuItem[];
-	/** More rows for the quick links' list, after the links: the menu's other items not hidden under Controls. */
-	moreLinks?: React.ReactNode;
+	/** The menu's other rows not hidden under Controls, sorted and dragged among the quick links. */
+	rows?: MenuRows;
 	/** The page IDs those rows show, kept out of Controls' pages to add. */
 	shownIds?: readonly string[];
 	onShowItem?: (id: string) => void;
 	/** The Settings menu's top section expanded down to its bottom (a double click on the Controls bar). */
 	topSection?: TopSection;
+};
+
+/** The menu's other rows in the quick links' list, and their place among them. */
+type MenuRows = {
+	items: readonly HideableMenuItem[];
+	onHide: (id: string) => void;
+	/** The saved order of the whole list (the quick links and these rows, by ID). */
+	order: readonly string[];
+	/** The whole list in its new order. */
+	onReorder: (ids: string[]) => void;
 };
 
 /** The Settings menu's top section, expanded over its bottom panel or not, and pinned that way. */
@@ -90,11 +101,13 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	onChatToggle,
 	hiddenItems = [],
 	onShowItem,
-	moreLinks,
+	rows,
 	shownIds = [],
 	topSection,
 }) => {
 	const [expanded, setExpanded] = useState(false);
+	// The top section expanded down to the panel's bottom: the Controls list opens above its bar.
+	const upward = Boolean(topSection?.full);
 	const chatOn = useChatEnabled();
 	const choicesId = useId();
 	// The pages to add, each once: not those already shown in the menu's list or listed hidden under Controls.
@@ -104,7 +117,33 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			!shownIds.includes(page.id) &&
 			!hiddenItems.some((item) => item.id === page.id),
 	);
-	const ids = links.map((link) => link.id);
+	const linkIds = links.map((link) => link.id);
+	// The quick links and the menu's other rows as one list: in the saved order once it places the quick links too,
+	// else the quick links first and the rows after them in theirs.
+	const extra = rows?.items ?? [];
+	const order = rows?.order ?? [];
+	const mixed = linkIds.some((id) => order.includes(id));
+	const rank = (id: string) => {
+		const index = order.indexOf(id);
+		return index < 0 ? Number.POSITIVE_INFINITY : index;
+	};
+	const entries = [
+		...links.map((link, index) => ({ id: link.id, link, index })),
+		...extra.map((item, index) => ({
+			id: item.id,
+			item,
+			index: links.length + index,
+		})),
+	].sort((a, b) =>
+		mixed
+			? rank(a.id) - rank(b.id) || a.index - b.index
+			: "link" in a !== "link" in b
+				? "link" in a
+					? -1
+					: 1
+				: rank(a.id) - rank(b.id) || a.index - b.index,
+	);
+	const ids = entries.map((entry) => entry.id);
 	// The page being moved with the keyboard, if any.
 	const [moving, setMoving] = useState<string>();
 	const [announcement, setAnnouncement] = useState("");
@@ -127,8 +166,15 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		if (from === -1 || to < 0 || to >= ids.length || to === from) {
 			return;
 		}
-		onChange?.(arrayMove(ids, from, to));
-		const label = links[from]?.label ?? id;
+		const next = arrayMove(ids, from, to);
+		const nextLinks = next.filter((other) => linkIds.includes(other));
+		if (nextLinks.some((other, index) => other !== linkIds[index])) {
+			onChange?.(nextLinks);
+		}
+		rows?.onReorder(next);
+		const entry = entries[from];
+		const label =
+			(entry && ("link" in entry ? entry.link.label : entry.item.label)) ?? id;
 		setAnnouncement(`${label} moved to position ${to + 1} of ${ids.length}.`);
 	};
 
@@ -147,14 +193,19 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		const root = controlsRoot.current;
 		const surface = root?.closest<HTMLElement>(".settings-menu-surface");
 		if (!expanded || !root || !surface) return;
+		// Below the bar, down to the panel's bottom; with the top section expanded (the bar at the bottom), above it.
 		const measure = () =>
 			setChoicesMax(
 				Math.max(
 					96,
 					Math.floor(
-						surface.getBoundingClientRect().bottom -
-							root.getBoundingClientRect().bottom -
-							12,
+						upward
+							? root.getBoundingClientRect().top -
+									surface.getBoundingClientRect().top -
+									12
+							: surface.getBoundingClientRect().bottom -
+									root.getBoundingClientRect().bottom -
+									12,
 					),
 				),
 			);
@@ -166,7 +217,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			observer.disconnect();
 			window.removeEventListener("resize", measure);
 		};
-	}, [expanded]);
+	}, [expanded, upward]);
 	const chevronClass =
 		"settings-controls-chevron inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-content-secondary/5 ring-1 ring-inset ring-content-secondary/15";
 	const controlsChevron = (
@@ -185,6 +236,9 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		},
 	});
 	const full = Boolean(topSection?.full);
+	// A pointer opens Controls from its icon in the bar's middle only (the bar's ends and a double click do other
+	// things); the keyboard, from the whole bar.
+	const pointerOutsideIcon = useRef(false);
 
 	return (
 		<>
@@ -200,46 +254,65 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					onDragEnd={onDragEnd}
 				>
 					<SortableContext items={ids} strategy={verticalListSortingStrategy}>
-						{links.map((link, index) => (
-							<QuickLinkRow
-								key={link.id}
-								link={link}
-								admin={admin}
-								editable={Boolean(onChange)}
-								chatExpanded={chatExpanded}
-								onChatToggle={onChatToggle}
-								itemClassName={itemClassName}
-								moving={moving === link.id}
-								handleRef={(node) => {
-									if (node) {
-										handles.current.set(link.id, node);
-									} else {
-										handles.current.delete(link.id);
+						{entries.map((entry, index) =>
+							"item" in entry ? (
+								<HideableRow
+									key={entry.id}
+									item={entry.item}
+									itemClassName={itemClassName}
+									moving={moving === entry.id}
+									onHide={() => {
+										setMoving(undefined);
+										rows?.onHide(entry.id);
+									}}
+									onToggleMoving={() =>
+										setMoving((now) =>
+											now === entry.id ? undefined : entry.id,
+										)
 									}
-								}}
-								onRemove={() => {
-									setMoving(undefined);
-									onChange?.(ids.filter((id) => id !== link.id));
-									setAnnouncement(
-										`${link.label} removed from the quick links.`,
-									);
-								}}
-								onToggleMoving={() => {
-									const next = moving === link.id ? undefined : link.id;
-									setMoving(next);
-									setAnnouncement(
-										next
-											? `Moving ${link.label}, position ${index + 1} of ${ids.length}. Use the up and down arrow keys, then Enter.`
-											: `${link.label} dropped at position ${index + 1} of ${ids.length}.`,
-									);
-								}}
-								onStopMoving={() => setMoving(undefined)}
-								onMove={(by) => move(link.id, index + by)}
-							/>
-						))}
+									onStopMoving={() => setMoving(undefined)}
+									onMove={(by) => move(entry.id, index + by)}
+								/>
+							) : (
+								<QuickLinkRow
+									key={entry.id}
+									link={entry.link}
+									admin={admin}
+									editable={Boolean(onChange)}
+									chatExpanded={chatExpanded}
+									onChatToggle={onChatToggle}
+									itemClassName={itemClassName}
+									moving={moving === entry.id}
+									handleRef={(node) => {
+										if (node) {
+											handles.current.set(entry.id, node);
+										} else {
+											handles.current.delete(entry.id);
+										}
+									}}
+									onRemove={() => {
+										setMoving(undefined);
+										onChange?.(linkIds.filter((id) => id !== entry.id));
+										setAnnouncement(
+											`${entry.link.label} removed from the quick links.`,
+										);
+									}}
+									onToggleMoving={() => {
+										const next = moving === entry.id ? undefined : entry.id;
+										setMoving(next);
+										setAnnouncement(
+											next
+												? `Moving ${entry.link.label}, position ${index + 1} of ${ids.length}. Use the up and down arrow keys, then Enter.`
+												: `${entry.link.label} dropped at position ${index + 1} of ${ids.length}.`,
+										);
+									}}
+									onStopMoving={() => setMoving(undefined)}
+									onMove={(by) => move(entry.id, index + by)}
+								/>
+							),
+						)}
 					</SortableContext>
 				</DndContext>
-				{moreLinks}
 			</div>
 
 			<Collapsible
@@ -257,8 +330,21 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						itemClassName,
 						"settings-controls-bar my-1 rounded-full border border-solid border-border text-content-secondary focus:bg-surface-secondary",
 					)}
+					onPointerDown={(event) => {
+						pointerOutsideIcon.current = !(
+							event.target instanceof Element &&
+							event.target.closest(".settings-controls-icon")
+						);
+					}}
+					onKeyDown={() => {
+						pointerOutsideIcon.current = false;
+					}}
 					onSelect={(event) => {
 						event.preventDefault();
+						if (pointerOutsideIcon.current) {
+							pointerOutsideIcon.current = false;
+							return;
+						}
 						setExpanded(!expanded);
 					}}
 					// A double click: the top section down to the panel's bottom, and back.
@@ -278,17 +364,22 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					{/* The Controls glyph, drawn for the theme (light-controls.png, dark-controls.png); its name for
 					    assistive technology */}
 					<span className="flex flex-1 items-center justify-center">
-						<img
-							src="/light-controls.png"
-							alt=""
-							className="controls-glyph controls-glyph-light size-6"
-						/>
-						<img
-							src="/dark-controls.png"
-							alt=""
-							className="controls-glyph controls-glyph-dark size-6"
-						/>
-						<span className="sr-only">Controls</span>
+						<span
+							className="settings-controls-icon inline-flex cursor-pointer"
+							title="Controls"
+						>
+							<img
+								src="/light-controls.png"
+								alt=""
+								className="controls-glyph controls-glyph-light size-6"
+							/>
+							<img
+								src="/dark-controls.png"
+								alt=""
+								className="controls-glyph controls-glyph-dark size-6"
+							/>
+							<span className="sr-only">Controls</span>
+						</span>
 					</span>
 					{full ? (
 						<span
@@ -344,7 +435,10 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				)}
 				<CollapsibleContent
 					id={choicesId}
-					className="admin-quick-link-choices settings-controls-overlay absolute inset-x-0 top-full z-50 overflow-hidden"
+					className={cn(
+						"admin-quick-link-choices settings-controls-overlay absolute inset-x-0 z-50 overflow-hidden",
+						upward ? "bottom-full" : "top-full",
+					)}
 				>
 					<div
 						style={{ maxHeight: expanded ? choicesMax : undefined }}
