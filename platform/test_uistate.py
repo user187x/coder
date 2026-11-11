@@ -42,12 +42,14 @@ class PreferencesTest(unittest.TestCase):
         self.state.preferences('user-id', {'navbar_settings_side': None})
         self.state.preferences('user-id', {'settings_unread_glow': False})
         self.state.preferences('user-id', {'settings_unread_glow': None})
+        self.state.preferences('user-id', {'settings_top_pinned': True})
         for bad in ({'navbar_strip_radius': 25}, {'navbar_strip_radius': -1}, {'navbar_strip_radius': 4.5},
                     {'navbar_strip_radius': True}, {'navbar_strip_off': 'yes'}, {'navbar_strip_off': 1},
                     {'admin_nav_in_navbar': 'yes'}, {'navbar_floating': 1}, {'navbar_resizable_width': 19},
                     {'navbar_resizable_width': 101}, {'navbar_resizable_width': 50.5}, {'navbar_resizable_width': True},
                     {'navbar_settings_side': 'top'}, {'navbar_settings_side': 1},
-                    {'settings_unread_glow': 'on'}, {'settings_unread_glow': 0}):
+                    {'settings_unread_glow': 'on'}, {'settings_unread_glow': 0},
+                    {'settings_top_pinned': 'yes'}):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 self.state.preferences('user-id', bad)
 

@@ -146,6 +146,25 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const menuHost = useSettingsMenuHost();
 	const breadcrumbHost = settingsInNavbar && !docked ? menuHost : null;
 	const compact = Boolean(docked && prefs.data?.settings_sidebar_compact);
+	// The top section (quick links and Controls) expanded down over the bottom panel: from a double click on the
+	// Controls bar for now, or pinned that way in the user's preferences.
+	const topPinned = Boolean(prefs.data?.settings_top_pinned);
+	const [topOpen, setTopOpen] = useState(false);
+	const topFull = topOpen || topPinned;
+	const topSection = {
+		full: topFull,
+		pinned: topPinned,
+		onToggle: () => {
+			if (topFull) {
+				setTopOpen(false);
+				if (topPinned) docking.mutate({ settings_top_pinned: null });
+			} else {
+				setTopOpen(true);
+			}
+		},
+		onPin: () =>
+			docking.mutate({ settings_top_pinned: topPinned ? null : true }),
+	};
 	useLayoutEffect(() => {
 		if (!docked) return;
 		document.documentElement.dataset.settingsSide = compact
@@ -695,27 +714,30 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 											categories={
 												settingsInNavbar ? controls.categories : undefined
 											}
+											topSection={topSection}
 										/>
 									</nav>
 								)}
-								<SettingsFacePanel
-									face={face}
-									onFaceChange={(next) => {
-										setChatFull(false);
-										setFace(next);
-									}}
-									chatFull={chatFull}
-									onChatFull={setChatFull}
-									metrics={
-										controls && canViewAdminSettings(controls.permissions) ? (
-											<SettingsMetricGraphs
-												anchor={setMetricsElement}
-												latency={clusterLatency}
-												chatExpanded={false}
-											/>
-										) : null
-									}
-								/>
+								{!topFull && (
+									<SettingsFacePanel
+										face={face}
+										onFaceChange={(next) => {
+											setChatFull(false);
+											setFace(next);
+										}}
+										chatFull={chatFull}
+										onChatFull={setChatFull}
+										metrics={
+											controls && canViewAdminSettings(controls.permissions) ? (
+												<SettingsMetricGraphs
+													anchor={setMetricsElement}
+													latency={clusterLatency}
+													chatExpanded={false}
+												/>
+											) : null
+										}
+									/>
+								)}
 							</>
 						)}
 					</div>

@@ -16,6 +16,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
 import {
 	ChevronDownIcon,
+	ChevronUpIcon,
 	GripVerticalIcon,
 	PinIcon,
 	Trash2Icon,
@@ -60,6 +61,17 @@ type AdminQuickLinksMenuProps = {
 	/** The page IDs those rows show, kept out of Controls' pages to add. */
 	shownIds?: readonly string[];
 	onShowItem?: (id: string) => void;
+	/** The Settings menu's top section expanded down to its bottom (a double click on the Controls bar). */
+	topSection?: TopSection;
+};
+
+/** The Settings menu's top section, expanded over its bottom panel or not, and pinned that way. */
+export type TopSection = {
+	full: boolean;
+	pinned: boolean;
+	/** Expands it, or back to the panel's normal layout (unpinning it). */
+	onToggle: () => void;
+	onPin: () => void;
 };
 
 /**
@@ -80,6 +92,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	onShowItem,
 	moreLinks,
 	shownIds = [],
+	topSection,
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const chatOn = useChatEnabled();
@@ -154,14 +167,24 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			window.removeEventListener("resize", measure);
 		};
 	}, [expanded]);
+	const chevronClass =
+		"settings-controls-chevron inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-content-secondary/5 ring-1 ring-inset ring-content-secondary/15";
 	const controlsChevron = (
-		<span
-			aria-hidden
-			className="settings-controls-chevron inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-content-secondary/5 ring-1 ring-inset ring-content-secondary/15"
-		>
+		<span aria-hidden className={chevronClass}>
 			<ChevronDownIcon className={cn("size-3", expanded && "rotate-180")} />
 		</span>
 	);
+	// A control inside the bar: its own click, not the bar's (Radix selects a menu item on its click).
+	const ownClick = (action: () => void) => ({
+		onPointerDown: (event: React.PointerEvent) => event.stopPropagation(),
+		onPointerUp: (event: React.PointerEvent) => event.stopPropagation(),
+		onClick: (event: React.MouseEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+			action();
+		},
+	});
+	const full = Boolean(topSection?.full);
 
 	return (
 		<>
@@ -238,8 +261,20 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						event.preventDefault();
 						setExpanded(!expanded);
 					}}
+					// A double click: the top section down to the panel's bottom, and back.
+					onDoubleClick={() => topSection?.onToggle()}
 				>
-					{controlsChevron}
+					{full ? (
+						<span
+							title="Back to the panel's normal layout"
+							className={cn(chevronClass, "cursor-pointer")}
+							{...ownClick(() => topSection?.onToggle())}
+						>
+							<ChevronUpIcon className="size-3" />
+						</span>
+					) : (
+						controlsChevron
+					)}
 					{/* The Controls glyph, drawn for the theme (light-controls.png, dark-controls.png); its name for
 					    assistive technology */}
 					<span className="flex flex-1 items-center justify-center">
@@ -255,7 +290,28 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						/>
 						<span className="sr-only">Controls</span>
 					</span>
-					{controlsChevron}
+					{full ? (
+						<span
+							title={
+								topSection?.pinned
+									? "Pinned open: click to unpin"
+									: "Pin it open: keep it this way"
+							}
+							className={cn(
+								chevronClass,
+								"cursor-pointer",
+								topSection?.pinned &&
+									"bg-content-link/15 text-content-link ring-content-link/40",
+							)}
+							{...ownClick(() => topSection?.onPin())}
+						>
+							<PinIcon
+								className={cn("size-2.5", topSection?.pinned && "fill-current")}
+							/>
+						</span>
+					) : (
+						controlsChevron
+					)}
 				</DropdownMenuItem>
 				{controlsMenu.open && (
 					<InlineMenuPanel id={controlsMenu.id} label="Controls options">
@@ -266,6 +322,24 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 								controlsMenu.close();
 							}}
 						/>
+						{topSection && (
+							<OpenMenuItem
+								label={full ? "Back to normal" : "Expand to the bottom"}
+								onOpen={() => {
+									topSection.onToggle();
+									controlsMenu.close();
+								}}
+							/>
+						)}
+						{topSection && full && (
+							<OpenMenuItem
+								label={topSection.pinned ? "Unpin" : "Pin open"}
+								onOpen={() => {
+									topSection.onPin();
+									controlsMenu.close();
+								}}
+							/>
+						)}
 					</InlineMenuPanel>
 				)}
 				<CollapsibleContent

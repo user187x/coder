@@ -236,6 +236,22 @@ describe("ProxyMenu", () => {
 		).toBeVisible();
 	});
 
+	it("expands the top section from a double click on Controls and pins it open", async () => {
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => changes);
+		renderMenu({ proxyContextValue: single, hud: true, controls });
+		const menu = await openMenu();
+		const bar = await within(menu).findByRole("menuitem", {
+			name: "Controls",
+		});
+		fireEvent.doubleClick(bar);
+		fireEvent.click(await within(menu).findByTitle(/Pin it open/));
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({ settings_top_pinned: true }),
+		);
+	});
+
 	it("keeps Settings available without the HUD", () => {
 		renderMenu({ proxyContextValue: value });
 		expect(screen.queryByTestId("navbar-hud-latency")).toBeNull();

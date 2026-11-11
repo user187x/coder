@@ -16,7 +16,7 @@ import {
 	updatePreferenceSettings,
 } from "#/api/queries/users";
 import type { UserPreferenceSettings } from "#/api/typesGenerated";
-import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
+import { AdminQuickLinksMenu, type TopSection } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
 import { HideableMenuRows } from "./HideableMenuRows";
 import { ProfileSections } from "./ProfileSections";
@@ -40,6 +40,7 @@ type AdminSettingsItemsProps = {
 	onChatToggle?: () => void;
 	/** The admin settings' categories to list too (those not already quick links), each hideable under Controls. */
 	categories?: readonly AdminPage[];
+	topSection?: TopSection;
 };
 
 /** Changes to an admin's quick links, made from the Admin menu. */
@@ -139,6 +140,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	chatExpanded,
 	onChatToggle,
 	categories = [],
+	topSection,
 }) => {
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
@@ -190,6 +192,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				hiddenItems={items.filter((item) => hiddenIds.includes(item.id))}
 				onShowItem={(id) => setHidden(id, false)}
 				shownIds={shown.map((item) => item.id)}
+				topSection={topSection}
 				// The other items in the quick links' list, as the quick links: a hover trash can hides one under
 				// Controls, a hover handle moves it (saved as the admin's sidebar order).
 				moreLinks={

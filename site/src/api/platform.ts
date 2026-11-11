@@ -1497,6 +1497,8 @@ export type UserUIPreferences = {
 	navbar_settings_side?: "left" | "right" | null;
 	/** The Settings chevron glows while unread chats or notifications wait and the chat is not shown; null: on. */
 	settings_unread_glow?: boolean | null;
+	/** The Settings menu's top section kept expanded over its bottom panel (the Controls bar's pin). */
+	settings_top_pinned?: boolean | null;
 	/** The Settings menu's fixed items hidden into its Controls list: organizations, audit-logs, connection-logs. */
 	settings_menu_hidden?: string[] | null;
 	/** Appearance > Navigation bar: the backstrip hidden. */
