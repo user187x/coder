@@ -185,7 +185,7 @@ themselves. To release one from this repository:
 
 1. Set `version` and `appVersion` in [Chart.yaml](Chart.yaml) to the new
    release version in `RELEASE_VERSION` at the repository's root, for example
-   `1.8.92`. Every image and chart of a release shares that one version.
+   `1.8.93`. Every image and chart of a release shares that one version.
 2. Build and push the image from the repository root. It's tagged with
    `appVersion` for linux/amd64 and linux/arm64:
 
