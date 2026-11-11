@@ -464,7 +464,7 @@ const DashboardPage: React.FC = () => {
 
 	return (
 		// The page's card: its corners concentric with the cards inside (their 20px radius plus the 20px between them)
-		<div className="min-h-full rounded-[40px] bg-surface-secondary">
+		<div className="min-h-full rounded-[40px] bg-(--dashboard-panel-bg)">
 			<title>{pageTitle("Dashboard")}</title>
 			<div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 p-5">
 				<header className="flex flex-wrap items-center justify-between gap-3">

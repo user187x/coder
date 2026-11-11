@@ -49,6 +49,16 @@ export const PanelAccent: React.FC = () => {
 	const color = accent ? panelAccentColor(accent) : null;
 	const scale = preferences.data?.panel_scale ?? PANEL_SCALE.default;
 	const text = preferences.data?.panel_text_color ?? null;
+	const card = preferences.data?.panel_card_color ?? null;
+	// The parent panels' background (dashboardPanel.css's --dashboard-panel-bg), the theme's without one.
+	useEffect(() => {
+		const root = document.documentElement;
+		if (!card) return;
+		root.style.setProperty("--dashboard-panel-bg", card);
+		return () => {
+			root.style.removeProperty("--dashboard-panel-bg");
+		};
+	}, [card]);
 	useEffect(() => {
 		const root = document.documentElement;
 		if (!color) return;

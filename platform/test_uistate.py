@@ -29,6 +29,11 @@ class PreferencesTest(unittest.TestCase):
     def test_panel_text_color_is_a_hex_colour_or_none(self):
         self.state.preferences('user-id', {'panel_text_color': '#A1b2C3'})
         self.state.preferences('user-id', {'panel_text_color': None})
+        self.state.preferences('user-id', {'panel_card_color': '#E4E7EB'})
+        self.state.preferences('user-id', {'panel_card_color': None})
+        for bad in ('grey', '#abc', 5):
+            with self.subTest(card=bad), self.assertRaises(ValueError):
+                self.state.preferences('user-id', {'panel_card_color': bad})
         for bad in ('red', '#abc', '#abcdef0', 7, True, {}):
             with self.subTest(colour=bad), self.assertRaises(ValueError):
                 self.state.preferences('user-id', {'panel_text_color': bad})

@@ -3,9 +3,13 @@
  * secondary surface and 20px of padding, and the cards inside it concentric with it, their corners 40px less the
  * padding. A view that has an outer card of its own (the workspace page's) takes the inner corners only.
  */
+/* The parent panels' background: the theme's, or the user's own (Appearance, panel_card_color; PanelAccent). */
+:root {
+	--dashboard-panel-bg: hsl(var(--surface-secondary));
+}
 .dashboard-panel {
 	border-radius: 40px;
-	background: hsl(var(--surface-secondary));
+	background: var(--dashboard-panel-bg);
 	padding: 20px;
 }
 :is(.dashboard-panel, .dashboard-panel-corners)

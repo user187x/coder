@@ -215,7 +215,7 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'navbar_settings_side', 'settings_unread_glow', 'settings_top_pinned', 'settings_face_hidden', 'settings_menu_hidden'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'navbar_settings_side', 'settings_unread_glow', 'settings_top_pinned', 'settings_face_hidden', 'panel_card_color', 'settings_menu_hidden'}:
                 raise ValueError('Unsupported preference.')
             if 'admin_notes_tray_target' in changes and changes['admin_notes_tray_target'] not in ('chat', 'notes'):
                 raise ValueError('Invalid admin notes tray target.')
@@ -264,6 +264,10 @@ class UIState(threading.Thread):
             if 'navbar_strip_off' in changes and changes['navbar_strip_off'] is not None and \
                     type(changes['navbar_strip_off']) is not bool:
                 raise ValueError('Invalid navbar strip switch.')
+            if changes.get('panel_card_color') is not None and (
+                    not isinstance(changes['panel_card_color'], str)
+                    or not re.fullmatch(r'#[0-9a-fA-F]{6}', changes['panel_card_color'])):
+                raise ValueError('Invalid card panel colour.')
             if changes.get('panel_text_color') is not None and (
                     not isinstance(changes['panel_text_color'], str)
                     or not re.fullmatch(r'#[0-9a-fA-F]{6}', changes['panel_text_color'])):

@@ -3,7 +3,7 @@
 .accounts-panel {
 	margin-bottom: 1.5rem;
 	border-radius: 40px;
-	background: hsl(var(--surface-secondary));
+	background: var(--dashboard-panel-bg);
 	padding: 20px;
 }
 .accounts-panel

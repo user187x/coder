@@ -117,4 +117,24 @@ describe("PanelAccentSection", () => {
 			expect(save).toHaveBeenCalledWith({ panel_text_color: "#ff0000" }),
 		);
 	});
+
+	it("sets the card panels' colour, and the panels take it", async () => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		vi.spyOn(PlatformAPI, "getPanelAccentGlobal").mockResolvedValue({
+			global: null,
+		});
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => changes);
+		renderWithAuth(<PanelAccentSection />);
+		await userEvent.click(
+			await screen.findByRole("combobox", { name: "Card panels" }),
+		);
+		await userEvent.click(
+			screen.getByRole("option", { name: "Custom colour" }),
+		);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({ panel_card_color: "#e4e7eb" }),
+		);
+	});
 });

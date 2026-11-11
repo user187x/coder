@@ -36,6 +36,7 @@ import {
 
 const DEFAULT_CUSTOM = "#7c3aed";
 const DEFAULT_TEXT = "#e4e4e7";
+const DEFAULT_CARD = "#e4e7eb";
 /** How long a picker or slider rests before its value is saved. */
 const SAVE_DELAY_MS = 400;
 type Mode = "off" | PanelAccent["mode"];
@@ -80,6 +81,11 @@ export const PanelAccentSection: React.FC<{
 	useEffect(() => {
 		if (savedText) setText(savedText);
 	}, [savedText]);
+	const savedCard = preferences.data?.panel_card_color ?? null;
+	const [card, setCard] = useState(savedCard ?? DEFAULT_CARD);
+	useEffect(() => {
+		if (savedCard) setCard(savedCard);
+	}, [savedCard]);
 	const savedScale = preferences.data?.panel_scale ?? PANEL_SCALE.default;
 	const [scale, setScale] = useState(savedScale);
 	useEffect(() => setScale(savedScale), [savedScale]);
@@ -219,6 +225,41 @@ export const PanelAccentSection: React.FC<{
 								onChange={(value) => {
 									setText(value);
 									later(() => save.mutate({ panel_text_color: value }));
+								}}
+							/>
+						)}
+					</div>
+					<div className="flex flex-col gap-3">
+						<Label htmlFor={`${id}-card`}>Card panels</Label>
+						<Select
+							value={savedCard ? "custom" : "theme"}
+							disabled={busy}
+							onValueChange={(value) =>
+								save.mutate({
+									panel_card_color: value === "custom" ? card : null,
+								})
+							}
+						>
+							<SelectTrigger id={`${id}-card`}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="theme">Theme's</SelectItem>
+								<SelectItem value="custom">Custom colour</SelectItem>
+							</SelectContent>
+						</Select>
+						<span className="text-xs text-content-secondary">
+							The background of the rounded panels that hold the cards
+							throughout the app: the Dashboard, Workspaces, Templates,
+							Accounts, the Chat console, User Settings and Appearance.
+						</span>
+						{savedCard && (
+							<ColorField
+								label="Card panel colour"
+								value={card}
+								onChange={(value) => {
+									setCard(value);
+									later(() => save.mutate({ panel_card_color: value }));
 								}}
 							/>
 						)}

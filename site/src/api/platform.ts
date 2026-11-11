@@ -1501,6 +1501,8 @@ export type UserUIPreferences = {
 	settings_top_pinned?: boolean | null;
 	/** The Settings menu's bottom panel (Metrics, Chat, Cloud Drive) hidden by the handles beside its arrows. */
 	settings_face_hidden?: boolean | null;
+	/** Appearance: the background of the parent panels that hold the cards everywhere (#rrggbb); null: the theme's. */
+	panel_card_color?: string | null;
 	/** The Settings menu's fixed items hidden into its Controls list: organizations, audit-logs, connection-logs. */
 	settings_menu_hidden?: string[] | null;
 	/** Appearance > Navigation bar: the backstrip hidden. */
