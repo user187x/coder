@@ -35,6 +35,8 @@ import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
 import {
 	chatRightEdge,
 	type DockPosition,
+	dockTop,
+	moveDock,
 	placeDock,
 	snapDockPosition,
 } from "./dockPosition";
@@ -249,8 +251,7 @@ export const ChatDock: React.FC = () => {
 	const resize = (size: UserUIPreferences["chat_size"]) => {
 		const element = dock.current;
 		if (!element) return;
-		const top =
-			Number.parseFloat(element.style.getPropertyValue("--chat-top")) || 0;
+		const top = dockTop(element);
 		const bottom = bottomBarsHeight(element);
 		const next = snapDockPosition(element.getBoundingClientRect(), {
 			width: chatRightEdge(),
@@ -433,8 +434,23 @@ export const ChatDock: React.FC = () => {
 							element.setPointerCapture(event.pointerId);
 						}
 						event.preventDefault();
-						element.style.left = `${Math.max(0, Math.min(chatRightEdge() - start.width, start.left + event.clientX - start.x))}px`;
-						element.style.top = `${Math.max(0, Math.min(window.innerHeight - start.height, start.top + event.clientY - start.y))}px`;
+						moveDock(
+							element,
+							Math.max(
+								0,
+								Math.min(
+									chatRightEdge() - start.width,
+									start.left + event.clientX - start.x,
+								),
+							),
+							Math.max(
+								0,
+								Math.min(
+									window.innerHeight - start.height,
+									start.top + event.clientY - start.y,
+								),
+							),
+						);
 						element.style.bottom = "auto";
 						element.style.right = "auto";
 					}}
@@ -446,9 +462,7 @@ export const ChatDock: React.FC = () => {
 						const element = event.currentTarget;
 						delete element.dataset.dragging;
 						element.releasePointerCapture(event.pointerId);
-						const top =
-							Number.parseFloat(element.style.getPropertyValue("--chat-top")) ||
-							0;
+						const top = dockTop(element);
 						const bottom = bottomBarsHeight(element);
 						const next = snapDockPosition(element.getBoundingClientRect(), {
 							width: chatRightEdge(),

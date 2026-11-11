@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import type { UserUIPreferences } from "#/api/platform";
+import { toCssPx } from "#/utils/appZoom";
 import { bottomBarsHeight } from "#/utils/bottomBars";
+import { dockTop, moveDock } from "./dockPosition";
 
 type Edge =
 	| "left"
@@ -67,9 +69,7 @@ export const ChatResizeHandles = ({
 		const { rect, edge } = initial;
 		const dx = x - initial.x;
 		const dy = y - initial.y;
-		const top =
-			(Number.parseFloat(element.style.getPropertyValue("--chat-top")) || 0) +
-			8;
+		const top = dockTop(element) + 8;
 		const bottom = window.innerHeight - bottomBarsHeight(element) - 10;
 		const right = document.documentElement.clientWidth - 16;
 		const minWidth = Math.min(320, right - 16);
@@ -88,24 +88,25 @@ export const ChatResizeHandles = ({
 		const bottomEdge = edge.startsWith("bottom")
 			? clamp(rect.bottom + dy, rect.top + minHeight, bottom)
 			: rect.bottom;
-		body.style.width = `${rightEdge - leftEdge}px`;
-		body.style.height = `${bottomEdge - topEdge}px`;
+		// Measured on the screen, set as CSS lengths under the app's scale.
+		body.style.width = `${toCssPx(rightEdge - leftEdge)}px`;
+		body.style.height = `${toCssPx(bottomEdge - topEdge)}px`;
 		element.style.right = "auto";
 		element.style.bottom = "auto";
-		element.style.left = `${leftEdge}px`;
-		element.style.top = `${topEdge}px`;
+		moveDock(element, leftEdge, topEdge);
 	};
 	const finish = () => {
 		if (!drag.current || !panel.current) return;
 		drag.current = null;
 		onResize({
+			// Saved as CSS lengths, as the panel's size is set.
 			width: Math.max(
 				320,
-				Math.round(panel.current.getBoundingClientRect().width),
+				Math.round(toCssPx(panel.current.getBoundingClientRect().width)),
 			),
 			height: Math.max(
 				240,
-				Math.round(panel.current.getBoundingClientRect().height),
+				Math.round(toCssPx(panel.current.getBoundingClientRect().height)),
 			),
 		});
 	};

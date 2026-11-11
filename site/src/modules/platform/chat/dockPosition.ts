@@ -1,4 +1,5 @@
 import type { UserUIPreferences } from "#/api/platform";
+import { toCssPx, toScreenPx } from "#/utils/appZoom";
 export type DockPosition = NonNullable<UserUIPreferences["chat_position"]>;
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
@@ -43,6 +44,21 @@ export const chatRightEdge = () => {
 		: document.documentElement.clientWidth;
 };
 
+/**
+ * The dock's top limit (--chat-top, set as a CSS length under the app's scale), in the screen pixels its placement
+ * measures in.
+ */
+export const dockTop = (element: HTMLElement) =>
+	toScreenPx(
+		Number.parseFloat(element.style.getPropertyValue("--chat-top")) || 0,
+	);
+
+/** Puts the dock at a point measured on the screen: its left and top are CSS lengths under the app's scale. */
+export const moveDock = (element: HTMLElement, left: number, top: number) => {
+	element.style.left = `${toCssPx(left)}px`;
+	element.style.top = `${toCssPx(top)}px`;
+};
+
 export const placeDock = (
 	element: HTMLElement,
 	position: DockPosition,
@@ -69,6 +85,5 @@ export const placeDock = (
 			: position.edge === "bottom"
 				? top + 8 + vertical
 				: top + 8 + position.offset * vertical;
-	element.style.left = `${left}px`;
-	element.style.top = `${y}px`;
+	moveDock(element, left, y);
 };
