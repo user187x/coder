@@ -173,7 +173,7 @@ const Layout: React.FC = () => {
 			className={
 				inNavbar
 					? // Centred in the window, as the rest of the app (the sections list is up in the navbar)
-						"ws-settings ws-card user-settings-card user-settings-card-sized min-w-0 max-w-full self-center"
+						"ws-settings ws-card user-settings-card user-settings-card-sized min-w-0 max-w-full"
 					: "ws-settings ws-card user-settings-card grow min-w-0 self-stretch lg:self-start"
 			}
 		>
@@ -192,7 +192,10 @@ const Layout: React.FC = () => {
 					<div className="mx-auto my-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-10">
 						<div className="flex flex-col gap-4 py-3">
 							<NavbarActionTarget.Provider value={actionHost}>
-								{page}
+								{/* The Dashboard's panel round the section's card (dashboardPanel.css) */}
+								<div className="dashboard-panel min-w-0 max-w-full self-center">
+									{page}
+								</div>
 							</NavbarActionTarget.Provider>
 						</div>
 					</div>

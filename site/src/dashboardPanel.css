@@ -1,0 +1,31 @@
+/*
+ * The Dashboard's panel, for any view (the user's card language): an outer container with 40px corners on the
+ * secondary surface and 20px of padding, and the cards inside it concentric with it, their corners 40px less the
+ * padding. A view that has an outer card of its own (the workspace page's) takes the inner corners only.
+ */
+.dashboard-panel {
+	border-radius: 40px;
+	background: hsl(var(--surface-secondary));
+	padding: 20px;
+}
+:is(.dashboard-panel, .dashboard-panel-corners)
+	:is(
+		.table-card,
+		.ws-card,
+		:where(.rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl):where(
+			.border,
+			[class*="border-solid"]
+		):not(
+			button,
+			input,
+			textarea,
+			select,
+			span,
+			a,
+			[role="combobox"],
+			[role="tab"],
+			[role="button"]
+		)
+	) {
+	border-radius: 20px;
+}

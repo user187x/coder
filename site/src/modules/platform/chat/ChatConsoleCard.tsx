@@ -137,7 +137,7 @@ export const ChatConsoleCard: React.FC = () => {
 		<section
 			ref={panel}
 			aria-labelledby="chat-console-card"
-			className="flex min-h-0 min-w-0 flex-col h-[calc(calc(100dvh/var(--app-zoom,1))-var(--dashboard-navigation-height,72px)-var(--admin-breadcrumb-height,58px)-2*var(--coder-classification-h,0px)-80px)] fullscreen:h-screen fullscreen:bg-surface-primary fullscreen:p-2"
+			className="flex min-h-0 min-w-0 flex-col h-[calc(calc(100dvh/var(--app-zoom,1))-var(--dashboard-navigation-height,72px)-var(--admin-breadcrumb-height,58px)-2*var(--coder-classification-h,0px)-120px)] fullscreen:h-screen fullscreen:bg-surface-primary fullscreen:p-2"
 			data-testid="chat-console-card"
 		>
 			<h2 id="chat-console-card" className="sr-only">

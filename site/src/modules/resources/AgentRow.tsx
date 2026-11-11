@@ -522,7 +522,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 		<AgentBorderFx key={agent.id} state={fxState} rounded={Boolean(topbar)}>
 			<div
 				className={cn(
-					"workspace-agent-card relative flex max-w-full flex-col gap-6 rounded-lg border border-solid bg-surface-primary p-6 text-sm shadow-md overflow-clip",
+					"workspace-agent-card dashboard-panel-corners relative flex max-w-full flex-col gap-6 rounded-lg border border-solid bg-surface-primary p-6 text-sm shadow-md overflow-clip",
 					fxState ? "border-transparent" : borderClass,
 					topbar && "rounded-[40px]",
 				)}

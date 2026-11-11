@@ -76,7 +76,8 @@ const CustomizeSettingsPage: React.FC = () => {
 			<title>{pageTitle("Appearance")}</title>
 			<h1 className="sr-only">Appearance</h1>
 
-			<div className="flex flex-col gap-6">
+			{/* The Dashboard's panel round the cards (dashboardPanel.css) */}
+			<div className="dashboard-panel flex flex-col gap-4">
 				<LogoSection />
 				<NavbarAppearance />
 				<DeploymentAnimations />

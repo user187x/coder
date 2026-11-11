@@ -5,9 +5,12 @@ import { pageTitle } from "#/utils/page";
 const ChatSettingsPage = () => (
 	<>
 		<title>{pageTitle("Chat")}</title>
-		<ChatConsoleWhenOn>
-			<ChatConsoleCard />
-		</ChatConsoleWhenOn>
+		{/* The Dashboard's panel round the console (dashboardPanel.css) */}
+		<div className="dashboard-panel">
+			<ChatConsoleWhenOn>
+				<ChatConsoleCard />
+			</ChatConsoleWhenOn>
+		</div>
 	</>
 );
 
