@@ -140,7 +140,7 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 		// History lists drop from it
 		<Topbar
 			className={cn(
-				"[grid-area:topbar] sticky top-0 z-30 mx-auto mb-4 max-w-[1200px] md:mb-6 flex-wrap gap-y-2 rounded-[18px] border border-solid border-border bg-surface-primary/85 px-2 shadow-lg backdrop-blur-md",
+				"[grid-area:topbar] sticky top-0 z-30 mx-auto mb-4 max-w-[1200px] md:mb-6 flex-wrap gap-y-2 rounded-[20px] border border-solid border-border bg-surface-primary/85 px-2 shadow-lg backdrop-blur-md",
 				transitioning && !restricted && "workspace-barber-pole",
 				restricted && "workspace-restricted-pole",
 			)}

@@ -29,3 +29,18 @@
 	) {
 	border-radius: 20px;
 }
+/* In a view's own outer card (the workspace page's), its shadowed cards without a border are concentric too. */
+.dashboard-panel-corners
+:where(.rounded-xl, .rounded-2xl):not(
+	button,
+	input,
+	textarea,
+	select,
+	span,
+	a,
+	[role="combobox"],
+	[role="tab"],
+	[role="button"]
+) {
+	border-radius: 20px;
+}

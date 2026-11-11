@@ -20,7 +20,12 @@
    (a wide table, a long list) scrolls inside it, and the page does not. */
 .user-settings-card-sized {
 	box-sizing: border-box;
-	width: min(100%, 51.25rem);
+	/* The containing block of what it holds positioned out of flow (a select's hidden native control), so its
+	   scrolling keeps that inside too rather than lengthening the page. */
+	position: relative;
+	/* A fixed width (not a share of the panel round it, which takes its width from the card) */
+	width: 51.25rem;
+	max-width: 100%;
 	height: min(45.5rem, calc(100dvh / var(--app-zoom, 1) - 10rem));
 	overflow: auto;
 	overscroll-behavior: contain;

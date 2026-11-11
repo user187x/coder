@@ -317,16 +317,17 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		</InlineMenuPanel>
 	);
 
+	// The screen's side the menu opens on: the one its button is on.
+	const measureEdge = () => {
+		const button = trigger.current?.getBoundingClientRect();
+		if (!button) return;
+		setOpenEdge(
+			button.left + button.width / 2 < window.innerWidth / 2 ? "left" : "right",
+		);
+	};
 	const changeOpen = (next: boolean) => {
 		if (docked && !next) return;
-		if (next) {
-			const button = trigger.current?.getBoundingClientRect();
-			setOpenEdge(
-				button && button.left + button.width / 2 < window.innerWidth / 2
-					? "left"
-					: "right",
-			);
-		}
+		if (next) measureEdge();
 		setOpen(next);
 		if (!next) {
 			setChatExpanded(false);
@@ -338,6 +339,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		}
 	};
 	const edge = docked ? "right" : openEdge;
+	// Opened another way than from its button (Return to dropdown from the docked panel, whose button is not on the
+	// page until then): its side from the button once it shows, so it hangs from it, not from the screen's right.
+	useLayoutEffect(() => {
+		if (open && !docked) measureEdge();
+	}, [open, docked, breadcrumbHost]);
 	// Unread chats or notifications while the chat is not on screen: the closed chevron glows (navbarSoft.css).
 	const glow = unreadGlow && !open && !docked;
 	// Only for the breadcrumb: nothing to show until a breadcrumb takes its button, unless it is docked at the side.
