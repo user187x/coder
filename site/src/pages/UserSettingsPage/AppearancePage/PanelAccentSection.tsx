@@ -98,6 +98,16 @@ export const PanelAccentSection: React.FC<{
 	const locked = isGlobal && !admin;
 	const busy = preferences.isLoading || save.isPending || saveGlobal.isPending;
 	const previewAccent = accentFor(mode, color);
+	// The part of the preview clicked on, whose colour the swatch below it sets.
+	const [picking, setPicking] = useState<"accent" | "text" | null>(null);
+	const pickAccent = (value: string) => {
+		setColor(value);
+		later(() => apply({ mode: "custom", color: value }));
+	};
+	const pickText = (value: string) => {
+		setText(value);
+		later(() => save.mutate({ panel_text_color: value }));
+	};
 
 	return (
 		<section
@@ -252,13 +262,35 @@ export const PanelAccentSection: React.FC<{
 					className="flex min-w-0 flex-col gap-2"
 				>
 					<span className="text-sm font-medium">Preview</span>
+					<span className="text-xs text-content-secondary">
+						Click a part of the panel: its cards and rows for the accent, its
+						text for the text colour.
+					</span>
 					<div className="flex min-h-72 items-start justify-center overflow-hidden rounded-xl bg-surface-tertiary p-4">
 						<SettingsPanelPreview
 							accent={previewAccent}
 							scale={scale}
 							text={savedText ? text : null}
+							onPick={(part) =>
+								setPicking((now) => (now === part ? null : part))
+							}
 						/>
 					</div>
+					{picking === "accent" && !locked && (
+						<ColorField
+							label="Accent colour"
+							value={color}
+							onChange={pickAccent}
+						/>
+					)}
+					{picking === "accent" && locked && (
+						<p className="m-0 text-xs text-content-secondary">
+							An administrator set the panel accent for everyone.
+						</p>
+					)}
+					{picking === "text" && (
+						<ColorField label="Text colour" value={text} onChange={pickText} />
+					)}
 				</div>
 			</div>
 		</section>
@@ -270,13 +302,31 @@ const SettingsPanelPreview: React.FC<{
 	accent: PanelAccent | null;
 	scale: number;
 	text: string | null;
-}> = ({ accent, scale, text }) => (
+	/** A part clicked on: its text (an element marked data-part="text"), else its cards and rows (the accent). */
+	onPick: (part: "accent" | "text") => void;
+}> = ({ accent, scale, text, onPick }) => (
 	<div
-		aria-hidden
+		role="button"
+		tabIndex={0}
+		aria-label="Panel preview: click a part to set its colour (Enter: the accent)"
 		data-testid="panel-preview"
+		onClick={(event) =>
+			onPick(
+				event.target instanceof Element &&
+					event.target.closest('[data-part="text"]')
+					? "text"
+					: "accent",
+			)
+		}
+		onKeyDown={(event) => {
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				onPick("accent");
+			}
+		}}
 		data-panel-accent-preview={accent ? "" : undefined}
 		data-panel-text-preview={text ? "" : undefined}
-		className="w-64 shrink-0 rounded-2xl border border-solid border-border bg-surface-primary p-2 text-xs shadow-md"
+		className="w-64 shrink-0 cursor-pointer rounded-2xl border border-solid border-border bg-surface-primary p-2 text-xs shadow-md"
 		style={
 			{
 				zoom: scale / 100,
@@ -293,14 +343,14 @@ const SettingsPanelPreview: React.FC<{
 		<div className="mb-2 flex items-center justify-between px-1 text-content-secondary">
 			<span className="inline-flex items-center gap-1.5 font-medium text-content-primary">
 				<SettingsIcon className="size-3.5" />
-				Settings
+				<span data-part="text">Settings</span>
 			</span>
 			<ChevronDownIcon className="size-3.5" />
 		</div>
 		<div className="mb-1 flex gap-1">
 			<span className="flex min-h-7 flex-[2] items-center justify-center gap-1 rounded-full border border-solid border-border">
 				<GaugeIcon className="size-3.5" />
-				HUD
+				<span data-part="text">HUD</span>
 			</span>
 			<span className="flex min-h-7 flex-1 items-center justify-center rounded-full border border-solid border-border">
 				<PanelRightCloseIcon className="size-3.5" />
@@ -309,24 +359,26 @@ const SettingsPanelPreview: React.FC<{
 		<div className="flex items-center justify-between px-2 py-1.5 text-content-secondary">
 			<span className="inline-flex items-center gap-1.5">
 				<RadioIcon className="size-3.5" />
-				Region
+				<span data-part="text">Region</span>
 			</span>
-			Default
+			<span data-part="text">Default</span>
 		</div>
 		<span className="mb-2 flex min-h-7 items-center justify-center gap-1.5 rounded-full border border-solid border-border font-medium">
 			<MonitorIcon className="size-3.5" />
-			Workspaces
+			<span data-part="text">Workspaces</span>
 		</span>
 		<div className="flex flex-col gap-2 rounded-lg border border-solid border-border p-2 bg-surface-primary">
-			<span className="font-semibold">Cluster</span>
+			<span data-part="text" className="self-start font-semibold">
+				Cluster
+			</span>
 			{[
 				["CPU", "40%", "w-2/5"],
 				["Memory", "73%", "w-3/4"],
 			].map(([label, value, width]) => (
 				<div key={label} className="flex flex-col gap-1">
 					<span className="flex justify-between text-content-secondary">
-						{label}
-						<span>{value}</span>
+						<span data-part="text">{label}</span>
+						<span data-part="text">{value}</span>
 					</span>
 					<span className="h-1.5 rounded-full bg-surface-quaternary">
 						<span

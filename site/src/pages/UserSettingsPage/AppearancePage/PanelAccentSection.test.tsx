@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlatformAPI } from "#/api/platform";
 import { PanelAccent } from "#/modules/platform/panelAccent/PanelAccent";
@@ -95,5 +95,26 @@ describe("PanelAccentSection", () => {
 			).toBe("1.25"),
 		);
 		document.documentElement.style.removeProperty("--panel-zoom");
+	});
+
+	it("sets the text colour from a click on the preview's text", async () => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		vi.spyOn(PlatformAPI, "getPanelAccentGlobal").mockResolvedValue({
+			global: null,
+		});
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => changes);
+		renderWithAuth(<PanelAccentSection />);
+		const preview = await screen.findByRole("button", {
+			name: /Panel preview/,
+		});
+		await userEvent.click(within(preview).getByText("Workspaces"));
+		fireEvent.change(await screen.findByLabelText("Text colour picker"), {
+			target: { value: "#ff0000" },
+		});
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({ panel_text_color: "#ff0000" }),
+		);
 	});
 });
