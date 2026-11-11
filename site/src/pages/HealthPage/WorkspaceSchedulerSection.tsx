@@ -277,17 +277,6 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 						</p>
 					</div>
 
-					<div className="flex items-center gap-3 text-sm">
-						<Switch
-							id={`${ids}-admins`}
-							checked={draft.ignoreAdmins}
-							onCheckedChange={(ignoreAdmins) =>
-								setDraft({ ...draft, ignoreAdmins })
-							}
-						/>
-						<Label htmlFor={`${ids}-admins`}>Administrators Exempt</Label>
-					</div>
-
 					<div className="flex flex-col gap-1.5 text-sm">
 						<span className="font-medium">Excluded users</span>
 						<MultiSelectCombobox
@@ -325,6 +314,19 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 						</ul>
 					</div>
 				)}
+
+				{/* At the bottom on its own line, as in the quota card: who is exempt, then saving */}
+				<div className="flex items-center gap-3 text-sm">
+					<Switch
+						id={`${ids}-admins`}
+						checked={draft.ignoreAdmins}
+						disabled={!draft.enabled}
+						onCheckedChange={(ignoreAdmins) =>
+							setDraft({ ...draft, ignoreAdmins })
+						}
+					/>
+					<Label htmlFor={`${ids}-admins`}>Administrators Exempt</Label>
+				</div>
 
 				<div className="flex items-center gap-3">
 					<Button
