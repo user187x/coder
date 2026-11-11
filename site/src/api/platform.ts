@@ -1499,6 +1499,8 @@ export type UserUIPreferences = {
 	settings_unread_glow?: boolean | null;
 	/** The Settings menu's top section kept expanded over its bottom panel (the Controls bar's pin). */
 	settings_top_pinned?: boolean | null;
+	/** The Settings menu's bottom panel (Metrics, Chat, Cloud Drive) hidden by the handles beside its arrows. */
+	settings_face_hidden?: boolean | null;
 	/** The Settings menu's fixed items hidden into its Controls list: organizations, audit-logs, connection-logs. */
 	settings_menu_hidden?: string[] | null;
 	/** Appearance > Navigation bar: the backstrip hidden. */

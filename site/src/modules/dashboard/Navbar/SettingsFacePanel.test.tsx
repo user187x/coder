@@ -1,5 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
+import { PlatformAPI } from "#/api/platform";
+import { render } from "#/testHelpers/renderHelpers";
 import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
 
 let chatOn = true;
@@ -27,6 +29,7 @@ const Panel = () => {
 
 afterEach(() => {
 	chatOn = true;
+	vi.restoreAllMocks();
 });
 
 it("turns between Metrics, Chat and Cloud Drive in a loop, either way", () => {
@@ -54,4 +57,20 @@ it("leaves out the Chat face where chat is off", () => {
 	);
 	expect(screen.getByText("drive face")).toBeTruthy();
 	expect(screen.queryByRole("button", { name: "Turn to Chat" })).toBeNull();
+});
+
+it("hides the bottom panel from either handle beside its arrows", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (changes) => changes);
+	render(<Panel />);
+	const [left, right] = screen.getAllByRole("button", {
+		name: "Hide the bottom panel",
+	});
+	expect(right).toBeTruthy();
+	fireEvent.click(left);
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({ settings_face_hidden: true }),
+	);
 });

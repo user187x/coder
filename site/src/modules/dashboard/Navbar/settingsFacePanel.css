@@ -214,3 +214,42 @@
 		opacity: 0;
 	}
 }
+
+/* The handles on each side of the arrows: each in the middle of the room from the arrows to the panel's edge. A
+   click hides the face below (and shows it again). */
+.settings-face-handle-slot {
+	display: flex;
+	flex: 1 1 0;
+	align-items: center;
+	justify-content: center;
+}
+.settings-face-handle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 1rem;
+	padding: 0;
+	border: 0;
+	border-radius: 9999px;
+	cursor: pointer;
+	background: transparent;
+}
+.settings-face-handle-grip {
+	background: var(--sfa-rim);
+}
+.settings-face-handle:hover .settings-face-handle-grip,
+.settings-face-handle:focus-visible .settings-face-handle:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: 1px;
+}
+.settings-face-handle-grip {
+	display: block;
+	width: 1.5rem;
+	height: 0.3125rem;
+	border-radius: 9999px;
+	background: var(--sfa-groove);
+	box-shadow:
+		inset 0 1px 1px rgb(0 0 0 / 0.35),
+		0 1px 0 var(--sfa-well-lip);
+}

@@ -1,5 +1,10 @@
 import { cn } from "cn";
 import { useId, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
+import {
+	updateUserUIPreferences,
+	userUIPreferences,
+} from "#/api/queries/platform";
 import {
 	ChatGate,
 	useChatEnabled,
@@ -44,6 +49,25 @@ export const SettingsFacePanel: React.FC<{
 	const arrowFill = `settings-face-arrow-${useId()}`;
 	const current = faces.includes(face) ? face : (faces[0] ?? "drive");
 	const full = chatFull && current === "chat";
+	// The handles beside the arrows hide the face under them (and show it again), kept in the user's preferences.
+	const client = useQueryClient();
+	const preferences = useQuery(userUIPreferences());
+	const saveHidden = useMutation(updateUserUIPreferences(client));
+	const hidden = Boolean(preferences.data?.settings_face_hidden) && !full;
+	const setHidden = (next: boolean) =>
+		saveHidden.mutate({ settings_face_hidden: next || null });
+	const handle = (
+		<button
+			type="button"
+			className="settings-face-handle"
+			aria-expanded={!hidden}
+			aria-label={hidden ? "Show the bottom panel" : "Hide the bottom panel"}
+			title={hidden ? "Show the bottom panel" : "Hide the bottom panel"}
+			onClick={() => setHidden(!hidden)}
+		>
+			<span aria-hidden className="settings-face-handle-grip" />
+		</button>
+	);
 	// The tallest face's height so far: the panel holds it whichever face shows.
 	const [tallest, setTallest] = useState(0);
 	const measure = (element: HTMLDivElement | null) => {
@@ -68,6 +92,7 @@ export const SettingsFacePanel: React.FC<{
 		if (!next) return;
 		setTurn(by === 1 ? "right" : "left");
 		onFaceChange(next);
+		if (hidden) setHidden(false);
 	};
 	const nameAt = (by: 1 | -1) =>
 		NAMES[
@@ -86,6 +111,8 @@ export const SettingsFacePanel: React.FC<{
 		>
 			{faces.length > 1 && (
 				<div className="settings-face-arrows">
+					{/* A handle on each side, halfway from the arrows to the panel's edge */}
+					<span className="settings-face-handle-slot">{handle}</span>
 					<svg width="0" height="0" className="absolute" aria-hidden="true">
 						<defs>
 							<linearGradient id={arrowFill} x1="0" y1="0" x2="0" y2="1">
@@ -132,10 +159,12 @@ export const SettingsFacePanel: React.FC<{
 							))}
 						</div>
 					</div>
+					<span className="settings-face-handle-slot">{handle}</span>
 				</div>
 			)}
 			{/* Every face as tall as the tallest one shown yet, so the panel keeps one height as it turns */}
 			<div
+				hidden={hidden}
 				className={full ? "flex min-h-0 flex-1 flex-col" : "flex flex-col"}
 				style={
 					full

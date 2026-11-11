@@ -11,3 +11,6 @@ const appZoom = (): number => {
 
 /** A length measured on the screen, as a CSS length under the app's scale. */
 export const toCssPx = (screenPx: number): number => screenPx / appZoom();
+
+/** A CSS length under the app's scale, as drawn on the screen (what a placement library measures in). */
+export const toScreenPx = (cssPx: number): number => cssPx * appZoom();

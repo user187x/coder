@@ -49,6 +49,7 @@ import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
 import "./settingsMenuSkeuo.css";
+import { toScreenPx } from "#/utils/appZoom";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
@@ -414,13 +415,17 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					// Clear of the classification banners fixed at the window's top and bottom, so the panel's foot shows.
 					collisionPadding={{
 						top: 8,
+						// The banner's height is a CSS length, drawn smaller under the app's scale: the same gap as at
+						// the top (sideOffset) is left above it as it shows.
 						bottom:
 							8 +
-							(Number.parseFloat(
-								getComputedStyle(document.documentElement).getPropertyValue(
-									"--coder-classification-h",
-								),
-							) || 0),
+							toScreenPx(
+								Number.parseFloat(
+									getComputedStyle(document.documentElement).getPropertyValue(
+										"--coder-classification-h",
+									),
+								) || 0,
+							),
 					}}
 					data-settings-edge={edge}
 					data-testid="navbar-latency-controls-menu"
