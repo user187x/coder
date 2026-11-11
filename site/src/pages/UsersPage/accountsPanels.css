@@ -13,3 +13,16 @@
 	white-space: nowrap;
 	text-overflow: ellipsis;
 }
+
+/* The cards inside them concentric with the panel: its 40px corners less its 20px padding. The users table's
+   panel too. Buttons, fields and small pills keep their own. */
+:is(.accounts-panel, [data-testid="accounts-card"])
+:is(
+	.table-card,
+	:where(.rounded-lg, .rounded-xl, .rounded-2xl):where(
+		.border,
+		[class*="border-solid"]
+	):not(button, input, textarea, span, [role="combobox"])
+) {
+	border-radius: 20px;
+}
