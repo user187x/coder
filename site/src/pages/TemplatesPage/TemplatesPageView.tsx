@@ -351,7 +351,8 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 			)}
 
 			{/* Centers the filter and the table in the room below the navbar when they are shorter than it, as on Workspaces; taller content starts at the top and the page scrolls. */}
-			<div className="my-auto">
+			{/* In the Dashboard's panel (dashboardPanel.css), as the Workspaces table */}
+			<div className="dashboard-panel my-auto">
 				<TemplatesFilter
 					filter={filterState.filter}
 					error={error}
