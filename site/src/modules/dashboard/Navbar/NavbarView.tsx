@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "react-query";
 import { useLocation } from "react-router";
 import { API } from "#/api/api";
@@ -92,6 +93,83 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	proxyContextValue,
 }) => {
 	const logoURL = useProductLogoURL();
+	const navbarRef = useRef<HTMLDivElement>(null);
+	useLayoutEffect(() => {
+		const navbar = navbarRef.current;
+		if (!navbar) return;
+
+		let frame = 0;
+		const observed = new Set<HTMLElement>();
+		const updateNeighbors = () => {
+			const items = navbar.querySelectorAll<HTMLElement>(
+				".navbar-start, .navbar-arrange > [data-navbar-item]",
+			);
+			const currentItems = new Set(items);
+			for (const item of observed) {
+				if (!currentItems.has(item)) {
+					resize.unobserve(item);
+					observed.delete(item);
+				}
+			}
+			for (const item of items) {
+				if (!observed.has(item)) {
+					resize.observe(item);
+					observed.add(item);
+				}
+			}
+			const bannerItem = navbar.querySelector(
+				'[data-navbar-item="banner"]:has(#coder-system-banner)',
+			);
+			const bannerRect = bannerItem?.getBoundingClientRect();
+			let before: HTMLElement | undefined;
+			let after: HTMLElement | undefined;
+			let beforeEdge = Number.NEGATIVE_INFINITY;
+			let afterEdge = Number.POSITIVE_INFINITY;
+			if (bannerRect?.width && !navbar.querySelector("[data-arranging]")) {
+				// Sortable items retain their DOM order while flex order places them.
+				for (const item of items) {
+					const rect = item.getBoundingClientRect();
+					if (item === bannerItem || !rect.width || !rect.height) continue;
+					if (rect.right <= bannerRect.left && rect.right > beforeEdge) {
+						before = item;
+						beforeEdge = rect.right;
+					}
+					if (rect.left >= bannerRect.right && rect.left < afterEdge) {
+						after = item;
+						afterEdge = rect.left;
+					}
+				}
+			}
+			for (const item of items) {
+				if (item === before) item.dataset.bannerEdge = "right";
+				else if (item === after) item.dataset.bannerEdge = "left";
+				else item.removeAttribute("data-banner-edge");
+			}
+		};
+
+		const schedule = () => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(updateNeighbors);
+		};
+		const resize = new ResizeObserver(schedule);
+		const mutations = new MutationObserver(schedule);
+		resize.observe(navbar);
+		mutations.observe(navbar, {
+			subtree: true,
+			childList: true,
+			attributes: true,
+			attributeFilter: ["style", "data-arranging", "data-navbar-settings-side"],
+		});
+		navbar.addEventListener("transitionend", schedule);
+		updateNeighbors();
+		return () => {
+			navbar.removeEventListener("transitionend", schedule);
+			cancelAnimationFrame(frame);
+			mutations.disconnect();
+			resize.disconnect();
+		};
+	}, []);
+
 	// Appearance > Navigation bar: the backstrip's corners, or no backstrip.
 	const preferences = useQuery(userUIPreferences());
 	const stripRadius = preferences.data?.navbar_strip_radius ?? 10;
@@ -163,6 +241,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 
 	return (
 		<div
+			ref={navbarRef}
 			onContextMenu={arrangeFromBackstrip}
 			style={
 				{

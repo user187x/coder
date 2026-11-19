@@ -158,6 +158,25 @@ export const AccountActionAlignment: Story = {
 	},
 };
 
+export const AccountActionMovedAcrossAnnouncement: Story = {
+	...AccountActionAlignment,
+	beforeEach: () => {
+		spyOn(PlatformAPI, "setUserUIPreferences").mockImplementation(
+			async (value) => value,
+		);
+	},
+	play: async ({ canvasElement }) => {
+		startNavbarArrange();
+		const canvas = within(canvasElement);
+		const action = await canvas.findByRole("button", {
+			name: "Move Page action",
+		});
+		action.focus();
+		await userEvent.keyboard("{ArrowRight}{Enter}");
+		await canvas.findByRole("button", { name: "New account" });
+	},
+};
+
 export const RightAccountActionAlignment: Story = {
 	...AccountActionAlignment,
 	parameters: {
