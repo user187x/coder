@@ -14,6 +14,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { BreadcrumbMenuPanel, breadcrumbMenuClass } from "./BreadcrumbMenu";
 
 /**
  * The navbar's "Resources" menu, built like the Admin menu: the Dashboard, the workspaces
@@ -54,8 +55,13 @@ export const WorkspacesDropdown: React.FC<{
 				</Button>
 			</DropdownMenuTrigger>
 
-			<DropdownMenuContent align="start" className="w-[180px] min-w-auto">
-				<nav>
+			<DropdownMenuContent
+				align="start"
+				sideOffset={8}
+				collisionPadding={8}
+				className={breadcrumbMenuClass}
+			>
+				<BreadcrumbMenuPanel>
 					<DropdownMenuItem asChild>
 						<Link to="/dashboard">
 							<LayoutDashboardIcon aria-hidden />
@@ -90,7 +96,7 @@ export const WorkspacesDropdown: React.FC<{
 							</Link>
 						</DropdownMenuItem>
 					)}
-				</nav>
+				</BreadcrumbMenuPanel>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

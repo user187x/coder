@@ -58,6 +58,14 @@ export const ForAdmin: Story = {
 	},
 };
 
+export const ResourcesMenu: Story = {
+	parameters: { pixel: { matrix: pixelWithDesktop } },
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole("button", { name: "Resources" }));
+	},
+};
+
 export const AccountActionAlignment: Story = {
 	parameters: {
 		pixel: { matrix: pixelWithDesktop },
