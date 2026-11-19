@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { UserPlusIcon } from "lucide-react";
 import { useState } from "react";
 import { fn, spyOn, userEvent, within } from "storybook/test";
+import { reactRouterParameters } from "storybook-addon-remix-react-router";
 import { PlatformAPI } from "#/api/platform";
 import { bannerKey, userUIPreferences } from "#/api/queries/platform";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
@@ -112,6 +113,61 @@ export const ResizableWithoutBackstrip: Story = {
 				name: /from its right end/,
 			}),
 		);
+	},
+};
+
+export const BreadcrumbFacingAnnouncement: Story = {
+	decorators: [withAuthProvider],
+	parameters: {
+		user: MockUserOwner,
+		permissions: MockPermissions,
+		pixel: { matrix: pixelWithDesktop },
+		reactRouter: reactRouterParameters({
+			location: { path: "/traffic-control" },
+			routing: { path: "/traffic-control" },
+		}),
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					settings_sidebar: true,
+					navbar_floating: true,
+					navbar_settings_side: "left",
+					navbar_layout: {
+						order: ["banner", "workspaces", "logo"],
+						hidden: [],
+					},
+				},
+			},
+			{ key: bannerKey, data: { ...MockBanner, receipts: false } },
+		],
+	},
+};
+export const MirroredBreadcrumbFacingAnnouncement: Story = {
+	decorators: [withAuthProvider],
+	parameters: {
+		user: MockUserOwner,
+		permissions: MockPermissions,
+		pixel: { matrix: pixelWithDesktop },
+		reactRouter: reactRouterParameters({
+			location: { path: "/traffic-control" },
+			routing: { path: "/traffic-control" },
+		}),
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					settings_sidebar: true,
+					navbar_floating: true,
+					navbar_settings_side: "right",
+					navbar_layout: {
+						order: ["logo", "workspaces", "notifications", "account", "banner"],
+						hidden: [],
+					},
+				},
+			},
+			{ key: bannerKey, data: { ...MockBanner, receipts: false } },
+		],
 	},
 };
 

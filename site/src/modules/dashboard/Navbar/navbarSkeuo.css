@@ -152,6 +152,11 @@
 	) {
 	--banner-cut-outer: calc(var(--banner-end-radius) + var(--banner-join-gap));
 	--banner-cut-inner: calc(var(--banner-cut-outer) + var(--banner-join-rim));
+	--banner-face-mask: radial-gradient(
+		circle at var(--banner-cutout-origin) center,
+		transparent calc(var(--banner-cut-inner) - 0.5px),
+		black calc(var(--banner-cut-inner) + 0.5px)
+	);
 	mask-image: radial-gradient(
 		circle at var(--banner-cutout-origin) center,
 		transparent calc(var(--banner-cut-outer) - 0.5px),
@@ -166,11 +171,7 @@
 	border-radius: var(--navbar-joined-radius);
 	background: var(--crumb-face);
 	box-shadow: inset 0 1px 0 var(--crumb-lip);
-	mask-image: radial-gradient(
-		circle at var(--banner-cutout-origin) center,
-		transparent calc(var(--banner-cut-inner) - 0.5px),
-		black calc(var(--banner-cut-inner) + 0.5px)
-	);
+	mask-image: var(--banner-face-mask);
 }
 .navbar-soft [data-navbar-item][data-banner-edge] > :first-child:has(:hover) {
 	background: var(--crumb-face-hover);
@@ -214,13 +215,49 @@
 .navbar-soft [data-navbar-item][data-banner-edge="right"] > :first-child {
 	padding-right: var(--banner-cut-inner);
 }
+.navbar-resizable-group {
+	--breadcrumb-banner-flex-gap: var(--navbar-control-gap);
+}
 .navbar-soft .navbar-start[data-banner-edge="left"] {
 	--banner-cutout-origin: 0%;
-	margin-left: calc(-1 * var(--banner-end-radius));
-	padding-left: var(--banner-cut-inner);
+	--breadcrumb-banner-well: 0 var(--navbar-pill-radius)
+		var(--navbar-pill-radius) 0;
+	margin-left: calc(
+		-1 *
+		(var(--banner-end-radius) + var(--breadcrumb-banner-flex-gap, 0px))
+	);
 }
 .navbar-soft .navbar-start[data-banner-edge="right"] {
 	--banner-cutout-origin: 100%;
-	margin-right: calc(-1 * var(--banner-end-radius));
-	padding-right: var(--banner-cut-inner);
+	--breadcrumb-banner-well: var(--navbar-pill-radius) 0 0
+		var(--navbar-pill-radius);
+	margin-right: calc(
+		-1 *
+		(var(--banner-end-radius) + var(--breadcrumb-banner-flex-gap, 0px))
+	);
+}
+.navbar-soft .navbar-start[data-banner-edge] .admin-navbar-breadcrumb > ol {
+	border-radius: var(--breadcrumb-banner-well);
+	padding: var(--banner-join-rim);
+	background: var(--crumb-seam);
+}
+.navbar-soft
+	.navbar-start[data-banner-edge="left"]
+	.admin-navbar-breadcrumb
+	> ol {
+	padding-left: 0;
+}
+.navbar-soft
+	.navbar-start[data-banner-edge="right"]
+	.admin-navbar-breadcrumb
+	> ol {
+	padding-right: 0;
+}
+.navbar-soft
+	.navbar-start[data-banner-edge]
+	.admin-navbar-breadcrumb
+	> ol
+	> li
+	> :is(a, span, button) {
+	height: calc(2 * (var(--banner-end-radius) - var(--banner-join-rim)));
 }
