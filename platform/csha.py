@@ -56,6 +56,8 @@ ROUND_SECONDS = float(os.environ.get("CSHA_ROUND_SECONDS", "5") or 5)
 # pattern of {service}, {namespace}, {workspace} and {port} - a cross-cluster Service name, a gateway's TCP route
 ENDPOINT_EXTERNAL = os.environ.get("CSHA_ENDPOINT_EXTERNAL", "")
 RELAY_IMAGE = os.environ.get("CSHA_RELAY_IMAGE", "")
+EDITOR_IMAGE = os.environ.get("CSHA_EDITOR_IMAGE", "")
+EDITOR_IMAGE_WORKSPACE = os.environ.get("CSHA_EDITOR_IMAGE_WORKSPACE", "")
 STATION_PORT = 8080
 CODE_SERVER_PORT = 13337
 FRONT_LISTEN = os.environ.get("CSHA_FRONT_LISTEN", "127.0.0.1:%d" % CODE_SERVER_PORT)
@@ -339,6 +341,7 @@ def instance_pod(inst, generation, token, home, cluster=CLUSTER, namespace=NAMES
     folder = inst.get("folder") or "/home/coder"
     if not home:
         folder = "/home/coder"
+    image = EDITOR_IMAGE if EDITOR_IMAGE and ws == EDITOR_IMAGE_WORKSPACE else inst["image"]
     spec = {
         "restartPolicy": "Always", "automountServiceAccountToken": False, "enableServiceLinks": False,
         "securityContext": {"runAsNonRoot": True, "runAsUser": 1000, "runAsGroup": 1000, "fsGroup": 1000,
@@ -347,7 +350,7 @@ def instance_pod(inst, generation, token, home, cluster=CLUSTER, namespace=NAMES
                             "command": ["python3", "/app/csha.py", "restore"], "env": env, "securityContext": secure,
                             "volumeMounts": [{"name": "home", "mountPath": "/home/coder"}]}],
         "containers": [
-            {"name": "code-server", "image": inst["image"], "imagePullPolicy": "IfNotPresent",
+            {"name": "code-server", "image": image, "imagePullPolicy": "IfNotPresent",
              "command": ["code-server", "--auth", "none", "--bind-addr", "127.0.0.1:%d" % CODE_SERVER_PORT,
                          "--disable-telemetry", "--disable-update-check", folder],
              "env": [{"name": "HOME", "value": "/home/coder"}], "securityContext": secure,
