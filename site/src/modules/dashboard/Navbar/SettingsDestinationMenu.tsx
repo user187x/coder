@@ -206,7 +206,7 @@ export function WorkspacePicker({
 	);
 }
 
-export function WorkspaceDestinations() {
+function WorkspaceDestinations() {
 	const { canCreateWorkspace, query, icons, createSearch, ownedWorkspaces } =
 		useWorkspaceDestinations();
 	return (

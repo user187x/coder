@@ -38,15 +38,27 @@ const NAMES: Record<SettingsFace, string> = {
  * a loop, with a turning animation (none with reduced motion). It replaces the separate quick chat spot: opening chat
  * from the Settings menu turns it to its Chat face.
  */
+export type SettingsPanelLayout = "both" | "links" | "face";
+
 export const SettingsFacePanel: React.FC<{
 	face: SettingsFace;
 	onFaceChange: (face: SettingsFace) => void;
+	layout: SettingsPanelLayout;
+	onLayoutChange: (layout: SettingsPanelLayout) => void;
 	/** The Metrics face (null: the user may not see the cluster's metrics). */
 	metrics: React.ReactNode;
 	/** The Chat face expanded over the menu's room below its header row (the menu hides the rest meanwhile). */
 	chatFull?: boolean;
 	onChatFull?: (full: boolean) => void;
-}> = ({ face, onFaceChange, metrics, chatFull = false, onChatFull }) => {
+}> = ({
+	face,
+	onFaceChange,
+	layout,
+	onLayoutChange,
+	metrics,
+	chatFull = false,
+	onChatFull,
+}) => {
 	const chatOn = useChatEnabled();
 	const faces = (["metrics", "chat", "drive"] as const).filter(
 		(f) => (f !== "metrics" || metrics !== null) && (f !== "chat" || chatOn),
@@ -56,65 +68,68 @@ export const SettingsFacePanel: React.FC<{
 	const arrowFill = `settings-face-arrow-${useId()}`;
 	const current = faces.includes(face) ? face : (faces[0] ?? "drive");
 	const full = chatFull && current === "chat";
-	// The handles beside the arrows hide the face under them (and show it again), kept in the user's preferences.
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
-	const saveHidden = useMutation(updateUserUIPreferences(client));
-	const hidden = Boolean(preferences.data?.settings_face_hidden) && !full;
-	const setHidden = (next: boolean) =>
-		saveHidden.mutate({ settings_face_hidden: next || null });
+	const saveDirection = useMutation(updateUserUIPreferences(client));
+	const hidden = layout === "links";
 	const direction =
 		preferences.data?.settings_face_collapse_direction ?? "down";
-	const label = hidden ? "Show the bottom panel" : "Hide the bottom panel";
-	const renderHandle = () => (
-		<ContextMenu>
-			<ContextMenuTrigger asChild>
-				<button
-					type="button"
-					className="settings-face-handle"
-					aria-expanded={!hidden}
-					aria-label={label}
-					title={label}
-					disabled={saveHidden.isPending}
-					onClick={() => setHidden(!hidden)}
+	const fillsPanel = full || (layout === "face" && direction === "down");
+	const renderHandle = (target: "links" | "face") => {
+		const selected = layout === target;
+		const label = selected
+			? "Show both panels"
+			: target === "links"
+				? "Show only quick links"
+				: "Show only the bottom panel";
+		return (
+			<ContextMenu>
+				<ContextMenuTrigger asChild>
+					<button
+						type="button"
+						className="settings-face-handle"
+						aria-pressed={selected}
+						aria-label={label}
+						title={label}
+						onClick={() => onLayoutChange(selected ? "both" : target)}
+						onContextMenu={(event) => event.stopPropagation()}
+					>
+						<span aria-hidden className="settings-face-handle-grip" />
+					</button>
+				</ContextMenuTrigger>
+				<ContextMenuContent
+					aria-label="Bottom panel collapse direction"
+					className="z-[2147483647]"
 					onContextMenu={(event) => event.stopPropagation()}
 				>
-					<span aria-hidden className="settings-face-handle-grip" />
-				</button>
-			</ContextMenuTrigger>
-			<ContextMenuContent
-				aria-label="Bottom panel collapse direction"
-				className="z-[2147483647]"
-				onContextMenu={(event) => event.stopPropagation()}
-			>
-				{(
-					[
-						["up", "Collapse Upward", ArrowUpIcon],
-						["down", "Collapse Downward", ArrowDownIcon],
-					] as const
-				).map(([value, name, Icon]) => (
-					<ContextMenuCheckboxItem
-						key={value}
-						checked={direction === value}
-						onSelect={() =>
-							saveHidden.mutate({
-								settings_face_collapse_direction: value,
-								settings_face_hidden: true,
-							})
-						}
-					>
-						<Icon aria-hidden />
-						{name}
-					</ContextMenuCheckboxItem>
-				))}
-			</ContextMenuContent>
-		</ContextMenu>
-	);
+					{(
+						[
+							["up", "Collapse Upward", ArrowUpIcon],
+							["down", "Collapse Downward", ArrowDownIcon],
+						] as const
+					).map(([value, name, Icon]) => (
+						<ContextMenuCheckboxItem
+							key={value}
+							checked={direction === value}
+							onSelect={() =>
+								saveDirection.mutate({
+									settings_face_collapse_direction: value,
+								})
+							}
+						>
+							<Icon aria-hidden />
+							{name}
+						</ContextMenuCheckboxItem>
+					))}
+				</ContextMenuContent>
+			</ContextMenu>
+		);
+	};
 	// The tallest face's height so far: the panel holds it whichever face shows.
 	const [tallest, setTallest] = useState(0);
 	const measure = (element: HTMLDivElement | null) => {
 		// Chat sizes to the faces, not they to it: its conversation scrolls inside, its message box in view.
-		if (!element || current === "chat") return;
+		if (!element || fillsPanel || current === "chat") return;
 		const observer = new ResizeObserver(() => {
 			// The face's own content, not the height the panel already holds it to
 			const height = Math.ceil(
@@ -134,7 +149,6 @@ export const SettingsFacePanel: React.FC<{
 		if (!next) return;
 		setTurn(by === 1 ? "right" : "left");
 		onFaceChange(next);
-		if (hidden) setHidden(false);
 	};
 	const nameAt = (by: 1 | -1) =>
 		NAMES[
@@ -149,12 +163,14 @@ export const SettingsFacePanel: React.FC<{
 			data-face-collapsed={hidden ? direction : undefined}
 			className={cn(
 				"settings-face-panel relative mx-1 mt-2 mb-1",
-				full ? "flex min-h-0 flex-1 flex-col" : "shrink-0",
+				fillsPanel ? "flex min-h-0 flex-1 flex-col" : "shrink-0",
 			)}
 		>
-			{faces.length > 1 && (
+			{faces.length > 0 && (
 				<div className="settings-face-arrows">
-					<span className="settings-face-handle-slot">{renderHandle()}</span>
+					<span className="settings-face-handle-slot">
+						{renderHandle("links")}
+					</span>
 					<svg width="0" height="0" className="absolute" aria-hidden="true">
 						<defs>
 							<linearGradient id={arrowFill} x1="0" y1="0" x2="0" y2="1">
@@ -167,7 +183,14 @@ export const SettingsFacePanel: React.FC<{
 							</linearGradient>
 						</defs>
 					</svg>
-					<div className="settings-face-arrow-well">
+					<div
+						hidden={hidden || faces.length < 2}
+						className={cn(
+							"settings-face-arrow-well",
+							hidden && "hidden",
+							faces.length < 2 && "invisible",
+						)}
+					>
 						<div
 							role="group"
 							aria-label="Turn the panel"
@@ -201,15 +224,20 @@ export const SettingsFacePanel: React.FC<{
 							))}
 						</div>
 					</div>
-					<span className="settings-face-handle-slot">{renderHandle()}</span>
+					<span className="settings-face-handle-slot">
+						{renderHandle("face")}
+					</span>
 				</div>
 			)}
 			{/* Every face as tall as the tallest one shown yet, so the panel keeps one height as it turns */}
 			<div
 				hidden={hidden}
-				className={full ? "flex min-h-0 flex-1 flex-col" : "flex flex-col"}
+				className={cn(
+					fillsPanel ? "flex min-h-0 flex-1 flex-col" : "flex flex-col",
+					hidden && "hidden",
+				)}
 				style={
-					full
+					fillsPanel
 						? undefined
 						: current === "chat"
 							? { height: tallest || CHAT_FACE_HEIGHT }

@@ -33,7 +33,7 @@ import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
 import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
 import {
 	TemplateDestinations,
-	WorkspaceDestinations,
+	WorkspacePicker,
 } from "#/modules/dashboard/Navbar/SettingsDestinationMenu";
 import { SettingsPlacementOptions } from "#/modules/dashboard/Navbar/SettingsRootMenu";
 import {
@@ -128,8 +128,6 @@ const DeploymentSettingsLayout: React.FC = () => {
 		chatDestinations
 	) : category?.id === "templates" ? (
 		<TemplateDestinations />
-	) : category?.id === "workspaces" ? (
-		<WorkspaceDestinations />
 	) : category?.id === "accounts" && permissions.createUser ? (
 		<AccountCreationMenuItems
 			canCreateLease={permissions.editDeploymentConfig}
@@ -168,7 +166,12 @@ const DeploymentSettingsLayout: React.FC = () => {
 						}
 					>
 						<BreadcrumbItem>
-							{categoryDestinations ? (
+							{category?.id === "workspaces" ? (
+								<WorkspacePicker
+									label={category.label}
+									trigger={<CategoryIcon aria-hidden />}
+								/>
+							) : categoryDestinations ? (
 								<BreadcrumbViewMenu
 									label={category?.label ?? "General"}
 									trigger={<CategoryIcon aria-hidden />}

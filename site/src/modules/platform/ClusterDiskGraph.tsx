@@ -60,7 +60,7 @@ export const ClusterDiskGraph: React.FC<{
 	const summary = `${formatDisk(current.used)} used, ${formatDisk(current.claimed)} claimed, ${formatDisk(current.total)} total size`;
 
 	return (
-		<div className="mt-3 min-w-0 text-2xs text-content-secondary">
+		<div className="cluster-gauge-series mt-3 min-w-0 text-2xs text-content-secondary">
 			<div className="mb-1 flex justify-between items-baseline gap-2">
 				<span className="font-semibold text-content-primary">Disk</span>
 				{latest && <span>Measured {timeLabel(latest.t)}</span>}

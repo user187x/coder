@@ -3,13 +3,7 @@ import { LinkIcon } from "lucide-react";
 import { CopyButton } from "#/components/CopyButton/CopyButton";
 import { Link } from "#/components/Link/Link";
 
-export const LeaseSignInLink = ({
-	className,
-	iconOnly = false,
-}: {
-	className?: string;
-	iconOnly?: boolean;
-}) => {
+export const LeaseSignInLink = ({ className }: { className?: string }) => {
 	const url = new URL("/lease", window.location.origin).href;
 	return (
 		<div
@@ -18,21 +12,15 @@ export const LeaseSignInLink = ({
 				className,
 			)}
 		>
-			{!iconOnly && (
-				<>
-					<LinkIcon aria-hidden className="size-4 shrink-0" />
-					<span className="shrink-0">Lease sign-in</span>
-				</>
-			)}
+			<LinkIcon aria-hidden className="size-4 shrink-0" />
+			<span className="shrink-0">Lease sign-in</span>
 			<Link
 				href={url}
-				aria-label={iconOnly ? "Open lease sign-in" : undefined}
-				showExternalIcon={!iconOnly}
 				target="_blank"
 				rel="noreferrer"
 				className="min-w-0 truncate"
 			>
-				{iconOnly ? <LinkIcon aria-hidden /> : url}
+				{url}
 			</Link>
 			<CopyButton text={url} label="Copy lease sign-in URL" />
 		</div>

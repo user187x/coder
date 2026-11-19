@@ -281,6 +281,11 @@ html[data-settings-dock-edge="left"]
 	border-radius: var(--dock-radius);
 }
 .settings-menu[data-settings-docked]
+	> .settings-menu-surface[data-slit-direction="up"][data-slit-layout="face"] {
+	height: auto;
+}
+
+.settings-menu[data-settings-docked]
 	> .settings-menu-surface:has([data-face-collapsed="up"]) {
 	height: auto;
 	max-height: 62%;
@@ -298,6 +303,30 @@ html[data-settings-dock-edge="left"]
 	display: flex;
 	flex-direction: column;
 	max-height: 50%;
+}
+/* Give the history charts the extra height in the full Metrics face. */
+.settings-menu-surface[data-slit-layout="face"][data-slit-direction="down"] {
+	& [data-settings-metrics] {
+		max-height: none;
+	}
+
+	& .cluster-gauge-usage,
+	& .cluster-gauge-series {
+		flex: 1 0 auto;
+	}
+
+	& .cluster-gauge-usage > div,
+	& .cluster-gauge-history,
+	& .cluster-gauge-series {
+		display: flex;
+		flex-direction: column;
+	}
+
+	& .cluster-gauge-history,
+	& .cluster-gauge-history > svg,
+	& .cluster-gauge-series > svg {
+		flex: 1 0 auto;
+	}
 }
 .settings-menu[data-settings-docked] [data-settings-metrics] > :first-child {
 	min-height: 0;

@@ -50,7 +50,11 @@ import { HudHeartbeat } from "./HudHeartbeat";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { NavbarMoveMenu } from "./NavbarMoveMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
-import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
+import {
+	type SettingsFace,
+	SettingsFacePanel,
+	type SettingsPanelLayout,
+} from "./SettingsFacePanel";
 import { SettingsRootMenu } from "./SettingsRootMenu";
 import "./settingsMenuSkeuo.css";
 import { toScreenPx } from "#/utils/appZoom";
@@ -115,7 +119,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const [openEdge, setOpenEdge] = useState<"left" | "right">("right");
 	// The bottom panel's face (SettingsFacePanel); chat open is its Chat face.
 	const [face, setFace] = useState<SettingsFace>("metrics");
-	const [quickLinksCollapsed, setQuickLinksCollapsed] = useState(false);
+	const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+	const [slitLayout, setSlitLayout] = useState<SettingsPanelLayout>();
 	// The Chat face expanded over the menu's room below its header row.
 	const [chatFull, setChatFull] = useState(false);
 	const chatExpanded = face === "chat";
@@ -140,6 +145,13 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		...updateUserUIPreferences(client),
 		onError: () => toast.error("Could not save Settings sidebar preference."),
 	});
+	const layout =
+		slitLayout ??
+		(prefs.data?.settings_face_hidden && !chatFull ? "links" : "both");
+	const direction = prefs.data?.settings_face_collapse_direction ?? "down";
+	const faceOnly = layout === "face";
+	const quickLinksCollapsed = drawerCollapsed || faceOnly;
+
 	const docked = Boolean(controls && prefs.data?.settings_sidebar);
 	const dockEdge = prefs.data?.navbar_settings_side ?? "right";
 	// The admin settings' navigation in the navbar: on a settings page this menu opens from the breadcrumb's Settings
@@ -476,7 +488,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 					<div
 						ref={setMenuSurface}
-						data-quick-links-collapsed={quickLinksCollapsed || undefined}
+						data-quick-links-collapsed={
+							drawerCollapsed || (faceOnly && direction === "up") || undefined
+						}
+						data-slit-layout={layout}
+						data-slit-direction={direction}
 						// No scrollbar of its own: its top part (quick links) and its bottom panel scroll inside themselves
 						// (the thin strip, compact, still scrolls as a whole).
 						className={cn(
@@ -620,97 +636,102 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						) : (
 							<>
 								{/* With the Chat face expanded, it takes the menu's room below the header row */}
-								{!chatFull && !quickLinksCollapsed && regions && proxy && (
-									<DropdownMenuSub
-										open={regionOpen}
-										onOpenChange={setRegionOpen}
-									>
-										<DropdownMenuSubTrigger
-											// the submenu's own aria-expanded stays: only the right-click and its keys
-											onContextMenu={regionMenu.trigger.onContextMenu}
-											onKeyDown={regionMenu.trigger.onKeyDown}
-											data-testid="navbar-region"
+								{!chatFull &&
+									layout === "both" &&
+									!quickLinksCollapsed &&
+									regions &&
+									proxy && (
+										<DropdownMenuSub
+											open={regionOpen}
+											onOpenChange={setRegionOpen}
 										>
-											<RadioIcon aria-hidden />
-											Region
-											<span className="ml-auto truncate text-xs text-content-secondary">
-												{selectedProxy?.display_name}
-											</span>
-										</DropdownMenuSubTrigger>
-										<DropdownMenuSubContent className="w-80">
-											<DropdownMenuItem
-												disabled
-												className="flex flex-col gap-1 items-start data-disabled:opacity-100"
+											<DropdownMenuSubTrigger
+												// the submenu's own aria-expanded stays: only the right-click and its keys
+												onContextMenu={regionMenu.trigger.onContextMenu}
+												onKeyDown={regionMenu.trigger.onKeyDown}
+												data-testid="navbar-region"
 											>
-												<div className="text-content-primary font-semibold text-left">
-													Select a region nearest to you
-												</div>
-												<div className="text-xs text-content-secondary leading-relaxed">
-													Workspace proxies improve terminal and web app
-													connections.{" "}
-													<Abbr
-														title="Command-Line Interface"
-														pronunciation="initialism"
-													>
-														CLI
-													</Abbr>{" "}
-													connections are unaffected. If no region is selected,
-													the primary region will be used.
-												</div>
-											</DropdownMenuItem>
+												<RadioIcon aria-hidden />
+												Region
+												<span className="ml-auto truncate text-xs text-content-secondary">
+													{selectedProxy?.display_name}
+												</span>
+											</DropdownMenuSubTrigger>
+											<DropdownMenuSubContent className="w-80">
+												<DropdownMenuItem
+													disabled
+													className="flex flex-col gap-1 items-start data-disabled:opacity-100"
+												>
+													<div className="text-content-primary font-semibold text-left">
+														Select a region nearest to you
+													</div>
+													<div className="text-xs text-content-secondary leading-relaxed">
+														Workspace proxies improve terminal and web app
+														connections.{" "}
+														<Abbr
+															title="Command-Line Interface"
+															pronunciation="initialism"
+														>
+															CLI
+														</Abbr>{" "}
+														connections are unaffected. If no region is
+														selected, the primary region will be used.
+													</div>
+												</DropdownMenuItem>
 
-											<DropdownMenuSeparator />
+												<DropdownMenuSeparator />
 
-											<div className="max-h-[calc(calc(100vh/var(--app-zoom,1))-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
-												<DropdownMenuRadioGroup value={selectedProxy?.id}>
-													{sortProxiesByLatency(regions, latencies).map(
-														(region) => (
-															<DropdownMenuRadioItem
-																value={region.id}
-																key={region.id}
-																onClick={(e) => {
-																	e.preventDefault();
-																	if (!region.healthy) {
-																		toast.error(
-																			`Failed to select proxy "${region.display_name}".`,
-																			{
-																				description:
-																					"Please select a healthy workspace proxy.",
-																			},
-																		);
+												<div className="max-h-[calc(calc(100vh/var(--app-zoom,1))-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+													<DropdownMenuRadioGroup value={selectedProxy?.id}>
+														{sortProxiesByLatency(regions, latencies).map(
+															(region) => (
+																<DropdownMenuRadioItem
+																	value={region.id}
+																	key={region.id}
+																	onClick={(e) => {
+																		e.preventDefault();
+																		if (!region.healthy) {
+																			toast.error(
+																				`Failed to select proxy "${region.display_name}".`,
+																				{
+																					description:
+																						"Please select a healthy workspace proxy.",
+																				},
+																			);
+																			closeMenu();
+																			return;
+																		}
+
+																		proxy.setProxy(region);
 																		closeMenu();
-																		return;
-																	}
+																	}}
+																>
+																	<div className="flex gap-3 items-center w-full">
+																		<div className="leading-none size-4">
+																			<ExternalImage
+																				src={region.icon_url}
+																				alt=""
+																				className="object-contain size-full"
+																			/>
+																		</div>
 
-																	proxy.setProxy(region);
-																	closeMenu();
-																}}
-															>
-																<div className="flex gap-3 items-center w-full">
-																	<div className="leading-none size-4">
-																		<ExternalImage
-																			src={region.icon_url}
-																			alt=""
-																			className="object-contain size-full"
+																		{region.display_name}
+
+																		<Latency
+																			className="ml-auto"
+																			latency={latencies[region.id]?.latencyMS}
 																		/>
 																	</div>
-
-																	{region.display_name}
-
-																	<Latency
-																		className="ml-auto"
-																		latency={latencies[region.id]?.latencyMS}
-																	/>
-																</div>
-															</DropdownMenuRadioItem>
-														),
-													)}
-												</DropdownMenuRadioGroup>
-											</div>
-										</DropdownMenuSubContent>
-									</DropdownMenuSub>
-								)}
-								{!quickLinksCollapsed &&
+																</DropdownMenuRadioItem>
+															),
+														)}
+													</DropdownMenuRadioGroup>
+												</div>
+											</DropdownMenuSubContent>
+										</DropdownMenuSub>
+									)}
+								{layout === "both" &&
+									!quickLinksCollapsed &&
 									regions &&
 									proxy &&
 									regionMenu.open && (
@@ -741,7 +762,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								)}
 
 								{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
-								{!chatFull && controls && (
+								{!chatFull && !faceOnly && controls && (
 									<nav
 										aria-label="Settings"
 										data-testid="controls-group"
@@ -774,15 +795,25 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 															) {
 																docking.mutate({ settings_face_hidden: null });
 															}
-															setQuickLinksCollapsed((collapsed) => !collapsed);
+															if (!drawerCollapsed) setSlitLayout("both");
+															setDrawerCollapsed((collapsed) => !collapsed);
 														}
 													: undefined
 											}
 										/>
 									</nav>
 								)}
-								{(quickLinksCollapsed || !topFull || chatExpanded) && (
+								{(layout !== "both" ||
+									quickLinksCollapsed ||
+									!topFull ||
+									chatExpanded) && (
 									<SettingsFacePanel
+										layout={layout}
+										onLayoutChange={(next) => {
+											setChatFull(false);
+											setDrawerCollapsed(false);
+											setSlitLayout(next);
+										}}
 										face={face}
 										onFaceChange={(next) => {
 											setChatFull(false);
@@ -809,8 +840,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						!compact &&
 						!chatFull &&
 						(!topFull || chatExpanded) &&
-						prefs.data?.settings_face_hidden &&
-						prefs.data.settings_face_collapse_direction === "up" && (
+						!slitLayout &&
+						layout === "links" &&
+						direction === "up" && (
 							<div ref={settingsChatSlot} className="settings-chat-dock-slot" />
 						)}
 				</DropdownMenuContent>

@@ -300,9 +300,7 @@ describe("ProxyMenu", () => {
 		expect(
 			within(menu).getByRole("region", { name: "Settings panel: Metrics" }),
 		).toBeTruthy();
-		expect(
-			within(menu).getAllByRole("button", { name: "Hide the bottom panel" }),
-		).toHaveLength(2);
+
 		await user.click(
 			within(menu).getByRole("button", { name: "Turn to Cloud Drive" }),
 		);
@@ -314,6 +312,51 @@ describe("ProxyMenu", () => {
 		);
 		expect(within(menu).getByTestId("quick-links-scroll")).toBeTruthy();
 	});
+
+	it.each(["up", "down"] as const)(
+		"switches between links, the selected face, and both in %s mode",
+		async (direction) => {
+			const user = userEvent.setup();
+			vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+				settings_face_collapse_direction: direction,
+			});
+			renderMenu({ proxyContextValue: value, hud: true, controls });
+			const menu = await openMenu();
+			await user.click(
+				within(menu).getByRole("button", { name: "Turn to Cloud Drive" }),
+			);
+			await user.click(
+				within(menu).getByRole("button", { name: "Show only quick links" }),
+			);
+			expect(
+				within(menu).queryByRole("group", { name: "Turn the panel" }),
+			).toBeNull();
+			await user.click(
+				within(menu).getByRole("button", {
+					name: "Show only the bottom panel",
+				}),
+			);
+			expect(
+				within(menu).queryByRole("navigation", { name: "Settings" }),
+			).toBeNull();
+			expect(
+				within(menu).getByRole("region", {
+					name: "Settings panel: Cloud Drive",
+				}),
+			).toBeTruthy();
+			await user.click(
+				within(menu).getByRole("button", { name: "Show both panels" }),
+			);
+			expect(
+				within(menu).getByRole("navigation", { name: "Settings" }),
+			).toBeTruthy();
+			expect(
+				within(menu).getByRole("region", {
+					name: "Settings panel: Cloud Drive",
+				}),
+			).toBeTruthy();
+		},
+	);
 
 	it("expands the top section from a double click on Controls and pins it open", async () => {
 		const save = vi

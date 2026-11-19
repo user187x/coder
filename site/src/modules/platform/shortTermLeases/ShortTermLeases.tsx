@@ -149,12 +149,8 @@ export const ShortTermLeases = ({
 			>
 				Short Term Lease
 			</h2>
-			<p className="text-sm text-content-secondary">
-				Issue temporary access to a fresh, isolated Browser workspace. Expired
-				leases cannot be renewed.
-			</p>
 			<div className="mb-4">
-				<LeaseSignInLink className="justify-center" iconOnly />
+				<LeaseSignInLink className="justify-center" />
 			</div>
 			{Boolean(error) && <ErrorAlert error={error} />}
 			<div className="mb-4 flex flex-wrap items-center gap-2">

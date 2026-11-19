@@ -12,13 +12,20 @@ const renderAt = (route: string) =>
 	});
 
 describe("AdminSettingsFrame", () => {
-	it("frames the page with the settings menu and breadcrumb for admins", async () => {
+	it("opens the searchable workspace picker from the admin breadcrumb", async () => {
 		renderAt("/workspaces");
 		await screen.findByRole("heading", { name: "Workspaces list" });
 		await userEvent.click(screen.getByRole("button", { name: "Workspaces" }));
 		expect(
-			await screen.findByRole("menuitem", { name: "Create Workspace" }),
+			await screen.findByRole("link", { name: "Create Workspace" }),
 		).toHaveAttribute("href", expect.stringContaining("/workspaces"));
+		await userEvent.type(
+			screen.getByRole("combobox", { name: "Search workspaces" }),
+			"missing workspace",
+		);
+		expect(
+			screen.getByRole("link", { name: "Create Workspace" }),
+		).toHaveAttribute("href", expect.stringContaining("create-workspace=1"));
 	});
 
 	it("shows the page alone to non-admins", async () => {

@@ -210,6 +210,10 @@ html[data-animations="off"]
 	animation: none;
 }
 
+.settings-menu-fill > .settings-menu-surface {
+	min-height: 0;
+}
+
 .settings-menu-fill
 	> .settings-menu-surface:where(
 		:not([data-quick-links-collapsed], :has([data-face-collapsed="up"]))
@@ -241,6 +245,25 @@ html[data-animations="off"]
 		0.62 /
 		var(--app-zoom, 1)
 	);
+}
+
+.settings-menu-fill
+	> .settings-menu-surface[data-slit-direction="down"]:is(
+		[data-slit-layout="links"],
+		[data-slit-layout="face"]
+	) {
+	height: calc(
+		var(--radix-dropdown-menu-content-available-height, 80vh) /
+		var(--app-zoom, 1)
+	);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html:not([data-animations="off"])
+		.settings-menu-fill
+		> .settings-menu-surface {
+		transition: min-height 180ms ease-out;
+	}
 }
 
 .settings-admin-notes-handle .settings-resource-tray-dimple[data-edge="top"] {

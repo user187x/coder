@@ -215,8 +215,7 @@
 	}
 }
 
-/* The handles on each side of the arrows: each in the middle of the room from the arrows to the panel's edge. A
-   click hides the face below (and shows it again). */
+/* The slits sit midway between the face-switching arrows and the panel edges. */
 .settings-face-handle-slot {
 	display: flex;
 	flex: 1 1 0;
@@ -255,7 +254,7 @@
 }
 
 /* Keep the handles reachable when the bottom panel folds up. */
-.settings-face-panel[data-face-collapsed="up"] .settings-face-arrow-well {
+.settings-face-panel[data-face-collapsed] .settings-face-arrow-well {
 	display: none;
 }
 .settings-face-panel[data-face-collapsed="up"] .settings-face-arrows {

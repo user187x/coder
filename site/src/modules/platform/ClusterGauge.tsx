@@ -96,7 +96,7 @@ export const ClusterGauge: React.FC<{
 					{data.nodes === 1 ? "node" : "nodes"}
 				</span>
 			</div>
-			<div className="grid grid-cols-2 gap-3.5">
+			<div className="cluster-gauge-usage grid grid-cols-2 gap-3.5">
 				<UsageBar
 					kind="cpu"
 					label="CPU"
@@ -165,7 +165,7 @@ const NetworkGraph: React.FC<{ network: ClusterNetwork }> = ({ network }) => {
 
 	return (
 		<div
-			className="mt-3 min-w-0 text-2xs text-content-secondary"
+			className="cluster-gauge-series mt-3 min-w-0 text-2xs text-content-secondary"
 			data-testid="cluster-network"
 		>
 			<div className="mb-1 flex justify-between font-semibold text-content-primary">
@@ -288,7 +288,10 @@ const UsageGraph: React.FC<{
 	const minutes = Math.round((NETWORK_SLOTS * history.every) / 60);
 
 	return (
-		<div className="mt-1.5" data-testid={`cluster-${kind}-history`}>
+		<div
+			className="cluster-gauge-history mt-1.5"
+			data-testid={`cluster-${kind}-history`}
+		>
 			<svg
 				role="img"
 				aria-label={`${label} in use over the last ${minutes} minutes: peak ${Math.round(peak)}%`}
