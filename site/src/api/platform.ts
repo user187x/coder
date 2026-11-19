@@ -1503,7 +1503,7 @@ export type UserUIPreferences = {
 	panel_scale?: number | null;
 	/** Appearance > Navigation bar: the backstrip's corner radius in px (0 to 24); null: 10. */
 	navbar_strip_radius?: number | null;
-	/** The admin settings' breadcrumb and categories in the navbar's top left, not beside the page. */
+	/** Legacy navigation placement preference retained for older clients. */
 	admin_nav_in_navbar?: boolean | null;
 	/** Appearance > Navigation bar, Resizable: the bar's buttons as one centred pill the user can resize. */
 	navbar_floating?: boolean | null;

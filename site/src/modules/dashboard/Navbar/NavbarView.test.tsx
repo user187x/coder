@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
@@ -49,11 +49,6 @@ const renderNavbar = (
 			</MemoryRouter>
 		</QueryClientProvider>,
 	);
-
-const menuButtons = () =>
-	screen
-		.getAllByRole("button")
-		.filter((button) => button.getAttribute("aria-haspopup") === "menu");
 
 describe("NavbarView", () => {
 	beforeEach(() => {
@@ -192,27 +187,23 @@ describe("NavbarView", () => {
 		expect(onClick).not.toHaveBeenCalled();
 	});
 
-	it("has no Controls button of its own: the Controls are in the latency menu", async () => {
+	it("opens admin controls from the Settings breadcrumb", async () => {
 		renderNavbar({ canViewHud: true, canViewAuditLog: true });
-		const withControls = menuButtons().filter((button) =>
-			button.textContent?.includes("Settings"),
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Settings" }),
 		);
-		const trigger = screen.getByTestId("navbar-latency-controls");
-		expect(withControls).toEqual([trigger]);
-		expect(screen.getByTestId("navbar-hud-latency")).toContainElement(trigger);
-		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
 		const menu = await screen.findByTestId("navbar-latency-controls-menu");
 		expect(
 			within(menu).getByRole("menuitem", { name: "Audit logs" }),
 		).toBeInTheDocument();
 	});
 
-	it("gives an auditor the Controls in the latency menu, without the HUD", async () => {
+	it("gives an auditor admin controls without the HUD", async () => {
 		renderNavbar({ canViewAuditLog: true }, MockUserMember);
 		expect(screen.queryByTestId("navbar-hud-latency")).toBeNull();
-		const trigger = screen.getByTestId("navbar-latency-controls");
-		expect(trigger).toHaveTextContent("Settings");
-		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Settings" }),
+		);
 		const menu = await screen.findByTestId("navbar-latency-controls-menu");
 		expect(
 			within(menu).getByRole("menuitem", { name: "Audit logs" }),

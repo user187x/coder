@@ -142,9 +142,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	// The admin settings' navigation in the navbar: on a settings page this menu opens from the breadcrumb's Settings
 	// chevron, in place of the navbar's Settings button, its panel's left edge on the chevron's.
 	const settingsInNavbar = Boolean(
-		controls &&
-			prefs.data?.admin_nav_in_navbar &&
-			canViewAdminSettings(controls.permissions),
+		controls && canViewAdminSettings(controls.permissions),
 	);
 	// Docked, it stays at the screen's side: the breadcrumb then keeps its own Settings link.
 	useRegisterSettingsMenu(settingsInNavbar && !docked);

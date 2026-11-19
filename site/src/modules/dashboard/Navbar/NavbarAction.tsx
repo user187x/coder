@@ -17,7 +17,14 @@ export const NavbarStartTarget = createContext<HTMLElement | null | undefined>(
 	undefined,
 );
 
-export function NavbarStart({ children }: { children: React.ReactNode }) {
+export function NavbarStart({
+	children,
+	inlineWithoutNavbar = false,
+}: {
+	children: React.ReactNode;
+	inlineWithoutNavbar?: boolean;
+}) {
 	const target = useContext(NavbarStartTarget);
+	if (target === undefined && inlineWithoutNavbar) return children;
 	return target ? createPortal(children, target) : null;
 }

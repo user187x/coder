@@ -90,7 +90,7 @@ export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 			}}
 		>
 			<ComboboxTrigger asChild>
-				<Button size="lg">
+				<Button variant="outline" size="lg" data-navbar-ink-follow="">
 					{children}
 					<ChevronDownIcon />
 				</Button>

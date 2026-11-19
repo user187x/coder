@@ -12,6 +12,7 @@ import { Link, Outlet } from "react-router";
 import { type Banner, PlatformAPI } from "#/api/platform";
 import {
 	NavbarAction,
+	NavbarActionTarget,
 	NavbarStartTarget,
 } from "#/modules/dashboard/Navbar/NavbarAction";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
@@ -20,32 +21,25 @@ import { renderWithAuth } from "#/testHelpers/renderHelpers";
 import { server } from "#/testHelpers/server";
 import DeploymentSettingsLayout from "./DeploymentSettingsLayout";
 
-it("hides and restores the category links without resetting the current page", async () => {
+it("opens and closes the category menu without resetting the current page", async () => {
 	const user = userEvent.setup();
 	renderWithAuth(<DeploymentSettingsLayout />, {
 		path: "/deployment",
-		route: "/deployment/users",
+		route: "/deployment/customize",
 		children: [
-			{ path: "users", element: <input aria-label="Account search" /> },
+			{ path: "customize", element: <input aria-label="Appearance search" /> },
 		],
 	});
-	const search = await screen.findByRole("textbox", { name: "Account search" });
+	const search = await screen.findByRole("textbox", {
+		name: "Appearance search",
+	});
 	await user.type(search, "demo");
-	await user.click(screen.getByTitle("Hide categories"));
-	await user.click(screen.getByTitle("Show categories"));
-	// The breadcrumb moved back into the list's header: the toggle there kept the focus.
-	const category = screen.getByRole("button", { name: "Accounts" });
-	expect(category).toHaveFocus();
+	const category = screen.getByRole("button", { name: "Appearance" });
 	await user.click(category);
-	expect(category).toHaveAttribute("aria-expanded", "true");
-	await user.click(category);
-	expect(screen.queryByRole("link", { name: "Accounts" })).toBeNull();
-	const toggle = screen.getByRole("button", { name: "Accounts" });
-	expect(toggle).toHaveFocus();
-	await user.keyboard("{Enter}");
-	expect(screen.getByRole("link", { name: "Accounts" })).toHaveAttribute(
-		"href",
-		"/deployment/users",
+	await screen.findByRole("link", { name: "Accounts" });
+	await user.keyboard("{Escape}");
+	await waitFor(() =>
+		expect(screen.queryByRole("link", { name: "Accounts" })).toBeNull(),
 	);
 	expect(search).toHaveValue("demo");
 });
@@ -211,9 +205,10 @@ describe("Default View", () => {
 			.mockImplementation(async (changes) => changes);
 		renderWithAuth(<DeploymentSettingsLayout />, {
 			path: "/deployment",
-			route: "/deployment/users",
-			children: [{ path: "users", element: <p>Accounts page</p> }],
+			route: "/deployment/customize",
+			children: [{ path: "customize", element: <p>Appearance page</p> }],
 		});
+		await user.click(await screen.findByRole("button", { name: "Appearance" }));
 		const link = await screen.findByRole("link", { name: "Accounts" });
 		fireEvent.contextMenu(link);
 		await user.click(
@@ -266,37 +261,18 @@ describe("Default View", () => {
 		expect(await screen.findByText("Appearance page")).toBeInTheDocument();
 	});
 
-	it("moves the breadcrumb and categories to the navbar from the breadcrumb's right-click, and drops the page's list", async () => {
-		const save = vi
-			.spyOn(PlatformAPI, "setUserUIPreferences")
-			.mockResolvedValue({ admin_nav_in_navbar: true });
-		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
-		renderWithAuth(<DeploymentSettingsLayout />, {
-			path: "/deployment",
-			route: "/deployment/users",
-			children: [{ path: "users", element: <p>Accounts page</p> }],
-		});
-		await screen.findByText("Accounts page");
-		fireEvent.contextMenu(screen.getByRole("button", { name: "Accounts" }));
-		fireEvent.click(await screen.findByRole("menuitem", { name: "Navbar" }));
-		await waitFor(() =>
-			expect(save).toHaveBeenCalledWith({ admin_nav_in_navbar: true }),
-		);
-		// Moved, the page no longer lists the categories beside itself.
-		await waitFor(() =>
-			expect(screen.queryByRole("link", { name: "Accounts" })).toBeNull(),
-		);
-	});
-
 	it("rings the default view's category and says so on hover", async () => {
 		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 			settings_default_view: "/deployment/users",
 		});
 		renderWithAuth(<DeploymentSettingsLayout />, {
 			path: "/deployment",
-			route: "/deployment/users",
-			children: [{ path: "users", element: <p>Accounts page</p> }],
+			route: "/deployment/customize",
+			children: [{ path: "customize", element: <p>Appearance page</p> }],
 		});
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Appearance" }),
+		);
 		const pill = await screen.findByTitle("Set as default view");
 		expect(
 			within(pill).getByRole("link", { name: "Accounts" }),
@@ -304,19 +280,25 @@ describe("Default View", () => {
 	});
 });
 
-it("keeps the page action and category navigation together in the navbar", async () => {
+it("keeps the page action and categories in the navbar with an old Beside Page preference", async () => {
 	const user = userEvent.setup();
 	const onCreate = vi.fn();
 	const read = vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
-		admin_nav_in_navbar: true,
+		admin_nav_in_navbar: false,
 	});
 	const WithNavbarStart = () => {
 		const [start, setStart] = useState<HTMLDivElement | null>(null);
+		const [action, setAction] = useState<HTMLDivElement | null>(null);
 		return (
-			<NavbarStartTarget.Provider value={start}>
-				<div ref={setStart} />
-				<DeploymentSettingsLayout />
-			</NavbarStartTarget.Provider>
+			<NavbarActionTarget.Provider value={action}>
+				<NavbarStartTarget.Provider value={start}>
+					<nav aria-label="Top bar">
+						<div ref={setStart} />
+						<div ref={setAction} />
+					</nav>
+					<DeploymentSettingsLayout />
+				</NavbarStartTarget.Provider>
+			</NavbarActionTarget.Provider>
 		);
 	};
 	renderWithAuth(<WithNavbarStart />, {
@@ -340,9 +322,13 @@ it("keeps the page action and category navigation together in the navbar", async
 		expect(screen.queryByRole("link", { name: "Accounts" })).toBeNull();
 		return screen.getByRole("navigation", { name: "breadcrumb" });
 	});
+	const topBar = screen.getByRole("navigation", { name: "Top bar" });
 	await user.click(
-		await within(breadcrumb).findByRole("button", { name: "New account" }),
+		await within(topBar).findByRole("button", { name: "New account" }),
 	);
+	expect(
+		within(breadcrumb).queryByRole("button", { name: "New account" }),
+	).toBeNull();
 	expect(onCreate).toHaveBeenCalledOnce();
 	const category = within(breadcrumb).getByRole("button", { name: "Accounts" });
 	category.focus();
@@ -354,7 +340,7 @@ it("keeps the page action and category navigation together in the navbar", async
 	const save = vi
 		.spyOn(PlatformAPI, "setUserUIPreferences")
 		.mockImplementation(async (changes) => {
-			const prefs = { admin_nav_in_navbar: true, ...changes };
+			const prefs = { admin_nav_in_navbar: false, ...changes };
 			read.mockResolvedValue(prefs);
 			return prefs;
 		});

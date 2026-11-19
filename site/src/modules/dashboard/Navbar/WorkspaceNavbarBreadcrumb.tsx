@@ -28,9 +28,7 @@ export const WorkspaceNavbarBreadcrumb: React.FC<{ workspaceName: string }> = ({
 	const preferences = useQuery(userUIPreferences());
 	// The Settings menu is there to open from the chevron only while the navigation is in the navbar and undocked.
 	const settingsMenu = useSettingsMenuPresent();
-	const shown =
-		Boolean(preferences.data?.admin_nav_in_navbar) &&
-		(settingsMenu || Boolean(preferences.data?.settings_sidebar));
+	const shown = settingsMenu || Boolean(preferences.data?.settings_sidebar);
 	useRegisterPageSettingsBreadcrumb(shown);
 	if (!shown) return null;
 	return (

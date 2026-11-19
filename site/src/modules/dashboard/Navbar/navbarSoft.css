@@ -14,13 +14,12 @@
 	--dock-radius: 1.125rem;
 }
 
-/* Breadcrumbs and page actions define their own corners and joins. */
+/* Breadcrumbs and split controls define their own corners and joins. */
 .navbar-soft
 :is(button, a.inline-flex):not(
 	#coder-system-banner *,
 	.navbar-split-menu,
-	.breadcrumb-connected *,
-	.navbar-action > *
+	.breadcrumb-connected *
 ) {
 	border-radius: 10px;
 }
@@ -138,71 +137,16 @@
 .navbar-soft[data-navbar-strip="off"]::before {
 	display: none;
 }
-.navbar-soft :is(.navbar-split, .navbar-action > button, .navbar-action > a) {
-	box-sizing: border-box;
-	width: var(--navbar-action-width);
-	height: var(--navbar-action-height);
-}
-.navbar-soft .navbar-action > :is(button, a) {
-	align-items: center;
-	justify-content: center;
-	gap: 0.25rem;
-	padding-inline: calc(0.5rem + var(--crumb-edge, 8px));
-	line-height: 1;
-}
-.navbar-soft .navbar-action > :is(button, a):has(> .dropdown-chevron) {
-	width: max-content;
-	min-width: var(--navbar-action-width);
-}
-.navbar-soft .navbar-action > :is(button, a):focus-visible {
-	outline: 2px solid hsl(var(--content-link));
-	outline-offset: -3px;
-}
-.navbar-soft .navbar-action > :is(button, a) > svg {
-	width: 1.125rem;
-	height: 1.125rem;
-	padding: 0;
-}
-.navbar-soft .navbar-action > :is(button, a) > svg.dropdown-chevron {
-	width: 0.75rem;
-	height: 0.75rem;
-}
-.navbar-soft .navbar-action > :is(button, a) {
-	--navbar-button-radius: 0;
-	border-radius: var(--navbar-button-radius);
-	clip-path: polygon(
-		0 0,
-		calc(100% - var(--crumb-edge, 8px)) 0,
-		100% 50%,
-		calc(100% - var(--crumb-edge, 8px)) 100%,
-		0 100%,
-		var(--crumb-edge, 8px) 50%
-	);
-}
-.navbar-soft[data-navbar-settings-side="right"]
-	.navbar-action
-	> :is(button, a) {
-	clip-path: polygon(
-		var(--crumb-edge, 8px) 0,
-		100% 0,
-		calc(100% - var(--crumb-edge, 8px)) 50%,
-		100% 100%,
-		var(--crumb-edge, 8px) 100%,
-		0 50%
-	);
-}
-.navbar-soft[data-navbar-settings-side="right"]
-	:is(.navbar-action, .category-action-host)
-	> :is(button, a)
-	> .dropdown-chevron {
-	order: -1;
-}
+
 .navbar-soft #coder-system-banner {
 	box-sizing: border-box;
 	height: var(--navbar-action-height);
 	min-height: var(--navbar-action-height);
 }
 .navbar-split {
+	box-sizing: border-box;
+	width: var(--navbar-action-width);
+	height: var(--navbar-action-height);
 	display: inline-flex;
 	align-items: stretch;
 	border: 1px solid hsl(var(--border-default));
@@ -603,14 +547,6 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 		100% 100%,
 		calc(100% - var(--crumb-edge)) 50%
 	);
-}
-.navbar-soft[data-navbar-settings-side="right"]
-	.navbar-start
-	.admin-navbar-breadcrumb
-	.category-action-host
-	> :is(a, button) {
-	padding-left: 0.875rem;
-	padding-right: calc(var(--crumb-edge) + 0.75rem);
 }
 
 /* Unread chats or notifications while the chat is not on screen (useUnreadGlow): the closed Settings chevron's outline

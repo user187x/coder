@@ -26,7 +26,7 @@ it("starts arranging the top bar, and resets it to the default layout", async ()
 
 it("moves the Settings chevron to the navbar's right end", async () => {
 	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
-		admin_nav_in_navbar: true,
+		admin_nav_in_navbar: false,
 	});
 	const save = vi
 		.spyOn(PlatformAPI, "setUserUIPreferences")

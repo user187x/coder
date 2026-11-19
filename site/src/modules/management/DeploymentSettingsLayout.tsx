@@ -1,10 +1,5 @@
 import { cn } from "cn";
-import {
-	PanelLeftIcon,
-	PanelRightIcon,
-	PanelTopIcon,
-	SettingsIcon,
-} from "lucide-react";
+import { PanelLeftIcon, PanelRightIcon, SettingsIcon } from "lucide-react";
 import { Suspense, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link, Navigate, Outlet, useLocation } from "react-router";
@@ -41,10 +36,7 @@ import {
 	breadcrumbMenuClass,
 } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { CategoryDefaultMenu } from "#/modules/dashboard/Navbar/DefaultViewOption";
-import {
-	NavbarActionTarget,
-	NavbarStart,
-} from "#/modules/dashboard/Navbar/NavbarAction";
+import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
 import {
 	TemplateDestinations,
 	WorkspaceDestinations,
@@ -76,24 +68,17 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const { permissions } = useAuthenticated();
 	const location = useLocation();
 	const sidebarId = useId();
-	const [sidebarOpen, setSidebarOpen] = useState(true);
-	// Shown or hidden from the breadcrumb: its toggle keeps the focus where the breadcrumb moves to.
-	const [toggled, setToggled] = useState(false);
 	const defaultView = useSettingsDefaultView();
-	// The breadcrumb and categories in the navbar's top left (the user's choice), the categories then in a popover.
 	const queryClient = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
 	const placement = useMutation(updateUserUIPreferences(queryClient));
-	const inNavbar = Boolean(preferences.data?.admin_nav_in_navbar);
 	// The navbar's end it sits at; on the right its popover hangs to the left.
 	const side = navbarSettingsSide(preferences.data);
 	const [categoriesOpen, setCategoriesOpen] = useState(false);
-	// In the navbar, the page's action button (NavbarAction) gets its own segment before the category.
-	const [actionHost, setActionHost] = useState<HTMLElement | null>(null);
 	// In the navbar, the Settings chevron opens the navbar's Settings menu, where there is one.
 	const settingsMenu = useSettingsMenuPresent();
 	// The navbar shows its own Settings chevron on every other page; here this breadcrumb holds it.
-	useRegisterPageSettingsBreadcrumb(inNavbar);
+	useRegisterPageSettingsBreadcrumb(true);
 	const { data: introduction } = useQuery({
 		...bannerQuery(false),
 		enabled: !isEmbeddedFrame(),
@@ -142,32 +127,21 @@ const DeploymentSettingsLayout: React.FC = () => {
 
 	const CategoryIcon = category?.icon ?? SettingsIcon;
 
-	const togglePlacement = (
+	const placementOptions = (
+		[
+			["left", "Left Side", PanelLeftIcon],
+			["right", "Right Side", PanelRightIcon],
+		] as const
+	).map(([position, label, Icon]) => (
 		<ContextMenuItem
-			disabled={placement.isPending}
-			onSelect={() => placement.mutate({ admin_nav_in_navbar: !inNavbar })}
+			key={position}
+			disabled={placement.isPending || position === side}
+			onSelect={() => placement.mutate({ navbar_settings_side: position })}
 		>
-			{inNavbar ? <PanelLeftIcon aria-hidden /> : <PanelTopIcon aria-hidden />}
-			{inNavbar ? "Beside Page" : "Navbar"}
+			<Icon aria-hidden />
+			{label}
 		</ContextMenuItem>
-	);
-	const placementOptions = inNavbar
-		? (
-				[
-					["left", "Left Side", PanelLeftIcon],
-					["right", "Right Side", PanelRightIcon],
-				] as const
-			).map(([position, label, Icon]) => (
-				<ContextMenuItem
-					key={position}
-					disabled={placement.isPending || position === side}
-					onSelect={() => placement.mutate({ navbar_settings_side: position })}
-				>
-					<Icon aria-hidden />
-					{label}
-				</ContextMenuItem>
-			))
-		: togglePlacement;
+	));
 
 	// Right-click outside the category segment to move the navigation.
 	const placementMenu = (children: React.ReactElement) => (
@@ -175,7 +149,6 @@ const DeploymentSettingsLayout: React.FC = () => {
 			<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
 			<BreadcrumbContextMenuContent aria-label="Settings navigation placement">
 				{placementOptions}
-				{inNavbar && togglePlacement}
 			</BreadcrumbContextMenuContent>
 		</ContextMenu>
 	);
@@ -212,7 +185,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 	) : null;
 
 	const navbarBreadcrumb = (
-		<NavbarStart>
+		<NavbarStart inlineWithoutNavbar>
 			{placementMenu(
 				<AdminBreadcrumb
 					variant="connected"
@@ -227,10 +200,6 @@ const DeploymentSettingsLayout: React.FC = () => {
 								<AdminCategoryMenu />
 							</BreadcrumbItem>
 						)}
-						<BreadcrumbItem
-							ref={setActionHost}
-							className="category-action-host"
-						/>
 						<CategoryDefaultMenu
 							path={category?.path}
 							actions={
@@ -297,109 +266,15 @@ const DeploymentSettingsLayout: React.FC = () => {
 		</NavbarStart>
 	);
 
-	const breadcrumb = (inline: boolean, className?: string) => (
-		<AdminBreadcrumb
-			variant="connected"
-			inline={inline}
-			className={cn("deployment-breadcrumb", className)}
-			data-categories-collapsed={!sidebarOpen || undefined}
-		>
-			<BreadcrumbList>
-				<BreadcrumbItem>
-					<AdminCategoryMenu />
-				</BreadcrumbItem>
-				<CategoryDefaultMenu
-					path={category?.path}
-					actions={
-						<>
-							<ContextMenuSeparator />
-							{placementOptions}
-						</>
-					}
-				>
-					<BreadcrumbItem>
-						{chat ? (
-							<BreadcrumbViewMenu
-								label="Chat"
-								trigger={<CategoryIcon aria-hidden />}
-							>
-								{chatDestinations}
-							</BreadcrumbViewMenu>
-						) : (
-							<CategoryBreadcrumbButton
-								label={category?.label ?? "General"}
-								icon={CategoryIcon}
-								controls={sidebarId}
-								sidebarOpen={sidebarOpen}
-								focusOnMount={toggled}
-								onToggle={() => {
-									setToggled(true);
-									setSidebarOpen((open) => !open);
-								}}
-							/>
-						)}
-					</BreadcrumbItem>
-				</CategoryDefaultMenu>
-			</BreadcrumbList>
-		</AdminBreadcrumb>
-	);
-
 	return (
 		<RequirePermission isFeatureVisible={canViewDeploymentSettingsPage}>
-			<div
-				data-admin-layout=""
-				className={cn(
-					// Auto margins center pages that fit below the navbar and let taller pages start at the top.
-					(inNavbar || chat) && "flex flex-1 flex-col",
-				)}
-			>
-				{/* With the categories open the breadcrumb heads their list, in place of its "Settings" label; collapsed
-				    (or on a small screen's Chat, where the list is hidden), it keeps a row of its own. */}
-				{inNavbar
-					? navbarBreadcrumb
-					: !sidebarOpen
-						? placementMenu(breadcrumb(false))
-						: chat && breadcrumb(false, "lg:hidden")}
-				{/* With the navigation in the navbar there is no categories list beside the page: the page sits centred. */}
-				<section
-					className={cn(
-						"max-w-[1920px] px-4 sm:px-6",
-						inNavbar || chat
-							? "mx-auto my-auto w-full lg:px-10"
-							: "lg:pr-10 lg:pl-4",
-					)}
-				>
-					<div
-						className={cn(
-							"flex flex-col gap-4 py-3 lg:flex-row lg:gap-8",
-							// Centred in the window, a page needs less room above and below it.
-							inNavbar ? "lg:py-3" : "lg:py-5",
-						)}
-					>
-						<div
-							id={sidebarId}
-							hidden={!sidebarOpen || inNavbar}
-							className={
-								sidebarOpen
-									? chat
-										? "hidden lg:contents"
-										: "contents"
-									: undefined
-							}
-						>
-							{sidebarOpen && !inNavbar && (
-								<DeploymentSidebar header={placementMenu(breadcrumb(true))} />
-							)}
-						</div>
-						<div className={cn("grow min-w-0", inNavbar && "[&>*]:mx-auto")}>
+			<div data-admin-layout="" className="flex flex-1 flex-col">
+				{navbarBreadcrumb}
+				<section className="mx-auto my-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-10">
+					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8">
+						<div className="grow min-w-0 [&>*]:mx-auto">
 							<Suspense fallback={<PageLoader />}>
-								{inNavbar ? (
-									<NavbarActionTarget.Provider value={actionHost}>
-										<Outlet />
-									</NavbarActionTarget.Provider>
-								) : (
-									<Outlet />
-								)}
+								<Outlet />
 							</Suspense>
 						</div>
 					</div>

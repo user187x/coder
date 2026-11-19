@@ -327,8 +327,7 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 	const preferences = useQuery(userUIPreferences());
 	const settingsMenu = useSettingsMenuPresent();
 	const showBreadcrumb =
-		Boolean(preferences.data?.admin_nav_in_navbar) &&
-		(settingsMenu || Boolean(preferences.data?.settings_sidebar));
+		settingsMenu || Boolean(preferences.data?.settings_sidebar);
 	useRegisterPageSettingsBreadcrumb(showBreadcrumb);
 	const displayName = template.display_name || template.name;
 	const menu = (canCreateWorkspace || permissions.canUpdateTemplate) && (

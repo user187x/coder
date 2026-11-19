@@ -1,12 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { BoxIcon, ImagesIcon } from "lucide-react";
+import { ImagesIcon } from "lucide-react";
 import { userEvent, within } from "storybook/test";
 import {
 	BreadcrumbItem,
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
-import { Button } from "#/components/Button/Button";
 import "#/modules/dashboard/Navbar/navbarSkeuo.css";
 import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
 import {
@@ -79,8 +78,7 @@ export const Categories: Story = {
 	},
 };
 
-/** In the navbar: the chevrons in their recessed well, the page's action button in the category chevron's place. */
-export const NavbarPageAction: Story = {
+export const NavbarCategory: Story = {
 	render: () => (
 		<div className="navbar-start flex h-[72px] items-center bg-surface-primary px-6">
 			<AdminBreadcrumb
@@ -101,12 +99,6 @@ export const NavbarPageAction: Story = {
 								sidebarOpen={false}
 								onToggle={() => {}}
 							/>
-							<span className="category-action-host">
-								<Button size="lg">
-									<BoxIcon />
-									New Image
-								</Button>
-							</span>
 						</span>
 					</BreadcrumbItem>
 				</BreadcrumbList>

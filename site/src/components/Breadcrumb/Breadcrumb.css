@@ -423,18 +423,6 @@
 .breadcrumb-connected:not(.admin-navbar-breadcrumb) > ol > li > a:hover {
 	background: var(--crumb-face-hover);
 }
-.breadcrumb-connected.admin-navbar-breadcrumb
-	> ol
-	> li.category-action-host
-	> :is(a, button) {
-	white-space: nowrap;
-}
-.breadcrumb-connected.admin-navbar-breadcrumb
-	> ol
-	> li.category-action-host
-	> :is(a, button):where(:hover) {
-	background: var(--crumb-face-hover);
-}
 /* The current page's crumb takes its stripe's ink, not the beside-the-page breadcrumb's dark gray. */
 .breadcrumb-connected.deployment-breadcrumb.admin-navbar-breadcrumb
 	> ol

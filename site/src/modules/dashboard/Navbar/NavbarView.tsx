@@ -100,12 +100,10 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	// The items taken off the navbar: the notification bell among them or not (the Settings badge leaves the inbox
 	// and chats to the bell while it shows).
 	const { hidden: navbarHidden } = useNavbarOrder(defaultLayout);
-	// The admin settings' navigation in the navbar (the user's choice, everywhere): the Settings menu opens from the
+	// The admin settings' navigation in the navbar: the Settings menu opens from the
 	// Settings chevron on every page, never the navbar's own Settings button; settings pages put the chevron in their
 	// breadcrumb, every other page in the navbar's own.
-	const settingsInNavbar =
-		Boolean(preferences.data?.admin_nav_in_navbar) &&
-		canViewAdminSettings(adminPermissions);
+	const settingsInNavbar = canViewAdminSettings(adminPermissions);
 	const pageCrumb = usePageSettingsBreadcrumb();
 	const { pathname } = useLocation();
 	const pageLabel = navbarPageLabel(pathname);

@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { API } from "#/api/api";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
 import { AdminSettingsFrame } from "./AdminSettingsFrame";
@@ -14,15 +15,10 @@ describe("AdminSettingsFrame", () => {
 	it("frames the page with the settings menu and breadcrumb for admins", async () => {
 		renderAt("/workspaces");
 		await screen.findByRole("heading", { name: "Workspaces list" });
-		expect(screen.getByRole("link", { name: "Templates" })).toHaveAttribute(
-			"href",
-			"/templates",
-		);
-		expect(screen.getByRole("link", { name: "Workspaces" })).toHaveAttribute(
-			"aria-current",
-			"page",
-		);
-		expect(screen.getByRole("button", { name: "Workspaces" })).toBeDefined();
+		await userEvent.click(screen.getByRole("button", { name: "Workspaces" }));
+		expect(
+			await screen.findByRole("menuitem", { name: "Create Workspace" }),
+		).toHaveAttribute("href", expect.stringContaining("/workspaces"));
 	});
 
 	it("shows the page alone to non-admins", async () => {

@@ -36,7 +36,6 @@ export const NavbarLayoutSection: React.FC<{
 	const preferences = useQuery(userUIPreferences());
 	const stripOff = Boolean(preferences.data?.navbar_strip_off);
 	const { permissions } = useAuthenticated();
-	const adminNav = Boolean(preferences.data?.admin_nav_in_navbar);
 	const floating = Boolean(preferences.data?.navbar_floating);
 	const settingsRight = preferences.data?.navbar_settings_side === "right";
 	const savedRadius = preferences.data?.navbar_strip_radius ?? DEFAULT_RADIUS;
@@ -106,25 +105,6 @@ export const NavbarLayoutSection: React.FC<{
 					</span>
 				</div>
 				{permissions.viewDeploymentConfig && (
-					<div className="flex items-start gap-3">
-						<Switch
-							id={`${id}-admin-nav`}
-							checked={adminNav}
-							disabled={save.isPending || !preferences.isSuccess}
-							onCheckedChange={(on) => save.mutate({ admin_nav_in_navbar: on })}
-						/>
-						<span className="flex flex-col">
-							<Label htmlFor={`${id}-admin-nav`}>
-								Admin settings navigation in the navbar
-							</Label>
-							<span className="text-xs text-content-secondary">
-								The settings breadcrumb and categories in the navbar's top left,
-								the page full width. Also from a right-click on the breadcrumb.
-							</span>
-						</span>
-					</div>
-				)}
-				{permissions.viewDeploymentConfig && adminNav && (
 					<div className="flex items-start gap-3">
 						<Switch
 							id={`${id}-settings-side`}
