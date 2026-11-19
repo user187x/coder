@@ -530,7 +530,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 							className="my-1 overflow-y-auto shadow-lg overscroll-contain rounded-lg border border-solid border-border bg-surface-secondary p-1 scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
 						>
 							{showChat && (
-								<div className="flex items-center">
+								<div className="flex flex-wrap items-center">
 									<ChatMenuItem
 										className={cn(
 											"min-w-0 flex-1",

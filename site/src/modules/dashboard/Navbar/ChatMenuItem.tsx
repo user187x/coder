@@ -1,4 +1,11 @@
-import { MessagesSquareIcon } from "lucide-react";
+import {
+	ArrowUpFromLineIcon,
+	EyeIcon,
+	EyeOffIcon,
+	MessagesSquareIcon,
+	PinIcon,
+	SquareTerminalIcon,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useNavigate } from "react-router";
@@ -11,6 +18,7 @@ import {
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { CountBadge } from "#/modules/platform/chat/ChatWindow";
 import {
+	closeConsoleOverlay,
 	setDockMode,
 	unreadTotal,
 	useChatSnapshot,
@@ -55,7 +63,7 @@ const ChatMenuItemBody = ({
 			{ onSuccess: () => setDockMode("bar") },
 		);
 	};
-	const toggle = () => {
+	const setVisible = (visible: boolean, resetPosition = false) => {
 		if (preferences.isError && !preferences.data) {
 			toast.error(
 				getErrorMessage(
@@ -66,8 +74,16 @@ const ChatMenuItemBody = ({
 			void preferences.refetch();
 			return;
 		}
-		if (hidden) show();
-		else save.mutate({ chat_hidden: true });
+		save.mutate(
+			{ chat_hidden: !visible, ...(resetPosition && { chat_position: null }) },
+			{
+				onSuccess: () => {
+					closeConsoleOverlay();
+					if (expanded) onToggle?.();
+					setDockMode("bar");
+				},
+			},
+		);
 	};
 	return (
 		<>
@@ -112,23 +128,50 @@ const ChatMenuItemBody = ({
 								onPin();
 							}}
 						>
+							<PinIcon aria-hidden />
 							Add quick link
+						</DropdownMenuItem>
+					)}
+					{hidden && (
+						<DropdownMenuItem
+							disabled={save.isPending}
+							onSelect={(event) => {
+								event.preventDefault();
+								setVisible(true, true);
+							}}
+						>
+							<EyeIcon aria-hidden />
+							Show
+						</DropdownMenuItem>
+					)}
+					{admin && (
+						<DropdownMenuItem onSelect={() => navigate(CHAT_CONSOLE_PAGE)}>
+							<SquareTerminalIcon aria-hidden />
+							Console
 						</DropdownMenuItem>
 					)}
 					<DropdownMenuItem
 						disabled={save.isPending || preferences.isLoading}
 						onSelect={(event) => {
 							event.preventDefault();
-							toggle();
+							setVisible(true);
 						}}
 					>
-						{hidden ? "Show" : "Hide"}
+						<ArrowUpFromLineIcon aria-hidden />
+						Panel
 					</DropdownMenuItem>
-					{admin && (
-						<DropdownMenuItem onSelect={() => navigate(CHAT_CONSOLE_PAGE)}>
-							Console
-						</DropdownMenuItem>
-					)}
+					<DropdownMenuItem
+						disabled={
+							save.isPending || preferences.isLoading || (hidden && !expanded)
+						}
+						onSelect={(event) => {
+							event.preventDefault();
+							setVisible(false);
+						}}
+					>
+						<EyeOffIcon aria-hidden />
+						Hide
+					</DropdownMenuItem>
 				</div>
 			)}
 		</>

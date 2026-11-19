@@ -241,7 +241,10 @@ export const SettingsFacePanel: React.FC<{
 						? undefined
 						: current === "chat"
 							? { height: tallest || CHAT_FACE_HEIGHT }
-							: { minHeight: tallest || undefined }
+							: {
+									minHeight: `var(--settings-face-min-height, ${tallest}px)`,
+									flexBasis: tallest || undefined,
+								}
 				}
 			>
 				<div

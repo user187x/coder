@@ -260,3 +260,44 @@
 .settings-face-panel[data-face-collapsed="up"] .settings-face-arrows {
 	padding-bottom: 0;
 }
+
+.settings-menu-surface[data-quick-links-collapsed] .settings-menu-well {
+	flex: 0 0 auto;
+}
+
+/* Keep the Controls bar and the face slits in separate rows, even when the links drawer closes. */
+.settings-menu
+	.settings-menu-surface[data-slit-layout="both"]
+	.settings-menu-well {
+	min-height: 3.75rem;
+}
+
+/* In the split layout, reserve space for the quick links and their controls. */
+.settings-menu-surface[data-slit-layout="both"]
+	.settings-menu-well
+	~ .settings-face-panel {
+	display: flex;
+	flex-direction: column;
+	--settings-face-min-height: 0px;
+	max-height: calc(
+		var(--radix-dropdown-menu-content-available-height, 80vh) *
+		0.5 /
+		var(--app-zoom, 1)
+	);
+
+	& .settings-face-arrows {
+		flex-shrink: 0;
+	}
+
+	& > :last-child,
+	& .settings-compact-chat {
+		min-height: 0;
+	}
+}
+
+.settings-menu[data-settings-docked]
+	.settings-menu-surface[data-slit-layout="both"]
+	.settings-menu-well
+	~ .settings-face-panel {
+	max-height: 50%;
+}

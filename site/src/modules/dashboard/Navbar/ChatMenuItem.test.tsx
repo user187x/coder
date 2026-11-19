@@ -13,13 +13,15 @@ import { ChatMenuItem } from "./ChatMenuItem";
 
 afterEach(() => vi.restoreAllMocks());
 it.each([
-	[true, true],
-	[false, true],
-	[true, false],
-	[false, false],
+	[true, true, "Show"],
+	[false, true, "Hide"],
+	[true, false, "Show"],
+	[false, false, "Hide"],
+	[false, true, "Panel"],
+	[true, false, "Panel"],
 ])(
-	"toggles the hidden preference from the navbar context menu (hidden %s, admin %s)",
-	async (hidden, admin) => {
+	"updates chat visibility from the context menu (hidden %s, admin %s, action %s)",
+	async (hidden, admin, action) => {
 		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 			chat_hidden: hidden,
 		});
@@ -45,16 +47,15 @@ it.each([
 			keys: "[MouseRight]",
 		});
 		expect(arrange).not.toHaveBeenCalled();
-		await user.click(
-			await screen.findByRole("menuitem", {
-				name: hidden ? "Show" : "Hide",
-			}),
-		);
+		const choice = await screen.findByRole("menuitem", { name: action });
+		await user.click(choice);
 		await waitFor(() =>
 			expect(save).toHaveBeenCalledWith(
-				hidden
-					? { chat_hidden: false, chat_position: null }
-					: { chat_hidden: true },
+				action === "Hide"
+					? { chat_hidden: true }
+					: action === "Show"
+						? { chat_hidden: false, chat_position: null }
+						: { chat_hidden: false },
 			),
 		);
 	},
