@@ -42,7 +42,7 @@ class ResearchSandboxTest(unittest.TestCase):
                 ], check=True, capture_output=True, text=True)
                 docs = list(yaml.safe_load_all(result.stdout))
                 service = next(d for d in docs if d and d["kind"] == "Deployment"
-                               and d["metadata"]["name"] == "coder-ui-updates")
+                               and d["metadata"]["name"] == "coder-ui")
                 env = service["spec"]["template"]["spec"]["containers"][0]["env"]
                 self.assertEqual(next(v["value"] for v in env if v["name"] == "BUILDER_RESEARCH_IMAGE"), image)
 

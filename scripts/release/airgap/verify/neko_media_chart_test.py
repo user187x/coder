@@ -61,7 +61,7 @@ class NekoMediaChartTest(unittest.TestCase):
             'app.kubernetes.io/name': 'coder', 'coder-airgapped/ha-role': 'active'})
         self.assertEqual(spec['ports'], [{'name': 'media-' + str(port), 'port': port,
             'targetPort': port, 'nodePort': port, 'protocol': 'UDP'} for port in range(30100, 30116)])
-        for name, mode in (('coder', 0o440), ('coder-ui-updates', 0o400)):
+        for name, mode in (('coder-server', 0o440), ('coder-ui', 0o400)):
             deployment = next(doc for doc in docs if doc['kind'] == 'Deployment' and doc['metadata']['name'] == name)
             pod = deployment['spec']['template']['spec']
             volume = next(volume for volume in pod['volumes'] if volume['name'] == 'neko-media-key')
@@ -70,7 +70,7 @@ class NekoMediaChartTest(unittest.TestCase):
             mount = next(mount for mount in container['volumeMounts'] if mount['name'] == 'neko-media-key')
             self.assertEqual(mount, {'name': 'neko-media-key', 'mountPath': '/run/coder-neko', 'readOnly': True})
             env = {item['name']: item for item in container['env']}
-            if name == 'coder':
+            if name == 'coder-server':
                 config = json.loads(env['CODER_NEKO_MEDIA_CONFIG']['value'])
                 self.assertEqual(config['port_min'], MEDIA['portMin'])
                 self.assertEqual(config['port_max'], MEDIA['portMax'])

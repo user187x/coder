@@ -844,10 +844,14 @@ def main():
     check("marimo is gone (code, templates, images, docs; history and reference exports aside)", not left, left[:5])
     # code-server HA (templates/code-server-ha.yaml, files/ui-updates/csha.py)
     ui_img = re.search(r"image: (docker\.io/mrshll187/coder-ui-updates:[A-Za-z0-9._-]+)", r)
-    op = re.search(r"name: coder-server-replicator\n(?:.*\n){0,40}?\s+command: \[python3, /app/csha\.py, operator\]", r)
+    replicator = next((d for d in yaml.safe_load_all(r) if d and d["kind"] == "Deployment"
+                       and d["metadata"]["name"] == "coder-server-replicator"), {})
+    containers = replicator.get("spec", {}).get("template", {}).get("spec", {}).get("containers", [])
+    operator = next((c for c in containers if c["name"] == "operator"), {})
+    database = next((e.get("valueFrom") for e in operator.get("env", []) if e["name"] == "CSHA_DB"), None)
     check("code-server HA: the code-server-replicator runs the platform service's code, as Coder's database's owner",
-          op and "CSHA_DB" in r and re.search(r"name: CSHA_DB\s*\n\s*valueFrom: \{secretKeyRef: \{name: coder-db-app, key: uri\}\}", r),
-          "")
+          operator.get("command") == ["python3", "/app/csha.py", "operator"]
+          and database == {"secretKeyRef": {"name": "coder-db-app", "key": "uri"}}, "")
     check("code-server HA: the relay role is CloudNativePG's (managed role from its basic-auth Secret), and the template "
           "push gives the relay the platform service's image",
           re.search(r"managed:\s*\n\s*roles:\s*\n\s*- name: code_server_relay", r)

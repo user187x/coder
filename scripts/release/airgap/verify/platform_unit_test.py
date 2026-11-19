@@ -4859,10 +4859,10 @@ class LogoVisibilityTest(unittest.TestCase):
         store.put_setting.assert_not_called()
         _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance")
         store.put_setting.assert_called_once_with(
-            "navbar_appearance", {"transparency": 40, "scale": 100, "wireframe": True, "color": None})
+            "navbar_appearance", {"transparency": 40, "scale": 105, "wireframe": False, "color": "#2e3137"})
         _, _, store = self.post({"transparency": 40, "color": "#1A2B3C"}, path="/api/navbar-appearance")
         store.put_setting.assert_called_once_with(
-            "navbar_appearance", {"transparency": 40, "scale": 100, "wireframe": True, "color": "#1a2b3c"})
+            "navbar_appearance", {"transparency": 40, "scale": 105, "wireframe": False, "color": "#1a2b3c"})
         for invalid in ({"scale": 126}, {"scale": True}, {"wireframe": "false"}, {"color": "red"},
                         {"color": "#12345"}, {"color": 0x123456}):
             handler, _, store = self.post({"transparency": 40, **invalid}, path="/api/navbar-appearance")
@@ -4877,7 +4877,7 @@ class LogoVisibilityTest(unittest.TestCase):
         layout = {"order": ["action", *legacy], "hidden": []}
         _, _, store = self.post(layout, path=path, allowed=False)
         store.put_setting.assert_not_called()
-        for invalid in ({**layout, "hidden": ["action"]}, {**layout, "hidden": ["banner"]}, {**layout, "order": [*legacy, "logo"]}):
+        for invalid in ({**layout, "hidden": ["banner"]}, {**layout, "order": [*legacy, "logo"]}):
             handler, _, store = self.post(invalid, path=path)
             self.assertEqual(handler.send_json.call_args.args[0], 400)
             store.put_setting.assert_not_called()

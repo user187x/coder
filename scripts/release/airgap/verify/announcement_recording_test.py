@@ -29,7 +29,7 @@ class AnnouncementRecordingTest(unittest.TestCase):
                  mock.patch.object(ui, "STORE") as store, \
                  mock.patch.object(ui, "publish_announcement_notification"), mock.patch.object(ui, "log"):
                 ui.Handler.receipt(handler, ack, {"id": "abc123"})
-                store.record.assert_called_once_with("abc123", user, ack, banner)
+                store.record.assert_called_once_with("abc123", user, ack, banner, None)
                 handler.send_json.assert_called_once_with(200, {"ok": True})
 
     def test_disabled_report_does_not_create_an_event(self):
