@@ -69,6 +69,29 @@ export const ResourcesMenu: Story = {
 	},
 };
 
+export const ResizableWithoutBackstrip: Story = {
+	parameters: {
+		pixel: { matrix: pixelWithDesktop },
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					navbar_floating: true,
+					navbar_strip_off: true,
+					navbar_resizable_width: 85,
+				},
+			},
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.hover(
+			within(canvasElement).getByRole("separator", {
+				name: /from its right end/,
+			}),
+		);
+	},
+};
+
 export const AccountActionAlignment: Story = {
 	decorators: [withAuthProvider],
 	parameters: {

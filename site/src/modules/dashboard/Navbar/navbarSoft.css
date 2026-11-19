@@ -78,6 +78,11 @@
 	interpolate-size: allow-keywords;
 	transition: width 0.3s ease;
 }
+.navbar-soft[data-navbar-strip="off"] .navbar-resizable-group {
+	background-color: transparent;
+	border-color: transparent;
+	box-shadow: none;
+}
 .navbar-resizable-group[data-dragging] {
 	transition: none;
 	user-select: none;
