@@ -154,6 +154,10 @@ spec:
             - {name: CSHA_ENDPOINT_EXTERNAL, value: {{ $h.endpointExternal | quote }}}
             - {name: CSHA_LEASE_SECONDS, value: {{ $h.leaseSeconds | quote }}}
             - {name: CSHA_RELAY_IMAGE, value: {{ $ui.image | quote }}}
+            {{- if and $h.editorImage $h.editorImageWorkspace }}
+            - {name: CSHA_EDITOR_IMAGE, value: {{ $h.editorImage | quote }}}
+            - {name: CSHA_EDITOR_IMAGE_WORKSPACE, value: {{ $h.editorImageWorkspace | quote }}}
+            {{- end }}
             - {name: CSHA_DB_CA, value: /etc/coder-db-ca/ca.crt}
             # Coder's database as its owner (the app user): the operator makes the schema code_server_ha and its
             # functions, and grants the relay role their use.

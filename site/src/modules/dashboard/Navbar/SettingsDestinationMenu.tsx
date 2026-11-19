@@ -1,11 +1,12 @@
 import { cn } from "cn";
-import { PlusIcon } from "lucide-react";
+import { MonitorIcon, PlusIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { useQuery } from "react-query";
 import { Link, useLocation } from "react-router";
 import { deploymentConfig } from "#/api/queries/deployment";
 import { templates } from "#/api/queries/templates";
 import { workspaces } from "#/api/queries/workspaces";
+import { Avatar } from "#/components/Avatar/Avatar";
 import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
@@ -17,6 +18,7 @@ import {
 	linkToTemplate,
 	useLinks,
 } from "#/modules/navigation";
+import { useWorkspaceIcons } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import type { AdminPage } from "./adminQuickLinks";
 import { MenuLabel } from "./InlineMenu";
 
@@ -88,6 +90,7 @@ export function WorkspaceDestinations() {
 	const canCreateWorkspace =
 		useOptionalAuthContext()?.permissions?.createWorkspace;
 	const query = useQuery(workspaces({ q: "owner:me" }));
+	const { data: icons } = useWorkspaceIcons();
 	const { pathname, search } = useLocation();
 	const createSearch = new URLSearchParams(
 		pathname === "/workspaces" ? search : "",
@@ -96,15 +99,29 @@ export function WorkspaceDestinations() {
 	const ownedWorkspaces = query.data?.workspaces ?? [];
 	return (
 		<>
-			{ownedWorkspaces.map((item) => (
-				<DropdownMenuItem key={item.id} asChild>
-					<Link
-						to={`/@${encodeURIComponent(item.owner_name)}/${encodeURIComponent(item.name)}`}
-					>
-						{item.name}
-					</Link>
-				</DropdownMenuItem>
-			))}
+			{ownedWorkspaces.map((item) => {
+				const icon = icons?.[item.id] || item.template_icon;
+				return (
+					<DropdownMenuItem key={item.id} asChild>
+						<Link
+							to={`/@${encodeURIComponent(item.owner_name)}/${encodeURIComponent(item.name)}`}
+						>
+							{icon ? (
+								<Avatar
+									variant="icon"
+									size="sm"
+									src={icon}
+									fallback={item.name}
+									aria-hidden
+								/>
+							) : (
+								<MonitorIcon aria-hidden />
+							)}
+							{item.name}
+						</Link>
+					</DropdownMenuItem>
+				);
+			})}
 			{query.isLoading && (
 				<DropdownMenuItem disabled>Loading workspaces…</DropdownMenuItem>
 			)}
