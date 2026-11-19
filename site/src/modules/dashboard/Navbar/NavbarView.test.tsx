@@ -149,7 +149,23 @@ describe("NavbarView", () => {
 		},
 	);
 
-	it("keeps right-click on a portaled page action out of rearrange mode", async () => {
+	it("hides a portaled page action without entering rearrange mode", async () => {
+		const order = [
+			"logo",
+			"banner",
+			"action",
+			"workspaces",
+			"latency",
+			"hud",
+			"notifications",
+			"account",
+		];
+		vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+			navbar_layout: { order, hidden: [] },
+		});
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => changes);
 		const onClick = vi.fn();
 		const Page = () => {
 			const [target, setTarget] = useState<HTMLDivElement | null>(null);
@@ -184,6 +200,12 @@ describe("NavbarView", () => {
 		expect(
 			screen.queryByRole("button", { name: "Move Page action" }),
 		).not.toBeInTheDocument();
+		await user.click(await screen.findByRole("menuitem", { name: "Hide" }));
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({
+				navbar_layout: { order, hidden: ["action"] },
+			}),
+		);
 		expect(onClick).not.toHaveBeenCalled();
 	});
 

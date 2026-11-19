@@ -481,6 +481,18 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 	);
 };
 
+// The page action is portaled here, so its React events follow the page's tree.
+const forwardActionContextMenu = (tile: HTMLDivElement | null) => {
+	if (!tile) return;
+	const forward = (event: MouseEvent) => {
+		if (event.target === tile || event.defaultPrevented) return;
+		event.preventDefault();
+		tile.dispatchEvent(new MouseEvent("contextmenu", event));
+	};
+	tile.addEventListener("contextmenu", forward);
+	return () => tile.removeEventListener("contextmenu", forward);
+};
+
 type ArrangeItemProps = {
 	label?: string;
 	id: NavbarItem | typeof SETTINGS_CHEVRONS;
@@ -525,6 +537,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 
 	const tile = (
 		<div
+			ref={id === "action" && onHide ? forwardActionContextMenu : undefined}
 			className={cn(
 				"flex min-w-0 flex-1",
 				arranging && "pointer-events-none opacity-90",
