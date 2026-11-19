@@ -28,6 +28,7 @@ export const Default: Story = {
 		unreadCount: 2,
 		notifications: MockNotifications.slice(0, 3),
 		onClearAll: fn(),
+		onDeleteSelected: fn(),
 	},
 };
 

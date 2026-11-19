@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import { Link as RouterLink } from "react-router";
 import type { InboxNotification } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { Link } from "#/components/Link/Link";
 import { relativeTime } from "#/utils/time";
 import { InboxAvatar } from "./InboxAvatar";
@@ -10,11 +11,13 @@ import { InboxAvatar } from "./InboxAvatar";
 type InboxItemProps = {
 	notification: InboxNotification;
 	onMarkNotificationAsRead: (notificationId: string) => void;
+	selection?: { checked: boolean; onChange: (checked: boolean) => void };
 };
 
 export const InboxItem: React.FC<InboxItemProps> = ({
 	notification,
 	onMarkNotificationAsRead,
+	selection,
 }) => {
 	return (
 		<div
@@ -22,11 +25,19 @@ export const InboxItem: React.FC<InboxItemProps> = ({
 			role="menuitem"
 			tabIndex={-1}
 		>
+			{selection && (
+				<Checkbox
+					className="mt-2.5 shrink-0"
+					aria-label={`Select ${notification.title}`}
+					checked={selection.checked}
+					onCheckedChange={(checked) => selection.onChange(checked === true)}
+				/>
+			)}
 			<div className="shrink-0">
 				<InboxAvatar icon={notification.icon} />
 			</div>
 
-			<div className="flex flex-col gap-3 flex-1">
+			<div className="flex min-w-0 flex-1 flex-col gap-3">
 				<Markdown
 					className="text-content-secondary prose-sm font-medium wrap-anywhere"
 					components={{
@@ -37,7 +48,7 @@ export const InboxItem: React.FC<InboxItemProps> = ({
 				>
 					{notification.content}
 				</Markdown>
-				<div className="flex items-center gap-1">
+				<div className="flex flex-wrap items-center gap-1">
 					{notification.actions.map((action) => {
 						return (
 							<Button variant="outline" size="sm" key={action.label} asChild>

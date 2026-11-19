@@ -1,4 +1,5 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { MockNotifications } from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
@@ -114,5 +115,55 @@ describe("searchNotifications (the Inbox's search box)", () => {
 			"3",
 		]);
 		expect(searchNotifications(all, "nothing here")).toEqual([]);
+	});
+});
+
+describe("Inbox multi-selection", () => {
+	it("keeps two checked entries and deletes only their IDs after confirmation", async () => {
+		const notifications = MockNotifications.slice(0, 3).map((item, index) => ({
+			...item,
+			title: `Notification ${index + 1}`,
+		}));
+		const onDeleteSelected = vi.fn();
+		const onClearAll = vi.fn();
+		renderComponent(
+			<MemoryRouter>
+				<InboxPopover
+					defaultOpen
+					notifications={notifications}
+					unreadCount={3}
+					error={undefined}
+					isLoadingMoreNotifications={false}
+					hasMoreNotifications={false}
+					onRetry={vi.fn()}
+					onMarkAllAsRead={vi.fn()}
+					onClearAll={onClearAll}
+					onDeleteSelected={onDeleteSelected}
+					onMarkNotificationAsRead={vi.fn()}
+					onLoadMoreNotifications={vi.fn()}
+				/>
+			</MemoryRouter>,
+		);
+		const user = userEvent.setup();
+		await user.click(
+			screen.getByRole("button", { name: "Select notifications" }),
+		);
+		await user.click(
+			screen.getByRole("checkbox", { name: "Select Notification 1" }),
+		);
+		await user.click(
+			screen.getByRole("checkbox", { name: "Select Notification 3" }),
+		);
+		await user.click(screen.getByRole("button", { name: "Delete selected" }));
+		expect(onDeleteSelected).not.toHaveBeenCalled();
+		const dialog = await screen.findByRole("dialog", {
+			name: "Delete selected notifications?",
+		});
+		await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+		expect(onDeleteSelected).toHaveBeenCalledWith(
+			[notifications[0].id, notifications[2].id],
+			expect.any(Function),
+		);
+		expect(onClearAll).not.toHaveBeenCalled();
 	});
 });

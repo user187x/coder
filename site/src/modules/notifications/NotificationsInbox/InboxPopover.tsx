@@ -1,15 +1,18 @@
 import { cn } from "cn";
 import {
 	CheckCheckIcon,
+	ListChecksIcon,
 	RefreshCwIcon,
 	SearchIcon,
 	SettingsIcon,
 	Trash2Icon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router";
 import type { InboxNotification } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
+import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import {
 	Popover,
 	PopoverContent,
@@ -53,6 +56,8 @@ type InboxPopoverProps = {
 	/** Platform: delete every notification (the Inbox's Clear all); none, no button. */
 	onClearAll?: () => void;
 	isClearing?: boolean;
+	onDeleteSelected?: (ids: string[], onSuccess: () => void) => void;
+	isDeletingSelected?: boolean;
 	onMarkNotificationAsRead: (notificationId: string) => void;
 	onLoadMoreNotifications: () => void;
 	defaultOpen?: boolean;
@@ -76,6 +81,8 @@ export const InboxPanel: React.FC<
 	onMarkAllAsRead,
 	onClearAll,
 	isClearing,
+	onDeleteSelected,
+	isDeletingSelected,
 	onMarkNotificationAsRead,
 	onLoadMoreNotifications,
 	onNavigate,
@@ -99,16 +106,37 @@ export const InboxPanel: React.FC<
 		[notifications, query],
 	);
 
+	const selectShownId = useId();
+	const selectionToggle = useRef<HTMLButtonElement>(null);
+	const [selecting, setSelecting] = useState(false);
+	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+	const [confirmIds, setConfirmIds] = useState<string[]>();
+	const selection =
+		notifications?.filter((item) => selected.has(item.id)) ?? [];
+	const shownIds = shown?.map((item) => item.id) ?? [];
+	const allShownSelected =
+		shownIds.length > 0 && shownIds.every((id) => selected.has(id));
+	const someShownSelected = shownIds.some((id) => selected.has(id));
+	const select = (ids: readonly string[], checked: boolean) =>
+		setSelected((previous) => {
+			const next = new Set(previous);
+			for (const id of ids) {
+				if (checked) next.add(id);
+				else next.delete(id);
+			}
+			return next;
+		});
+
 	return (
 		<div className="flex min-h-0 max-h-[calc(var(--radix-popover-content-available-height)/var(--app-zoom,1))] flex-col">
-			<div className="flex shrink-0 items-center gap-2 p-3 border-0 border-b border-solid border-border">
+			<div className="flex shrink-0 flex-wrap items-center gap-2 p-3 border-0 border-b border-solid border-border">
 				<div className="flex shrink-0 items-center gap-2">
 					<span className="text-xl font-semibold">Inbox</span>
 					{unreadCount > 0 && <UnreadBadge count={unreadCount} />}
 				</div>
 
 				<label
-					className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-solid border-border bg-surface-primary px-2 focus-within:border-content-link"
+					className="flex h-8 min-w-28 flex-1 items-center gap-1.5 rounded-md border border-solid border-border bg-surface-primary px-2 focus-within:border-content-link"
 					data-testid="inbox-search"
 				>
 					<SearchIcon className="size-3.5 shrink-0 text-content-secondary" />
@@ -128,12 +156,35 @@ export const InboxPanel: React.FC<
 					/>
 				</label>
 
-				<div className="bulk-action-surface flex shrink-0 justify-end gap-1 rounded-md p-1">
+				<div className="bulk-action-surface ml-auto flex shrink-0 justify-end gap-1 rounded-md p-1">
+					{onDeleteSelected && (
+						<Button
+							variant="outline"
+							size="icon"
+							disabled={!hasNotifications && !selecting}
+							ref={selectionToggle}
+							aria-label="Select notifications"
+							aria-pressed={selecting}
+							title="Select notifications"
+							onClick={() => {
+								setSelecting(!selecting);
+								setSelected(new Set());
+								setClearArmed(false);
+							}}
+						>
+							<ListChecksIcon />
+						</Button>
+					)}
 					{onClearAll && (
 						<Button
 							variant={clearArmed ? "destructive" : "outline"}
 							size={clearArmed ? "sm" : "icon"}
-							disabled={!hasNotifications || isClearing}
+							disabled={
+								!hasNotifications ||
+								isClearing ||
+								isDeletingSelected ||
+								selecting
+							}
 							title={
 								clearArmed
 									? "Click again to clear all notifications"
@@ -179,6 +230,31 @@ export const InboxPanel: React.FC<
 				</div>
 			</div>
 
+			{selecting && (
+				<div className="flex flex-wrap items-center gap-2 border-0 border-b border-solid border-border px-3 py-2 text-xs">
+					<label className="flex items-center gap-2" htmlFor={selectShownId}>
+						<Checkbox
+							id={selectShownId}
+							checked={
+								allShownSelected || (someShownSelected && "indeterminate")
+							}
+							disabled={shownIds.length === 0}
+							onCheckedChange={(checked) => select(shownIds, checked === true)}
+						/>
+						Select shown
+					</label>
+					<span role="status">{selection.length} selected</span>
+					<Button
+						variant="outline"
+						size="sm"
+						className="ml-auto"
+						disabled={selection.length === 0 || isDeletingSelected}
+						onClick={() => setConfirmIds(selection.map((item) => item.id))}
+					>
+						Delete selected
+					</Button>
+				</div>
+			)}
 			<ScrollArea className="min-h-0 flex-1 [&>[data-radix-scroll-area-viewport]]:max-h-[calc(var(--radix-popover-content-available-height)/var(--app-zoom,1)-4.5rem)]">
 				<div className="p-2" data-testid="inbox-list">
 					{shown ? (
@@ -194,6 +270,15 @@ export const InboxPanel: React.FC<
 										key={notification.id}
 										notification={notification}
 										onMarkNotificationAsRead={onMarkNotificationAsRead}
+										selection={
+											selecting
+												? {
+														checked: selected.has(notification.id),
+														onChange: (checked) =>
+															select([notification.id], checked),
+													}
+												: undefined
+										}
 									/>
 								))}
 								{hasMoreNotifications && (
@@ -264,6 +349,28 @@ export const InboxPanel: React.FC<
 					)}
 				</div>
 			</ScrollArea>
+			{onDeleteSelected && (
+				<ConfirmDialog
+					open={confirmIds !== undefined}
+					onClose={() => setConfirmIds(undefined)}
+					title="Delete selected notifications?"
+					type="delete"
+					onCloseAutoFocus={(event) => {
+						event.preventDefault();
+						selectionToggle.current?.focus();
+					}}
+					description={`Delete ${confirmIds?.length ?? 0} selected notifications from your inbox.`}
+					confirmText="Delete"
+					confirmLoading={isDeletingSelected}
+					onConfirm={() => {
+						if (confirmIds)
+							onDeleteSelected(confirmIds, () => {
+								select(confirmIds, false);
+								setConfirmIds(undefined);
+							});
+					}}
+				/>
+			)}
 		</div>
 	);
 };
@@ -280,10 +387,12 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 				{trigger ?? <InboxButton unreadCount={inbox.unreadCount} />}
 			</PopoverTrigger>
 			<PopoverContent
-				className={cn(
-					breadcrumbMenuClass,
-					"w-[calc(var(--radix-popper-available-width)/var(--app-zoom,1))] max-w-[466px]",
-				)}
+				className={breadcrumbMenuClass}
+				style={{
+					width: "min(36rem, calc(100vw / var(--app-zoom, 1) - 2rem))",
+					maxWidth:
+						"calc(var(--radix-popper-available-width, 100vw) / var(--app-zoom, 1))",
+				}}
 				sideOffset={8}
 				align="end"
 				onKeyDown={(event) => event.stopPropagation()}

@@ -3,7 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { watchInboxNotifications } from "#/api/api";
 import { getErrorDetail, getErrorMessage } from "#/api/errors";
-import { inboxNotificationsKey as NOTIFICATIONS_QUERY_KEY } from "#/api/queries/notifications";
+import {
+	deleteInboxNotifications,
+	inboxNotificationsKey as NOTIFICATIONS_QUERY_KEY,
+} from "#/api/queries/notifications";
 import type {
 	ListInboxNotificationsResponse,
 	UpdateInboxNotificationReadStatusResponse,
@@ -251,6 +254,14 @@ export const useNotificationsInbox = ({
 		},
 	});
 
+	const deleteSelectedMutation = useMutation({
+		...deleteInboxNotifications(queryClient),
+		onError: (error) => {
+			toast.error(
+				getErrorMessage(error, "Error deleting selected notifications."),
+			);
+		},
+	});
 	const markNotificationAsReadMutation = useMutation({
 		mutationFn: markNotificationAsRead,
 		onSuccess: (res) => {
@@ -288,6 +299,11 @@ export const useNotificationsInbox = ({
 		onMarkAllAsRead: () => markAllAsReadMutation.mutate(),
 		onClearAll: clearAll ? () => clearAllMutation.mutate() : undefined,
 		isClearing: clearAllMutation.isPending,
+		onDeleteSelected: clearAll
+			? (ids: string[], onSuccess: () => void) =>
+					deleteSelectedMutation.mutate(ids, { onSuccess })
+			: undefined,
+		isDeletingSelected: deleteSelectedMutation.isPending,
 		onMarkNotificationAsRead: (id: string) =>
 			markNotificationAsReadMutation.mutate(id),
 		onLoadMoreNotifications: () => loadMoreNotifications(),
