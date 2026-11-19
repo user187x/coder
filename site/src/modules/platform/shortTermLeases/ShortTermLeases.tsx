@@ -1,3 +1,4 @@
+import { PlusIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "react-query";
 import { useLocation } from "react-router";
@@ -165,6 +166,7 @@ export const ShortTermLeases = ({
 							setCreating(true);
 						}}
 					>
+						<PlusIcon aria-hidden />
 						New Lease
 					</Button>
 					<SearchField
