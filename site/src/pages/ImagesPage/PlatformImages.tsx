@@ -23,6 +23,7 @@ import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { createDayString } from "#/utils/createDayString";
 import { formatSize, ImageVersionBadge, imageVersion } from "./badges";
+import { ImageDownloadButton } from "./ImageDownloadButton";
 
 const contentsKey = ["platform", "images", "contents"] as const;
 
@@ -573,7 +574,10 @@ export const PlatformImages: React.FC = () => {
 				summary={`${images.length} ${images.length === 1 ? "image" : "images"} the platform ships`}
 				hint="Point at anything in the table to read what it does"
 			>
-				<Table data-testid="platform-release-images">
+				<Table
+					aria-label="Platform release images"
+					data-testid="platform-release-images"
+				>
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[32%]">Image</TableHead>
@@ -581,6 +585,7 @@ export const PlatformImages: React.FC = () => {
 							<TableHead className="w-[26%]">Contents</TableHead>
 							<TableHead className="w-[10%]">Size</TableHead>
 							<TableHead className="w-[20%]">Built</TableHead>
+							<TableHead>Actions</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
@@ -654,10 +659,13 @@ const PlatformImageRow: React.FC<{
 					{c.created ? createDayString(c.created) : "–"}
 					<div className="text-xs">{c.section}</div>
 				</TableCell>
+				<TableCell>
+					<ImageDownloadButton imageRef={c.ref} name={c.repository} />
+				</TableCell>
 			</TableRow>
 			{open && (
 				<TableRow className="hover:bg-transparent">
-					<TableCell colSpan={5} className="bg-surface-secondary/40">
+					<TableCell colSpan={6} className="bg-surface-secondary/40">
 						<ImageContentsTree ours={ours} />
 					</TableCell>
 				</TableRow>

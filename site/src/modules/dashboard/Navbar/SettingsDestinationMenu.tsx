@@ -2,11 +2,21 @@ import { cn } from "cn";
 import { MonitorIcon, PlusIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { useQuery } from "react-query";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { deploymentConfig } from "#/api/queries/deployment";
+import { userUIPreferences } from "#/api/queries/platform";
 import { templates } from "#/api/queries/templates";
 import { workspaces } from "#/api/queries/workspaces";
 import { Avatar } from "#/components/Avatar/Avatar";
+import {
+	Combobox,
+	ComboboxContent,
+	ComboboxEmpty,
+	ComboboxInput,
+	ComboboxItem,
+	ComboboxList,
+	ComboboxTrigger,
+} from "#/components/Combobox/Combobox";
 import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
@@ -20,7 +30,9 @@ import {
 } from "#/modules/navigation";
 import { useWorkspaceIcons } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import type { AdminPage } from "./adminQuickLinks";
+import { BreadcrumbMenuPanel, breadcrumbMenuClass } from "./BreadcrumbMenu";
 import { MenuLabel } from "./InlineMenu";
+import { navbarSettingsSide } from "./settingsMenuHost";
 
 export function SettingsDestinationMenu({
 	link,
@@ -86,10 +98,10 @@ export function SettingsDestinationMenu({
 	);
 }
 
-export function WorkspaceDestinations() {
+function useWorkspaceDestinations(enabled = true) {
 	const canCreateWorkspace =
 		useOptionalAuthContext()?.permissions?.createWorkspace;
-	const query = useQuery(workspaces({ q: "owner:me" }));
+	const query = useQuery({ ...workspaces({ q: "owner:me" }), enabled });
 	const { data: icons } = useWorkspaceIcons();
 	const { pathname, search } = useLocation();
 	const createSearch = new URLSearchParams(
@@ -97,6 +109,106 @@ export function WorkspaceDestinations() {
 	);
 	createSearch.set(createWorkspaceSearchParam, "1");
 	const ownedWorkspaces = query.data?.workspaces ?? [];
+	return { canCreateWorkspace, query, icons, createSearch, ownedWorkspaces };
+}
+
+export function WorkspacePicker({
+	label,
+	trigger,
+}: {
+	label: string;
+	trigger?: React.ReactNode;
+}) {
+	const [open, setOpen] = useState(false);
+	const { canCreateWorkspace, query, icons, createSearch, ownedWorkspaces } =
+		useWorkspaceDestinations(open);
+	const preferences = useQuery(userUIPreferences());
+	const navigate = useNavigate();
+
+	return (
+		<Combobox open={open} onOpenChange={setOpen}>
+			<ComboboxTrigger asChild>
+				<button type="button" aria-label={label} title={label}>
+					{trigger ?? label}
+				</button>
+			</ComboboxTrigger>
+			<ComboboxContent
+				align={
+					navbarSettingsSide(preferences.data) === "right" ? "end" : "start"
+				}
+				sideOffset={8}
+				collisionPadding={8}
+				className={`${breadcrumbMenuClass} workspace-template-picker w-80 max-w-[calc(100vw-1rem)]`}
+				aria-label="Switch workspace"
+				commandClassName="bg-transparent"
+				commandLabel="Search workspaces"
+			>
+				<BreadcrumbMenuPanel>
+					<ComboboxInput placeholder="Type/select a workspace" />
+					<ComboboxList className="max-h-[min(380px,calc(var(--radix-popper-available-height,80vh)/var(--app-zoom,1)_-_8rem))]">
+						{query.isLoading && <p role="status">Loading workspaces…</p>}
+						{!ownedWorkspaces.length && query.isError && (
+							<p role="alert">Could not load workspaces</p>
+						)}
+						{ownedWorkspaces.map((item) => {
+							const icon = icons?.[item.id] || item.template_icon;
+							return (
+								<ComboboxItem
+									key={item.id}
+									value={item.id}
+									keywords={[item.name]}
+									className="workspace-template-option gap-3 px-3 font-medium [&>svg:last-child]:hidden"
+									onSelect={() =>
+										navigate(
+											`/@${encodeURIComponent(item.owner_name)}/${encodeURIComponent(item.name)}`,
+										)
+									}
+								>
+									{icon ? (
+										<Avatar
+											variant="icon"
+											size="sm"
+											src={icon}
+											fallback={item.name}
+											aria-hidden
+										/>
+									) : (
+										<MonitorIcon aria-hidden />
+									)}
+									<span className="truncate">{item.name}</span>
+								</ComboboxItem>
+							);
+						})}
+					</ComboboxList>
+					{query.isSuccess && (
+						<ComboboxEmpty>
+							{ownedWorkspaces.length ? "No workspaces found" : "No workspaces"}
+						</ComboboxEmpty>
+					)}
+					{canCreateWorkspace && (
+						<div className="shrink-0 border-0 border-t border-solid border-border bg-surface-tertiary py-1">
+							<Link
+								to={{
+									pathname: "/workspaces",
+									search: createSearch.toString(),
+								}}
+								onClick={() => setOpen(false)}
+								className="workspace-template-option flex items-center gap-3 px-3 py-2 text-sm font-medium no-underline outline-hidden"
+							>
+								<PlusIcon aria-hidden className="size-icon-xs" />
+								Create Workspace
+							</Link>
+						</div>
+					)}
+				</BreadcrumbMenuPanel>
+			</ComboboxContent>
+		</Combobox>
+	);
+}
+
+export function WorkspaceDestinations() {
+	const { canCreateWorkspace, query, icons, createSearch, ownedWorkspaces } =
+		useWorkspaceDestinations();
 	return (
 		<>
 			{ownedWorkspaces.map((item) => {

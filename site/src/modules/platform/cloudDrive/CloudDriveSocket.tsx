@@ -9,6 +9,12 @@ import {
 	setCloudDriveConnection,
 } from "#/api/queries/platform";
 import type { Workspace } from "#/api/typesGenerated";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pendingAttachments } from "./attachment";
 
@@ -20,6 +26,7 @@ export const useCloudDriveLinks = () => {
 	const data = connections.data;
 	return {
 		enabled,
+		summary,
 		workspaceConnections: data?.workspaceConnections ?? [],
 		ready: Boolean(data),
 		off: new Set(data?.disconnected ?? []),
@@ -47,9 +54,10 @@ const tile =
  */
 export const CloudDriveSocket: React.FC<{
 	workspace: Workspace;
-	links: ReturnType<typeof useCloudDriveLinks>;
+	links: Omit<ReturnType<typeof useCloudDriveLinks>, "summary">;
 	mine: boolean;
-}> = ({ workspace, links, mine }) => {
+	onConfigure?: () => void;
+}> = ({ workspace, links, mine, onConfigure }) => {
 	const { user } = useAuthenticated();
 	const canShare = user.roles.some((role) => role.name === "owner");
 	const queryClient = useQueryClient();
@@ -95,7 +103,7 @@ export const CloudDriveSocket: React.FC<{
 			: on
 				? `Cloud Drive mounted at ~/cloud-drive: click to unmount${later}`
 				: `No Cloud Drive: click to mount it at ~/cloud-drive${later}`;
-	return (
+	const plug = (
 		<button
 			type="button"
 			className={cn(
@@ -128,5 +136,15 @@ export const CloudDriveSocket: React.FC<{
 				<PlusIcon aria-hidden className="size-4" />
 			)}
 		</button>
+	);
+	return onConfigure ? (
+		<ContextMenu>
+			<ContextMenuTrigger asChild>{plug}</ContextMenuTrigger>
+			<ContextMenuContent>
+				<ContextMenuItem onSelect={onConfigure}>Configure</ContextMenuItem>
+			</ContextMenuContent>
+		</ContextMenu>
+	) : (
+		plug
 	);
 };

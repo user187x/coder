@@ -37,34 +37,39 @@ it("links its Workspaces crumb back to the workspace list", async () => {
 	);
 });
 
-it("offers the signed-in user's workspaces from the last crumb", async () => {
+it("searches the signed-in user's workspaces and opens the selected result", async () => {
+	const user = userEvent.setup();
 	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 		admin_nav_in_navbar: true,
 	});
 	const getWorkspaces = vi.spyOn(API, "getWorkspaces").mockResolvedValue({
-		workspaces: [{ ...MockWorkspace, name: "dev" }],
-		count: 1,
+		workspaces: [
+			{ ...MockWorkspace, id: "browser-id", name: "browser" },
+			{ ...MockWorkspace, name: "dev" },
+		],
+		count: 2,
 	});
-	renderWithAuth(<InNavbar />);
-	await userEvent.click(
+	const destination = `/@${MockWorkspace.owner_name}/dev`;
+	const { router } = renderWithAuth(<InNavbar />, {
+		extraRoutes: [{ path: destination, element: <div /> }],
+	});
+	await user.click(
 		await screen.findByRole("button", {
 			name: "Switch workspace from browser",
 		}),
 	);
-	expect(await screen.findByRole("menuitem", { name: "dev" })).toHaveAttribute(
-		"href",
-		`/@${MockWorkspace.owner_name}/dev`,
+	await screen.findByRole("option", { name: "browser" });
+	await user.type(
+		screen.getByRole("combobox", { name: "Search workspaces" }),
+		"dev",
 	);
-	expect(
-		within(screen.getByRole("menu")).getByRole("separator"),
-	).toBeInTheDocument();
-	expect(
-		screen.getByRole("menuitem", { name: "Create Workspace" }),
-	).toHaveAttribute("href", "/workspaces?create-workspace=1");
+	await user.keyboard("{Enter}");
+	expect(router.state.location.pathname).toBe(destination);
 	expect(getWorkspaces).toHaveBeenCalledWith({ q: "owner:me" });
 });
 
-it("offers only Create Workspace when the user owns no workspaces", async () => {
+it("opens workspace creation from the footer when there are no matches", async () => {
+	const user = userEvent.setup();
 	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 		admin_nav_in_navbar: true,
 	});
@@ -72,14 +77,15 @@ it("offers only Create Workspace when the user owns no workspaces", async () => 
 		workspaces: [],
 		count: 0,
 	});
-	renderWithAuth(<InNavbar />);
-	await userEvent.click(
+	const { router } = renderWithAuth(<InNavbar />, {
+		extraRoutes: [{ path: "/workspaces", element: <div /> }],
+	});
+	await user.click(
 		await screen.findByRole("button", {
 			name: "Switch workspace from browser",
 		}),
 	);
-	const menu = within(await screen.findByRole("menu"));
-	await menu.findByRole("menuitem", { name: "Create Workspace" });
-	expect(menu.getAllByRole("menuitem")).toHaveLength(1);
-	expect(menu.queryByRole("separator")).not.toBeInTheDocument();
+	await user.click(screen.getByRole("link", { name: "Create Workspace" }));
+	expect(router.state.location.pathname).toBe("/workspaces");
+	expect(router.state.location.search).toBe("?create-workspace=1");
 });

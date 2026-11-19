@@ -242,6 +242,12 @@ describe("Platform release images", () => {
 		vi.spyOn(ImagesAPI, "contents").mockResolvedValue(catalog);
 		withQueries(<PlatformImages />);
 		const row = await screen.findByTestId("platform-image-coder-registry");
+		expect(
+			within(row).getByRole("link", { name: "Download coder-registry" }),
+		).toHaveAttribute(
+			"href",
+			"/__coder-ui/api/images/download?ref=docker.io%2Fmrshll187%2Fcoder-registry%3A3.1.2-1",
+		);
 		expect(row).toHaveTextContent("coder-registryPlatform image");
 		expect(row).toHaveTextContent("1 program");
 		expect(

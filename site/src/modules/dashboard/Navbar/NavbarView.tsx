@@ -44,7 +44,7 @@ import { ProxyMenu } from "./ProxyMenu";
 import { SettingsBreadcrumbRoot } from "./SettingsBreadcrumbRoot";
 import {
 	TemplateDestinations,
-	WorkspaceDestinations,
+	WorkspacePicker,
 } from "./SettingsDestinationMenu";
 import { SupportIcon } from "./SupportIcon";
 import {
@@ -312,9 +312,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 															</BreadcrumbViewMenu>
 														) : pageLabel === "Workspace" ||
 															pageLabel === "Workspaces" ? (
-															<BreadcrumbViewMenu label={pageLabel}>
-																<WorkspaceDestinations />
-															</BreadcrumbViewMenu>
+															<WorkspacePicker label={pageLabel} />
 														) : (
 															<BreadcrumbPage>{pageLabel}</BreadcrumbPage>
 														)}

@@ -77,6 +77,10 @@ import {
 	useCloudDriveLinks,
 } from "#/modules/platform/cloudDrive/CloudDriveSocket";
 import {
+	CloudDriveWindow,
+	type View,
+} from "#/modules/platform/cloudDrive/CloudDriveWindow";
+import {
 	LockdownBadge,
 	useAllLockdowns,
 } from "#/modules/platform/lockdown/Lockdown";
@@ -154,6 +158,12 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 	// Platform: each row's Cloud Drive plug, its own column at the end (none without a Cloud Drive): a click connects or
 	// disconnects that workspace's Cloud Drive.
 	const drive = useCloudDriveLinks();
+	const [driveOpen, setDriveOpen] = useState(false);
+	const [driveView, setDriveView] = useState<View>("files");
+	const openDrive = () => {
+		setDriveView("files");
+		setDriveOpen(true);
+	};
 	const { user: me } = useAuthenticated();
 
 	const table = (
@@ -402,6 +412,14 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							</TableCell>
 
 							<WorkspaceActionsCell
+								onOpenCloudDrive={
+									drive.enabled &&
+									drive.ready &&
+									workspace.owner_id === me.id &&
+									!drive.shared.has(workspace.id)
+										? openDrive
+										: undefined
+								}
 								workspace={workspace}
 								agentUpdateAvailable={agentUpdateAvailable}
 								onActionSuccess={onActionSuccess}
@@ -414,6 +432,9 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 										workspace={workspace}
 										links={drive}
 										mine={workspace.owner_id === me.id}
+										onConfigure={
+											workspace.owner_id === me.id ? openDrive : undefined
+										}
 									/>
 								</TableCell>
 							)}
@@ -423,7 +444,20 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 			</TableBody>
 		</Table>
 	);
-	return table;
+	return (
+		<>
+			{table}
+			{drive.summary?.enabled && (
+				<CloudDriveWindow
+					open={driveOpen}
+					onOpenChange={setDriveOpen}
+					view={driveView}
+					onView={setDriveView}
+					summary={drive.summary}
+				/>
+			)}
+		</>
+	);
 };
 
 const RestartDialogContext = createContext({
@@ -591,6 +625,7 @@ const cantBeChecked = (workspace: Workspace) => {
 
 type WorkspaceActionsCellProps = {
 	workspace: Workspace;
+	onOpenCloudDrive?: () => void;
 	agentUpdateAvailable: boolean;
 	onActionSuccess: () => Promise<void>;
 	onActionError: (error: unknown) => void;
@@ -598,6 +633,7 @@ type WorkspaceActionsCellProps = {
 
 const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 	workspace,
+	onOpenCloudDrive,
 	agentUpdateAvailable,
 	onActionSuccess,
 	onActionError,
@@ -830,6 +866,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 						)}
 
 						<WorkspaceMoreActions
+							onOpenCloudDrive={onOpenCloudDrive}
 							workspace={workspace}
 							agentUpdateAvailable={agentUpdateAvailable}
 							disabled={!abilities.canAcceptJobs}

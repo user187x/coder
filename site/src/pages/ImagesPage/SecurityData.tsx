@@ -17,11 +17,10 @@ import {
 	ImagesAPI,
 	type SecurityDataStatus,
 } from "#/api/images";
+import { securityDataKey } from "#/api/queries/images";
 import { Button } from "#/components/Button/Button";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { createDayString } from "#/utils/createDayString";
-
-const securityDataKey = ["platform", "images", "security-data"] as const;
 
 export const useSecurityData = () =>
 	useQuery({

@@ -1,8 +1,14 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useEffect, useId, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
-import { ImagesAPI, type ImagesSettings } from "#/api/images";
+import {
+	ImagesAPI,
+	type ImagesSettings,
+	type TrivyScannerSources,
+	type TrivyScannerStatus,
+} from "#/api/images";
+import { securityDataKey, trivyScannerKey } from "#/api/queries/images";
 import { Button } from "#/components/Button/Button";
 import {
 	Dialog,
@@ -69,6 +75,7 @@ export const ImagesSettingsDialog: React.FC<{ onClose: () => void }> = ({
 					<Loader />
 				) : (
 					<div className="flex max-h-[calc(65vh/var(--app-zoom,1))] flex-col gap-5 overflow-y-auto pr-1">
+						<TrivyScannerSettings canChange={can} />
 						<SecurityDataSection />
 						<section className="flex flex-col gap-2">
 							<Label htmlFor="apt-sources">
@@ -197,3 +204,205 @@ export const ImagesSettingsDialog: React.FC<{ onClose: () => void }> = ({
 		</Dialog>
 	);
 };
+
+function TrivyScannerSettings({ canChange }: { canChange: boolean }) {
+	const id = useId();
+	const queryClient = useQueryClient();
+	const [version, setVersion] = useState<string | null>(null);
+	const [sources, setSources] = useState<TrivyScannerSources | null>(null);
+	const query = useQuery({
+		queryKey: trivyScannerKey,
+		queryFn: async () => {
+			const status = await ImagesAPI.trivyScanner();
+			if (
+				!status.updatingDefinitions &&
+				queryClient.getQueryData<TrivyScannerStatus>(trivyScannerKey)
+					?.updatingDefinitions
+			) {
+				void queryClient.invalidateQueries({ queryKey: securityDataKey });
+			}
+			return status;
+		},
+		refetchInterval: ({ state: { data } }) =>
+			data?.installing || data?.updatingDefinitions ? 2_000 : false,
+	});
+	const configure = useMutation({
+		mutationFn: ({
+			enabled,
+			version,
+			sources,
+		}: {
+			enabled: boolean;
+			version: string;
+			sources?: TrivyScannerSources;
+		}) =>
+			sources
+				? ImagesAPI.configureTrivyScanner(enabled, version, sources)
+				: ImagesAPI.configureTrivyScanner(enabled, version),
+		onSuccess: (status) => {
+			queryClient.setQueryData(trivyScannerKey, status);
+			setVersion(null);
+			setSources(null);
+		},
+		onError: (error) =>
+			toast.error(getErrorMessage(error, "Could not configure Trivy.")),
+	});
+	const refresh = useMutation({
+		mutationFn: ImagesAPI.refreshTrivyDefinitions,
+		onSuccess: (status) => queryClient.setQueryData(trivyScannerKey, status),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, "Could not update scan definitions.")),
+	});
+
+	if (query.isError && !query.data) {
+		return <p role="alert">Could not load Trivy Scanner settings.</p>;
+	}
+	if (!query.data) {
+		return <Loader />;
+	}
+	const status = query.data;
+	const requestedVersion = version ?? status.requestedVersion;
+	const busy =
+		status.installing ||
+		status.updatingDefinitions ||
+		configure.isPending ||
+		refresh.isPending;
+	const configuredSources = sources ?? status.sources;
+	const sourceFields = [
+		["releaseUrl", "Scanner release base URL"],
+		["dbRepository", "Vulnerability database repository"],
+		["javaDbRepository", "Java database repository"],
+	] as const;
+	const validVersion = /^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/.test(
+		requestedVersion,
+	);
+
+	return (
+		<section className="flex flex-col gap-2">
+			<div className="flex items-center justify-between gap-3">
+				<Label htmlFor={id}>Enable Trivy Scanner</Label>
+				<Switch
+					id={id}
+					checked={status.enabled}
+					disabled={!canChange || busy || (!status.enabled && !validVersion)}
+					onCheckedChange={(enabled) =>
+						configure.mutate({
+							enabled,
+							version: enabled ? requestedVersion : status.requestedVersion,
+							sources: enabled ? (sources ?? undefined) : undefined,
+						})
+					}
+				/>
+			</div>
+			<p className="m-0 text-xs text-content-secondary" role="status">
+				{status.installing
+					? `Installing Trivy ${status.requestedVersion}.`
+					: status.enabled && status.activeVersion
+						? `Trivy ${status.activeVersion} is ready.`
+						: status.enabled
+							? "Trivy is not installed."
+							: "Trivy scanning is off."}
+			</p>
+			{status.error && (
+				<p role="alert" className="m-0 text-sm text-content-destructive">
+					{status.error}
+				</p>
+			)}
+			<div className="flex flex-wrap items-end gap-2">
+				<div className="flex flex-col gap-1">
+					<Label htmlFor={`${id}-version`}>Trivy release version</Label>
+					<Input
+						id={`${id}-version`}
+						value={requestedVersion}
+						onChange={(event) => setVersion(event.target.value)}
+						disabled={!canChange || busy}
+					/>
+				</div>
+				{status.enabled && canChange && (
+					<Button
+						variant="outline"
+						disabled={
+							busy || !validVersion || requestedVersion === status.activeVersion
+						}
+						onClick={() =>
+							configure.mutate({
+								enabled: true,
+								version: requestedVersion,
+								sources: sources ?? undefined,
+							})
+						}
+					>
+						{status.error && requestedVersion === status.requestedVersion
+							? "Retry install"
+							: "Install version"}
+					</Button>
+				)}
+			</div>
+			{canChange && (
+				<>
+					<div>
+						<Button
+							variant="outline"
+							disabled={busy || !status.enabled || !status.activeVersion}
+							onClick={() => refresh.mutate()}
+						>
+							<Spinner
+								loading={refresh.isPending || status.updatingDefinitions}
+							/>
+							{status.updatingDefinitions
+								? "Updating scan definitions…"
+								: "Update scan definitions"}
+						</Button>
+					</div>
+					{status.definitionError && (
+						<p role="alert" className="m-0 text-sm text-content-destructive">
+							{status.definitionError}
+						</p>
+					)}
+					<details className="text-sm">
+						<summary className="cursor-pointer">Download sources</summary>
+						<div className="mt-2 flex flex-col gap-2">
+							{sourceFields.map(([key, label]) => (
+								<div key={key} className="flex flex-col gap-1">
+									<Label htmlFor={`${id}-${key}`}>{label}</Label>
+									<Input
+										id={`${id}-${key}`}
+										value={configuredSources[key]}
+										disabled={busy}
+										onChange={(event) =>
+											setSources({
+												...configuredSources,
+												[key]: event.target.value,
+											})
+										}
+									/>
+								</div>
+							))}
+							<p className="m-0 text-xs text-content-secondary">
+								For offline deployments, point these sources at internal
+								mirrors. The release mirror must serve the checksum file and
+								archive at the same versioned paths as the upstream release
+								source.
+							</p>
+							<div>
+								<Button
+									variant="outline"
+									disabled={busy || !sources}
+									onClick={() =>
+										configure.mutate({
+											enabled: status.enabled,
+											version: status.requestedVersion,
+											sources: sources ?? undefined,
+										})
+									}
+								>
+									Save download sources
+								</Button>
+							</div>
+						</div>
+					</details>
+				</>
+			)}
+		</section>
+	);
+}

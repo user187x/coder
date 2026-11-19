@@ -585,6 +585,23 @@ export type LintIssue = {
 	message: string;
 };
 
+export type TrivyScannerSources = {
+	releaseUrl: string;
+	dbRepository: string;
+	javaDbRepository: string;
+};
+
+export type TrivyScannerStatus = {
+	enabled: boolean;
+	requestedVersion: string;
+	activeVersion: string | null;
+	installing: boolean;
+	error: string;
+	sources: TrivyScannerSources;
+	updatingDefinitions: boolean;
+	definitionError: string;
+};
+
 export type ImagesSettings = {
 	aptSources: string;
 	defaultAptSources: string;
@@ -666,6 +683,7 @@ export const ImagesAPI = {
 			name,
 			install,
 		}),
+	downloadRefUrl: (ref: string) => `${IMAGES}/download?ref=${enc(ref)}`,
 	downloadUrl: (id: string) => `${IMAGES}/${enc(id)}/download`,
 	setS3: (id: string, enabled: boolean) =>
 		post<{ s3: ImageS3 }>(`${IMAGES}/${enc(id)}/s3`, { enabled }),
@@ -699,6 +717,19 @@ export const ImagesAPI = {
 			{ id, spec },
 		),
 	settings: () => get<ImagesSettings>(`${IMAGES}/settings`),
+	trivyScanner: () => get<TrivyScannerStatus>(`${IMAGES}/settings/trivy`),
+	configureTrivyScanner: (
+		enabled: boolean,
+		version: string,
+		sources?: TrivyScannerSources,
+	) =>
+		post<TrivyScannerStatus>(`${IMAGES}/settings/trivy`, {
+			enabled,
+			version,
+			sources,
+		}),
+	refreshTrivyDefinitions: () =>
+		post<TrivyScannerStatus>(`${IMAGES}/settings/trivy/definitions`, {}),
 	securityData: () => get<SecurityDataStatus>(`${IMAGES}/security-data`),
 	uploadSecurityData: (file: File, onProgress?: (fraction: number) => void) =>
 		upload<SecurityDataStatus>(

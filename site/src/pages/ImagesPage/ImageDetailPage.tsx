@@ -390,10 +390,8 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					</p>
 					{!image.pullRef && (
 						<p className="m-0 rounded-md border border-solid border-border p-4 text-sm text-content-secondary">
-							Waiting for the image builder's copy of it, which is scanned: the
-							install seeds it (<code>./make --deploy</code>, or{" "}
-							<code>./mirror-images.sh seed-builder</code> after an Argo CD
-							install).
+							The builder has no local copy of this image yet. Rescan can use a
+							node that holds it or the configured k3d registry.
 						</p>
 					)}
 				</section>

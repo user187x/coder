@@ -7,7 +7,7 @@ import {
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { getErrorMessage } from "#/api/errors";
-import { ImagesAPI, type Library, type LibraryKind } from "#/api/images";
+import { ImagesAPI, type LibraryKind } from "#/api/images";
 import { PlatformError } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
@@ -38,9 +38,6 @@ type LibraryCopy = {
 	/** One file, several ("ISO", "ISOs"). */
 	noun: [string, string];
 	accept: string;
-	placeholder: string;
-	/** Before how much is there. */
-	describe: (lib: Library) => React.ReactNode;
 };
 
 /**
@@ -55,8 +52,6 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 	icon,
 	noun,
 	accept,
-	placeholder,
-	describe,
 }) => {
 	const queryClient = useQueryClient();
 	const key = libraryKey(kind);
@@ -124,11 +119,6 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 						{icon}
 						{title}
 					</h2>
-					<p className="mt-1 mb-0 text-sm text-content-secondary">
-						{describe(lib)} {lib.files.length}{" "}
-						{lib.files.length === 1 ? noun[0] : noun[1]},{" "}
-						{formatSize(lib.usedBytes)}.
-					</p>
 				</div>
 				{lib.canEdit && (
 					<div className="flex flex-wrap items-center gap-2">
@@ -155,7 +145,6 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 						>
 							<Input
 								aria-label={`The ${noun[0]}'s address`}
-								placeholder={placeholder}
 								value={url}
 								onChange={(e) => setUrl(e.target.value)}
 								className="h-8 w-64 text-xs"
@@ -329,13 +318,5 @@ export const IsoLibrary: React.FC = () => (
 		icon={<DiscIcon aria-hidden className="size-5 text-content-secondary" />}
 		noun={["ISO", "ISOs"]}
 		accept=".iso,.img"
-		placeholder="https://… .iso"
-		describe={(lib) => (
-			<>
-				Disk images for every workspace: read-only at{" "}
-				<code>{homePath(lib.mountPath)}</code> in each. Your own go in your
-				Cloud Drive.
-			</>
-		)}
 	/>
 );

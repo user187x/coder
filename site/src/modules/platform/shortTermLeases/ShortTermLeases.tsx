@@ -154,7 +154,7 @@ export const ShortTermLeases = ({
 				leases cannot be renewed.
 			</p>
 			<div className="mb-4">
-				<LeaseSignInLink className="justify-center" />
+				<LeaseSignInLink className="justify-center" iconOnly />
 			</div>
 			{Boolean(error) && <ErrorAlert error={error} />}
 			<div className="mb-4 flex flex-wrap items-center gap-2">
@@ -173,7 +173,7 @@ export const ShortTermLeases = ({
 						aria-label="Search leases"
 						value={search}
 						onChange={setSearch}
-						className="min-w-0 flex-1"
+						className="min-w-0 flex-1 rounded-full bg-surface-tertiary"
 					/>
 				</div>
 				<Select value={filter} onValueChange={setFilter}>

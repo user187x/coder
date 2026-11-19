@@ -22,6 +22,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import threading
 import tarfile
 import urllib.request
 from servicetls import open_service
@@ -38,12 +40,13 @@ REQUIRED = ("trivy/db/trivy.db", "trivy/db/metadata.json", "fips-rules.json")
 ALLOWED = set(REQUIRED) | {"trivy/java-db/trivy-java.db", "trivy/java-db/metadata.json"}
 
 ROOT = None  # <builder volume>/security, set by setup()
+INSTALL_LOCK = threading.RLock()
 TRIVY_VERSION = None  # read once at start (running trivy costs ~150 MB; the service's limit is small)
 
 
 def trivy_version():
     try:
-        p = subprocess.run(["trivy", "version", "--format", "json", "--cache-dir", "/nonexistent"],
+        p = subprocess.run([os.environ.get("TRIVY_PLUGIN_BINARY", "trivy"), "version", "--format", "json", "--cache-dir", "/nonexistent"],
                            capture_output=True, timeout=30)
         return json.loads(p.stdout or b"{}").get("Version")
     except (OSError, ValueError, subprocess.SubprocessError):
@@ -272,13 +275,18 @@ def verify(path):
 
 
 def install(upload_path, user, file_name):
-    """Verifies an uploaded file and makes it the active set (the previous one is kept; older ones go)."""
+    """Verify an uploaded file and make it the active set."""
+    with INSTALL_LOCK:
+        return _install(upload_path, user, file_name)
+
+
+def _install(upload_path, user, file_name):
     manifest, db, java, fips = verify(upload_path)
     digest = hashlib.sha256()
     with open(upload_path, "rb") as f:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             digest.update(chunk)
-    sid = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    sid = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
     folder = os.path.join(ROOT, sid)
     os.makedirs(folder)
     shutil.move(upload_path, os.path.join(folder, "bundle.tar.gz"))
@@ -294,7 +302,12 @@ def install(upload_path, user, file_name):
 
 
 def activate(sid):
-    """sid: an installed set, or None for the bundled data. Keeps the active set and the one before it."""
+    """Activate an installed set or the bundled data, retaining the previous set."""
+    with INSTALL_LOCK:
+        _activate(sid)
+
+
+def _activate(sid):
     prev = active_id()
     if sid and not os.path.isfile(os.path.join(ROOT, sid, "bundle.tar.gz")):
         raise ValueError("No such security data.")
@@ -306,6 +319,38 @@ def activate(sid):
     for name in sets[:-2]:
         if name not in keep:
             shutil.rmtree(os.path.join(ROOT, name), ignore_errors=True)
+
+
+def refresh(binary, version, db_repository, java_repository, user):
+    """Download both databases and activate them as one verified security-data set."""
+    previous = active_id()
+    with tempfile.TemporaryDirectory(prefix=".trivy-data-", dir=os.path.dirname(ROOT)) as work:
+        cache = os.path.join(work, "trivy")
+        command = [binary, "image", "--cache-dir", cache, "--skip-db-update=false",
+                   "--skip-java-db-update=false", "--no-progress", "--timeout", "10m",
+                   "--db-repository", db_repository, "--java-db-repository", java_repository]
+        for flag in ("--download-db-only", "--download-java-db-only"):
+            result = subprocess.run(command + [flag], capture_output=True, timeout=660)
+            if result.returncode:
+                raise ValueError(result.stderr.decode("utf-8", "replace").strip()[-350:]
+                                 or "Trivy could not download its database.")
+        with open(os.path.join(work, "fips-rules.json"), "w") as out:
+            json.dump(rules(), out)
+        files = sorted(ALLOWED)
+        hashes = {}
+        for name in files:
+            with open(os.path.join(work, name), "rb") as source:
+                hashes[name] = hashlib.file_digest(source, "sha256").hexdigest()
+        with open(os.path.join(work, "manifest.json"), "w") as out:
+            json.dump({"format": 1, "createdAt": now(), "trivy": {"version": version}, "files": hashes}, out)
+        bundle = os.path.join(work, "trivy-definitions.tar.gz")
+        with tarfile.open(bundle, "w:gz", compresslevel=1) as out:
+            for name in ["manifest.json", *files]:
+                out.add(os.path.join(work, name), arcname=name)
+        with INSTALL_LOCK:
+            if active_id() != previous:
+                raise ValueError("Security data changed during the download. Run the update again if needed.")
+            return _install(bundle, user, "trivy-definitions.tar.gz")
 
 
 # --------------------------------------------------------------------------- the scan Job's side

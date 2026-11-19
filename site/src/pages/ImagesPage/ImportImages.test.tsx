@@ -1,10 +1,12 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { ImagesAPI, type Library } from "#/api/images";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { IsoLibrary } from "./FileLibrary";
 import { ImagesInUse, ImagesOnNodes } from "./ImagesInUse";
+import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
 import { nameFrom } from "./ImportImageDialog";
 
 const withQueries = (node: React.ReactNode) =>
@@ -27,7 +29,7 @@ describe("nameFrom", () => {
 describe("ImagesInUse", () => {
 	afterEach(() => vi.restoreAllMocks());
 
-	it("links the images here and offers to import the others", async () => {
+	it("links existing entries and offers import and export actions", async () => {
 		vi.spyOn(ImagesAPI, "inUse").mockResolvedValue({
 			images: [
 				{
@@ -51,10 +53,98 @@ describe("ImagesInUse", () => {
 			"href",
 			"/images/tool",
 		);
+		expect(
+			screen.getByRole("link", { name: "Export ghcr.io/x/dataflow:1.1.0" }),
+		).toHaveAttribute(
+			"href",
+			"/__coder-ui/api/images/download?ref=ghcr.io%2Fx%2Fdataflow%3A1.1.0",
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Import" }));
 		expect(onImport).toHaveBeenCalledWith({
 			name: "dataflow",
 			ref: "ghcr.io/x/dataflow:1.1.0",
+		});
+	});
+});
+
+describe("Trivy settings", () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	it("installs the configured scanner and requests a selected upgrade", async () => {
+		const user = userEvent.setup();
+		vi.spyOn(ImagesAPI, "settings").mockResolvedValue({
+			aptSources: "",
+			defaultAptSources: "",
+			index: { sources: 0, packages: 0, loadedAt: null, errors: [] },
+			s3: {},
+			canChange: true,
+			hardening: {},
+		});
+		vi.spyOn(ImagesAPI, "securityData").mockRejectedValue(
+			new Error("No security data"),
+		);
+		const initial = {
+			enabled: false,
+			requestedVersion: "0.76.0",
+			activeVersion: null,
+			installing: false,
+			error: "",
+			updatingDefinitions: false,
+			definitionError: "",
+			sources: {
+				releaseUrl: "https://mirror.example/releases",
+				dbRepository: "mirror.example/trivy/db:2",
+				javaDbRepository: "mirror.example/trivy/java-db:1",
+			},
+		};
+		vi.spyOn(ImagesAPI, "trivyScanner").mockResolvedValue(initial);
+		const configure = vi
+			.spyOn(ImagesAPI, "configureTrivyScanner")
+			.mockResolvedValue({
+				...initial,
+				enabled: true,
+				activeVersion: "0.76.0",
+			});
+		const refresh = vi
+			.spyOn(ImagesAPI, "refreshTrivyDefinitions")
+			.mockResolvedValue({
+				...initial,
+				enabled: true,
+				activeVersion: "0.76.0",
+			});
+		withQueries(<ImagesSettingsDialog onClose={vi.fn()} />);
+		await user.click(
+			await screen.findByRole("switch", { name: "Enable Trivy Scanner" }),
+		);
+		expect(configure).toHaveBeenCalledWith(true, "0.76.0");
+
+		const updateDefinitions = screen.getByRole("button", {
+			name: "Update scan definitions",
+		});
+		await waitFor(() => expect(updateDefinitions).toBeEnabled());
+		await user.click(updateDefinitions);
+		expect(refresh).toHaveBeenCalledOnce();
+
+		const version = screen.getByRole("textbox", {
+			name: "Trivy release version",
+		});
+		await user.clear(version);
+		await user.type(version, "0.77.0");
+		await user.click(screen.getByRole("button", { name: "Install version" }));
+		expect(configure).toHaveBeenLastCalledWith(true, "0.77.0");
+
+		await user.click(screen.getByText("Download sources"));
+		const dbRepository = screen.getByRole("textbox", {
+			name: "Vulnerability database repository",
+		});
+		await user.clear(dbRepository);
+		await user.type(dbRepository, "registry.internal/security/trivy-db:2");
+		await user.click(
+			screen.getByRole("button", { name: "Save download sources" }),
+		);
+		expect(configure).toHaveBeenLastCalledWith(true, "0.76.0", {
+			...initial.sources,
+			dbRepository: "registry.internal/security/trivy-db:2",
 		});
 	});
 });

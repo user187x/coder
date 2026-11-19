@@ -4,6 +4,7 @@ import "../WorkspaceStatus/workspaceStatusPill.css";
 import {
 	ArchiveIcon,
 	ArchiveRestoreIcon,
+	CloudIcon,
 	CopyIcon,
 	DownloadIcon,
 	EllipsisVerticalIcon,
@@ -59,6 +60,7 @@ import { BackupHomeDialog, ExpandDiskDialog } from "./WorkspaceVolumeDialogs";
 type WorkspaceMoreActionsProps = {
 	workspace: Workspace;
 	disabled: boolean;
+	onOpenCloudDrive?: () => void;
 	onStop?: () => void;
 	isStopping?: boolean;
 	onRestart?: () => void;
@@ -88,6 +90,7 @@ type WorkspaceMoreActionsProps = {
 export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 	workspace,
 	disabled,
+	onOpenCloudDrive,
 	onStop,
 	isStopping,
 	onRestart,
@@ -203,6 +206,12 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 				</DropdownMenuTrigger>
 
 				<DropdownMenuContent id="workspace-options" align="end">
+					{onOpenCloudDrive && (
+						<DropdownMenuItem onSelect={onOpenCloudDrive}>
+							<CloudIcon aria-hidden />
+							Cloud Drive
+						</DropdownMenuItem>
+					)}
 					{variant === "arrow" && (
 						<>
 							{/* What the arrow showed before: the parameters to build with. */}

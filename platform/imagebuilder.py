@@ -36,11 +36,13 @@ before building on it, or using it in an enclave.
     POST /__coder-ui/api/images/lint {script}           shellcheck;   /format {script}: shfmt -i 1
     POST /__coder-ui/api/images/dockerfile {spec}       the Dockerfile a spec makes (the builder's review step)
     GET/POST /__coder-ui/api/images/settings            apt sources and S3 (admins)
+    GET/POST /__coder-ui/api/images/settings/trivy     install or upgrade the optional Trivy scanner (admins)
     POST /__coder-ui/api/images/import {name, description, ref, username?, password?}   an image copied from a registry
     PUT  /__coder-ui/api/images/import-upload?name=&description=&file=   an image from a `docker save` / OCI archive
     GET  /__coder-ui/api/images/in-use                  the images workspaces run now, and the templates' own
     GET  /__coder-ui/api/images/contents                what each image of ours holds (image-contents.json, written by
                                                         development/tools/image-contents.py): the Coder fork's tree
+    GET  /__coder-ui/api/images/download?ref=          a release or in-use image as a container archive
     GET  /__coder-ui/api/images/on-nodes                every image the cluster's nodes hold (preloaded or pulled)
     POST /__coder-ui/api/images/scan {image}            scan any image: in the cluster's registry, or on a node that
                                                         holds it (no registry needed: air-gapped clusters, preloaded
@@ -76,6 +78,7 @@ import subprocess
 import sys
 import tarfile
 import threading
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -945,6 +948,237 @@ def docker_archive(repo, tag, ref_name, out):
         tf.addfile(info, io.BytesIO(man))
 
 
+def download_registry_image(h, ref, user):
+    """Stream a listed image, using the builder's copy when one is available."""
+    release = next((image for image in image_contents()["images"].values() if image["ref"] == ref), None)
+    if release is None and not any(image["image"] == ref for image in images_in_use()):
+        return h.send_json(404, {"error": "Image is not listed in this deployment."}) or True
+
+    normalized = nodeimagepurge.normalize(ref)
+    if not re.search(r"[:@]", normalized.rsplit("/", 1)[-1]):
+        normalized += ":latest"
+    if not REF_RE.fullmatch(normalized):
+        raise ValueError("This image does not have a downloadable registry reference.")
+
+    workspace_repo = WORKSPACE_IMAGE.split("@", 1)[0].rpartition(":")[0]
+    local_ref = (registry_copy(normalized) if release or normalized.rpartition(":")[0] == workspace_repo
+                 else in_builder_registry(normalized))
+    filename = re.sub(r"[^A-Za-z0-9._-]", "-", normalized.rsplit("/", 1)[-1]) + ".tar"
+    mirror_ref = k3d_registry_ref(normalized)
+    if not mirror_ref and release and WORKSPACE_IMAGE.rsplit("/", 2)[-2:-1] == normalized.rsplit("/", 2)[-2:-1]:
+        mirror_ref = k3d_registry_ref(WORKSPACE_IMAGE.rsplit("/", 1)[0] + "/" + normalized.rsplit("/", 1)[-1])
+    internal_host = registry_host(mirror_ref) if mirror_ref else None
+
+    for source in dict.fromkeys(filter(None, (local_ref, mirror_ref, normalized))):
+        args = ["regctl"]
+        host = registry_host(source)
+        if host in (REGISTRY, internal_host):
+            args += ["--host", "reg=%s,tls=disabled" % host]
+        args += ["image", "export", source]
+        if "@" not in normalized:
+            args += ["--name", normalized]
+        if release and release.get("platform"):
+            args += ["--platform", release["platform"]]
+        try:
+            proc = subprocess.Popen(args, stdout=subprocess.PIPE)
+        except OSError:
+            break
+        with proc:
+            try:
+                chunk = proc.stdout.read1(256 * 1024)
+                if not chunk:
+                    continue
+                h.close_connection = True
+                h.send_response(200)
+                h.send_header("Content-Type", "application/x-tar")
+                h.send_header("Content-Disposition", 'attachment; filename="%s"' % filename)
+                h.send_header("Cache-Control", "no-store")
+                h.send_header("Transfer-Encoding", "chunked")
+                h.send_header("Connection", "close")
+                h.end_headers()
+                while chunk:
+                    h.wfile.write(b"%x\r\n" % len(chunk))
+                    h.wfile.write(chunk)
+                    h.wfile.write(b"\r\n")
+                    chunk = proc.stdout.read1(256 * 1024)
+                if proc.wait() == 0:
+                    h.wfile.write(b"0\r\n\r\n")
+                    LOG(event="image-download", ref=ref, by=user["username"])
+                return True
+            except (BrokenPipeError, ConnectionResetError):
+                return True
+            finally:
+                if proc.poll() is None:
+                    proc.kill()
+    return h.send_json(502, {"error": "Could not export this image from its registry."}) or True
+
+
+TRIVY_DEFAULT_VERSION = "0.76.0"
+TRIVY_VERSION_RE = re.compile(r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
+TRIVY_LOCK = threading.Lock()
+TRIVY_DEFAULT_SOURCES = {
+    "releaseUrl": "https://github.com/aquasecurity/trivy/releases/download",
+    "dbRepository": "ghcr.io/aquasecurity/trivy-db:2",
+    "javaDbRepository": "ghcr.io/aquasecurity/trivy-java-db:1",
+}
+_trivy_definitions_updating = False
+_trivy_definitions_error = ""
+_trivy_installing = False
+_trivy_install_error = ""
+
+
+def trivy_path(version):
+    return os.path.join(FILES, "plugins", "trivy", version, "trivy")
+
+
+def trivy_status():
+    config = STORE.setting("trivyScanner") or {}
+    active = config.get("activeVersion")
+    return {"enabled": config.get("enabled", False),
+            "requestedVersion": config.get("requestedVersion", TRIVY_DEFAULT_VERSION),
+            "activeVersion": active if active and os.path.isfile(trivy_path(active)) else None,
+            "installing": _trivy_installing, "error": _trivy_install_error,
+            "sources": config.get("sources", TRIVY_DEFAULT_SOURCES),
+            "updatingDefinitions": _trivy_definitions_updating, "definitionError": _trivy_definitions_error}
+
+
+def install_trivy(version, release_base=None):
+    """Install a checksum-verified release atomically on the builder volume."""
+    filename = "trivy_%s_Linux-64bit.tar.gz" % version
+    release_url = "%s/v%s/" % (release_base or TRIVY_DEFAULT_SOURCES["releaseUrl"], version)
+    with urllib.request.urlopen(release_url + "trivy_%s_checksums.txt" % version, timeout=30) as response:
+        checksums = response.read(256 * 1024).decode("ascii")
+    checksum = next((fields[0] for line in checksums.splitlines() if len(fields := line.split()) == 2
+                     and fields[1].lstrip("*") == filename and re.fullmatch(r"[a-f0-9]{64}", fields[0])), None)
+    if not checksum:
+        raise ValueError("The upstream release has no checksum for the Linux amd64 scanner.")
+    dest = trivy_path(version)
+    parent = os.path.dirname(dest)
+    os.makedirs(parent, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=parent) as staging:
+        archive = os.path.join(staging, filename)
+        digest = hashlib.sha256()
+        remaining = 200 * 1024 * 1024
+        deadline = time.monotonic() + 300
+        with urllib.request.urlopen(release_url + filename, timeout=30) as response, open(archive, "wb") as out:
+            while chunk := response.read(1024 * 1024):
+                remaining -= len(chunk)
+                if remaining < 0 or time.monotonic() > deadline:
+                    raise ValueError("The Trivy download exceeded its size or time limit.")
+                digest.update(chunk)
+                out.write(chunk)
+        if not hmac.compare_digest(digest.hexdigest(), checksum):
+            raise ValueError("The Trivy download did not match its release checksum.")
+        binary = os.path.join(staging, "trivy")
+        with tarfile.open(archive, "r:gz") as package:
+            member = package.getmember("trivy")
+            if not member.isfile() or not 0 < member.size <= 300 * 1024 * 1024:
+                raise ValueError("The Trivy release contains an invalid executable.")
+            with package.extractfile(member) as source, open(binary, "wb") as out:
+                shutil.copyfileobj(source, out)
+        os.chmod(binary, 0o755)
+        subprocess.run([binary, "--version"], check=True, capture_output=True, timeout=30)
+        os.replace(binary, dest)
+
+
+def _install_trivy(version, release_base=None):
+    global _trivy_installing, _trivy_install_error
+    try:
+        if not os.path.isfile(trivy_path(version)):
+            install_trivy(version, release_base)
+        with TRIVY_LOCK:
+            config = STORE.setting("trivyScanner") or {}
+            if config.get("enabled") and config.get("requestedVersion") == version:
+                STORE.put_setting("trivyScanner", dict(config, activeVersion=version))
+    except Exception as error:  # Installation failures are shown in Settings and can be retried.
+        with TRIVY_LOCK:
+            _trivy_install_error = "Could not install Trivy %s: %s" % (version, str(error)[:300])
+    finally:
+        with TRIVY_LOCK:
+            _trivy_installing = False
+
+
+def configure_trivy(enabled, version, sources=None):
+    global _trivy_installing, _trivy_install_error
+    if not isinstance(enabled, bool) or not isinstance(version, str) or not TRIVY_VERSION_RE.fullmatch(version):
+        raise ValueError("Choose a Trivy release version such as %s." % TRIVY_DEFAULT_VERSION)
+    if sources is not None:
+        if not isinstance(sources, dict):
+            raise ValueError("Invalid Trivy sources.")
+        sources = {key: text(sources.get(key), 1024, key).strip() for key in TRIVY_DEFAULT_SOURCES}
+        url = urllib.parse.urlsplit(sources["releaseUrl"])
+        if url.scheme != "https" or not url.hostname or url.username or url.password or url.query or url.fragment:
+            raise ValueError("The scanner release source must be an HTTPS base URL.")
+        sources["releaseUrl"] = sources["releaseUrl"].rstrip("/")
+        if not all(REF_RE.fullmatch(sources[key]) for key in ("dbRepository", "javaDbRepository")):
+            raise ValueError("Enter a tagged registry reference for each definition database.")
+    with TRIVY_LOCK:
+        if _trivy_installing or _trivy_definitions_updating:
+            raise ValueError("A Trivy update is already in progress.")
+        config = STORE.setting("trivyScanner") or {}
+        sources = sources if sources is not None else config.get("sources", TRIVY_DEFAULT_SOURCES)
+        STORE.put_setting("trivyScanner", dict(config, enabled=enabled, requestedVersion=version, sources=sources))
+        _trivy_install_error = ""
+        if enabled and version != trivy_status()["activeVersion"]:
+            _trivy_installing = True
+            threading.Thread(target=_install_trivy, args=(version, sources["releaseUrl"]), daemon=True).start()
+        return trivy_status()
+
+
+def _refresh_trivy_definitions(version, sources, user):
+    global _trivy_definitions_updating, _trivy_definitions_error
+    try:
+        securitydata.refresh(trivy_path(version), version, sources["dbRepository"], sources["javaDbRepository"], user)
+        LOG(event="trivy-definitions-updated", version=version, by=user)
+    except Exception as error:  # The currently active rules and definitions stay in use on failure.
+        with TRIVY_LOCK:
+            _trivy_definitions_error = str(error)[:400]
+    finally:
+        with TRIVY_LOCK:
+            _trivy_definitions_updating = False
+
+
+def refresh_trivy_definitions(user):
+    global _trivy_definitions_updating, _trivy_definitions_error
+    with TRIVY_LOCK:
+        version = require_scanner()
+        if _trivy_installing or _trivy_definitions_updating:
+            raise ValueError("A Trivy update is already in progress.")
+        _trivy_definitions_error = ""
+        _trivy_definitions_updating = True
+        threading.Thread(target=_refresh_trivy_definitions, args=(version, trivy_status()["sources"], user),
+                         daemon=True).start()
+        return trivy_status()
+
+
+def scanner_version():
+    status = trivy_status()
+    if status["enabled"]:
+        return status["activeVersion"]
+    return None
+
+
+def require_scanner():
+    version = scanner_version()
+    if not version:
+        raise ValueError("Enable Trivy Scanner in Images settings and wait for it to install.")
+    return version
+
+
+def trivy_job_env(token, version):
+    return {"name": "TRIVY_PLUGIN_URL", "value": "%s%s/internal/builds/%s/trivy/%s" % (
+        SERVICE_URL, BASE, token, version)}
+
+
+def load_job_trivy():
+    url = os.environ["TRIVY_PLUGIN_URL"]
+    binary = "/tmp/coder-trivy"
+    with open_service(urllib.request.Request(url), timeout=60) as source, open(binary, "wb") as out:
+        shutil.copyfileobj(source, out, 1024 * 1024)
+    os.chmod(binary, 0o700)
+    os.environ["TRIVY_PLUGIN_BINARY"] = binary
+
+
 # --------------------------------------------------------------------------- S3 (SigV4, multipart; AWS or compatible)
 def _sign(key, msg):
     return hmac.new(key, msg.encode(), hashlib.sha256).digest()
@@ -1144,7 +1378,7 @@ def build_job(image_id, build_id, version, token):
     return name, job_body(name, image_id, build_id, "build", spec)
 
 
-def scan_job(image_id, build_id, version, token, ref=None, node=None, kind="scan"):
+def scan_job(image_id, build_id, version, token, ref=None, node=None, kind="scan", trivy_version=None):
     """The scan Job: trivy on the image in the cluster's registry; or, given the node that holds it (an image no
     registry here holds), on its files copied out of the node's copy (node_scan_spec). kind: the Job's own (a pit
     stop scans after each lap: scan1, scan2...)."""
@@ -1156,7 +1390,8 @@ def scan_job(image_id, build_id, version, token, ref=None, node=None, kind="scan
     c = {"name": "scan", "image": TOOLS_IMAGE, "imagePullPolicy": "IfNotPresent",
          "command": command,
          "env": [{"name": "TRIVY_INSECURE", "value": "true"}, {"name": "HOME", "value": "/tmp"},
-                 {"name": "BUILDER_REGISTRY", "value": REGISTRY}],
+                 {"name": "BUILDER_REGISTRY", "value": REGISTRY},
+                 trivy_job_env(token, trivy_version or require_scanner())],
          "resources": {"requests": {"cpu": "250m", "memory": "512Mi"}, "limits": {"cpu": "2", "memory": "4Gi"}},
          "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
          "volumeMounts": [{"name": "tmp", "mountPath": "/tmp"}]}
@@ -1473,10 +1708,13 @@ class Build(threading.Thread):
 
     def _scan(self):
         """The scan Job (trivy and the image checks, with the security data in force): the report, or None."""
+        trivy_version = getattr(self, "trivy_version", None) or scanner_version()
+        if not trivy_version:
+            return None
         self.advance("scan")
         STORE.update_build(self.build_id, status="scanning")
         name, body = scan_job(self.image_id, self.build_id, self.version, self.token, getattr(self, "scan_ref", None),
-                              getattr(self, "scan_node", None), getattr(self, "scan_kind", "scan"))
+                              getattr(self, "scan_node", None), getattr(self, "scan_kind", "scan"), trivy_version)
         self._job(body)
         deadline = time.time() + 1800
         while time.time() < deadline and not self.cancelled:
@@ -1694,6 +1932,7 @@ def scanned_id(ref):
 
 def start_ref_scan(ref, user):
     """Any image, by reference: its entry (made the first time, read-only) scanned now. (entry id, build id)."""
+    require_scanner()
     ref = (ref or "").strip()
     if not ref or len(ref) > 500 or re.search(r"\s", ref):
         raise ValueError("An image reference, such as ghcr.io/org/image:1.0.")
@@ -1712,6 +1951,7 @@ def start_ref_scan(ref, user):
 
 
 def start_rescan(image_id, user):
+    trivy_version = require_scanner()
     img = STORE.image(image_id)
     if not img:
         raise ValueError("No such image.")
@@ -1721,11 +1961,13 @@ def start_rescan(image_id, user):
     elif img.get("ref"):
         target = img["ref"]
     elif (img.get("tracked") or {}).get("image"):
-        # the workspace image before the builder's registry has its copy (an install that did not seed it): read
-        # from a node that holds it
+        # An unseeded template image may still be available on a node or in the deployment registry.
         target, node = scan_target(img["tracked"]["image"])
         if not node and not in_builder_registry(target):
-            raise ValueError("The builder's registry has no copy of %s yet and no node holds it." % target)
+            registry_target = k3d_registry_ref(target)
+            if not registry_target:
+                raise ValueError("The builder's registry has no copy of %s yet and no node holds it." % target)
+            target = registry_target
     else:
         raise ValueError("Only a built image can be rescanned.")
     if STORE.active_build(image_id):
@@ -1733,6 +1975,7 @@ def start_rescan(image_id, user):
     build_id, token = STORE.new_build(image_id, img["version"], img["spec"], user)
     b = Rescan(image_id, build_id, img["version"], token, img["spec"], user)
     b.scan_ref, b.scan_node = target, node
+    b.trivy_version = trivy_version
     if node:
         STORE.append_log(build_id, "[scan] %s is read from node %s (its copy there; no registry needed).\n" % (
             target, node))
@@ -1746,6 +1989,15 @@ def registry_host(ref):
     """The registry of an image reference (Docker Hub's for a name without one)."""
     first = ref.split("/", 1)[0]
     return first if "/" in ref and ("." in first or ":" in first or first == "localhost") else "docker.io"
+
+
+def k3d_registry_ref(ref):
+    """Map a configured k3d pull address to the registry's port on the cluster network."""
+    host = registry_host(WORKSPACE_IMAGE)
+    match = re.fullmatch(r"(k3d-[a-z0-9.-]+\.localhost):[0-9]+", host)
+    if match and ref.startswith(host + "/"):
+        return match[1] + ":5000" + ref[len(host):]
+    return None
 
 
 class Import(Build):
@@ -2098,7 +2350,7 @@ class PitStop(Build):
             STORE.update_build(self.build_id, status="building")
             self.advance("report" if lap == 1 else "patch",
                          "Reading what to fix (trivy)" if lap == 1 else "Copa patching it (lap %d)" % lap)
-            name, body = copa_job(self.image_id, self.build_id, lap, self.token)
+            name, body = copa_job(self.image_id, self.build_id, lap, self.token, self.trivy_version)
             STORE.update_build(self.build_id, job=name)
             self._job(body)
             self._wait_container(name, "copa", timeout=1800)
@@ -2264,6 +2516,7 @@ def retag(repo, tag, new):
 def start_pit_stop(image_id, options, user):
     """A pit stop for an image (options: keys - the findings chosen, [{id, pkg}], none: every fixable one -,
     libraries, level and maxLevel, laps): (target entry, build id)."""
+    trivy_version = require_scanner()
     img = STORE.image(image_id)
     if not img:
         raise ValueError("No such image.")
@@ -2308,13 +2561,14 @@ def start_pit_stop(image_id, options, user):
     for entry in {image_id, target}:
         STORE.put_setting("pit-latest-%s" % entry, build_id)
     b = PitStop(target, build_id, version, token, timg["spec"], user, pit)
+    b.trivy_version = trivy_version
     STORE.update_build(build_id, steps=b.steps())
     BUILDS[build_id] = b
     b.start()
     return target, build_id
 
 
-def copa_job(image_id, build_id, lap, token):
+def copa_job(image_id, build_id, lap, token, trivy_version=None):
     """A pit stop's lap: rootless BuildKit as a native sidecar (its socket in the shared /run/copa), and the tools
     image running `imagebuilder.py copa` (the report on lap 1, Copa's patch pushed, the result posted back)."""
     name = job_name("copa%d" % lap, image_id, build_id)
@@ -2332,7 +2586,8 @@ def copa_job(image_id, build_id, lap, token):
             "command": ["python3", "/app/imagebuilder.py", "copa", url],
             "env": [{"name": "TRIVY_INSECURE", "value": "true"}, {"name": "HOME", "value": "/tmp"},
                     {"name": "BUILDER_REGISTRY", "value": REGISTRY}, {"name": "COPA_ADDR", "value": "unix://" + sock},
-                    {"name": "PIT_TIMEOUT_MINUTES", "value": str(PIT_TIMEOUT_MINUTES)}],
+                    {"name": "PIT_TIMEOUT_MINUTES", "value": str(PIT_TIMEOUT_MINUTES)},
+                    trivy_job_env(token, trivy_version or require_scanner())],
             "resources": {"requests": {"cpu": "250m", "memory": "512Mi"}, "limits": {"cpu": "2", "memory": "4Gi"}},
             "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
             "volumeMounts": [{"name": "run", "mountPath": "/run/copa"}, {"name": "tmp", "mountPath": "/tmp"}]}
@@ -2433,9 +2688,10 @@ def copa(url):
     if not report:
         print("[pit] report: trivy on %s (%s packages)" % (plan["source"], "OS and Python" if plan["libraries"]
                                                              else "OS"), flush=True)
+        load_job_trivy()
         data = securitydata.job_stamp(os.environ.get("SECURITY_DIR"))
         # Java archives aside: Copa does not patch them, and they would need trivy's Java database
-        cmd = ["trivy", "image", "--insecure", "--cache-backend", "memory", "--cache-dir", data["cacheDir"],
+        cmd = [os.environ["TRIVY_PLUGIN_BINARY"], "image", "--insecure", "--cache-backend", "memory", "--cache-dir", data["cacheDir"],
                "--skip-db-update", "--skip-java-db-update", "--scanners", "vuln", "--ignore-unfixed",
                "--pkg-types", "os,library" if plan["libraries"] else "os", "--format", "json", "--quiet",
                "--skip-files", "**/*.jar", "--skip-files", "**/*.war", "--skip-files", "**/*.ear",
@@ -2657,9 +2913,10 @@ RESCAN_ALL = {"running": False, "queued": [], "done": [], "failed": [], "started
 
 def rescan_all(user):
     """Every built image scanned again, one after another (each scan can take a few GB of memory)."""
+    require_scanner()
     if RESCAN_ALL["running"]:
         raise ValueError("A rescan of every image is running already.")
-    ids = [i["id"] for i in STORE.images() if i.get("pullRef") and not STORE.active_build(i["id"])]
+    ids = [i["id"] for i in STORE.images() if (i.get("pullRef") or i.get("tracked")) and not STORE.active_build(i["id"])]
     RESCAN_ALL.update(running=True, queued=list(ids), done=[], failed=[], startedAt=now())
 
     def run():
@@ -3001,7 +3258,7 @@ def _post_to(report_url):
 
 def _trivy(target, data, rootfs=False):
     """trivy's findings on an image (in a registry) or on a directory of its files: (parsed JSON, error or None)."""
-    cmd = ["trivy", "rootfs" if rootfs else "image", "--cache-backend", "memory", "--cache-dir", data["cacheDir"],
+    cmd = [os.environ["TRIVY_PLUGIN_BINARY"], "rootfs" if rootfs else "image", "--cache-backend", "memory", "--cache-dir", data["cacheDir"],
            "--skip-db-update", "--skip-java-db-update", "--scanners", "vuln,secret",
            "--format", "json", "--quiet", "--timeout", "25m"]
     if not rootfs:
@@ -3079,6 +3336,7 @@ def scan(ref, report_url):
     post = _post_to(report_url)
     post({"progress": "scan"})
     # the security data in force: fetched by the init container (an uploaded set), else the bundled
+    load_job_trivy()
     data = securitydata.job_stamp(os.environ.get("SECURITY_DIR"))
     t, error = _trivy(ref, data)
     post({"progress": "checks"})
@@ -3113,6 +3371,7 @@ def scan_rootfs(ref, report_url, out):
     (its default user as the image ran it: out/uid)."""
     post = _post_to(report_url)
     post({"progress": "scan"})
+    load_job_trivy()
     data = securitydata.job_stamp(os.environ.get("SECURITY_DIR"))
     root = os.path.join(out, "rootfs")
     t, error = _trivy(root, data, rootfs=True)
@@ -3168,12 +3427,27 @@ def can_edit(user, admin_roles):
 def handle_internal(h, method, path):
     """Build and scan Jobs: token-protected, no user."""
     m = re.match(r"^%s/internal/builds/([A-Za-z0-9_-]{20,})/(context\.tar|report|security-data\.tar\.gz|"
-                 r"copa/[1-9](?:/report|/result)?)$" % BASE, path)
+                 r"trivy/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|copa/[1-9](?:/report|/result)?)$" % BASE, path)
     if not m or not STORE:
         return False
     b = STORE.build(token=m.group(1))
     if not b or b["status"] in ("ready", "failed", "cancelled"):
         h.send(404, "not found\n")
+        return True
+    if m.group(2).startswith("trivy/") and method == "GET":
+        binary = trivy_path(m.group(2).split("/")[1])
+        try:
+            source = open(binary, "rb")
+        except FileNotFoundError:
+            h.send(404, "Trivy release is not installed\n")
+            return True
+        with source:
+            h.send_response(200)
+            h.send_header("Content-Type", "application/octet-stream")
+            h.send_header("Content-Length", str(os.fstat(source.fileno()).st_size))
+            h.send_header("Cache-Control", "no-store")
+            h.end_headers()
+            shutil.copyfileobj(source, h.wfile, 1024 * 1024)
         return True
     if m.group(2).startswith("copa/"):
         return pit_internal(h, method, b, m.group(2))
@@ -3368,6 +3642,19 @@ def route(h, method, rest, query, user, editor, admin):
             need(editor)
             ids = rescan_all(user["username"])
             return h.send_json(200, {"images": ids}) or True
+        if rest == "/settings/trivy/definitions" and method == "POST":
+            need(admin)
+            return h.send_json(202, refresh_trivy_definitions(user["username"])) or True
+        if rest == "/settings/trivy":
+            if method == "GET":
+                return h.send_json(200, trivy_status()) or True
+            if method == "POST":
+                need(admin)
+                body = read_json(h)
+                status = configure_trivy(body.get("enabled"), body.get("version"), body.get("sources"))
+                LOG(event="trivy-settings", enabled=status["enabled"], version=status["requestedVersion"],
+                    by=user["username"])
+                return h.send_json(200, status) or True
         if rest == "/settings":
             if method == "GET":
                 return h.send_json(200, {"aptSources": APT.sources(), "defaultAptSources": DEFAULT_APT_SOURCES,
@@ -3415,6 +3702,8 @@ def route(h, method, rest, query, user, editor, admin):
             return import_upload(h, q_, user) or True
         if rest == "/in-use" and method == "GET":
             return h.send_json(200, {"images": images_in_use()}) or True
+        if rest == "/download" and method == "GET" and "ref" in q_:
+            return download_registry_image(h, q_["ref"][0], user)
         if rest == "/contents" and method == "GET":
             return h.send_json(200, image_contents()) or True
         if rest == "/on-nodes" and method == "GET":
@@ -3698,7 +3987,7 @@ def sync_tracked():
         if LOG:
             LOG(event="image-tracked", image=WORKSPACE_IMAGE, digest=digest)
         img = STORE.image(TRACKED_ID)
-    if not img["report"] and not STORE.active_build(TRACKED_ID):
+    if scanner_version() and not img["report"] and not STORE.active_build(TRACKED_ID):
         start_rescan(TRACKED_ID, "platform")
 
 
@@ -3845,6 +4134,9 @@ def start():
     if ENABLED:
         STORE = DB(os.path.join(FILES, "images.sqlite"))
         securitydata.setup(FILES)
+        scanner = trivy_status()
+        if scanner["enabled"] and scanner["requestedVersion"] != scanner["activeVersion"]:
+            configure_trivy(True, scanner["requestedVersion"])
         threading.Thread(target=_sync_tracked_loop, daemon=True, name="tracked-image").start()
         threading.Thread(target=_publish_images_loop, daemon=True, name="workspace-images").start()
 

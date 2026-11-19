@@ -21,6 +21,7 @@ import {
 } from "#/components/Table/Table";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { formatSize, ImageVersionBadge, imageVersion } from "./badges";
+import { ImageDownloadButton } from "./ImageDownloadButton";
 import { nameFrom } from "./ImportImageDialog";
 import { NodeImageCleanup } from "./NodeImageCleanup";
 import {
@@ -94,7 +95,7 @@ export const ImagesInUse: React.FC<{
 				summary={`${images.length} ${images.length === 1 ? "image" : "images"} in use`}
 				hint="Point at anything in the table to read what it does"
 			>
-				<Table data-testid="images-in-use">
+				<Table aria-label="Images in use" data-testid="images-in-use">
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[30%]">Image</TableHead>
@@ -152,6 +153,7 @@ export const ImagesInUse: React.FC<{
 												</>
 											)
 										)}
+										<ImageDownloadButton imageRef={i.image} exportLabel />
 									</div>
 								</TableCell>
 							</TableRow>
