@@ -127,15 +127,17 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			let beforeEdge = Number.NEGATIVE_INFINITY;
 			let afterEdge = Number.POSITIVE_INFINITY;
 			if (bannerRect?.width && !navbar.querySelector("[data-arranging]")) {
+				const bannerCenter = bannerRect.left + bannerRect.width / 2;
 				// Sortable items retain their DOM order while flex order places them.
 				for (const item of items) {
 					const rect = item.getBoundingClientRect();
 					if (item === bannerItem || !rect.width || !rect.height) continue;
-					if (rect.right <= bannerRect.left && rect.right > beforeEdge) {
+					const center = rect.left + rect.width / 2;
+					if (center < bannerCenter && rect.right > beforeEdge) {
 						before = item;
 						beforeEdge = rect.right;
 					}
-					if (rect.left >= bannerRect.right && rect.left < afterEdge) {
+					if (center > bannerCenter && rect.left < afterEdge) {
 						after = item;
 						afterEdge = rect.left;
 					}

@@ -60,9 +60,11 @@
 	height: calc(var(--navbar-action-height) + 2 * var(--navbar-well-rim));
 	padding: var(--navbar-item-rim, var(--navbar-well-rim));
 	border-radius: var(--navbar-joined-radius, 10px);
-	background:
+	background: var(
+		--navbar-item-well,
 		linear-gradient(var(--crumb-seam), var(--crumb-seam)) content-box,
-		var(--crumb-well) border-box;
+		var(--crumb-well) border-box
+	);
 	box-shadow:
 		inset 0 1px 2.5px rgb(0 0 0 / 0.65),
 		0 1px 0 var(--crumb-lip);
@@ -134,45 +136,91 @@
 	border-radius: var(--navbar-pill-radius);
 }
 
-/* With the vertical radius equal to the well height, 1 / (1 - sqrt(3) / 2) makes the arc meet both tips. */
-.navbar-soft [data-banner-edge] {
-	--banner-cutout-depth: 0.5625rem;
-	--banner-cutout-radius: calc(var(--banner-cutout-depth) * 7.4641);
-	--banner-cutout-offset: calc(
-		var(--banner-cutout-radius) -
-		var(--banner-cutout-depth)
+/* Both masks share the center of the banner end cap, leaving a constant-width channel. */
+.navbar-soft {
+	--banner-end-radius: calc(
+		var(--navbar-action-height) /
+		2 +
+		var(--navbar-well-rim)
 	);
-	--banner-join-rim: 2px;
-	--banner-join-gap: calc(var(--navbar-control-gap) * 0.58);
-}
-.navbar-soft [data-banner-edge="left"] {
-	--banner-cutout-origin: calc(0% - var(--banner-cutout-offset));
-}
-.navbar-soft [data-banner-edge="right"] {
-	--banner-cutout-origin: calc(100% + var(--banner-cutout-offset));
+	--banner-join-gap: 6px;
+	--banner-join-rim: 2.5px;
 }
 .navbar-soft
 	:is(.navbar-start, [data-navbar-item])[data-banner-edge]:not(
 		.navbar-resize-handle
-	),
-.navbar-soft [data-navbar-item][data-banner-edge] > :first-child {
+	) {
+	--banner-cut-outer: calc(var(--banner-end-radius) + var(--banner-join-gap));
+	--banner-cut-inner: calc(var(--banner-cut-outer) + var(--banner-join-rim));
 	mask-image: radial-gradient(
-		ellipse var(--banner-cutout-radius) 100% at var(--banner-cutout-origin)
-			center,
-		transparent 100%,
-		black calc(100% + 0.25px)
+		circle at var(--banner-cutout-origin) center,
+		transparent calc(var(--banner-cut-outer) - 0.5px),
+		black calc(var(--banner-cut-outer) + 0.5px)
 	);
 }
 .navbar-soft [data-navbar-item][data-banner-edge]:not(.navbar-resize-handle) {
-	--navbar-item-rim: var(--banner-join-rim);
+	--navbar-item-well: var(--crumb-seam);
+}
+.navbar-soft [data-navbar-item][data-banner-edge] > :first-child {
+	align-items: stretch;
+	border-radius: var(--navbar-joined-radius);
+	background: var(--crumb-face);
+	box-shadow: inset 0 1px 0 var(--crumb-lip);
+	mask-image: radial-gradient(
+		circle at var(--banner-cutout-origin) center,
+		transparent calc(var(--banner-cut-inner) - 0.5px),
+		black calc(var(--banner-cut-inner) + 0.5px)
+	);
+}
+.navbar-soft [data-navbar-item][data-banner-edge] > :first-child:has(:hover) {
+	background: var(--crumb-face-hover);
+}
+.navbar-soft
+	[data-navbar-item][data-banner-edge]
+	> :first-child:has(:active, [data-state="open"]) {
+	background: var(--crumb-face-pressed);
+}
+.navbar-soft
+	[data-navbar-item][data-banner-edge]
+	:is(button, a.inline-flex, .navbar-split):not([data-navbar-arrange-control]) {
+	background: transparent;
+	box-shadow: none;
 }
 .navbar-soft [data-navbar-item][data-banner-edge="left"] {
+	--banner-cutout-origin: 0%;
 	--navbar-joined-radius: 0 var(--navbar-pill-radius) var(--navbar-pill-radius)
 		0;
-	margin-left: calc(var(--banner-join-gap) - var(--navbar-control-gap));
+	--navbar-item-rim: var(--banner-join-rim) var(--banner-join-rim)
+		var(--banner-join-rim) 0;
+	margin-left: calc(
+		-1 *
+		(var(--navbar-control-gap) + var(--banner-end-radius))
+	);
 }
 .navbar-soft [data-navbar-item][data-banner-edge="right"] {
+	--banner-cutout-origin: 100%;
 	--navbar-joined-radius: var(--navbar-pill-radius) 0 0
 		var(--navbar-pill-radius);
-	margin-right: calc(var(--banner-join-gap) - var(--navbar-control-gap));
+	--navbar-item-rim: var(--banner-join-rim) 0 var(--banner-join-rim)
+		var(--banner-join-rim);
+	margin-right: calc(
+		-1 *
+		(var(--navbar-control-gap) + var(--banner-end-radius))
+	);
+}
+.navbar-soft [data-navbar-item][data-banner-edge="left"] > :first-child {
+	padding-left: var(--banner-cut-inner);
+}
+.navbar-soft [data-navbar-item][data-banner-edge="right"] > :first-child {
+	padding-right: var(--banner-cut-inner);
+}
+.navbar-soft .navbar-start[data-banner-edge="left"] {
+	--banner-cutout-origin: 0%;
+	margin-left: calc(-1 * var(--banner-end-radius));
+	padding-left: var(--banner-cut-inner);
+}
+.navbar-soft .navbar-start[data-banner-edge="right"] {
+	--banner-cutout-origin: 100%;
+	margin-right: calc(-1 * var(--banner-end-radius));
+	padding-right: var(--banner-cut-inner);
 }
