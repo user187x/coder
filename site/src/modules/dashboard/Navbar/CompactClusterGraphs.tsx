@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import { useQuery } from "react-query";
 import type { ClusterUsage } from "#/api/platform";
 import { hudHistory } from "#/api/queries/platform";
@@ -19,14 +18,12 @@ function RailPlot({
 	samples,
 	every,
 	scale,
-	className,
 }: {
 	label: string;
 	summary: string;
 	samples: Sample[];
 	every: number;
 	scale: number;
-	className?: string;
 }) {
 	const latest = samples.at(-1)?.t;
 	return (
@@ -39,10 +36,7 @@ function RailPlot({
 				aria-label={summary}
 				viewBox="0 0 100 100"
 				preserveAspectRatio="none"
-				className={cn(
-					"min-h-0 w-full flex-1 overflow-hidden rounded-sm bg-surface-tertiary",
-					className,
-				)}
+				className="min-h-0 w-full flex-1 overflow-hidden rounded-(--dock-radius) bg-surface-tertiary"
 			>
 				{latest !== undefined &&
 					samples.map(({ t, value }) => (
@@ -107,7 +101,6 @@ export function CompactClusterGraphs({ data }: { data: ClusterUsage }) {
 			})}
 			<RailPlot
 				label="NET"
-				className="rounded-(--dock-radius)"
 				summary={
 					network
 						? `Network: ${formatRate(network.rx)} received, ${formatRate(network.tx)} sent`
