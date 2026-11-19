@@ -6,12 +6,12 @@ import {
 import { useId } from "react";
 import {
 	ContextMenu,
-	ContextMenuContent,
 	ContextMenuItem,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import "#/modules/platform/buildFooter/buildFooter.css";
+import { BreadcrumbContextMenuContent } from "./BreadcrumbMenu";
 import "./settingsResourceTray.css";
 
 /** Visibility and locking do not change the handle's anchor on the rail. */
@@ -106,9 +106,9 @@ export const SettingsTrayHandle = ({
 						/>
 					</DropdownMenuItem>
 				</ContextMenuTrigger>
-				<ContextMenuContent
+				<BreadcrumbContextMenuContent
 					aria-label={`${label} handle actions`}
-					className="z-[2147483647]"
+					style={{ zIndex: 2147483647 }}
 					onContextMenu={(event) => event.stopPropagation()}
 				>
 					<ContextMenuItem disabled={busy} onSelect={() => lock(true)}>
@@ -127,7 +127,7 @@ export const SettingsTrayHandle = ({
 						Unlock
 					</ContextMenuItem>
 					{children}
-				</ContextMenuContent>
+				</BreadcrumbContextMenuContent>
 			</ContextMenu>
 		</>
 	);

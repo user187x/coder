@@ -53,6 +53,7 @@
    the announcement keeps at least a fifth of the screen's width either way. The full-width strip and the bar's bottom
    line give way to it. */
 .navbar-soft[data-navbar-floating] {
+	height: auto;
 	justify-content: center;
 	border-bottom-width: 0 !important;
 }
@@ -68,7 +69,9 @@
 	width: fit-content;
 	min-width: min-content;
 	max-width: 100%;
-	/* centred between whatever else the bar holds (the logo) */
+	/* The dock uses the same gap scaled by the navbar zoom. */
+	align-self: flex-start;
+	margin-block-start: var(--navbar-control-gap);
 	margin-inline: auto;
 	padding: 0.375rem 0.75rem;
 	border: 1px solid hsl(var(--border-default));

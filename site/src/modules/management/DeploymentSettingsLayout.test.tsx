@@ -359,4 +359,18 @@ it("keeps the page action and categories in the navbar with an old Beside Page p
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({ navbar_settings_side: "left" }),
 	);
+
+	for (const [label, compact] of [
+		["Side Strip", true],
+		["Side Panel", false],
+	] as const) {
+		await user.pointer({ target: category, keys: "[MouseRight]" });
+		await user.click(await screen.findByRole("menuitem", { name: label }));
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({
+				settings_sidebar: true,
+				settings_sidebar_compact: compact,
+			}),
+		);
+	}
 });

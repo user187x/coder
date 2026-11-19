@@ -1,5 +1,10 @@
 import { cn } from "cn";
-import { PanelLeftIcon, PanelRightIcon, SettingsIcon } from "lucide-react";
+import {
+	PanelLeftIcon,
+	PanelRightDashedIcon,
+	PanelRightIcon,
+	SettingsIcon,
+} from "lucide-react";
 import { Suspense, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link, Navigate, Outlet, useLocation } from "react-router";
@@ -127,7 +132,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 
 	const CategoryIcon = category?.icon ?? SettingsIcon;
 
-	const placementOptions = (
+	const sideOptions = (
 		[
 			["left", "Left Side", PanelLeftIcon],
 			["right", "Right Side", PanelRightIcon],
@@ -142,6 +147,37 @@ const DeploymentSettingsLayout: React.FC = () => {
 			{label}
 		</ContextMenuItem>
 	));
+
+	const placementOptions = (
+		<>
+			{sideOptions}
+			<ContextMenuSeparator />
+			{(
+				[
+					["Side Panel", false, PanelRightIcon],
+					["Side Strip", true, PanelRightDashedIcon],
+				] as const
+			).map(([label, compact, Icon]) => (
+				<ContextMenuItem
+					key={label}
+					disabled={
+						placement.isPending ||
+						(preferences.data?.settings_sidebar === true &&
+							Boolean(preferences.data.settings_sidebar_compact) === compact)
+					}
+					onSelect={() =>
+						placement.mutate({
+							settings_sidebar: true,
+							settings_sidebar_compact: compact,
+						})
+					}
+				>
+					<Icon aria-hidden />
+					{label}
+				</ContextMenuItem>
+			))}
+		</>
+	);
 
 	// Right-click outside the category segment to move the navigation.
 	const placementMenu = (children: React.ReactElement) => (
