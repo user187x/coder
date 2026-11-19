@@ -82,7 +82,7 @@ describe("WorkspacesPageView", () => {
 		await waitFor(() =>
 			expect(router.state.location.search).toBe("?filter=owner%3Ame"),
 		);
-		expect(search).not.toBeInTheDocument();
+		await waitFor(() => expect(search).not.toBeInTheDocument());
 	});
 
 	it("hides the New workspace button and explains the missing permission", async () => {

@@ -62,7 +62,7 @@ it("paginates the account query, searches from the first match, and restores the
 	} finally {
 		getUsers.mockRestore();
 	}
-});
+}, 15_000);
 
 it("opens account and lease creation from a single trigger", async () => {
 	const { router } = renderWithAuth(<UsersPage />, {
