@@ -299,17 +299,8 @@ html[data-settings-dock-edge="left"]
 	overscroll-behavior: contain;
 	scrollbar-width: none;
 }
-.settings-menu[data-settings-docked] [data-settings-metrics] {
-	display: flex;
-	flex-direction: column;
-	max-height: 50%;
-}
 /* Give the history charts the extra height in the full Metrics face. */
 .settings-menu-surface[data-slit-layout="face"][data-slit-direction="down"] {
-	& [data-settings-metrics] {
-		max-height: none;
-	}
-
 	& .cluster-gauge-usage,
 	& .cluster-gauge-series {
 		flex: 1 0 auto;
@@ -327,11 +318,6 @@ html[data-settings-dock-edge="left"]
 	& .cluster-gauge-series > svg {
 		flex: 1 0 auto;
 	}
-}
-.settings-menu[data-settings-docked] [data-settings-metrics] > :first-child {
-	min-height: 0;
-	overflow-y: auto;
-	scrollbar-width: none;
 }
 .settings-menu[data-settings-docked][data-settings-edge="right"]
 	.settings-admin-notes-tray {

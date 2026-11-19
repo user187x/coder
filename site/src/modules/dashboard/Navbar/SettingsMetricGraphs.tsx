@@ -97,11 +97,11 @@ export const SettingsMetricGraphs: React.FC<{
 		);
 	}
 	return (
-		<div ref={anchor} data-settings-metrics className="flex min-h-0 flex-col">
+		<div ref={anchor} data-settings-metrics className="flex min-h-min flex-col">
 			<ClusterGauge
 				data={cluster.data}
 				latency={latency}
-				className="m-0 flex flex-1 flex-col justify-between gap-2"
+				className="m-0 flex flex-auto flex-col justify-between gap-2"
 			/>
 		</div>
 	);
