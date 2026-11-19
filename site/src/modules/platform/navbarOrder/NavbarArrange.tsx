@@ -17,7 +17,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import { CheckIcon, ImageIcon, RotateCcwIcon, XIcon } from "lucide-react";
+import {
+	CheckIcon,
+	EyeOffIcon,
+	ImageIcon,
+	RotateCcwIcon,
+	XIcon,
+} from "lucide-react";
 import {
 	useEffect,
 	useEffectEvent,
@@ -29,6 +35,12 @@ import {
 import { createPortal } from "react-dom";
 import type { NavbarLayout } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
+import {
+	ContextMenu,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
+import { BreadcrumbContextMenuContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { toCssPx } from "#/utils/appZoom";
 import {
 	isNavbarItem,
@@ -110,6 +122,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 	const {
 		order,
 		hidden,
+		hide,
 		save,
 		reset,
 		publish,
@@ -330,6 +343,12 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 							}}
 							onDone={done}
 							onRemove={() => save(order, [...hidden, id])}
+							onHide={
+								!arranging && visible.indexOf(id) > visible.indexOf("banner")
+									? () => hide(id)
+									: undefined
+							}
+							hideDisabled={saving}
 						>
 							{arranging && id === "action" && (
 								<span className="flex h-10 items-center rounded-md bg-surface-secondary px-3 text-xs text-content-secondary">
@@ -470,6 +489,8 @@ type ArrangeItemProps = {
 	onMove: (by: number) => void;
 	onDone: () => void;
 	onRemove?: () => void;
+	onHide?: () => void;
+	hideDisabled?: boolean;
 	children: React.ReactNode;
 };
 
@@ -481,6 +502,8 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 	onMove,
 	onDone,
 	onRemove,
+	onHide,
+	hideDisabled,
 	children,
 }) => {
 	const isBanner = id === "banner";
@@ -499,6 +522,19 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 			droppable: !arranging || id === SETTINGS_CHEVRONS,
 		},
 	});
+
+	const tile = (
+		<div
+			className={cn(
+				"flex min-w-0 flex-1",
+				arranging && "pointer-events-none opacity-90",
+			)}
+			aria-hidden={arranging && !isBanner ? true : undefined}
+			inert={arranging && !isBanner}
+		>
+			{children}
+		</div>
+	);
 
 	return (
 		<div
@@ -523,17 +559,18 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 				>
 					Announcement banner
 				</div>
+			) : onHide ? (
+				<ContextMenu>
+					<ContextMenuTrigger asChild>{tile}</ContextMenuTrigger>
+					<BreadcrumbContextMenuContent aria-label={label}>
+						<ContextMenuItem disabled={hideDisabled} onSelect={onHide}>
+							<EyeOffIcon aria-hidden />
+							Hide
+						</ContextMenuItem>
+					</BreadcrumbContextMenuContent>
+				</ContextMenu>
 			) : (
-				<div
-					className={cn(
-						"flex min-w-0 flex-1",
-						arranging && "pointer-events-none opacity-90",
-					)}
-					aria-hidden={arranging && !isBanner ? true : undefined}
-					inert={arranging && !isBanner}
-				>
-					{children}
-				</div>
+				tile
 			)}
 			{arranging && !isBanner && (
 				<>

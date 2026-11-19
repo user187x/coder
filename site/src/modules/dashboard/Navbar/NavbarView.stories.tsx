@@ -69,6 +69,29 @@ export const ResourcesMenu: Story = {
 	},
 };
 
+export const ResourcesContextMenu: Story = {
+	parameters: {
+		pixel: { matrix: pixelWithDesktop },
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					navbar_layout: {
+						order: ["logo", "banner", "workspaces"],
+						hidden: [],
+					},
+				},
+			},
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.pointer({
+			target: within(canvasElement).getByRole("button", { name: "Resources" }),
+			keys: "[MouseRight]",
+		});
+	},
+};
+
 export const ResizableWithoutBackstrip: Story = {
 	parameters: {
 		pixel: { matrix: pixelWithDesktop },

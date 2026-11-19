@@ -95,6 +95,8 @@ export const useNavbarOrder = (
 		setSettingsSide: setSideDraft,
 		save: (next: NavbarItem[], removed: NavbarItem[] = hidden) =>
 			setDraft({ order: next, hidden: removed }),
+		hide: (item: NavbarItem) =>
+			mutation.mutate({ navbar_layout: { order, hidden: [...hidden, item] } }),
 		reset: () => setDraft(null),
 		publish: () =>
 			deploymentDefault.mutate(

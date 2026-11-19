@@ -122,6 +122,57 @@ it("publishes the inherited order without writing a personal override", async ()
 	expect(personal).not.toHaveBeenCalled();
 });
 
+it("saves Hide from a control to the right of the banner", async () => {
+	const order = [
+		"logo",
+		"banner",
+		"workspaces",
+		"latency",
+		"hud",
+		"notifications",
+		"account",
+		"action",
+	];
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+		navbar_layout: { order, hidden: ["notifications"] },
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (changes) => changes);
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<NavbarArrange
+				items={{
+					logo: <button type="button">Logo</button>,
+					workspaces: <button type="button">Resources</button>,
+					banner: <span>Banner</span>,
+					latency: null,
+					hud: null,
+					notifications: null,
+					account: null,
+					action: null,
+				}}
+			/>
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	await user.pointer({
+		target: await screen.findByRole("button", { name: "Logo" }),
+		keys: "[MouseRight]",
+	});
+	expect(screen.queryByRole("menuitem", { name: "Hide" })).toBeNull();
+	await user.pointer({
+		target: screen.getByRole("button", { name: "Resources" }),
+		keys: "[MouseRight]",
+	});
+	await user.click(await screen.findByRole("menuitem", { name: "Hide" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			navbar_layout: { order, hidden: ["notifications", "workspaces"] },
+		}),
+	);
+});
+
 it("restores a removed item from a non-focusable live preview", async () => {
 	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
 	const save = vi
