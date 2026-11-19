@@ -85,3 +85,15 @@ it("opens account and lease creation from a single trigger", async () => {
 	);
 	expect(router.state.location.pathname).toBe("/deployment/users/create");
 });
+
+it("opens the create user form from the Accounts table", async () => {
+	const { router } = renderWithAuth(<UsersPage />, {
+		path: "/deployment/users",
+		route: "/deployment/users",
+		extraRoutes: [{ path: "/deployment/users/create", element: <div /> }],
+	});
+	await userEvent.click(
+		await screen.findByRole("link", { name: "Create User" }),
+	);
+	expect(router.state.location.pathname).toBe("/deployment/users/create");
+});

@@ -1,5 +1,6 @@
 import { Maximize2Icon, Minimize2Icon, UserPlusIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 import type * as TypesGen from "#/api/typesGenerated";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
@@ -22,7 +23,10 @@ import {
 import { BreadcrumbDropdownContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
-import { AccountCreationMenuItems } from "#/modules/users/AccountCreationMenuItems";
+import {
+	AccountCreationMenuItems,
+	accountsPath,
+} from "#/modules/users/AccountCreationMenuItems";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
 import {
 	UserActionDialogs,
@@ -88,6 +92,14 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 				<div className="min-w-48 flex-1 [&>div]:mb-0">
 					<UsersFilter {...filterProps} />
 				</div>
+				{canCreateUser && (
+					<Button asChild>
+						<Link to={`${accountsPath}/create`}>
+							<UserPlusIcon aria-hidden />
+							Create User
+						</Link>
+					</Button>
+				)}
 				<Select
 					value={String(usersQuery.limit)}
 					onValueChange={(value) => onPageSizeChange(Number(value))}

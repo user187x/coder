@@ -194,9 +194,12 @@ const DeploymentSettingsLayout: React.FC = () => {
 				>
 					<BreadcrumbList>
 						{settingsMenu ? (
-							<BreadcrumbItem ref={settingsMenuSlot} />
+							<BreadcrumbItem
+								ref={settingsMenuSlot}
+								className="settings-breadcrumb-root"
+							/>
 						) : (
-							<BreadcrumbItem>
+							<BreadcrumbItem className="settings-breadcrumb-root">
 								<AdminCategoryMenu />
 							</BreadcrumbItem>
 						)}

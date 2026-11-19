@@ -90,6 +90,23 @@ it("submits the provided lease token through the lease login API", async () => {
 	await waitFor(() => expect(login).toHaveBeenCalledWith("example-test-token"));
 });
 
+it("filters leases by workspace or account and restores the results when cleared", async () => {
+	const user = userEvent.setup();
+	render(
+		<ShortTermLeases clock={() => Date.parse(MockShortTermLease.issued_at)} />,
+	);
+	await screen.findByText("Showing 1 of 1 leases");
+	const search = screen.getByRole("textbox", { name: "Search leases" });
+	await user.type(search, "no matching lease");
+	await screen.findByText("Showing 0 of 1 leases");
+	await user.click(screen.getByRole("button", { name: "Clear search" }));
+	await user.type(search, MockShortTermLease.user_id.slice(0, 8).toUpperCase());
+	await screen.findByText("Showing 1 of 1 leases");
+	await user.clear(search);
+	await user.type(search, "Browser");
+	await screen.findByText("Showing 1 of 1 leases");
+});
+
 it("removes an expired lease from history", async () => {
 	const remove = vi.spyOn(ShortTermLeasesAPI, "remove").mockResolvedValue({});
 	render(

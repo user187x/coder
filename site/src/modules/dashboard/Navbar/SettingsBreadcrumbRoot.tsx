@@ -15,9 +15,12 @@ export const SettingsBreadcrumbRoot = () => {
 	const { path } = useSettingsDefaultView(!authenticated);
 
 	return settingsMenu ? (
-		<BreadcrumbItem ref={settingsMenuSlot} />
+		<BreadcrumbItem
+			ref={settingsMenuSlot}
+			className="settings-breadcrumb-root"
+		/>
 	) : (
-		<BreadcrumbItem>
+		<BreadcrumbItem className="settings-breadcrumb-root">
 			{authenticated ? (
 				<AdminCategoryMenu fallbackPath="/deployment" />
 			) : (

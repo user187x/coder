@@ -1,11 +1,17 @@
+import { cn } from "cn";
 import { LinkIcon } from "lucide-react";
 import { CopyButton } from "#/components/CopyButton/CopyButton";
 import { Link } from "#/components/Link/Link";
 
-export const LeaseSignInLink = () => {
+export const LeaseSignInLink = ({ className }: { className?: string }) => {
 	const url = new URL("/lease", window.location.origin).href;
 	return (
-		<div className="flex min-w-0 items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2 text-xs">
+		<div
+			className={cn(
+				"flex min-w-0 items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2 text-xs",
+				className,
+			)}
+		>
 			<LinkIcon aria-hidden className="size-4 shrink-0" />
 			<span className="shrink-0">Lease sign-in</span>
 			<Link

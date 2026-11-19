@@ -6,6 +6,7 @@ import {
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
+import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
 import "#/modules/dashboard/Navbar/navbarSkeuo.css";
 import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
 import {
@@ -87,9 +88,7 @@ export const NavbarCategory: Story = {
 				className="deployment-breadcrumb admin-navbar-breadcrumb"
 			>
 				<BreadcrumbList>
-					<BreadcrumbItem>
-						<AdminCategoryMenu />
-					</BreadcrumbItem>
+					<SettingsBreadcrumbRoot />
 					<BreadcrumbItem>
 						<span className="inline-flex">
 							<CategoryBreadcrumbButton

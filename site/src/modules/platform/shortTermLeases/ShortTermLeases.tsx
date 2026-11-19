@@ -23,6 +23,7 @@ import {
 } from "#/components/Dialog/Dialog";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
+import { SearchField } from "#/components/SearchField/SearchField";
 import {
 	Select,
 	SelectContent,
@@ -77,6 +78,7 @@ export const ShortTermLeases = ({
 	const [firewall, setFirewall] = useState(true);
 	const [autoRemove, setAutoRemove] = useState(false);
 	const [filter, setFilter] = useState("all");
+	const [search, setSearch] = useState("");
 	const queries = useQueries({
 		queries: (orgs.data ?? []).map((org) => shortTermLeases(org.id)),
 	});
@@ -113,12 +115,25 @@ export const ShortTermLeases = ({
 		create.error ||
 		update.error ||
 		remove.error;
-	const visibleRows = rows.filter(
-		(row) =>
-			filter === "all" ||
-			(filter === "active") ===
-				(!row.revoked_at && Date.parse(row.expires_at) > now),
-	);
+	const query = search.trim().toLowerCase();
+	const visibleRows = rows
+		.map((row) => ({
+			row,
+			status: row.revoked_at
+				? "Revoked"
+				: Date.parse(row.expires_at) > now
+					? "Active"
+					: "Expired",
+		}))
+		.filter(({ row, status }) => {
+			const active = status === "Active";
+			if (filter !== "all" && (filter === "active") !== active) return false;
+			return [
+				`lease-${row.user_id}`,
+				`Browser ${row.workspace_id ?? ""}`,
+				status,
+			].some((value) => value.toLowerCase().includes(query));
+		});
 
 	return (
 		<section
@@ -138,10 +153,16 @@ export const ShortTermLeases = ({
 				leases cannot be renewed.
 			</p>
 			<div className="mb-4">
-				<LeaseSignInLink />
+				<LeaseSignInLink className="justify-center" />
 			</div>
 			{Boolean(error) && <ErrorAlert error={error} />}
-			<div className="mb-4 flex flex-wrap items-end gap-3">
+			<div className="mb-4 flex flex-wrap items-center gap-2">
+				<SearchField
+					aria-label="Search leases"
+					value={search}
+					onChange={setSearch}
+					className="min-w-48 flex-1"
+				/>
 				<Button
 					onClick={() => {
 						setIssuedToken("");
@@ -392,7 +413,7 @@ export const ShortTermLeases = ({
 				<Spinner />
 			) : (
 				<TableCard
-					summary={`Showing ${visibleRows?.length ?? 0} of ${rows.length} leases`}
+					summary={`Showing ${visibleRows.length} of ${rows.length} leases`}
 				>
 					<Table aria-label="Short Term Leases">
 						<TableHeader>
@@ -410,14 +431,13 @@ export const ShortTermLeases = ({
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{visibleRows?.length === 0 && (
+							{visibleRows.length === 0 && (
 								<TableRow>
 									<TableCell colSpan={6}>No leases match this view.</TableCell>
 								</TableRow>
 							)}
-							{visibleRows?.map((row) => {
-								const active =
-									!row.revoked_at && Date.parse(row.expires_at) > now;
+							{visibleRows.map(({ row, status }) => {
+								const active = status === "Active";
 								return (
 									<TableRow
 										key={row.user_id}
@@ -430,13 +450,7 @@ export const ShortTermLeases = ({
 											</code>
 										</TableCell>
 										<TableCell>
-											<Badge>
-												{row.revoked_at
-													? "Revoked"
-													: active
-														? "Active"
-														: "Expired"}
-											</Badge>
+											<Badge>{status}</Badge>
 											{row.extension_requested_at && active && (
 												<div className="mt-1 text-xs text-content-warning">
 													Extension requested
