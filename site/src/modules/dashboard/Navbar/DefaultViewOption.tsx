@@ -63,14 +63,14 @@ export const CategoryDefaultMenu: React.FC<{
 	);
 };
 
-/** A small badge in the theme's link colour, "Default home", to the right of the quick link that is the Default View. */
+/** Marks the quick link used as the default home. */
 export const DefaultViewOrb: React.FC<{ path: string }> = ({ path }) => {
 	const view = useSettingsDefaultView();
 	if (view.path !== path) return null;
 	return (
 		<span
 			title="Your default home: where signing in and the announcement banner take you"
-			className="mx-1 shrink-0 whitespace-nowrap rounded-full bg-content-link px-1.5 text-[10px] font-semibold leading-4 text-content-invert"
+			className="pointer-events-none absolute top-0.5 right-1 whitespace-nowrap rounded-full bg-content-link px-1 text-[8px] font-semibold leading-[9px] text-content-invert"
 		>
 			Default home
 		</span>

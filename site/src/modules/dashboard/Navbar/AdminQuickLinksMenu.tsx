@@ -692,10 +692,10 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 			// Pointed at (or holding the keyboard's focus): an oval round the row, and only then its remove and move
 			// controls, so a link is removed or moved only from the row in hand.
 			className={cn(
-				"group/quick flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
+				"group/quick relative flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
 				editable &&
 					"hover:bg-surface-secondary/60 hover:ring-1 hover:ring-border focus-within:ring-1 focus-within:ring-border",
-				isDragging && "relative z-10 bg-surface-secondary shadow-md",
+				isDragging && "z-10 bg-surface-secondary shadow-md",
 			)}
 		>
 			{link.id === "chat" ? (

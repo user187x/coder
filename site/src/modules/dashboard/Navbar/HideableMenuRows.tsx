@@ -44,9 +44,9 @@ export const HideableRow: React.FC<{
 			data-testid="admin-quick-link"
 			style={{ transform: CSS.Translate.toString(transform), transition }}
 			className={cn(
-				"group/quick flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
+				"group/quick relative flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
 				"hover:bg-surface-secondary/60 hover:ring-1 hover:ring-border focus-within:ring-1 focus-within:ring-border",
-				isDragging && "relative z-10 bg-surface-secondary shadow-md",
+				isDragging && "z-10 bg-surface-secondary shadow-md",
 			)}
 		>
 			<PageMenuItem

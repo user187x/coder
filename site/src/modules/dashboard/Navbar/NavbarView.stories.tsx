@@ -368,6 +368,19 @@ export const ForAdminWithQuickLinks: Story = {
 	},
 };
 
+export const QuickLinkWithDefaultBadge: Story = {
+	...ForAdminWithQuickLinks,
+	parameters: {
+		pixel: { matrix: pixelWithDesktop },
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: { settings_default_view: "/health" },
+			},
+		],
+	},
+};
+
 export const RemovingQuickLink: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: ForAdminWithQuickLinks.args,
