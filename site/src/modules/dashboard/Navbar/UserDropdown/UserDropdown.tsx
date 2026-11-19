@@ -2,9 +2,9 @@ import type * as TypesGen from "#/api/typesGenerated";
 import { Avatar } from "#/components/Avatar/Avatar";
 import {
 	DropdownMenu,
-	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { BreadcrumbDropdownContent } from "../BreadcrumbMenu";
 import { navbarTileTriggerClass } from "../NavbarLogo";
 import { UserDropdownContent } from "./UserDropdownContent";
 
@@ -34,14 +34,14 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({
 				</button>
 			</DropdownMenuTrigger>
 
-			<DropdownMenuContent align="end" className="w-[260px]">
+			<BreadcrumbDropdownContent align="end" style={{ width: 260 }}>
 				<UserDropdownContent
 					user={user}
 					buildInfo={buildInfo}
 					supportLinks={supportLinks}
 					onSignOut={onSignOut}
 				/>
-			</DropdownMenuContent>
+			</BreadcrumbDropdownContent>
 		</DropdownMenu>
 	);
 };

@@ -186,13 +186,6 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 					</TooltipContent>
 				</Tooltip>
 			)}
-			{!compact && (
-				<DropdownMenuItem className="text-xs" disabled>
-					<span>
-						&copy; {new Date().getFullYear()} Coder Technologies, Inc.
-					</span>
-				</DropdownMenuItem>
-			)}
 		</div>
 	);
 };
