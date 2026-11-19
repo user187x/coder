@@ -319,8 +319,8 @@ export const PanelAccentSection: React.FC<{
 				>
 					<span className="text-sm font-medium">Preview</span>
 					<span className="text-xs text-content-secondary">
-						Select the backdrop for card panels, a panel surface for the accent,
-						or a label or icon for the text colour.
+						Click the backdrop, a panel surface, or its text and icons to edit
+						the corresponding colour across the app.
 					</span>
 					<div
 						className="relative flex min-h-72 items-start justify-center overflow-hidden rounded-xl bg-(--dashboard-panel-bg) p-4"
@@ -329,6 +329,7 @@ export const PanelAccentSection: React.FC<{
 						<button
 							type="button"
 							aria-label="Edit card panel colour"
+							title="Edit card panel colour"
 							aria-pressed={picking === "card"}
 							onClick={() => setPicking("card")}
 							className={previewSurfaceTarget}
@@ -343,7 +344,7 @@ export const PanelAccentSection: React.FC<{
 					</div>
 					{picking === "accent" && !locked && (
 						<ColorField
-							label="Accent colour"
+							label="Panel surface colour"
 							value={color}
 							onChange={pickAccent}
 						/>
@@ -354,7 +355,11 @@ export const PanelAccentSection: React.FC<{
 						</p>
 					)}
 					{picking === "text" && (
-						<ColorField label="Text colour" value={text} onChange={pickText} />
+						<ColorField
+							label="Panel text and icon colour"
+							value={text}
+							onChange={pickText}
+						/>
 					)}
 					{picking === "card" && (
 						<ColorField
@@ -370,7 +375,7 @@ export const PanelAccentSection: React.FC<{
 };
 
 const previewSurfaceTarget =
-	"absolute inset-0 cursor-pointer rounded-[inherit] border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link";
+	"absolute inset-0 cursor-pointer rounded-[inherit] border-0 bg-transparent p-0 -outline-offset-2 outline-content-link hover:outline-2 focus-visible:outline-2 aria-pressed:outline-2";
 
 const SettingsPanelPreview: React.FC<{
 	accent: PanelAccent | null;
@@ -389,10 +394,10 @@ const SettingsPanelPreview: React.FC<{
 			type="button"
 			aria-label={label}
 			aria-pressed={picking === "text"}
-			title="Edit panel text colour"
+			title="Edit panel text and icon colour"
 			onClick={() => onPick("text")}
 			className={cn(
-				"pointer-events-auto inline-flex cursor-pointer items-center gap-1.5 rounded border-0 bg-transparent p-0 text-xs text-inherit [font-weight:inherit] focus-visible:outline-content-link",
+				"pointer-events-auto inline-flex cursor-pointer items-center gap-1.5 rounded border-0 bg-transparent px-1 py-0.5 text-xs text-inherit outline-content-link [font-weight:inherit] hover:outline-1 focus-visible:outline-2",
 				className,
 			)}
 		>
@@ -421,6 +426,7 @@ const SettingsPanelPreview: React.FC<{
 			<button
 				type="button"
 				aria-label="Edit panel accent colour"
+				title="Edit panel surface colour"
 				aria-pressed={picking === "accent"}
 				onClick={() => onPick("accent")}
 				className={previewSurfaceTarget}

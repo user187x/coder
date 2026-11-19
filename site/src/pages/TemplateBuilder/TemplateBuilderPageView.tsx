@@ -334,7 +334,7 @@ export const TemplateBuilderPageView: React.FC<
 								}
 							/>
 							<div className="mt-auto pt-6">
-								<div className="flex flex-wrap gap-2">
+								<div className="flex flex-wrap justify-center gap-2">
 									{!isFirstStep && (
 										<Button variant="outline" onClick={handleBack}>
 											Back

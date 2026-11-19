@@ -98,15 +98,19 @@ describe("PanelAccentSection", () => {
 	});
 
 	it.each([
-		["Workspaces", "Text colour picker", { panel_text_color: "#ff0000" }],
+		[
+			"Workspaces",
+			"Panel text and icon colour picker",
+			{ panel_text_color: "#ff0000" },
+		],
 		[
 			"Sidebar icon colour",
-			"Text colour picker",
+			"Panel text and icon colour picker",
 			{ panel_text_color: "#ff0000" },
 		],
 		[
 			"Edit panel accent colour",
-			"Accent colour picker",
+			"Panel surface colour picker",
 			{ panel_accent: { mode: "custom", color: "#ff0000" } },
 		],
 		[
@@ -124,7 +128,12 @@ describe("PanelAccentSection", () => {
 			const save = vi
 				.spyOn(PlatformAPI, "setUserUIPreferences")
 				.mockImplementation(async (changes) => changes);
-			renderWithAuth(<PanelAccentSection />);
+			renderWithAuth(
+				<>
+					<PanelAccentSection />
+					<PanelAccent />
+				</>,
+			);
 			const preview = within(
 				await screen.findByRole("group", { name: "Panel preview" }),
 			);
@@ -132,7 +141,21 @@ describe("PanelAccentSection", () => {
 			fireEvent.change(await preview.findByLabelText(picker), {
 				target: { value: "#ff0000" },
 			});
-			await waitFor(() => expect(save).toHaveBeenCalledWith(patch));
+			await waitFor(() => {
+				expect(save).toHaveBeenCalledWith(patch);
+				const style = document.documentElement.style;
+				if ("panel_text_color" in patch) {
+					expect(style.getPropertyValue("--panel-text-primary")).toBe(
+						"0 100% 50%",
+					);
+				} else if ("panel_accent" in patch) {
+					expect(style.getPropertyValue("--panel-accent")).toBe("#ff0000");
+				} else {
+					expect(style.getPropertyValue("--dashboard-panel-bg")).toBe(
+						"#ff0000",
+					);
+				}
+			});
 		},
 	);
 
