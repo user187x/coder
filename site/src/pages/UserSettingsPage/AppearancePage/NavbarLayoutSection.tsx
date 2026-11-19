@@ -99,8 +99,8 @@ export const NavbarLayoutSection: React.FC<{
 						<span className="text-xs text-content-secondary">
 							The bar's buttons, the Settings chevron among them, as one centred
 							pill. Point at it and drag the handles on its ends to resize it;
-							double-click a handle for its natural width. The announcement
-							keeps at least a fifth of the screen.
+							double-click either handle to expand it to the maximum width. The
+							announcement keeps at least a fifth of the screen.
 						</span>
 					</span>
 				</div>

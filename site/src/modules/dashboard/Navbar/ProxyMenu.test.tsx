@@ -294,20 +294,25 @@ describe("ProxyMenu", () => {
 		renderMenu({ proxyContextValue: value, hud: true, controls });
 		const menu = await openMenu();
 		await user.click(
-			within(menu).getByRole("button", { name: "Collapse quick links" }),
+			within(menu).getByRole("menuitem", { name: "Collapse quick links" }),
 		);
-		expect(
-			within(menu).queryByRole("navigation", { name: "Settings" }),
-		).toBeNull();
+		expect(within(menu).queryByTestId("quick-links-scroll")).toBeNull();
 		expect(
 			within(menu).getByRole("region", { name: "Settings panel: Metrics" }),
 		).toBeTruthy();
+		expect(
+			within(menu).getAllByRole("button", { name: "Hide the bottom panel" }),
+		).toHaveLength(2);
 		await user.click(
-			within(menu).getByRole("button", { name: "Show quick links" }),
+			within(menu).getByRole("button", { name: "Turn to Cloud Drive" }),
 		);
 		expect(
-			within(menu).getByRole("navigation", { name: "Settings" }),
+			within(menu).getByRole("region", { name: "Settings panel: Cloud Drive" }),
 		).toBeTruthy();
+		await user.click(
+			within(menu).getByRole("menuitem", { name: "Show quick links" }),
+		);
+		expect(within(menu).getByTestId("quick-links-scroll")).toBeTruthy();
 	});
 
 	it("expands the top section from a double click on Controls and pins it open", async () => {

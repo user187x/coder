@@ -70,6 +70,8 @@ type AdminQuickLinksMenuProps = {
 	onShowItem?: (id: string) => void;
 	/** The Settings menu's top section expanded down to its bottom (a double click on the Controls bar). */
 	topSection?: TopSection;
+	quickLinksCollapsed?: boolean;
+	onToggleQuickLinks?: () => void;
 };
 
 /** The menu's other rows in the quick links' list, and their place among them. */
@@ -110,6 +112,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	rows,
 	shownIds = [],
 	topSection,
+	quickLinksCollapsed = false,
+	onToggleQuickLinks,
 	unreadGlow,
 }) => {
 	const [drawerOpen, setExpanded] = useState(false);
@@ -126,7 +130,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	const linkIds = links.map((link) => link.id);
 	const showChat = chatOn && !linkIds.includes("chat");
 	const hasChoices =
-		showChat || hiddenItems.length > 0 || Boolean(onChange && choices.length);
+		!quickLinksCollapsed &&
+		(showChat || hiddenItems.length > 0 || Boolean(onChange && choices.length));
 	const expanded = hasChoices && drawerOpen;
 	// The quick links and the menu's other rows as one list: in the saved order once it places the quick links too,
 	// else the quick links first and the rows after them in theirs.
@@ -269,83 +274,85 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	return (
 		<>
 			{/* The links scroll on their own, above Controls, which always stays in view */}
-			<div
-				className="admin-quick-links-scroll min-h-0 flex-1 overflow-y-auto"
-				data-testid="quick-links-scroll"
-			>
-				<DndContext
-					sensors={sensors}
-					collisionDetection={closestCenter}
-					modifiers={[({ transform }) => ({ ...transform, x: 0 })]}
-					onDragEnd={onDragEnd}
+			{!quickLinksCollapsed && (
+				<div
+					className="admin-quick-links-scroll min-h-0 flex-1 overflow-y-auto"
+					data-testid="quick-links-scroll"
 				>
-					<SortableContext items={ids} strategy={verticalListSortingStrategy}>
-						{entries.map((entry, index) =>
-							"item" in entry ? (
-								<HideableRow
-									key={entry.id}
-									item={entry.item}
-									itemClassName={cn(
-										itemClassName,
-										unreadRowClass(entry.id, unreadGlow),
-									)}
-									moving={moving === entry.id}
-									onHide={() => {
-										setMoving(undefined);
-										rows?.onHide(entry.id);
-									}}
-									onToggleMoving={() =>
-										setMoving((now) =>
-											now === entry.id ? undefined : entry.id,
-										)
-									}
-									onStopMoving={() => setMoving(undefined)}
-									onMove={(by) => move(entry.id, index + by)}
-								/>
-							) : (
-								<QuickLinkRow
-									key={entry.id}
-									link={entry.link}
-									admin={admin}
-									editable={Boolean(onChange)}
-									chatExpanded={chatExpanded}
-									onChatToggle={onChatToggle}
-									itemClassName={cn(
-										itemClassName,
-										unreadRowClass(entry.id, unreadGlow),
-									)}
-									moving={moving === entry.id}
-									handleRef={(node) => {
-										if (node) {
-											handles.current.set(entry.id, node);
-										} else {
-											handles.current.delete(entry.id);
+					<DndContext
+						sensors={sensors}
+						collisionDetection={closestCenter}
+						modifiers={[({ transform }) => ({ ...transform, x: 0 })]}
+						onDragEnd={onDragEnd}
+					>
+						<SortableContext items={ids} strategy={verticalListSortingStrategy}>
+							{entries.map((entry, index) =>
+								"item" in entry ? (
+									<HideableRow
+										key={entry.id}
+										item={entry.item}
+										itemClassName={cn(
+											itemClassName,
+											unreadRowClass(entry.id, unreadGlow),
+										)}
+										moving={moving === entry.id}
+										onHide={() => {
+											setMoving(undefined);
+											rows?.onHide(entry.id);
+										}}
+										onToggleMoving={() =>
+											setMoving((now) =>
+												now === entry.id ? undefined : entry.id,
+											)
 										}
-									}}
-									onRemove={() => {
-										setMoving(undefined);
-										onChange?.(linkIds.filter((id) => id !== entry.id));
-										setAnnouncement(
-											`${entry.link.label} removed from the quick links.`,
-										);
-									}}
-									onToggleMoving={() => {
-										const next = moving === entry.id ? undefined : entry.id;
-										setMoving(next);
-										setAnnouncement(
-											next
-												? `Moving ${entry.link.label}, position ${index + 1} of ${ids.length}. Use the up and down arrow keys, then Enter.`
-												: `${entry.link.label} dropped at position ${index + 1} of ${ids.length}.`,
-										);
-									}}
-									onStopMoving={() => setMoving(undefined)}
-									onMove={(by) => move(entry.id, index + by)}
-								/>
-							),
-						)}
-					</SortableContext>
-				</DndContext>
-			</div>
+										onStopMoving={() => setMoving(undefined)}
+										onMove={(by) => move(entry.id, index + by)}
+									/>
+								) : (
+									<QuickLinkRow
+										key={entry.id}
+										link={entry.link}
+										admin={admin}
+										editable={Boolean(onChange)}
+										chatExpanded={chatExpanded}
+										onChatToggle={onChatToggle}
+										itemClassName={cn(
+											itemClassName,
+											unreadRowClass(entry.id, unreadGlow),
+										)}
+										moving={moving === entry.id}
+										handleRef={(node) => {
+											if (node) {
+												handles.current.set(entry.id, node);
+											} else {
+												handles.current.delete(entry.id);
+											}
+										}}
+										onRemove={() => {
+											setMoving(undefined);
+											onChange?.(linkIds.filter((id) => id !== entry.id));
+											setAnnouncement(
+												`${entry.link.label} removed from the quick links.`,
+											);
+										}}
+										onToggleMoving={() => {
+											const next = moving === entry.id ? undefined : entry.id;
+											setMoving(next);
+											setAnnouncement(
+												next
+													? `Moving ${entry.link.label}, position ${index + 1} of ${ids.length}. Use the up and down arrow keys, then Enter.`
+													: `${entry.link.label} dropped at position ${index + 1} of ${ids.length}.`,
+											);
+										}}
+										onStopMoving={() => setMoving(undefined)}
+										onMove={(by) => move(entry.id, index + by)}
+									/>
+								),
+							)}
+						</SortableContext>
+					</DndContext>
+				</div>
+			)}
 
 			<Collapsible
 				ref={controlsRoot}
@@ -353,90 +360,131 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				onOpenChange={setExpanded}
 				className="relative shrink-0"
 			>
-				<DropdownMenuItem
-					{...controlsMenu.trigger}
-					aria-expanded={hasChoices ? expanded : undefined}
-					data-settings-expanded={expanded}
-					data-settings-empty={!hasChoices || undefined}
-					aria-controls={hasChoices ? choicesId : undefined}
-					className={cn(
-						itemClassName,
-						"settings-controls-bar my-1 rounded-full border border-solid border-border text-content-secondary focus:bg-surface-secondary",
-					)}
-					onPointerDown={(event) => {
-						pointerOutsideIcon.current = !(
-							event.target instanceof Element &&
-							event.target.closest(".settings-controls-icon")
-						);
-					}}
-					onKeyDown={() => {
-						pointerOutsideIcon.current = false;
-					}}
-					onSelect={(event) => {
-						event.preventDefault();
-						if (pointerOutsideIcon.current) {
+				<div className="relative">
+					<DropdownMenuItem
+						{...controlsMenu.trigger}
+						aria-expanded={hasChoices ? expanded : undefined}
+						data-settings-expanded={expanded}
+						data-settings-empty={!hasChoices || undefined}
+						aria-controls={hasChoices ? choicesId : undefined}
+						className={cn(
+							itemClassName,
+							"settings-controls-bar my-1 rounded-full border border-solid border-border text-content-secondary focus:bg-surface-secondary",
+						)}
+						onPointerDown={(event) => {
+							pointerOutsideIcon.current = !(
+								event.target instanceof Element &&
+								event.target.closest(".settings-controls-icon")
+							);
+						}}
+						onKeyDown={() => {
 							pointerOutsideIcon.current = false;
-							return;
-						}
-						if (hasChoices) setExpanded(!expanded);
-					}}
-					// A double click: the top section down to the panel's bottom, and back.
-					onDoubleClick={() => topSection?.onToggle()}
-				>
-					{full ? (
-						<span
-							title="Back to the panel's normal layout"
-							className={cn(chevronClass, "cursor-pointer")}
-							{...ownClick(() => topSection?.onToggle())}
-						>
-							<ChevronUpIcon className="size-3" />
-						</span>
-					) : (
-						controlsChevron
-					)}
-					{/* The Controls glyph, drawn for the theme (light-controls.png, dark-controls.png); its name for
-					    assistive technology */}
-					<span className="flex flex-1 items-center justify-center">
-						<span
-							className="settings-controls-icon inline-flex cursor-pointer"
-							title="Controls"
-						>
-							<img
-								src="/light-controls.png"
-								alt=""
-								className="controls-glyph controls-glyph-light size-6"
-							/>
-							<img
-								src="/dark-controls.png"
-								alt=""
-								className="controls-glyph controls-glyph-dark size-6"
-							/>
-							<span className="sr-only">Controls</span>
-						</span>
-					</span>
-					{full ? (
-						<span
-							title={
-								topSection?.pinned
-									? "Pinned open: click to unpin"
-									: "Pin it open: keep it this way"
+						}}
+						onSelect={(event) => {
+							event.preventDefault();
+							if (pointerOutsideIcon.current) {
+								pointerOutsideIcon.current = false;
+								return;
 							}
+							if (hasChoices) setExpanded(!expanded);
+						}}
+						// A double click: the top section down to the panel's bottom, and back.
+						onDoubleClick={() => topSection?.onToggle()}
+					>
+						{onToggleQuickLinks ? (
+							<span aria-hidden className="size-6 shrink-0" />
+						) : full ? (
+							<span
+								title="Back to the panel's normal layout"
+								className={cn(chevronClass, "cursor-pointer")}
+								{...ownClick(() => topSection?.onToggle())}
+							>
+								<ChevronUpIcon className="size-3" />
+							</span>
+						) : (
+							controlsChevron
+						)}
+						{/* The Controls glyph, drawn for the theme (light-controls.png, dark-controls.png); its name for
+					    assistive technology */}
+						<span className="flex flex-1 items-center justify-center">
+							<span
+								className="settings-controls-icon inline-flex cursor-pointer"
+								title="Controls"
+							>
+								<img
+									src="/light-controls.png"
+									alt=""
+									className="controls-glyph controls-glyph-light size-6"
+								/>
+								<img
+									src="/dark-controls.png"
+									alt=""
+									className="controls-glyph controls-glyph-dark size-6"
+								/>
+								<span className="sr-only">Controls</span>
+							</span>
+						</span>
+						{full ? (
+							<span
+								title={
+									topSection?.pinned
+										? "Pinned open: click to unpin"
+										: "Pin it open: keep it this way"
+								}
+								className={cn(
+									chevronClass,
+									"cursor-pointer",
+									topSection?.pinned &&
+										"bg-content-link/15 text-content-link ring-content-link/40",
+								)}
+								{...ownClick(() => topSection?.onPin())}
+							>
+								<PinIcon
+									className={cn(
+										"size-2.5",
+										topSection?.pinned && "fill-current",
+									)}
+								/>
+							</span>
+						) : (
+							controlsChevron
+						)}
+					</DropdownMenuItem>
+					{onToggleQuickLinks && (
+						<DropdownMenuItem
+							asChild
 							className={cn(
 								chevronClass,
-								"cursor-pointer",
-								topSection?.pinned &&
-									"bg-content-link/15 text-content-link ring-content-link/40",
+								"absolute top-1/2 left-2 -translate-y-1/2 cursor-pointer justify-center p-0",
 							)}
-							{...ownClick(() => topSection?.onPin())}
+							aria-expanded={!quickLinksCollapsed}
+							aria-label={
+								quickLinksCollapsed
+									? "Show quick links"
+									: "Collapse quick links"
+							}
+							title={
+								quickLinksCollapsed
+									? "Show quick links"
+									: "Collapse quick links"
+							}
+							onSelect={(event) => {
+								event.preventDefault();
+								setExpanded(false);
+								controlsMenu.close();
+								onToggleQuickLinks();
+							}}
 						>
-							<PinIcon
-								className={cn("size-2.5", topSection?.pinned && "fill-current")}
-							/>
-						</span>
-					) : (
-						controlsChevron
+							<button type="button">
+								{quickLinksCollapsed ? (
+									<ChevronDownIcon className="size-3" aria-hidden />
+								) : (
+									<ChevronUpIcon className="size-3" aria-hidden />
+								)}
+							</button>
+						</DropdownMenuItem>
 					)}
-				</DropdownMenuItem>
+				</div>
 				{controlsMenu.open && (hasChoices || topSection) && (
 					<InlineMenuPanel id={controlsMenu.id} label="Controls options">
 						{hasChoices && (

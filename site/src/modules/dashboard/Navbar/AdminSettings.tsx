@@ -43,6 +43,8 @@ type AdminSettingsItemsProps = {
 	/** The admin settings' categories to list too (those not already quick links), each hideable under Controls. */
 	categories?: readonly AdminPage[];
 	topSection?: TopSection;
+	quickLinksCollapsed?: boolean;
+	onToggleQuickLinks?: () => void;
 };
 
 /** Changes to an admin's quick links, made from the Admin menu. */
@@ -143,6 +145,8 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	onChatToggle,
 	categories = [],
 	topSection,
+	quickLinksCollapsed,
+	onToggleQuickLinks,
 	unreadGlow,
 }) => {
 	const client = useQueryClient();
@@ -200,6 +204,8 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				onShowItem={(id) => setHidden(id, false)}
 				shownIds={shown.map((item) => item.id)}
 				topSection={topSection}
+				quickLinksCollapsed={quickLinksCollapsed}
+				onToggleQuickLinks={onToggleQuickLinks}
 				// The other items in the quick links' list, sorted and dragged among the quick links: a hover trash can hides
 				// one under Controls, a hover handle moves it (the whole list's order saved as the admin's sidebar order).
 				rows={{

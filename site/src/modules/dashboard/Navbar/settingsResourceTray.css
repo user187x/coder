@@ -211,7 +211,9 @@ html[data-animations="off"]
 }
 
 .settings-menu-fill
-	> .settings-menu-surface:where(:not(:has([data-face-collapsed="up"]))) {
+	> .settings-menu-surface:where(
+		:not([data-quick-links-collapsed], :has([data-face-collapsed="up"]))
+	) {
 	min-height: min(
 		var(--settings-rail-height, 0px),
 		calc(
@@ -222,7 +224,9 @@ html[data-animations="off"]
 }
 /* The floating menu fills the available height while the bottom panel is shown. */
 .settings-menu-fill:not([data-settings-docked])
-> .settings-menu-surface:where(:not(:has([data-face-collapsed="up"]))) {
+> .settings-menu-surface:where(
+	:not([data-quick-links-collapsed], :has([data-face-collapsed="up"]))
+) {
 	min-height: calc(
 		var(--radix-dropdown-menu-content-available-height, 80vh) /
 		var(--app-zoom, 1)

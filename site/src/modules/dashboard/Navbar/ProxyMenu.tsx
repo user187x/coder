@@ -118,7 +118,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const [quickLinksCollapsed, setQuickLinksCollapsed] = useState(false);
 	// The Chat face expanded over the menu's room below its header row.
 	const [chatFull, setChatFull] = useState(false);
-	const chatExpanded = !quickLinksCollapsed && face === "chat";
+	const chatExpanded = face === "chat";
 	const setChatExpanded = (next: boolean | ((open: boolean) => boolean)) => {
 		setFace((current) => {
 			const open = typeof next === "function" ? next(current === "chat") : next;
@@ -476,6 +476,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 					<div
 						ref={setMenuSurface}
+						data-quick-links-collapsed={quickLinksCollapsed || undefined}
 						// No scrollbar of its own: its top part (quick links) and its bottom panel scroll inside themselves
 						// (the thin strip, compact, still scrolls as a whole).
 						className={cn(
@@ -740,7 +741,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								)}
 
 								{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
-								{!chatFull && !quickLinksCollapsed && controls && (
+								{!chatFull && controls && (
 									<nav
 										aria-label="Settings"
 										data-testid="controls-group"
@@ -763,21 +764,26 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 												settingsInNavbar ? controls.categories : undefined
 											}
 											topSection={topSection}
+											quickLinksCollapsed={quickLinksCollapsed}
+											onToggleQuickLinks={
+												settingsInNavbar
+													? () => {
+															if (
+																!quickLinksCollapsed &&
+																prefs.data?.settings_face_hidden
+															) {
+																docking.mutate({ settings_face_hidden: null });
+															}
+															setQuickLinksCollapsed((collapsed) => !collapsed);
+														}
+													: undefined
+											}
 										/>
 									</nav>
 								)}
 								{(quickLinksCollapsed || !topFull || chatExpanded) && (
 									<SettingsFacePanel
-										face={quickLinksCollapsed ? "metrics" : face}
-										quickLinksCollapsed={quickLinksCollapsed}
-										onToggleQuickLinks={
-											controls && canViewAdminSettings(controls.permissions)
-												? () => {
-														setChatFull(false);
-														setQuickLinksCollapsed((collapsed) => !collapsed);
-													}
-												: undefined
-										}
+										face={face}
 										onFaceChange={(next) => {
 											setChatFull(false);
 											setFace(next);

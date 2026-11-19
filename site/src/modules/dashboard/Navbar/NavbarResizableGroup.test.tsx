@@ -39,12 +39,18 @@ it("widens from the right handle with the arrow keys and saves the width", async
 	);
 });
 
-it("goes back to its natural width on a double click", async () => {
-	const { save, handle } = await setup(60);
-	await userEvent.dblClick(handle);
-	await waitFor(() =>
-		expect(save).toHaveBeenCalledWith(
-			expect.objectContaining({ navbar_resizable_width: null }),
-		),
-	);
-});
+it.each(["left", "right"])(
+	"expands to maximum width when double-clicking the %s handle",
+	async (side) => {
+		const { save } = await setup(60);
+		await userEvent.dblClick(
+			screen.getByRole("separator", {
+				name: `Resize the navigation bar from its ${side} end`,
+			}),
+		);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({ navbar_resizable_width: 100 }),
+		);
+		expect(save).toHaveBeenCalledTimes(1);
+	},
+);

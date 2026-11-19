@@ -16,7 +16,7 @@ const clampWidth = (percent: number) =>
 /**
  * Appearance > Navigation bar, Resizable: the bar's buttons (the Settings chevron group among them) in one centred
  * pill whose width the user sets by dragging the handles that appear on its ends while it is pointed at (or with the
- * arrow keys on a focused handle; a double click goes back to the pill's natural width). The width is kept in the
+ * arrow keys on a focused handle; a double click expands the pill to its maximum width). The width is kept in the
  * user's preferences as a percentage of the bar. Off, the children sit in the bar as they are.
  */
 export const NavbarResizableGroup: React.FC<{
@@ -61,8 +61,8 @@ export const NavbarResizableGroup: React.FC<{
 				start.element.getBoundingClientRect().width /
 					start.element.offsetWidth || 1;
 			const startX = event.clientX;
-			let latest = clampWidth(start.percent);
-			setDragging(latest);
+			const initial = clampWidth(start.percent);
+			let latest = initial;
 			const onMove = (move: PointerEvent) => {
 				// Centred, the pill grows on both ends: twice the handle's move.
 				const grown = (2 * side * (move.clientX - startX)) / scale;
@@ -73,6 +73,10 @@ export const NavbarResizableGroup: React.FC<{
 				handle.removeEventListener("pointermove", onMove);
 				handle.removeEventListener("pointerup", onUp);
 				handle.removeEventListener("pointercancel", onUp);
+				if (latest === initial) {
+					setDragging(null);
+					return;
+				}
 				save.mutate(
 					{ navbar_resizable_width: latest },
 					{ onSettled: () => setDragging(null) },
@@ -113,7 +117,7 @@ export const NavbarResizableGroup: React.FC<{
 			aria-valuemax={MAX_WIDTH}
 			aria-valuenow={width ?? undefined}
 			tabIndex={0}
-			title="Drag to resize; double-click for its natural width"
+			title="Drag to resize; double-click to expand to maximum width"
 			className={cn(
 				"navbar-resize-handle",
 				side === -1
@@ -122,7 +126,7 @@ export const NavbarResizableGroup: React.FC<{
 			)}
 			onPointerDown={onPointerDown(side)}
 			onKeyDown={onKeyDown(side)}
-			onDoubleClick={() => save.mutate({ navbar_resizable_width: null })}
+			onDoubleClick={() => save.mutate({ navbar_resizable_width: MAX_WIDTH })}
 		/>
 	);
 
