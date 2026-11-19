@@ -4589,6 +4589,7 @@ def network_report(token):
                 "kernel": info.get("kernelVersion"),
                 "runtime": info.get("containerRuntimeVersion"),
                 "arch": info.get("architecture"),
+                "loadAverage": workspacenodemetrics.node_load(n)[0] if ready.get("status") == "True" else None,
                 "capacity": res(st.get("capacity")),
                 "allocatable": res(st.get("allocatable")),
                 "usage": (

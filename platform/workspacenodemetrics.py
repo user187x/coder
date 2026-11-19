@@ -120,6 +120,20 @@ def ready(node):
                for c in (node.get("status") or {}).get("conditions", []))
 
 
+def node_load(node):
+    """Read the latest load sample if it still belongs to this node."""
+    load, collected = None, None
+    try:
+        raw = node["metadata"].get("annotations", {}).get("platform.coder/node-load", "")
+        observed = json.loads(raw) if len(raw) <= 1024 else {}
+        if observed.get("nodeUID") == node["metadata"].get("uid"):
+            collected = timestamp(observed.get("collectedAt"))
+            load = number(observed.get("load1")) if collected else None
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return load, collected
+
+
 def node_metrics(node, snapshot, stats):
     name = node["metadata"]["name"]
     allocatable = (node.get("status") or {}).get("allocatable") or {}
@@ -143,15 +157,7 @@ def node_metrics(node, snapshot, stats):
     used, total = number(filesystem.get("usedBytes")), number(filesystem.get("capacityBytes"))
     result["disk"] = metric("bytes", used=used if at else None, total=total if at else None, collected=at,
         error=None if at and used is not None and total is not None and total > 0 else "Node filesystem metrics are unavailable or stale.")
-    load, collected = None, None
-    try:
-        raw = node["metadata"].get("annotations", {}).get("platform.coder/node-load", "")
-        observed = json.loads(raw) if len(raw) <= 1024 else {}
-        if observed.get("nodeUID") == node["metadata"].get("uid"):
-            collected = timestamp(observed.get("collectedAt"))
-            load = number(observed.get("load1")) if collected else None
-    except (ValueError, TypeError, AttributeError):
-        pass
+    load, collected = node_load(node)
     result["load"] = metric("load", used=load, total=result["cpu"]["total"], collected=collected,
         error=None if load is not None else "Node load average is unavailable or stale.")
     if not ready(node):

@@ -255,15 +255,19 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 	await user.click(
 		screen.getByRole("button", { name: "Restore Notifications" }),
 	);
-	screen.getByRole("button", { name: "Move Page action" }).focus();
+	screen.getByRole("button", { name: "Move Action Button" }).focus();
 	await user.keyboard("{ArrowLeft}");
-	await user.click(screen.getByRole("button", { name: "Remove Page action" }));
+	await user.click(
+		screen.getByRole("button", { name: "Remove Action Button" }),
+	);
 	const restoreAction = screen.getByRole("button", {
-		name: "Restore Page action",
+		name: "Restore Action Button",
 	});
-	expect(restoreAction).toHaveTextContent("Page action");
+	expect(restoreAction).toHaveTextContent("Action Button");
 	await user.click(restoreAction);
-	await user.click(screen.getByRole("button", { name: "Remove Page action" }));
+	await user.click(
+		screen.getByRole("button", { name: "Remove Action Button" }),
+	);
 	const chevrons = screen.getByRole("button", {
 		name: "Move Settings chevrons",
 	});

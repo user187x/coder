@@ -427,6 +427,7 @@ export type ClusterNode = {
 	kernel: string | null;
 	runtime: string | null;
 	arch: string | null;
+	loadAverage?: number | null;
 	capacity: NodeResources;
 	allocatable: NodeResources;
 	usage: { cpu: number | null; memory: number | null } | null;

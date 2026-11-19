@@ -1,5 +1,10 @@
 import { cn } from "cn";
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import {
+	ArrowDownIcon,
+	ArrowUpIcon,
+	ChevronDownIcon,
+	ChevronUpIcon,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
@@ -46,7 +51,17 @@ export const SettingsFacePanel: React.FC<{
 	/** The Chat face expanded over the menu's room below its header row (the menu hides the rest meanwhile). */
 	chatFull?: boolean;
 	onChatFull?: (full: boolean) => void;
-}> = ({ face, onFaceChange, metrics, chatFull = false, onChatFull }) => {
+	quickLinksCollapsed?: boolean;
+	onToggleQuickLinks?: () => void;
+}> = ({
+	face,
+	onFaceChange,
+	metrics,
+	chatFull = false,
+	onChatFull,
+	quickLinksCollapsed = false,
+	onToggleQuickLinks,
+}) => {
 	const chatOn = useChatEnabled();
 	const faces = (["metrics", "chat", "drive"] as const).filter(
 		(f) => (f !== "metrics" || metrics !== null) && (f !== "chat" || chatOn),
@@ -60,7 +75,10 @@ export const SettingsFacePanel: React.FC<{
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
 	const saveHidden = useMutation(updateUserUIPreferences(client));
-	const hidden = Boolean(preferences.data?.settings_face_hidden) && !full;
+	const hidden =
+		Boolean(preferences.data?.settings_face_hidden) &&
+		!full &&
+		!quickLinksCollapsed;
 	const setHidden = (next: boolean) =>
 		saveHidden.mutate({ settings_face_hidden: next || null });
 	const direction =
@@ -152,57 +170,97 @@ export const SettingsFacePanel: React.FC<{
 				full ? "flex min-h-0 flex-1 flex-col" : "shrink-0",
 			)}
 		>
-			{faces.length > 1 && (
+			{(faces.length > 1 || onToggleQuickLinks) && (
 				<div className="settings-face-arrows">
-					{/* A handle on each side, halfway from the arrows to the panel's edge */}
-					<span className="settings-face-handle-slot">{renderHandle()}</span>
-					<svg width="0" height="0" className="absolute" aria-hidden="true">
-						<defs>
-							<linearGradient id={arrowFill} x1="0" y1="0" x2="0" y2="1">
-								<stop offset="0%" className="settings-face-arrow-stop-top" />
-								<stop offset="50%" className="settings-face-arrow-stop-mid" />
-								<stop
-									offset="100%"
-									className="settings-face-arrow-stop-bottom"
-								/>
-							</linearGradient>
-						</defs>
-					</svg>
-					<div className="settings-face-arrow-well">
-						<div
-							role="group"
-							aria-label="Turn the panel"
-							className="settings-face-arrow-pair"
-						>
-							{([-1, 1] as const).map((by) => (
-								<button
-									key={by}
-									type="button"
-									className={cn(
-										"settings-face-arrow",
-										by === -1
-											? "settings-face-arrow-prev"
-											: "settings-face-arrow-next",
-									)}
-									aria-label={`Turn to ${nameAt(by)}`}
-									title={`Turn to ${nameAt(by)}`}
-									onClick={() => step(by)}
-								>
-									<svg
-										className="settings-face-arrow-glyph"
-										viewBox="0 0 12 14"
-										aria-hidden="true"
-									>
-										<polygon
-											fill={`url(#${arrowFill})`}
-											points={by === -1 ? "11,1 11,13 1,7" : "1,1 1,13 11,7"}
+					<span className="settings-face-handle-slot">
+						{onToggleQuickLinks ? (
+							<button
+								type="button"
+								className="settings-face-handle"
+								aria-expanded={!quickLinksCollapsed}
+								aria-label={
+									quickLinksCollapsed
+										? "Show quick links"
+										: "Collapse quick links"
+								}
+								title={
+									quickLinksCollapsed
+										? "Show quick links"
+										: "Collapse quick links"
+								}
+								onClick={onToggleQuickLinks}
+							>
+								{quickLinksCollapsed ? (
+									<ChevronDownIcon className="size-4" aria-hidden />
+								) : (
+									<ChevronUpIcon className="size-4" aria-hidden />
+								)}
+							</button>
+						) : (
+							renderHandle()
+						)}
+					</span>
+					{!quickLinksCollapsed && faces.length > 1 && (
+						<>
+							<svg width="0" height="0" className="absolute" aria-hidden="true">
+								<defs>
+									<linearGradient id={arrowFill} x1="0" y1="0" x2="0" y2="1">
+										<stop
+											offset="0%"
+											className="settings-face-arrow-stop-top"
 										/>
-									</svg>
-								</button>
-							))}
-						</div>
-					</div>
-					<span className="settings-face-handle-slot">{renderHandle()}</span>
+										<stop
+											offset="50%"
+											className="settings-face-arrow-stop-mid"
+										/>
+										<stop
+											offset="100%"
+											className="settings-face-arrow-stop-bottom"
+										/>
+									</linearGradient>
+								</defs>
+							</svg>
+							<div className="settings-face-arrow-well">
+								<div
+									role="group"
+									aria-label="Turn the panel"
+									className="settings-face-arrow-pair"
+								>
+									{([-1, 1] as const).map((by) => (
+										<button
+											key={by}
+											type="button"
+											className={cn(
+												"settings-face-arrow",
+												by === -1
+													? "settings-face-arrow-prev"
+													: "settings-face-arrow-next",
+											)}
+											aria-label={`Turn to ${nameAt(by)}`}
+											title={`Turn to ${nameAt(by)}`}
+											onClick={() => step(by)}
+										>
+											<svg
+												className="settings-face-arrow-glyph"
+												viewBox="0 0 12 14"
+												aria-hidden="true"
+											>
+												<polygon
+													fill={`url(#${arrowFill})`}
+													points={
+														by === -1 ? "11,1 11,13 1,7" : "1,1 1,13 11,7"
+													}
+												/>
+											</svg>
+										</button>
+									))}
+								</div>
+							</div>
+							<span className="settings-face-handle-slot">
+								{renderHandle()}
+							</span>
+						</>
+					)}
 				</div>
 			)}
 			{/* Every face as tall as the tallest one shown yet, so the panel keeps one height as it turns */}

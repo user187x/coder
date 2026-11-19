@@ -9,6 +9,7 @@ import {
 import type { WorkspaceMigrationSummary } from "#/api/workspaceMigrations";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import LinearProgress from "#/components/LinearProgress/LinearProgress";
 import {
@@ -37,11 +38,19 @@ export const MigrationsTable: React.FC = () => {
 	const client = useQueryClient();
 	const hide = useMutation(hideWorkspaceMigrationHistory(client));
 	const [selection, setSelection] = useState<
-		{ id: string; name: string } | "all" | null
+		{ id: string; name: string } | { ids: string[] } | "all" | null
 	>(null);
+	const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
 	const clearAll = selection === "all";
+	const bulk = selection !== null && selection !== "all" && "ids" in selection;
 	const now = useNow();
 	const rows = query.data?.migrations ?? [];
+	const removable = rows.filter((row) => row.status !== "running");
+	const selectedIds = removable
+		.filter((row) => checked.has(row.id))
+		.map((row) => row.id);
+	const allChecked =
+		selectedIds.length > 0 && selectedIds.length === removable.length;
 	return (
 		<section
 			aria-labelledby="workspace-migrations"
@@ -51,22 +60,50 @@ export const MigrationsTable: React.FC = () => {
 				<h2 id="workspace-migrations" className="m-0 text-base font-semibold">
 					Workspace migrations
 				</h2>
-				{rows.some((m) => m.status === "done") && (
-					<Button
-						size="sm"
-						variant="outline"
-						onClick={() => setSelection("all")}
-					>
-						<ListXIcon aria-hidden />
-						Clear finished history
-					</Button>
-				)}
+				<div className="flex flex-wrap gap-2">
+					{selectedIds.length > 0 && (
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => setSelection({ ids: selectedIds })}
+						>
+							<ListXIcon aria-hidden />
+							Remove selected ({selectedIds.length})
+						</Button>
+					)}
+					{removable.length > 0 && (
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => setSelection("all")}
+						>
+							<ListXIcon aria-hidden />
+							Clear inactive history
+						</Button>
+					)}
+				</div>
 			</div>
 			{query.error ? <ErrorAlert error={query.error} /> : null}
 			{hide.error ? <ErrorAlert error={hide.error} /> : null}
 			<Table aria-label="Workspace migrations">
 				<TableHeader>
 					<TableRow>
+						<TableHead>
+							<Checkbox
+								aria-label="Select all inactive migrations"
+								disabled={removable.length === 0 || hide.isPending}
+								checked={
+									allChecked || (selectedIds.length > 0 && "indeterminate")
+								}
+								onCheckedChange={(next) =>
+									setChecked(
+										next === true
+											? new Set(removable.map((row) => row.id))
+											: new Set(),
+									)
+								}
+							/>
+						</TableHead>
 						{[
 							"Workspace",
 							"From",
@@ -89,7 +126,7 @@ export const MigrationsTable: React.FC = () => {
 				<TableBody>
 					{rows.length === 0 && (
 						<TableRow>
-							<TableCell colSpan={11}>
+							<TableCell colSpan={12}>
 								{query.isLoading ? "Loading migrations." : "No migrations yet."}
 							</TableCell>
 						</TableRow>
@@ -98,6 +135,23 @@ export const MigrationsTable: React.FC = () => {
 						const name = m.workspaceName ?? m.workspaceId.slice(0, 8);
 						return (
 							<TableRow key={m.id}>
+								<TableCell>
+									{m.status !== "running" && (
+										<Checkbox
+											aria-label={`Select migration for ${name}`}
+											disabled={hide.isPending}
+											checked={checked.has(m.id)}
+											onCheckedChange={(next) =>
+												setChecked((previous) => {
+													const ids = new Set(previous);
+													if (next === true) ids.add(m.id);
+													else ids.delete(m.id);
+													return ids;
+												})
+											}
+										/>
+									)}
+								</TableCell>
 								<TableCell>{name}</TableCell>
 								<TableCell>{m.sourceNode ?? "N/A"}</TableCell>
 								<TableCell>{m.target ?? "N/A"}</TableCell>
@@ -128,7 +182,7 @@ export const MigrationsTable: React.FC = () => {
 									)}
 								</TableCell>
 								<TableCell>
-									{m.status === "done" && (
+									{m.status !== "running" && (
 										<Button
 											size="icon"
 											variant="subtle"
@@ -149,23 +203,44 @@ export const MigrationsTable: React.FC = () => {
 				open={selection !== null}
 				title={
 					clearAll
-						? "Clear finished migration history?"
-						: "Remove migration history entry?"
+						? "Clear inactive migration history?"
+						: bulk
+							? "Remove selected migrations?"
+							: "Remove migration history entry?"
 				}
 				description={
 					clearAll
-						? "Remove all completed and canceled entries from this list. Active and resumable migrations will stay visible."
-						: `Remove ${selection?.name ?? "this migration"} from the list? The workspace and its volumes will be kept.`
+						? "Remove inactive entries from this list. Running migrations stay visible."
+						: bulk
+							? `Remove ${selection.ids.length} selected entries from the list? The workspaces and their volumes will be kept.`
+							: `Remove ${selection?.name ?? "this migration"} from the list? The workspace and its volumes will be kept.`
 				}
-				confirmText={clearAll ? "Clear history" : "Remove entry"}
+				confirmText={
+					clearAll ? "Clear history" : bulk ? "Remove selected" : "Remove entry"
+				}
 				confirmLoading={hide.isPending}
 				onClose={() => {
 					if (!hide.isPending) setSelection(null);
 				}}
 				onConfirm={() => {
 					if (!selection) return;
-					hide.mutate(clearAll ? null : selection.id, {
-						onSuccess: () => setSelection(null),
+					const target =
+						selection === "all"
+							? null
+							: "ids" in selection
+								? selection.ids
+								: selection.id;
+					hide.mutate(target, {
+						onSuccess: () => {
+							setChecked((previous) => {
+								if (target === null) return new Set();
+								const removed = new Set(
+									typeof target === "string" ? [target] : target,
+								);
+								return new Set([...previous].filter((id) => !removed.has(id)));
+							});
+							setSelection(null);
+						},
 						onError: () => setSelection(null),
 					});
 				}}

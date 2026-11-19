@@ -246,7 +246,8 @@ describe("ProxyMenu", () => {
 		expect(
 			within(navigation).getByRole("menuitem", { name: "HUD" }),
 		).toHaveAttribute("href", "/hud");
-		const dock = within(navigation).getByRole("menuitem", {
+		const docking = within(navigation).getByRole("group", { name: "Docking" });
+		const dock = within(docking).getByRole("menuitem", {
 			name: "Dock Settings",
 		});
 		expect(dock).toHaveTextContent("");
@@ -276,6 +277,37 @@ describe("ProxyMenu", () => {
 		expect(
 			await screen.findByRole("button", { name: /^Settings/ }),
 		).toBeVisible();
+		const compactDock = await screen.findByRole("menuitem", {
+			name: "Dock Settings as shortcut icons",
+		});
+		await userEvent.click(compactDock);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({
+				settings_sidebar: true,
+				settings_sidebar_compact: true,
+			}),
+		);
+	});
+
+	it("collapses the quick links while keeping the metrics face active", async () => {
+		const user = userEvent.setup();
+		renderMenu({ proxyContextValue: value, hud: true, controls });
+		const menu = await openMenu();
+		await user.click(
+			within(menu).getByRole("button", { name: "Collapse quick links" }),
+		);
+		expect(
+			within(menu).queryByRole("navigation", { name: "Settings" }),
+		).toBeNull();
+		expect(
+			within(menu).getByRole("region", { name: "Settings panel: Metrics" }),
+		).toBeTruthy();
+		await user.click(
+			within(menu).getByRole("button", { name: "Show quick links" }),
+		);
+		expect(
+			within(menu).getByRole("navigation", { name: "Settings" }),
+		).toBeTruthy();
 	});
 
 	it("expands the top section from a double click on Controls and pins it open", async () => {

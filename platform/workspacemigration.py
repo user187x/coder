@@ -257,13 +257,14 @@ def listing():
     return out
 
 
-def hide_history(migration_id):
-    """Hide finished history without removing the underlying operation record."""
+def hide_history(migration_ids):
+    """Hide inactive history without removing the underlying operation records."""
+    ids = None if migration_ids is None else '{' + ','.join(migration_ids) + '}'
     rows = database().query("""UPDATE coder_ui_updates.workspace_migrations
         SET history_hidden_at=now()
-        WHERE status='done' AND history_hidden_at IS NULL
-          AND ($1::uuid IS NULL OR id=$1::uuid)
-        RETURNING id""", [migration_id])
+        WHERE status IN ('done','failed','interrupted') AND history_hidden_at IS NULL
+          AND ($1::uuid[] IS NULL OR id=ANY($1::uuid[]))
+        RETURNING id""", [ids])
     return len(rows)
 
 
@@ -568,7 +569,7 @@ def start(token, ws, user, target=None, resume=False):
         if resume:
             if not op or op['status'] not in ('failed', 'interrupted'):
                 raise ValueError('There is no interrupted migration to resume.')
-            claimed = lease.query("UPDATE coder_ui_updates.workspace_migrations SET status='running', worker=$2, updated_at=now() WHERE id=$1::uuid AND status IN ('failed','interrupted') RETURNING id", [op['id'], attempt])
+            claimed = lease.query("UPDATE coder_ui_updates.workspace_migrations SET status='running', worker=$2, history_hidden_at=NULL, updated_at=now() WHERE id=$1::uuid AND status IN ('failed','interrupted') RETURNING id", [op['id'], attempt])
             if not claimed:
                 raise ValueError('Another administrator already resumed this migration.')
         else:
@@ -632,11 +633,19 @@ def handle(h, method, url):
                 h.send_json(200, {'migrations': listing()})
             else:
                 body = volumes.read_json(h)
-                if set(body) != {'historyId'} or (body['historyId'] is not None and not isinstance(body['historyId'], str)):
-                    raise ValueError('Expected a migration ID or null to clear finished history.')
-                migration_id = str(uuid.UUID(body['historyId'])) if body['historyId'] is not None else None
-                hidden = hide_history(migration_id)
-                LOG(event='workspace-migration-history-hidden', by=user['id'], migration=migration_id, count=hidden)
+                if set(body) == {'historyId'}:
+                    value = body['historyId']
+                    ids = None if value is None else [value]
+                elif set(body) == {'historyIds'} and isinstance(body['historyIds'], list) and 1 <= len(body['historyIds']) <= 50:
+                    ids = body['historyIds']
+                else:
+                    raise ValueError('Expected a migration ID, a list of up to 50 IDs, or null to clear inactive history.')
+                if ids is not None:
+                    if any(not isinstance(value, str) for value in ids):
+                        raise ValueError('Migration IDs must be UUID strings.')
+                    ids = list(dict.fromkeys(str(uuid.UUID(value)) for value in ids))
+                hidden = hide_history(ids)
+                LOG(event='workspace-migration-history-hidden', by=user['id'], migrations=ids, count=hidden)
                 h.send_json(200, {'hidden': hidden})
             return True
         wid = str(uuid.UUID(url[len(BASE):]))

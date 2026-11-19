@@ -210,24 +210,29 @@ class MigrationTests(unittest.TestCase):
             migration.handle(denied, 'GET', migration.BASE.rstrip('/'))
             unused.assert_not_called()
 
-    def test_history_cleanup_requires_admin_and_csrf_and_only_hides_finished(self):
+    def test_history_cleanup_requires_admin_and_csrf_and_only_hides_inactive(self):
         mid = str(uuid.uuid4())
-        for mid_or_all in (mid, None):
-            with self.subTest(history_id=mid_or_all):
+        other = str(uuid.uuid4())
+        for request, expected in (
+            ({'historyId': mid}, '{' + mid + '}'),
+            ({'historyId': None}, None),
+            ({'historyIds': [mid, other, mid]}, '{' + mid + ',' + other + '}'),
+        ):
+            with self.subTest(request=request):
                 handler = Mock()
                 handler.csrf_ok.return_value = True
                 handler.user.return_value = ({'id': 'admin'}, None)
                 db = Mock()
                 db.query.return_value = [[mid]]
                 with patch.object(migration, 'database', return_value=db), patch.object(migration, 'LOG'), \
-                     patch.object(migration.volumes, 'read_json', return_value={'historyId': mid_or_all}):
+                     patch.object(migration.volumes, 'read_json', return_value=request):
                     migration.handle(handler, 'POST', migration.BASE.rstrip('/'))
                 handler.user.assert_called_once_with(admin=True)
                 handler.send_json.assert_called_once_with(200, {'hidden': 1})
                 sql, params = db.query.call_args.args
-                self.assertIn("status='done'", sql)
+                self.assertIn("status IN ('done','failed','interrupted')", sql)
                 self.assertIn("history_hidden_at IS NULL", sql)
-                self.assertEqual(params, [mid_or_all])
+                self.assertEqual(params, [expected])
         handler = Mock()
         handler.csrf_ok.return_value = False
         with patch.object(migration, 'database') as unused:

@@ -35,7 +35,7 @@ export type NavbarItem = NavbarControl | (typeof NAVBAR_DIVIDERS)[number];
 /** Each item's name, as the arrange bar and Appearance's Navigation bar card show it. */
 export const NAVBAR_LABELS: Record<NavbarItem, string> = {
 	logo: "Logo",
-	action: "Page action",
+	action: "Action Button",
 	notifications: "Notifications",
 	account: "Account",
 	workspaces: "Workspaces",

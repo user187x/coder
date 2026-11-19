@@ -89,17 +89,6 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			}
 		>
 			<div className="flex flex-wrap items-start gap-2">
-				<div className="min-w-48 flex-1 [&>div]:mb-0">
-					<UsersFilter {...filterProps} />
-				</div>
-				{canCreateUser && (
-					<Button asChild>
-						<Link to={`${accountsPath}/create`}>
-							<UserPlusIcon aria-hidden />
-							Create User
-						</Link>
-					</Button>
-				)}
 				<Select
 					value={String(usersQuery.limit)}
 					onValueChange={(value) => onPageSizeChange(Number(value))}
@@ -118,6 +107,17 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 						))}
 					</SelectContent>
 				</Select>
+				<div className="min-w-48 flex-1 [&>div]:mb-0">
+					<UsersFilter {...filterProps} />
+				</div>
+				{canCreateUser && (
+					<Button asChild>
+						<Link to={`${accountsPath}/create`}>
+							<UserPlusIcon aria-hidden />
+							Create User
+						</Link>
+					</Button>
+				)}
 				<Button
 					ref={focused ? undefined : focusTrigger}
 					variant="outline"

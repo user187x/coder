@@ -68,7 +68,7 @@ it("says so when there are no migrations", async () => {
 
 it.each([
 	["Remove migration history for prod", "Remove entry", done.id],
-	["Clear finished history", "Clear history", null],
+	["Clear inactive history", "Clear history", null],
 ])(
 	"confirms %s and refreshes history while keeping active migrations",
 	async (action, confirm, id) => {
@@ -95,3 +95,35 @@ it.each([
 		);
 	},
 );
+
+it("removes only the selected inactive migration IDs", async () => {
+	const interrupted: WorkspaceMigrationSummary = {
+		...running,
+		id: "m3",
+		workspaceName: "browser",
+		status: "interrupted",
+	};
+	const list = vi.spyOn(WorkspaceMigrationsAPI, "list").mockResolvedValue({
+		migrations: [running, done, interrupted],
+	});
+	const hide = vi
+		.spyOn(WorkspaceMigrationsAPI, "hideHistory")
+		.mockImplementation(async () => {
+			list.mockResolvedValue({ migrations: [running, done] });
+			return { hidden: 1 };
+		});
+	const user = userEvent.setup();
+	render(<MigrationsTable />);
+	await user.click(
+		await screen.findByRole("checkbox", {
+			name: "Select migration for browser",
+		}),
+	);
+	await user.click(screen.getByRole("button", { name: "Remove selected (1)" }));
+	await user.click(
+		within(screen.getByRole("dialog")).getByRole("button", {
+			name: "Remove selected",
+		}),
+	);
+	await waitFor(() => expect(hide).toHaveBeenCalledWith([interrupted.id]));
+});

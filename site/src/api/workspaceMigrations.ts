@@ -58,10 +58,12 @@ export const WorkspaceMigrationsAPI = {
 		platformRequest.get<{ migrations: WorkspaceMigrationSummary[] }>(
 			`${platformRequest.base}/api/workspace-migrations`,
 		),
-	hideHistory: (historyId: string | null) =>
+	hideHistory: (historyId: string | readonly string[] | null) =>
 		platformRequest.post<{ hidden: number }>(
 			`${platformRequest.base}/api/workspace-migrations`,
-			{ historyId },
+			typeof historyId === "string" || historyId === null
+				? { historyId }
+				: { historyIds: historyId },
 		),
 	cancel: (id: string) =>
 		platformRequest.post<{ operation: WorkspaceMigration }>(path(id), {

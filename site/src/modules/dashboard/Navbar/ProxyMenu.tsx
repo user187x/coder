@@ -115,9 +115,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const [openEdge, setOpenEdge] = useState<"left" | "right">("right");
 	// The bottom panel's face (SettingsFacePanel); chat open is its Chat face.
 	const [face, setFace] = useState<SettingsFace>("metrics");
+	const [quickLinksCollapsed, setQuickLinksCollapsed] = useState(false);
 	// The Chat face expanded over the menu's room below its header row.
 	const [chatFull, setChatFull] = useState(false);
-	const chatExpanded = face === "chat";
+	const chatExpanded = !quickLinksCollapsed && face === "chat";
 	const setChatExpanded = (next: boolean | ((open: boolean) => boolean)) => {
 		setFace((current) => {
 			const open = typeof next === "function" ? next(current === "chat") : next;
@@ -276,11 +277,18 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 	const dockLabel = docked ? "Return to dropdown" : "Dock Settings";
 
-	const compactLabel = compact
-		? "Expand Settings sidebar"
-		: "Collapse Settings to shortcut icons";
-	const toggleCompact = () =>
-		docking.mutate({ settings_sidebar_compact: !compact });
+	const compactLabel = !docked
+		? "Dock Settings as shortcut icons"
+		: compact
+			? "Expand Settings sidebar"
+			: "Collapse Settings to shortcut icons";
+	const toggleCompact = () => {
+		if (!docked) setOpen(true);
+		docking.mutate({
+			settings_sidebar: true,
+			settings_sidebar_compact: !compact,
+		});
+	};
 	const toggleDock = () => {
 		setOpen(true);
 		docking.mutate({
@@ -288,12 +296,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			settings_sidebar_compact: false,
 		});
 	};
-	const compactToggle = docked && (
+	const compactToggle = (docked || controls) && (
 		<DropdownMenuItem
 			{...compactMenu.trigger}
 			aria-label={compactLabel}
 			title={compactLabel}
-			disabled={docking.isPending}
+			disabled={docking.isPending || !prefs.data}
 			className={cn(
 				"min-h-8 justify-center px-1",
 				compact
@@ -611,7 +619,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						) : (
 							<>
 								{/* With the Chat face expanded, it takes the menu's room below the header row */}
-								{!chatFull && regions && proxy && (
+								{!chatFull && !quickLinksCollapsed && regions && proxy && (
 									<DropdownMenuSub
 										open={regionOpen}
 										onOpenChange={setRegionOpen}
@@ -701,16 +709,19 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										</DropdownMenuSubContent>
 									</DropdownMenuSub>
 								)}
-								{regions && proxy && regionMenu.open && (
-									<InlineMenuPanel id={regionMenu.id} label="Region options">
-										<OpenMenuItem
-											onOpen={() => {
-												regionMenu.close();
-												setRegionOpen(true);
-											}}
-										/>
-									</InlineMenuPanel>
-								)}
+								{!quickLinksCollapsed &&
+									regions &&
+									proxy &&
+									regionMenu.open && (
+										<InlineMenuPanel id={regionMenu.id} label="Region options">
+											<OpenMenuItem
+												onOpen={() => {
+													regionMenu.close();
+													setRegionOpen(true);
+												}}
+											/>
+										</InlineMenuPanel>
+									)}
 
 								{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}
 								{!chatFull && (
@@ -729,7 +740,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								)}
 
 								{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
-								{!chatFull && controls && (
+								{!chatFull && !quickLinksCollapsed && controls && (
 									<nav
 										aria-label="Settings"
 										data-testid="controls-group"
@@ -755,9 +766,18 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										/>
 									</nav>
 								)}
-								{(!topFull || chatExpanded) && (
+								{(quickLinksCollapsed || !topFull || chatExpanded) && (
 									<SettingsFacePanel
-										face={face}
+										face={quickLinksCollapsed ? "metrics" : face}
+										quickLinksCollapsed={quickLinksCollapsed}
+										onToggleQuickLinks={
+											controls && canViewAdminSettings(controls.permissions)
+												? () => {
+														setChatFull(false);
+														setQuickLinksCollapsed((collapsed) => !collapsed);
+													}
+												: undefined
+										}
 										onFaceChange={(next) => {
 											setChatFull(false);
 											setFace(next);
@@ -779,6 +799,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						)}
 					</div>
 					{docked &&
+						!quickLinksCollapsed &&
 						!compact &&
 						!chatFull &&
 						(!topFull || chatExpanded) &&

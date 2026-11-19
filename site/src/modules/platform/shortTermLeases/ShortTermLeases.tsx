@@ -157,20 +157,23 @@ export const ShortTermLeases = ({
 			</div>
 			{Boolean(error) && <ErrorAlert error={error} />}
 			<div className="mb-4 flex flex-wrap items-center gap-2">
-				<SearchField
-					aria-label="Search leases"
-					value={search}
-					onChange={setSearch}
-					className="min-w-48 flex-1"
-				/>
-				<Button
-					onClick={() => {
-						setIssuedToken("");
-						setCreating(true);
-					}}
-				>
-					New Lease
-				</Button>
+				<div className="flex min-w-0 flex-1 basis-64 items-center gap-2">
+					<Button
+						className="shrink-0"
+						onClick={() => {
+							setIssuedToken("");
+							setCreating(true);
+						}}
+					>
+						New Lease
+					</Button>
+					<SearchField
+						aria-label="Search leases"
+						value={search}
+						onChange={setSearch}
+						className="min-w-0 flex-1"
+					/>
+				</div>
 				<Select value={filter} onValueChange={setFilter}>
 					<SelectTrigger aria-label="Lease status" className="w-40">
 						<SelectValue />

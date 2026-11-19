@@ -1,9 +1,13 @@
-import { ArrowRightIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
-import type { DatabaseConfiguration, PersistenceReport } from "#/api/platform";
+import type {
+	DatabaseConfiguration,
+	DatabaseInstance,
+	PersistenceReport,
+} from "#/api/platform";
 import { Badge } from "#/components/Badge/Badge";
 import { SearchField } from "#/components/SearchField/SearchField";
-import { bytes } from "#/modules/platform/ClusterVisuals";
+import { ago, useNow } from "#/modules/platform/ClusterVisuals";
 import {
 	replicaHealthy,
 	replicationLabel,
@@ -147,6 +151,54 @@ function TopologyNode({
 	);
 }
 
+function TopologyConnection({
+	label,
+	dashed = false,
+}: {
+	label: string;
+	dashed?: boolean;
+}) {
+	return (
+		<div className="flex flex-col items-center text-xs text-content-secondary">
+			<div
+				aria-hidden
+				className={
+					dashed
+						? "h-3 border-0 border-l border-dashed border-content-secondary"
+						: "h-3 border-0 border-l border-solid border-content-secondary"
+				}
+			/>
+			<span>{label}</span>
+			<ChevronDownIcon aria-hidden className="size-4" />
+		</div>
+	);
+}
+
+function DatabaseInstanceNode({ instance }: { instance: DatabaseInstance }) {
+	const primary = instance.role === "primary";
+	const healthy = primary ? instance.ready : replicaHealthy(instance);
+	return (
+		<TopologyNode
+			designation={primary ? "Primary · writes" : "Replica"}
+			name={instance.name}
+		>
+			<Badge size="xs" variant={healthy ? "green" : "warning"}>
+				{healthy ? "Healthy" : instance.ready ? "Degraded" : "Not ready"}
+			</Badge>
+			<span>
+				Node {instance.node ?? "Not reported"}
+				{instance.zone ? ` · ${instance.zone}` : ""}
+			</span>
+			{!primary && (
+				<span>
+					{replicationLabel(instance)}
+					{instance.lagBytes === null && " · lag not reported"}
+				</span>
+			)}
+		</TopologyNode>
+	);
+}
+
 export function DatabaseTopology({ report }: { report: PersistenceReport }) {
 	const {
 		coderDatabase,
@@ -156,6 +208,7 @@ export function DatabaseTopology({ report }: { report: PersistenceReport }) {
 		database,
 		backups,
 	} = report.facts;
+	const now = useNow();
 	const [host, namespace] = coderDatabase.host?.split(".") ?? [];
 	const endpoint = configuration?.resources.find(
 		(resource) =>
@@ -172,6 +225,16 @@ export function DatabaseTopology({ report }: { report: PersistenceReport }) {
 			: reachability?.status === "ok" || database
 				? "Reachable"
 				: "Unknown";
+	const primary = instances.find((instance) => instance.role === "primary");
+	const replicas = instances.filter((instance) => instance.role === "replica");
+	const healthyReplicas = replicas.filter(replicaHealthy).length;
+	const primaryNode = primary?.node;
+	const sharedNode = primaryNode
+		? replicas.filter((instance) => instance.node === primaryNode).length
+		: 0;
+	const replicaNodes = new Set(
+		replicas.flatMap((instance) => (instance.node ? [instance.node] : [])),
+	);
 	return (
 		<section
 			className="dashboard-panel flex flex-col gap-4"
@@ -180,99 +243,150 @@ export function DatabaseTopology({ report }: { report: PersistenceReport }) {
 			<h2 id="database-topology-title" className="m-0 text-base font-semibold">
 				Database topology
 			</h2>
-			<div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,2fr)]">
-				<TopologyNode designation="Client" name="Coder">
-					<span>Database role {coderDatabase.user ?? "Not reported"}</span>
-					<span>TLS mode {coderDatabase.sslMode ?? "Default"}</span>
-				</TopologyNode>
-				<ArrowRightIcon
-					aria-hidden
-					className="size-4 self-center rotate-90 justify-self-center text-content-secondary lg:rotate-0"
-				/>
-				<TopologyNode
-					designation={endpoint ? "Kubernetes Service" : "Configured endpoint"}
-					name={coderDatabase.host ?? "Unknown endpoint"}
-				>
-					<Badge
-						size="xs"
-						variant={
-							connectionStatus === "Reachable"
-								? "green"
-								: connectionStatus === "Unreachable"
-									? "destructive"
-									: "default"
+			<div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+				<div className="w-full max-w-56">
+					<TopologyNode designation="Application" name="Coder">
+						<span>Database role {coderDatabase.user ?? "Not reported"}</span>
+						<span>TLS mode {coderDatabase.sslMode ?? "Default"}</span>
+					</TopologyNode>
+				</div>
+				<TopologyConnection label="Database connection" />
+				<div className="w-full max-w-xs">
+					<TopologyNode
+						designation={
+							endpoint ? "Kubernetes Service" : "Configured endpoint"
 						}
+						name={coderDatabase.host ?? "Unknown endpoint"}
 					>
-						{connectionStatus}
-					</Badge>
-					<span>
-						Service IP {endpoint?.values["spec.clusterIP"] ?? "Not reported"}
-					</span>
-					<span>
-						Port{" "}
-						{coderDatabase.port ?? (coderDatabase.host ? 5432 : "Not reported")}
-					</span>
-				</TopologyNode>
-				<ArrowRightIcon
-					aria-hidden
-					className="size-4 self-center rotate-90 justify-self-center text-content-secondary lg:rotate-0"
-				/>
-				<div className="grid min-w-0 gap-3">
-					{instances.length ? (
-						instances.map((instance) => {
-							const healthy = replicaHealthy(instance);
-							return (
-								<TopologyNode
-									key={instance.name}
-									designation={
-										instance.role === "primary" ? "Primary · writes" : "Replica"
-									}
-									name={instance.name}
-								>
-									<Badge size="xs" variant={healthy ? "green" : "warning"}>
-										{healthy
-											? "Healthy"
-											: instance.ready
-												? "Degraded"
-												: "Not ready"}
-									</Badge>
-									<span>Pod IP {instance.podIP ?? "Not reported"}</span>
-									<span>Node {instance.node ?? "Not reported"}</span>
-									<span>
-										Storage{" "}
-										{instance.pvc?.storageClass ??
-											cluster?.storageClass ??
-											"Not reported"}{" "}
-										· {bytes(instance.pvc?.capacityBytes)}
-									</span>
-									{instance.role === "replica" && (
-										<span>Replication {replicationLabel(instance)}</span>
-									)}
-								</TopologyNode>
-							);
-						})
-					) : (
-						<TopologyNode
-							designation="PostgreSQL"
-							name={
-								report.mode === "external"
-									? "External database"
-									: "Instances unknown"
+						<Badge
+							size="xs"
+							variant={
+								connectionStatus === "Reachable"
+									? "green"
+									: connectionStatus === "Unreachable"
+										? "destructive"
+										: "default"
 							}
 						>
-							<span>Instance details are not reported by this cluster.</span>
+							{connectionStatus}
+						</Badge>
+						<span>
+							Port{" "}
+							{coderDatabase.port ??
+								(coderDatabase.host ? 5432 : "Not reported")}
+						</span>
+					</TopologyNode>
+				</div>
+				{(primary || replicas.length > 0) && (
+					<>
+						<TopologyConnection
+							label={primary ? "Cluster primary" : "Primary not reported"}
+							dashed={!primary}
+						/>
+						<div className="w-full max-w-sm">
+							{primary ? (
+								<DatabaseInstanceNode instance={primary} />
+							) : (
+								<TopologyNode
+									designation="PostgreSQL primary"
+									name="Not reported"
+								>
+									<span>Replica details are available below.</span>
+								</TopologyNode>
+							)}
+						</div>
+					</>
+				)}
+				{replicas.length > 0 && (
+					<div className="relative w-full">
+						<div
+							aria-hidden
+							className="mx-auto h-5 w-px border-0 border-l border-dashed border-content-secondary"
+						/>
+						<p className="m-0 text-center text-xs text-content-secondary">
+							{primary ? "WAL replication" : "Discovered replicas"} ·{" "}
+							{healthyReplicas} of {replicas.length} healthy
+						</p>
+						{replicas.length > 1 && (
+							<div
+								aria-hidden
+								className="mx-auto hidden border-0 border-t border-dashed border-content-secondary lg:block"
+								style={{ width: `${100 * (1 - 1 / replicas.length)}%` }}
+							/>
+						)}
+						<ul
+							className="m-0 grid list-none gap-3 p-0 sm:[grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))] lg:gap-0 lg:[grid-template-columns:repeat(var(--replica-columns),minmax(0,1fr))]"
+							style={
+								{ "--replica-columns": replicas.length } as React.CSSProperties
+							}
+						>
+							{replicas.map((instance) => (
+								<li key={instance.name} className="min-w-0 lg:px-1.5">
+									<div
+										aria-hidden
+										className="flex flex-col items-center text-content-secondary"
+									>
+										<div className="h-3 border-0 border-l border-dashed border-content-secondary" />
+										<ChevronDownIcon className="size-4" />
+									</div>
+									<DatabaseInstanceNode instance={instance} />
+								</li>
+							))}
+						</ul>
+					</div>
+				)}
+				{!instances.length && (
+					<p className="mt-3 mb-0 text-center text-sm text-content-secondary">
+						{report.mode === "external"
+							? "The external database does not report instances to this cluster."
+							: "Database instances were not reported."}
+					</p>
+				)}
+			</div>
+			{(replicas.length > 0 || cluster || backups) && (
+				<div className="grid gap-3 sm:grid-cols-2">
+					{replicas.length > 0 && (
+						<TopologyNode
+							designation="Failure domains"
+							name="Replica placement"
+						>
+							<span>
+								{replicaNodes.size} known replica{" "}
+								{replicaNodes.size === 1 ? "node" : "nodes"}
+							</span>
+							{sharedNode > 0 && (
+								<span className="text-content-warning">
+									{sharedNode}{" "}
+									{sharedNode === 1 ? "replica shares" : "replicas share"} the
+									primary’s node. A node outage would affect both roles.
+								</span>
+							)}
+							{replicas.some((instance) => !instance.node) && (
+								<span>Some replica locations are unknown.</span>
+							)}
 						</TopologyNode>
 					)}
-				</div>
-			</div>
-			{cluster && (
-				<div className="rounded-lg border border-solid border-border bg-surface-primary p-3 text-sm">
-					<strong>Recovery</strong>
-					<span className="ml-2 text-content-secondary">
-						{backups?.configured
-							? `${backups.method ?? "Backups configured"} · ${backups.schedule ?? "No schedule reported"}`
-							: "No backup schedule reported"}
-					</span>
+					{(cluster || backups) && (
+						<TopologyNode designation="Recoverability" name="Backups">
+							<span>
+								{backups?.configured
+									? `${backups.method ?? "Configured"} · ${backups.schedule ?? "No schedule reported"}`
+									: "No backup schedule reported"}
+							</span>
+							<span>
+								Last successful backup{" "}
+								{backups?.lastSuccess
+									? `${ago(backups.lastSuccess, now)} ago`
+									: "not reported"}
+							</span>
+							{backups?.recoverableSince && (
+								<span>
+									Recovery window begins{" "}
+									{new Date(backups.recoverableSince).toLocaleString()}
+								</span>
+							)}
+						</TopologyNode>
+					)}
 				</div>
 			)}
 		</section>

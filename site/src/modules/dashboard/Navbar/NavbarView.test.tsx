@@ -171,7 +171,7 @@ describe("NavbarView", () => {
 				),
 				keys: "[MouseRight]",
 			});
-			screen.getByRole("button", { name: "Move Page action" }).focus();
+			screen.getByRole("button", { name: "Move Action Button" }).focus();
 			await user.keyboard("{ArrowLeft}");
 			await user.click(screen.getByRole("button", { name: "Done" }));
 			await waitFor(() => expect(save).toHaveBeenCalledOnce());
@@ -227,7 +227,7 @@ describe("NavbarView", () => {
 			keys: "[MouseRight]",
 		});
 		expect(
-			screen.queryByRole("button", { name: "Move Page action" }),
+			screen.queryByRole("button", { name: "Move Action Button" }),
 		).not.toBeInTheDocument();
 		await user.click(await screen.findByRole("menuitem", { name: "Hide" }));
 		await waitFor(() =>

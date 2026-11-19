@@ -256,7 +256,7 @@ export const AccountActionMovedAcrossAnnouncement: Story = {
 		startNavbarArrange();
 		const canvas = within(canvasElement);
 		const action = await canvas.findByRole("button", {
-			name: "Move Page action",
+			name: "Move Action Button",
 		});
 		action.focus();
 		await userEvent.keyboard("{ArrowRight}{Enter}");
