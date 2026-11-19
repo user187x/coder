@@ -4,7 +4,11 @@ import { useState } from "react";
 import { fn, spyOn, userEvent, within } from "storybook/test";
 import { reactRouterParameters } from "storybook-addon-remix-react-router";
 import { PlatformAPI } from "#/api/platform";
-import { bannerKey, userUIPreferences } from "#/api/queries/platform";
+import {
+	bannerKey,
+	clusterUsage,
+	userUIPreferences,
+} from "#/api/queries/platform";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import DeploymentSettingsLayout from "#/modules/management/DeploymentSettingsLayout";
@@ -16,7 +20,7 @@ import {
 	MockUserOwner,
 } from "#/testHelpers/entities";
 import { pixelWithDesktop, pixelWithTablet } from "#/testHelpers/pixel";
-import { MockBanner } from "#/testHelpers/platform";
+import { MockBanner, MockClusterUsage } from "#/testHelpers/platform";
 import {
 	withAuthProvider,
 	withDashboardProvider,
@@ -294,6 +298,22 @@ export const CompactDockWithoutPageAction: Story = {
 	parameters: {
 		pixel: { matrix: pixelWithDesktop },
 		queries: [
+			{
+				key: clusterUsage().queryKey,
+				data: {
+					...MockClusterUsage,
+					network: {
+						rx: 4200,
+						tx: 1500,
+						every: 15,
+						points: Array.from({ length: 60 }, (_, index) => ({
+							t: 1_780_000_000 + index * 15,
+							rx: 4200 - (index % 7) * 400,
+							tx: 1500 + (index % 3) * 350,
+						})),
+					},
+				},
+			},
 			{
 				key: userUIPreferences().queryKey,
 				data: {

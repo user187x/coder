@@ -27,6 +27,7 @@ export const Default: Story = {
 	args: {
 		unreadCount: 2,
 		notifications: MockNotifications.slice(0, 3),
+		onClearAll: fn(),
 	},
 };
 

@@ -17,6 +17,10 @@ import {
 } from "#/components/Popover/Popover";
 import { ScrollArea } from "#/components/ScrollArea/ScrollArea";
 import { Spinner } from "#/components/Spinner/Spinner";
+import {
+	BreadcrumbMenuPanel,
+	breadcrumbMenuClass,
+} from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { InboxButton } from "./InboxButton";
 import { InboxItem } from "./InboxItem";
 import { UnreadBadge } from "./UnreadBadge";
@@ -96,7 +100,7 @@ export const InboxPanel: React.FC<
 	);
 
 	return (
-		<div className="flex max-h-[calc(var(--radix-popover-content-available-height)/var(--app-zoom,1))] flex-col">
+		<div className="flex min-h-0 max-h-[calc(var(--radix-popover-content-available-height)/var(--app-zoom,1))] flex-col">
 			<div className="flex shrink-0 items-center gap-2 p-3 border-0 border-b border-solid border-border">
 				<div className="flex shrink-0 items-center gap-2">
 					<span className="text-xl font-semibold">Inbox</span>
@@ -104,7 +108,7 @@ export const InboxPanel: React.FC<
 				</div>
 
 				<label
-					className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-solid border-border bg-surface-primary px-2"
+					className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-solid border-border bg-surface-primary px-2 focus-within:border-content-link"
 					data-testid="inbox-search"
 				>
 					<SearchIcon className="size-3.5 shrink-0 text-content-secondary" />
@@ -276,11 +280,17 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 				{trigger ?? <InboxButton unreadCount={inbox.unreadCount} />}
 			</PopoverTrigger>
 			<PopoverContent
-				className="w-[calc(var(--radix-popper-available-width)/var(--app-zoom,1))] max-w-[466px]"
+				className={cn(
+					breadcrumbMenuClass,
+					"w-[calc(var(--radix-popper-available-width)/var(--app-zoom,1))] max-w-[466px]",
+				)}
+				sideOffset={8}
 				align="end"
 				onKeyDown={(event) => event.stopPropagation()}
 			>
-				<InboxPanel {...inbox} onNavigate={() => setIsOpen(false)} />
+				<BreadcrumbMenuPanel>
+					<InboxPanel {...inbox} onNavigate={() => setIsOpen(false)} />
+				</BreadcrumbMenuPanel>
 			</PopoverContent>
 		</Popover>
 	);
