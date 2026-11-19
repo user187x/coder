@@ -29,7 +29,7 @@ html[data-workspace-expanded] {
 	position: fixed;
 	top: var(--workspace-top);
 	bottom: var(--workspace-bottom);
-	left: 0;
+	left: var(--dashboard-dock-left, 0px);
 	right: var(--dashboard-dock-inset, 0px);
 	width: auto;
 	z-index: 30;

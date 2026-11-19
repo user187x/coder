@@ -34,5 +34,7 @@
 	:is(.settings-menu-surface, [data-chat-panel], .chat-side-panel) {
 	--content-primary: var(--panel-text-primary);
 	--content-secondary: var(--panel-text-secondary);
+	--skeuo-ink: hsl(var(--panel-text-primary));
+	--skeuo-ink-soft: hsl(var(--panel-text-secondary));
 	color: hsl(var(--content-primary));
 }

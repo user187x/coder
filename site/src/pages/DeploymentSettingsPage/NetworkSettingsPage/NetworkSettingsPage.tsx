@@ -1,4 +1,5 @@
 import { useQuery } from "react-query";
+import { Navigate, useLocation } from "react-router";
 import {
 	availableExperiments,
 	experiments,
@@ -17,6 +18,7 @@ import { NetworkSettingsPageView } from "./NetworkSettingsPageView";
  * Access URL, the Wildcard Access URL and the experiments).
  */
 const NetworkSettingsPage: React.FC = () => {
+	const { search, hash } = useLocation();
 	const { deploymentConfig } = useDeploymentConfig();
 	const safeExperimentsQuery = useQuery(availableExperiments());
 	const { user } = useAuthenticated();
@@ -27,17 +29,35 @@ const NetworkSettingsPage: React.FC = () => {
 		enabledExperimentsQuery.data?.filter((exp) => !isKnownExperiment(exp)) ??
 		[];
 
+	if (
+		new URLSearchParams(search).has("volumeCleanup") ||
+		["#cloud-drive", "#storage-classes"].includes(hash)
+	) {
+		return (
+			<Navigate
+				to={{
+					pathname: "/deployment/storage",
+					search,
+					hash: hash || "#cloud-drive",
+				}}
+				replace
+			/>
+		);
+	}
+
 	return (
 		<>
 			<title>{pageTitle("Network Settings")}</title>
 
-			<div className="flex flex-col gap-12">
+			<div className="flex flex-col gap-6">
 				<ClusterMap />
-				<NetworkSettingsPageView
-					options={deploymentConfig.options}
-					safeExperiments={safeExperiments}
-					invalidExperiments={invalidExperiments}
-				/>
+				<div className="dashboard-panel">
+					<NetworkSettingsPageView
+						options={deploymentConfig.options}
+						safeExperiments={safeExperiments}
+						invalidExperiments={invalidExperiments}
+					/>
+				</div>
 			</div>
 		</>
 	);

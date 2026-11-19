@@ -79,74 +79,6 @@ describe("restrictToRow", () => {
 	});
 });
 
-it("moves, removes, restores and resets tiles, saving the layout", async () => {
-	const save = vi
-		.spyOn(PlatformAPI, "setUserUIPreferences")
-		.mockImplementation(async (settings) => settings);
-	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
-	const client = new QueryClient({
-		defaultOptions: { queries: { staleTime: Number.POSITIVE_INFINITY } },
-	});
-	client.setQueryData(userUIPreferences().queryKey, {});
-	renderComponent(
-		<QueryClientProvider client={client}>
-			<NavbarArrange
-				items={{
-					logo: null,
-					workspaces: <span>Resources</span>,
-					banner: <span>Announcement</span>,
-					latency: <span>Settings</span>,
-					hud: null,
-					notifications: <span>Notifications</span>,
-					account: <span>Account</span>,
-					action: <button type="button">Workspace</button>,
-				}}
-			/>
-		</QueryClientProvider>,
-	);
-	const user = userEvent.setup();
-	act(() => startNavbarArrange());
-	await user.click(screen.getByRole("button", { name: "Remove Logo" }));
-	await user.click(screen.getByRole("button", { name: "Restore Logo" }));
-	screen.getByRole("button", { name: "Move Logo" }).focus();
-	await user.keyboard("{ArrowRight}");
-	await user.click(screen.getByRole("button", { name: "Remove Account" }));
-	await user.click(
-		screen.getByRole("button", { name: "Remove Notifications" }),
-	);
-	await user.click(
-		screen.getByRole("button", { name: "Restore Notifications" }),
-	);
-	screen.getByRole("button", { name: "Move Page action" }).focus();
-	await user.keyboard("{ArrowLeft}");
-	await user.click(screen.getByRole("button", { name: "Done" }));
-	await waitFor(() =>
-		expect(save).toHaveBeenCalledWith({
-			navbar_layout: {
-				order: [
-					"workspaces",
-					"logo",
-					"banner",
-					"latency",
-					"hud",
-					"action",
-					"account",
-					"notifications",
-				],
-				hidden: ["account"],
-			},
-		}),
-	);
-	act(() => startNavbarArrange());
-	await user.click(screen.getByRole("button", { name: "Reset" }));
-	act(() => startNavbarArrange());
-	await waitFor(() =>
-		expect(save).toHaveBeenLastCalledWith({
-			navbar_layout: null,
-		}),
-	);
-});
-
 it("publishes the inherited order without writing a personal override", async () => {
 	const layout = {
 		order: ["action", ...NAVBAR_ITEMS.filter((id) => id !== "action")],
@@ -228,4 +160,160 @@ it("restores a removed item from a non-focusable live preview", async () => {
 			navbar_layout: expect.objectContaining({ hidden: [] }),
 		}),
 	);
+});
+
+it("moves, removes, restores and resets tiles, saving the layout", async () => {
+	const preferences = {};
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (settings) => ({
+			...Object.assign(preferences, settings),
+		}));
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	const client = new QueryClient({
+		defaultOptions: { queries: { staleTime: Number.POSITIVE_INFINITY } },
+	});
+	client.setQueryData(userUIPreferences().queryKey, {});
+	renderComponent(
+		<QueryClientProvider client={client}>
+			<NavbarArrange
+				showSettingsChevrons
+				items={{
+					logo: null,
+					workspaces: <span>Resources</span>,
+					banner: <span>Announcement</span>,
+					latency: <span>Settings</span>,
+					hud: null,
+					notifications: <span>Notifications</span>,
+					account: <span>Account</span>,
+					action: <button type="button">Workspace</button>,
+				}}
+			/>
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	act(() => startNavbarArrange());
+	await user.click(screen.getByRole("button", { name: "Remove Logo" }));
+	await user.click(screen.getByRole("button", { name: "Restore Logo" }));
+	screen.getByRole("button", { name: "Move Logo" }).focus();
+	await user.keyboard("{ArrowRight}");
+	await user.click(screen.getByRole("button", { name: "Remove Account" }));
+	await user.click(
+		screen.getByRole("button", { name: "Remove Notifications" }),
+	);
+	await user.click(
+		screen.getByRole("button", { name: "Restore Notifications" }),
+	);
+	screen.getByRole("button", { name: "Move Page action" }).focus();
+	await user.keyboard("{ArrowLeft}");
+	await user.click(screen.getByRole("button", { name: "Remove Page action" }));
+	const restoreAction = screen.getByRole("button", {
+		name: "Restore Page action",
+	});
+	expect(restoreAction).toHaveTextContent("Page action");
+	await user.click(restoreAction);
+	await user.click(screen.getByRole("button", { name: "Remove Page action" }));
+	const chevrons = screen.getByRole("button", {
+		name: "Move Settings chevrons",
+	});
+	chevrons.focus();
+	await user.keyboard("{ArrowRight}");
+	await user.click(screen.getByRole("button", { name: "Done" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			navbar_settings_side: "right",
+			navbar_layout: {
+				order: [
+					"workspaces",
+					"logo",
+					"banner",
+					"latency",
+					"hud",
+					"action",
+					"account",
+					"notifications",
+				],
+				hidden: ["account", "action"],
+			},
+		}),
+	);
+	expect(screen.queryByRole("button", { name: "Workspace" })).toBeNull();
+	act(() => startNavbarArrange());
+	await user.click(screen.getByRole("button", { name: "Reset" }));
+	act(() => startNavbarArrange());
+	await waitFor(() =>
+		expect(save).toHaveBeenLastCalledWith({
+			navbar_layout: null,
+		}),
+	);
+
+	act(() => startNavbarArrange());
+	const savedChevrons = screen.getByRole("button", {
+		name: "Move Settings chevrons",
+	});
+	const toolbar = screen.getByTestId("navbar-arrange");
+	const chevronTile = savedChevrons.closest(
+		'[data-navbar-item="settings-chevrons"]',
+	);
+	if (!chevronTile) throw new Error("Missing Settings chevrons tile");
+	vi.spyOn(toolbar, "getBoundingClientRect").mockReturnValue(
+		new DOMRect(0, 0, 600, 50),
+	);
+	vi.spyOn(chevronTile, "getBoundingClientRect").mockReturnValue(
+		new DOMRect(480, 0, 120, 50),
+	);
+	await user.pointer([
+		{ keys: "[MouseLeft>]", target: savedChevrons, coords: { x: 540, y: 25 } },
+		{ coords: { x: 525, y: 25 } },
+		{ coords: { x: 70, y: 25 } },
+		{ keys: "[/MouseLeft]" },
+	]);
+	savedChevrons.focus();
+	await user.keyboard("{Enter}");
+	await waitFor(() =>
+		expect(save).toHaveBeenLastCalledWith({ navbar_settings_side: "left" }),
+	);
+});
+
+it("moves the docked Settings sidebar to either edge with the arrow keys", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (changes) => ({
+			settings_sidebar: true,
+			...changes,
+		}));
+	const client = new QueryClient({
+		defaultOptions: { queries: { staleTime: Number.POSITIVE_INFINITY } },
+	});
+	client.setQueryData(userUIPreferences().queryKey, { settings_sidebar: true });
+	renderComponent(
+		<QueryClientProvider client={client}>
+			<NavbarArrange
+				showSettingsChevrons
+				settingsDocked
+				items={{
+					logo: null,
+					workspaces: null,
+					banner: <span>Announcement</span>,
+					latency: null,
+					hud: null,
+					notifications: null,
+					account: null,
+					action: null,
+				}}
+			/>
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	for (const side of ["Left", "Right"]) {
+		act(() => startNavbarArrange());
+		screen.getByRole("button", { name: "Move Settings sidebar" }).focus();
+		await user.keyboard(`{Arrow${side}}`);
+		await user.click(screen.getByRole("button", { name: "Done" }));
+		await waitFor(() =>
+			expect(save).toHaveBeenLastCalledWith({
+				navbar_settings_side: side.toLowerCase(),
+			}),
+		);
+	}
 });

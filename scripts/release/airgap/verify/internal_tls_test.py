@@ -89,7 +89,7 @@ class RenewalTest(unittest.TestCase):
         cluster.renew('coder', 'coder.example.test')
         self.assertEqual(calls[0][0], ['replace', '-f', '-'])
         self.assertEqual(calls[0][1]['metadata']['resourceVersion'], '17')
-        self.assertEqual(calls[-1][0], ['rollout', 'status', 'deployment/coder', '--timeout=300s'])
+        self.assertEqual(calls[-1][0], ['rollout', 'status', 'deployment/coder-server', '--timeout=300s'])
         calls.clear()
         cluster.activate('coder')
         self.assertEqual(len(calls), 2)

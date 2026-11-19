@@ -1,0 +1,1 @@
+../../../../platform/database_inventory.py

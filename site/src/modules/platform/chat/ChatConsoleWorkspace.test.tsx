@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlatformAPI } from "#/api/platform";
 import {
@@ -45,9 +45,9 @@ it("loads connection data on its tab and saves chat permissions inside Settings"
 	const save = vi
 		.spyOn(PlatformAPI, "saveChatSettings")
 		.mockResolvedValue({ ...MockChatSettings, discoverAll: true });
-	render(<ChatConsoleWorkspace place="card" />);
+	const { router } = render(<ChatConsoleWorkspace place="card" />);
 	expect(pairs).not.toHaveBeenCalled();
-	await userEvent.click(screen.getByRole("tab", { name: "Connections" }));
+	await act(() => router.navigate("/#connections"));
 	await waitFor(() => expect(pairs).toHaveBeenCalledWith(0));
 	await userEvent.click(screen.getByRole("tab", { name: "Settings" }));
 	await userEvent.click(

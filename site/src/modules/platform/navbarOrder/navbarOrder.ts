@@ -55,10 +55,16 @@ const readNavbarOrder = (): NavbarItem[] => {
 		return [...NAVBAR_ITEMS];
 	}
 };
-export const useNavbarOrder = (defaultLayout?: NavbarLayout) => {
+export const useNavbarOrder = (
+	defaultLayout?: NavbarLayout,
+	settingsDefaultSide: "left" | "right" = "left",
+) => {
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
 	const [draft, setDraft] = useState<NavbarLayout | null>();
+	const [sideDraft, setSideDraft] = useState<"left" | "right">();
+	const savedSide =
+		preferences.data?.navbar_settings_side ?? settingsDefaultSide;
 	const personal =
 		draft === undefined ? preferences.data?.navbar_layout : draft;
 	const layout = personal ?? defaultLayout;
@@ -69,7 +75,7 @@ export const useNavbarOrder = (defaultLayout?: NavbarLayout) => {
 			: readNavbarOrder();
 	const hidden: NavbarItem[] = (layout?.hidden ?? [])
 		.filter(isNavbarItem)
-		.filter((item) => item !== "action" && item !== "banner");
+		.filter((item) => item !== "banner");
 	const deploymentDefault = useMutation({
 		...updateNavbarLayoutDefault(client),
 		onError: (error) =>
@@ -85,6 +91,8 @@ export const useNavbarOrder = (defaultLayout?: NavbarLayout) => {
 	return {
 		order,
 		hidden,
+		settingsSide: sideDraft ?? savedSide,
+		setSettingsSide: setSideDraft,
 		save: (next: NavbarItem[], removed: NavbarItem[] = hidden) =>
 			setDraft({ order: next, hidden: removed }),
 		reset: () => setDraft(null),
@@ -96,15 +104,23 @@ export const useNavbarOrder = (defaultLayout?: NavbarLayout) => {
 				},
 			),
 		commit: (onSuccess: () => void) => {
-			if (draft === undefined) {
+			const sideChanged = sideDraft !== undefined && sideDraft !== savedSide;
+			if (draft === undefined && !sideChanged) {
+				setSideDraft(undefined);
 				onSuccess();
 				return;
 			}
 			mutation.mutate(
-				{ navbar_layout: draft === null ? null : { order, hidden } },
+				{
+					...(draft !== undefined && {
+						navbar_layout: draft === null ? null : { order, hidden },
+					}),
+					...(sideChanged && { navbar_settings_side: sideDraft }),
+				},
 				{
 					onSuccess: () => {
 						setDraft(undefined);
+						setSideDraft(undefined);
 						onSuccess();
 					},
 				},

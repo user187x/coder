@@ -4,6 +4,7 @@ import {
 	PlusIcon,
 	SquareTerminalIcon,
 } from "lucide-react";
+import { useRef, useState } from "react";
 import type { WorkspaceApp } from "#/api/typesGenerated";
 import {
 	DropdownMenu,
@@ -22,6 +23,7 @@ type AddPanelTabProps = {
 	disabled: boolean;
 	actions?: React.ReactNode;
 	terminal?: boolean;
+	fullscreen?: boolean;
 	onAdd: (content: PanelContent) => void;
 };
 
@@ -32,17 +34,23 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 	onAdd,
 	actions,
 	terminal = false,
+	fullscreen = false,
 }) => {
+	const [open, setOpen] = useState(false);
+	const trigger = useRef<HTMLButtonElement>(null);
 	return (
 		<div
 			className="pointer-events-none absolute right-6 top-0 z-20"
 			data-testid="add-panel-tab"
 		>
 			<div className="pointer-events-auto relative h-4 w-8">
-				<DropdownMenu>
+				<DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
 					<DropdownMenuTrigger asChild>
 						<button
 							type="button"
+							ref={trigger}
+							onPointerDown={(event) => event.preventDefault()}
+							onClick={() => setOpen((current) => !current)}
 							disabled={disabled}
 							aria-label="Add a panel"
 							title={
@@ -58,6 +66,13 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
 						align="end"
+						container={fullscreen ? document.fullscreenElement : undefined}
+						onCloseAutoFocus={(event) => {
+							event.preventDefault();
+							if (document.activeElement === document.body) {
+								trigger.current?.focus({ preventScroll: true });
+							}
+						}}
 						className="max-h-[calc(70vh/var(--app-zoom,1))] min-w-56 overflow-y-auto"
 					>
 						{actions}

@@ -1,4 +1,6 @@
 import {
+	ChevronDownIcon,
+	ChevronUpIcon,
 	PencilIcon,
 	PlusIcon,
 	SaveIcon,
@@ -101,6 +103,7 @@ export const AdminNotesPanel = ({
 						<Button
 							size="sm"
 							variant="outline"
+							className="settings-notes-control rounded-full"
 							disabled={!org || Boolean(draft) || busy}
 							onClick={() => edit()}
 						>
@@ -109,7 +112,8 @@ export const AdminNotesPanel = ({
 						</Button>
 						<Button
 							size="icon"
-							variant="subtle"
+							variant="outline"
+							className="settings-notes-control rounded-full"
 							aria-label="Close admin notes"
 							onClick={onClose}
 						>
@@ -140,7 +144,10 @@ export const AdminNotesPanel = ({
 							}}
 							disabled={busy}
 						>
-							<SelectTrigger id={`${id}-visibility`}>
+							<SelectTrigger
+								id={`${id}-visibility`}
+								className="settings-notes-control rounded-full"
+							>
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
@@ -222,127 +229,156 @@ export const AdminNotesPanel = ({
 						)}
 						{remove.error && <ErrorAlert error={remove.error} />}
 						{query.data && (
-							<div className="shrink-0 overflow-hidden rounded-lg border border-solid border-border bg-surface-primary">
-								<Table aria-label="Admin notes">
+							<div className="settings-notes-list shrink-0 overflow-hidden rounded-lg border border-solid border-border bg-surface-primary">
+								<Table aria-label="Admin notes" className="table-fixed">
 									<TableHeader>
 										<TableRow>
 											<TableHead>Note</TableHead>
-											<TableHead className="w-16">Actions</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
 										{notes?.length === 0 && (
 											<TableRow>
-												<TableCell
-													colSpan={2}
-													className="text-xs text-content-secondary"
-												>
+												<TableCell className="text-xs text-content-secondary">
 													No notes with this visibility yet.
 												</TableCell>
 											</TableRow>
 										)}
-										{notes?.map((note) => (
-											<TableRow key={note.id}>
-												<TableCell className="max-w-0 align-top">
-													<button
-														type="button"
-														className="block w-full cursor-pointer border-0 bg-transparent p-0 text-left text-xs text-content-primary"
-														aria-label={`Read note: ${note.text.slice(0, 60)}`}
-														onClick={() => {
-															setVisibility(visibility);
-															setReading(reading === note.id ? null : note.id);
-															if (note.unread && !read.isPending)
-																read.mutate({
-																	action: "read",
-																	id: note.id,
-																	revision: note.revision,
-																});
-														}}
-													>
-														<span
-															className={
-																reading === note.id
-																	? "whitespace-pre-wrap break-words"
-																	: "line-clamp-2 break-words"
-															}
+										{notes?.map((note) => {
+											const expanded = reading === note.id;
+											const toggleNote = () => {
+												setVisibility(visibility);
+												setReading(expanded ? null : note.id);
+												if (!expanded && note.unread && !read.isPending) {
+													read.mutate({
+														action: "read",
+														id: note.id,
+														revision: note.revision,
+													});
+												}
+											};
+											return (
+												<TableRow key={note.id} className="group/note">
+													<TableCell className="align-top">
+														<header className="flex items-start gap-1">
+															<button
+																type="button"
+																className="block min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left text-xs text-content-primary"
+																aria-label={`Read note: ${note.text.slice(0, 60)}`}
+																aria-expanded={expanded}
+																onClick={toggleNote}
+															>
+																<span
+																	className={
+																		expanded
+																			? "whitespace-pre-wrap wrap-anywhere"
+																			: "line-clamp-2 wrap-anywhere"
+																	}
+																>
+																	{note.text}
+																</span>
+															</button>
+															<div className="flex shrink-0 opacity-0 group-hover/note:opacity-100 group-has-[:focus-visible]/note:opacity-100 [@media(hover:none)]:opacity-100">
+																<Button
+																	size="icon"
+																	variant="subtle"
+																	className="size-6"
+																	aria-label={
+																		expanded ? "Collapse note" : "Expand note"
+																	}
+																	title={
+																		expanded ? "Collapse note" : "Expand note"
+																	}
+																	aria-expanded={expanded}
+																	onClick={toggleNote}
+																>
+																	{expanded ? (
+																		<ChevronUpIcon aria-hidden />
+																	) : (
+																		<ChevronDownIcon aria-hidden />
+																	)}
+																</Button>
+																{(note.can_edit || note.shared) && (
+																	<Button
+																		size="icon"
+																		variant="subtle"
+																		className="size-6"
+																		aria-label="Delete note"
+																		title="Delete note"
+																		disabled={busy}
+																		onClick={() => {
+																			remove.reset();
+																			setDeleting(note);
+																		}}
+																	>
+																		<Trash2Icon aria-hidden />
+																	</Button>
+																)}
+															</div>
+														</header>
+														<div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-content-secondary">
+															<span>{note.author_name}</span>
+															{note.unread && <Badge size="sm">New</Badge>}
+															<Badge size="sm">
+																{note.shared ? "Admins" : "Self"}
+															</Badge>
+															{note.can_edit && (
+																<Button
+																	size="icon"
+																	variant="subtle"
+																	className="ml-auto size-6"
+																	aria-label="Edit note"
+																	title="Edit note"
+																	disabled={busy}
+																	onClick={() => edit(note)}
+																>
+																	<PencilIcon aria-hidden />
+																</Button>
+															)}
+														</div>
+														<time
+															className="text-xs text-content-secondary"
+															dateTime={note.updated_at}
 														>
-															{note.text}
-														</span>
-													</button>
-													<div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-content-secondary">
-														<span>{note.author_name}</span>
-														{note.unread && <Badge size="sm">New</Badge>}
-														<Badge size="sm">
-															{note.shared ? "Admins" : "Self"}
-														</Badge>
-													</div>
-													<time
-														className="text-xs text-content-secondary"
-														dateTime={note.updated_at}
-													>
-														{new Date(note.updated_at).toLocaleString("en-US")}
-													</time>
-													{deleting?.id === note.id && (
-														<div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-															<span>Delete this note?</span>
-															<Button
-																size="sm"
-																variant="outline"
-																disabled={busy}
-																onClick={() => setDeleting(null)}
-															>
-																<Trash2Icon aria-hidden />
-																Discard
-															</Button>
-															<Button
-																size="sm"
-																variant="destructive"
-																disabled={busy}
-																onClick={() =>
-																	remove.mutate(
-																		{
-																			action: "delete",
-																			id: note.id,
-																			revision: note.revision,
-																		},
-																		{ onSuccess: () => setDeleting(null) },
-																	)
-																}
-															>
-																Delete note
-															</Button>
-														</div>
-													)}
-												</TableCell>
-												<TableCell className="px-1 align-top">
-													{note.can_edit && (
-														<div className="flex">
-															<Button
-																size="icon"
-																variant="subtle"
-																aria-label="Edit note"
-																disabled={busy}
-																onClick={() => edit(note)}
-															>
-																<PencilIcon />
-															</Button>
-															<Button
-																size="icon"
-																variant="subtle"
-																aria-label="Delete note"
-																disabled={busy}
-																onClick={() => {
-																	remove.reset();
-																	setDeleting(note);
-																}}
-															>
-																<Trash2Icon />
-															</Button>
-														</div>
-													)}
-												</TableCell>
-											</TableRow>
-										))}
+															{new Date(note.updated_at).toLocaleString(
+																"en-US",
+															)}
+														</time>
+														{deleting?.id === note.id && (
+															<div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+																<span>Delete this note?</span>
+																<Button
+																	size="sm"
+																	variant="outline"
+																	disabled={busy}
+																	onClick={() => setDeleting(null)}
+																>
+																	<Trash2Icon aria-hidden />
+																	Discard
+																</Button>
+																<Button
+																	size="sm"
+																	variant="destructive"
+																	disabled={busy}
+																	onClick={() =>
+																		remove.mutate(
+																			{
+																				action: "delete",
+																				id: note.id,
+																				revision: note.revision,
+																			},
+																			{ onSuccess: () => setDeleting(null) },
+																		)
+																	}
+																>
+																	Confirm delete
+																</Button>
+															</div>
+														)}
+													</TableCell>
+												</TableRow>
+											);
+										})}
 									</TableBody>
 								</Table>
 							</div>

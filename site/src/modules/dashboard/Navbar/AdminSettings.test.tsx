@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import {
@@ -169,17 +170,26 @@ it("adds a setting from the inline picker without navigating", async () => {
 		permissions: MockPermissions,
 		oauth2Provider: true,
 	});
+	const QuickLinks = () => {
+		const [ids, setIds] = useState<string[]>([]);
+		return (
+			<AdminQuickLinksMenu
+				links={pages.filter((page) => ids.includes(page.id))}
+				addable={pages.filter((page) => !ids.includes(page.id))}
+				onChange={(next) => {
+					setIds(next);
+					onChange(next);
+				}}
+			/>
+		);
+	};
 	renderComponent(
 		<QueryClientProvider client={new QueryClient()}>
 			<MemoryRouter>
 				<DropdownMenu open>
 					<DropdownMenuTrigger>Menu</DropdownMenuTrigger>
 					<DropdownMenuContent>
-						<AdminQuickLinksMenu
-							links={[]}
-							addable={pages}
-							onChange={onChange}
-						/>
+						<QuickLinks />
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</MemoryRouter>
@@ -201,6 +211,16 @@ it("adds a setting from the inline picker without navigating", async () => {
 		}),
 	);
 	expect(onChange).toHaveBeenLastCalledWith(["chat"]);
+	const quickLinks = within(screen.getByTestId("quick-links-scroll"));
+	expect(quickLinks.getByRole("menuitem", { name: "Chat" })).toBeVisible();
+	expect(screen.getAllByRole("menuitem", { name: "Chat" })).toHaveLength(1);
+	await user.click(
+		quickLinks.getByRole("menuitem", {
+			name: "Remove Chat from the quick links",
+		}),
+	);
+	expect(quickLinks.queryByRole("menuitem", { name: "Chat" })).toBeNull();
+	expect(screen.getByRole("menuitem", { name: "Chat" })).toBeVisible();
 	await user.click(
 		screen.getByRole("menuitem", { name: "Add Security to quick links" }),
 	);
@@ -357,3 +377,90 @@ it("opens Controls from its icon only, not from the rest of its bar", async () =
 	await user.click(within(bar).getByTitle("Controls"));
 	expect(bar).toHaveAttribute("aria-expanded", "true");
 });
+
+it("offers only panel layout actions when Controls has no drawer entries", async () => {
+	const user = userEvent.setup();
+	vi.spyOn(PlatformAPI, "getChatEnabled").mockResolvedValue({ enabled: false });
+	const toggleLayout = vi.fn();
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<MemoryRouter>
+				<DropdownMenu open>
+					<DropdownMenuTrigger>Admin</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<AdminSettingsItems
+							permissions={{}}
+							topSection={{
+								full: false,
+								pinned: false,
+								onToggle: toggleLayout,
+								onPin: vi.fn(),
+							}}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</MemoryRouter>
+		</QueryClientProvider>,
+	);
+	const bar = await screen.findByRole("menuitem", { name: "Controls" });
+	await waitFor(() => expect(bar).not.toHaveAttribute("aria-controls"));
+	await user.click(within(bar).getByTitle("Controls"));
+	expect(bar).not.toHaveAttribute("aria-expanded");
+	await user.pointer({ target: bar, keys: "[MouseRight]" });
+	const options = screen.getByRole("group", { name: "Controls options" });
+	expect(
+		within(options).queryByRole("menuitem", { name: /^Open$/ }),
+	).toBeNull();
+	await user.click(
+		within(options).getByRole("menuitem", { name: "Expand to the bottom" }),
+	);
+	expect(toggleLayout).toHaveBeenCalledOnce();
+});
+
+it.each([
+	["New account", "/dashboard", "/deployment/users/create"],
+	["New Lease", "/deployment/users/create", "/deployment/users?create_lease=1"],
+])(
+	"opens %s from the Accounts submenu",
+	async (label, initialPath, destination) => {
+		const accounts = adminPagesFor({
+			permissions: {
+				...MockPermissions,
+				createUser: true,
+				editDeploymentConfig: true,
+			},
+			oauth2Provider: false,
+		}).filter((page) => page.id === "accounts");
+		const user = userEvent.setup();
+		renderComponent(
+			<QueryClientProvider client={new QueryClient()}>
+				<MemoryRouter initialEntries={[initialPath]}>
+					<DropdownMenu open>
+						<DropdownMenuTrigger>Settings</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<AdminQuickLinksMenu links={accounts} addable={[]} />
+						</DropdownMenuContent>
+					</DropdownMenu>
+					<LocationProbe />
+				</MemoryRouter>
+			</QueryClientProvider>,
+		);
+		await user.pointer({
+			keys: "[MouseRight]",
+			target: screen.getByRole("menuitem", { name: "Accounts" }),
+		});
+		const submenu = screen.getByRole("group", { name: "Accounts options" });
+		await user.click(within(submenu).getByRole("menuitem", { name: label }));
+		await screen.findByText(destination, { exact: true });
+	},
+);
+
+function LocationProbe() {
+	const { pathname, search } = useLocation();
+	return (
+		<output>
+			{pathname}
+			{search}
+		</output>
+	);
+}

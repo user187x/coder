@@ -277,7 +277,7 @@ Leave out `--cnpg` if CloudNativePG is already installed on the cluster.
 **Keycloak not ready yet?** Leave out `--oidc-ca` and `--oidc-secret-file`. Coder starts without them, and the admin
 signs in with the password from Step 8. A Keycloak issuer that does not answer yet does not stop Coder either: its
 sign-in button works as soon as Keycloak does. When Keycloak is set up, create the two secrets (run this step again
-with both options) and restart Coder (`kubectl -n coder rollout restart deploy/coder`). Keep
+with both options) and restart Coder (`kubectl -n coder rollout restart deploy/coder-server`). Keep
 `global.disablePasswordAuth: "false"` until a Keycloak sign-in has worked: with `"true"` nobody can sign in while
 Keycloak is down.
 
@@ -721,12 +721,40 @@ In active/standby, one Coder replica serves and the others wait warm:
 **Switching on.** Switching a running install to active/standby costs one Coder start of downtime: the Service moves
 to the `active` label before any pod carries it.
 
+### Moving node add-ons to `coder-system`
+
+Fresh installations create the system namespace as part of the chart. When upgrading a release that still has
+`coder-image-registry-proxy` and `coder-user-storage-csi` in its release namespace, use this one-time handoff:
+
+1. Stop workspaces and other consumers with mounted Cloud Drives and wait for their pods to unmount the claims.
+   Pause image builds and provisioning during the handoff. The CSI driver owns the FUSE connections, so stopping it
+   interrupts any mounts that are still open. Both generations of the registry proxy bind the same node port, and both
+   CSI generations register the same kubelet socket.
+2. Delete the old DaemonSets from the **release namespace**, using foreground propagation so their pods exit before
+   the replacements start. Keep the claims, volumes, CSI driver registration object, registry, and Cloud Drive backend.
+   For a release in `coder`, run:
+
+   ```sh
+   kubectl -n coder delete ds/coder-image-registry-proxy ds/coder-user-storage-csi --cascade=foreground --wait=true --ignore-not-found
+   ```
+
+3. Run the normal Helm upgrade or Argo CD sync. If the release uses private image pull secrets, make those credentials
+   available in `coder-system` before starting the rollout. A server-connected Helm upgrade checks for the old
+   DaemonSets. When using an offline renderer, complete the retirement step before syncing.
+4. Wait for the new DaemonSets in `coder-system`. Verify a node-local registry pull, a fresh Cloud Drive mount, and
+   `kubectl top nodes` after the Metrics API Service reference switches. Resume workspace starts and builds after these
+   checks pass.
+
+For a rollback to a chart that places the DaemonSets in the release namespace, stop Cloud Drive consumers and retire the
+`coder-system` copies of the same DaemonSets before applying the older chart. Bring workspace consumers back after a
+fresh mount works.
+
 **Upgrades.** A rolling update replaces one replica at a time: the standbys first, then the active one, which hands
 over to a new replica in its preStop. Connections through Coder drop for a moment and reconnect. A new Coder version
 (`global.coderImages.upstream` changes, so the fork's upstream base changes) can bring database migrations, and old
 replicas can hold the locks those migrations need. Before such an upgrade, scale Coder to one replica, then upgrade:
 
-- **Plain Helm:** run `kubectl -n coder scale deploy/coder --replicas=1`, then `./install.sh ...` (Helm restores the
+- **Plain Helm:** run `kubectl -n coder scale deploy/coder-server --replicas=1`, then `./install.sh ...` (Helm restores the
   2 replicas on the new version).
 - **Argo CD:** set `coder.coder.replicaCount: 1` and sync, update, then set it back to 2. A `kubectl scale` would be
   undone by Argo CD's self-heal.
@@ -777,7 +805,7 @@ at a time, the primary last. Coder's database requests pause while the primary m
 | No workspace template in Coder | `kubectl -n coder logs job/coder-bootstrap-first-user` and `job/coder-workspace-push-template` |
 | "You have multiple replicas but …" in Coder | More than one replica runs Coder: Coder's own high availability needs a license with `high_availability`. Without one, use Platform HA's `global.platformHA.mode: activeStandby` (one replica runs Coder; `values-ha.example.yaml`), or set `coder.coder.replicaCount: 1` |
 | An upgrade hangs with a `coder` pod Pending | High availability: Coder's nodes have no room for the rollout's extra replica (`kubectl -n coder describe pod`) |
-| A new workspace waits in `ContainerCreating` | The Cloud Drive: `kubectl -n coder get pvc coder-safe-<user id>` (made by the platform service), `kubectl -n coder get pods -l app.kubernetes.io/name=coder-user-storage-csi` (FUSE and systemd on the node) |
+| A new workspace waits in `ContainerCreating` | The Cloud Drive: `kubectl -n coder get pvc coder-safe-<user id>` (made by the platform service), `kubectl -n coder-system get pods -l app.kubernetes.io/name=coder-user-storage-csi` (FUSE and systemd on the node) |
 | Deleting the namespace hangs: workspace pods stay `Terminating`, PVCs too | The Cloud Drive's CSI driver went first (the namespace was deleted without `helm uninstall`, whose hook stops those workspaces before the driver goes): `kubectl -n coder delete pod <pod> --grace-period=0 --force`, then on its node `umount -l` the pod's leftover `fuse` mounts. Next time: `helm uninstall coder -n coder --wait` first (Argo CD: delete the Application, whose PreDelete hook does the same), then the namespace |
 | The Cloud Drive says its storage cannot be reached (a red dot) | `kubectl -n coder get pods -l app.kubernetes.io/name=coder-user-storage-minio`, or your S3's endpoint and keys (`userStorage.s3`, or the one in its Settings) |
 

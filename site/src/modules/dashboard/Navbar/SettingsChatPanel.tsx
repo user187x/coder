@@ -54,11 +54,16 @@ export const SettingsChatPanel = ({
 			className="settings-compact-chat flex h-full min-h-[220px] min-w-0 flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary"
 			onKeyDown={(event) => event.stopPropagation()}
 		>
-			<header className="flex h-9 shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-2">
+			<header
+				data-settings-chat-header
+				className="flex h-9 shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-2"
+			>
 				<ChatLinkStatus link={state.link} />
 				<UnreadGlowDimple />
-				<strong className="flex-1 text-xs">Enable Messaging</strong>
-				{state.me?.admin && <ChatOnSwitch className="h-8" />}
+				<span aria-hidden className="flex-1" />
+				{state.me?.admin && (
+					<ChatOnSwitch className="h-8" tooltip="Enable Messaging" />
+				)}
 				{onExpandedChange && (
 					<Button
 						size="icon"
@@ -79,29 +84,34 @@ export const SettingsChatPanel = ({
 					<XIcon />
 				</Button>
 			</header>
-			{!state.me ? (
-				<p className="px-3 text-xs text-content-secondary">
-					Connecting to chat…
-				</p>
-			) : state.panelView ? (
-				<PanelConversation
-					actionsRef={actions}
-					compact
-					key={state.panelView.peer.id}
-					view={state.panelView}
-					onBack={closePanelView}
-					onEscape={closePanelView}
-				/>
-			) : (
-				<ChatList
-					className="min-h-0 flex-1 pb-2 text-xs"
-					onOpen={(peer) => selectInPanel(peer, true)}
-					onSendFile={(peer) => {
-						flushSync(() => selectInPanel(peer, true));
-						actions.current?.chooseFile();
-					}}
-				/>
-			)}
+			<div
+				data-settings-chat-body
+				className="flex min-h-0 flex-1 flex-col overflow-hidden"
+			>
+				{!state.me ? (
+					<p className="px-3 text-xs text-content-secondary">
+						Connecting to chat…
+					</p>
+				) : state.panelView ? (
+					<PanelConversation
+						actionsRef={actions}
+						compact
+						key={state.panelView.peer.id}
+						view={state.panelView}
+						onBack={closePanelView}
+						onEscape={closePanelView}
+					/>
+				) : (
+					<ChatList
+						className="min-h-0 flex-1 pb-2 text-xs"
+						onOpen={(peer) => selectInPanel(peer, true)}
+						onSendFile={(peer) => {
+							flushSync(() => selectInPanel(peer, true));
+							actions.current?.chooseFile();
+						}}
+					/>
+				)}
+			</div>
 		</div>
 	);
 };

@@ -57,7 +57,7 @@ check("the database is up, made by its Job once CloudNativePG answered (%d s)" %
 jobs = [j for j in kjson("-n", NS, "get", "jobs")["items"] if j["metadata"]["name"].startswith("coder-db-apply-")]
 check("its Job succeeded", jobs and all(j.get("status", {}).get("succeeded") for j in jobs),
       [(j["metadata"]["name"], j.get("status")) for j in jobs])
-coder, t = wait("coder", lambda: (kjson("-n", NS, "get", "deploy", "coder").get("status", {}).get("availableReplicas") or 0) >= 1, 900)
+coder, t = wait("coder", lambda: (kjson("-n", NS, "get", "deploy", "coder-server").get("status", {}).get("availableReplicas") or 0) >= 1, 900)
 check("Coder is available (%d s more)" % t, coder)
 
 
@@ -86,7 +86,7 @@ check("no image pull failed", not pulls, pulls[:3])
 core = kubectl("-n", "kube-system", "get", "configmap", "coredns", "-o", "jsonpath={.data.Corefile}")
 check("CoreDNS carries this release's rules", core.count("# coder-airgapped %s/%s" % (NS, RELEASE)) == 2, "")
 traefik_ip = kubectl("-n", NS, "get", "svc", "%s-traefik" % RELEASE, "-o", "jsonpath={.spec.clusterIP}")
-resolved = kubectl("-n", NS, "exec", "deploy/coder-ui-updates", "--", "python3", "-c",
+resolved = kubectl("-n", NS, "exec", "deploy/coder-ui", "--", "python3", "-c",
                    "import socket; print(socket.gethostbyname('%s'), socket.gethostbyname('app--ws.%s'))" % (CODER, DOMAIN), check_rc=False).split()
 check("pods resolve Coder's host and the wildcard host to the Gateway (%s)" % traefik_ip, resolved == [traefik_ip, traefik_ip], resolved)
 

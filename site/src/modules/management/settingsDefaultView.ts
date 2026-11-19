@@ -31,8 +31,12 @@ export const useSettingsDefaultView = (enabled = true) => {
 		onError: (error) =>
 			toast.error(getErrorMessage(error, "Could not save the default view.")),
 	});
+	const path = preferences.data?.settings_default_view ?? null;
 	return {
-		path: preferences.data?.settings_default_view ?? null,
+		path:
+			path === "/deployment/database" || path === "/deployment/persistence"
+				? "/deployment/storage"
+				: path,
 		loading: preferences.isLoading,
 		set: (path: string | null) => save.mutate({ settings_default_view: path }),
 	};

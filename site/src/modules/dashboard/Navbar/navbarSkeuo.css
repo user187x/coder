@@ -45,11 +45,14 @@
 }
 .navbar-soft {
 	--navbar-well-rim: 3.5px;
+	--navbar-pill-radius: 9999px;
 }
 .navbar-soft
 	[data-navbar-item]:is(
 		:has(#coder-system-banner),
-		:not([data-navbar-item="banner"]):has(:is(button, a))
+		:not([data-navbar-item="banner"]):has(
+			:is(button, a):not([data-navbar-arrange-control])
+		)
 	) {
 	display: flex;
 	align-items: stretch;
@@ -64,8 +67,13 @@
 		inset 0 1px 2.5px rgb(0 0 0 / 0.65),
 		0 1px 0 var(--crumb-lip);
 }
+.navbar-soft [data-navbar-item="banner"]:has(#coder-system-banner) {
+	border-radius: var(--navbar-pill-radius);
+}
 /* The controls fill their well: as tall as the action height, joined where an item holds several. */
-.navbar-soft [data-navbar-item]:not([data-navbar-item="banner"]) > * {
+.navbar-soft
+	[data-navbar-item]:not([data-navbar-item="banner"])
+	> :not([data-navbar-arrange-control]) {
 	display: flex;
 	align-items: stretch;
 	gap: 1px;
@@ -73,11 +81,11 @@
 }
 .navbar-soft
 	[data-navbar-item]:not([data-navbar-item="banner"])
-	:is(button, a.inline-flex, .navbar-split) {
+	:is(button, a.inline-flex, .navbar-split):not([data-navbar-arrange-control]) {
 	height: 100%;
 	min-height: 0;
 	border: 0;
-	border-radius: 7px;
+	border-radius: var(--navbar-button-radius, 7px);
 	background: var(--crumb-face);
 	color: var(--crumb-ink);
 	font-weight: 600;
@@ -91,18 +99,21 @@
 }
 .navbar-soft
 	[data-navbar-item]:not([data-navbar-item="banner"])
-	:is(button, a.inline-flex)
+	:is(button, a.inline-flex):not([data-navbar-arrange-control])
 	svg {
 	filter: drop-shadow(var(--crumb-engrave));
 }
 .navbar-soft
 	[data-navbar-item]:not([data-navbar-item="banner"])
-	:is(button, a.inline-flex):hover {
+	:is(button, a.inline-flex):not([data-navbar-arrange-control]):hover {
 	background: var(--crumb-face-hover);
 }
 .navbar-soft
 	[data-navbar-item]:not([data-navbar-item="banner"])
-	:is(button, a.inline-flex):is(:active, [data-state="open"]) {
+	:is(button, a.inline-flex):not([data-navbar-arrange-control]):is(
+		:active,
+		[data-state="open"]
+	) {
 	background: var(--crumb-face-pressed);
 	box-shadow:
 		inset 0 1.5px 3px rgb(0 0 0 / 0.28),
@@ -110,7 +121,7 @@
 }
 .navbar-soft
 	[data-navbar-item]:not([data-navbar-item="banner"])
-	:is(button, a.inline-flex):focus-visible {
+	:is(button, a.inline-flex):not([data-navbar-arrange-control]):focus-visible {
 	outline: 2px solid hsl(var(--content-link));
 	outline-offset: -3px;
 }
@@ -120,5 +131,5 @@
 	height: 100%;
 	min-height: 0;
 	margin-left: 0;
-	border-radius: 7px;
+	border-radius: var(--navbar-pill-radius);
 }

@@ -1,10 +1,17 @@
 import { cn } from "cn";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
+import {
+	ContextMenu,
+	ContextMenuCheckboxItem,
+	ContextMenuContent,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import {
 	ChatGate,
 	useChatEnabled,
@@ -56,17 +63,52 @@ export const SettingsFacePanel: React.FC<{
 	const hidden = Boolean(preferences.data?.settings_face_hidden) && !full;
 	const setHidden = (next: boolean) =>
 		saveHidden.mutate({ settings_face_hidden: next || null });
-	const handle = (
-		<button
-			type="button"
-			className="settings-face-handle"
-			aria-expanded={!hidden}
-			aria-label={hidden ? "Show the bottom panel" : "Hide the bottom panel"}
-			title={hidden ? "Show the bottom panel" : "Hide the bottom panel"}
-			onClick={() => setHidden(!hidden)}
-		>
-			<span aria-hidden className="settings-face-handle-grip" />
-		</button>
+	const direction =
+		preferences.data?.settings_face_collapse_direction ?? "down";
+	const label = hidden ? "Show the bottom panel" : "Hide the bottom panel";
+	const renderHandle = () => (
+		<ContextMenu>
+			<ContextMenuTrigger asChild>
+				<button
+					type="button"
+					className="settings-face-handle"
+					aria-expanded={!hidden}
+					aria-label={label}
+					title={label}
+					disabled={saveHidden.isPending}
+					onClick={() => setHidden(!hidden)}
+					onContextMenu={(event) => event.stopPropagation()}
+				>
+					<span aria-hidden className="settings-face-handle-grip" />
+				</button>
+			</ContextMenuTrigger>
+			<ContextMenuContent
+				aria-label="Bottom panel collapse direction"
+				className="z-[2147483647]"
+				onContextMenu={(event) => event.stopPropagation()}
+			>
+				{(
+					[
+						["up", "Collapse Upward", ArrowUpIcon],
+						["down", "Collapse Downward", ArrowDownIcon],
+					] as const
+				).map(([value, name, Icon]) => (
+					<ContextMenuCheckboxItem
+						key={value}
+						checked={direction === value}
+						onSelect={() =>
+							saveHidden.mutate({
+								settings_face_collapse_direction: value,
+								settings_face_hidden: true,
+							})
+						}
+					>
+						<Icon aria-hidden />
+						{name}
+					</ContextMenuCheckboxItem>
+				))}
+			</ContextMenuContent>
+		</ContextMenu>
 	);
 	// The tallest face's height so far: the panel holds it whichever face shows.
 	const [tallest, setTallest] = useState(0);
@@ -104,6 +146,7 @@ export const SettingsFacePanel: React.FC<{
 			aria-label={`Settings panel: ${NAMES[current]}`}
 			data-testid="settings-face-panel"
 			data-face={current}
+			data-face-collapsed={hidden ? direction : undefined}
 			className={cn(
 				"settings-face-panel relative mx-1 mt-2 mb-1",
 				full ? "flex min-h-0 flex-1 flex-col" : "shrink-0",
@@ -112,7 +155,7 @@ export const SettingsFacePanel: React.FC<{
 			{faces.length > 1 && (
 				<div className="settings-face-arrows">
 					{/* A handle on each side, halfway from the arrows to the panel's edge */}
-					<span className="settings-face-handle-slot">{handle}</span>
+					<span className="settings-face-handle-slot">{renderHandle()}</span>
 					<svg width="0" height="0" className="absolute" aria-hidden="true">
 						<defs>
 							<linearGradient id={arrowFill} x1="0" y1="0" x2="0" y2="1">
@@ -159,7 +202,7 @@ export const SettingsFacePanel: React.FC<{
 							))}
 						</div>
 					</div>
-					<span className="settings-face-handle-slot">{handle}</span>
+					<span className="settings-face-handle-slot">{renderHandle()}</span>
 				</div>
 			)}
 			{/* Every face as tall as the tallest one shown yet, so the panel keeps one height as it turns */}

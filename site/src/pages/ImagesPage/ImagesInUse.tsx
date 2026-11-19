@@ -79,7 +79,10 @@ export const ImagesInUse: React.FC<{
 		return null;
 	}
 	return (
-		<section className="mt-10" aria-labelledby="images-in-use">
+		<section
+			className="dashboard-panel min-w-0"
+			aria-labelledby="images-in-use"
+		>
 			<h2 id="images-in-use" className="m-0 text-lg font-semibold">
 				In use
 			</h2>
@@ -196,7 +199,10 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 		eligible.some((image) => image.image === ref),
 	);
 	return (
-		<section className="mt-10" aria-labelledby="images-on-nodes">
+		<section
+			className="dashboard-panel min-w-0"
+			aria-labelledby="images-on-nodes"
+		>
 			<h2 id="images-on-nodes" className="m-0 text-lg font-semibold">
 				On the nodes
 			</h2>

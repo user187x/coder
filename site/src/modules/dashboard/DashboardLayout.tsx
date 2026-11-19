@@ -3,6 +3,7 @@ import { Suspense, useState } from "react";
 import { useQuery } from "react-query";
 import { Outlet } from "react-router";
 import { globalLockdown } from "#/api/queries/globalLockdown";
+import { terminateSignoffs } from "#/api/queries/workspacePower";
 import { PageLoader } from "#/components/Loader/Loader";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -12,6 +13,7 @@ import { AnnouncementBanner } from "#/modules/platform/announcement/Announcement
 import { AnnouncementExpiry } from "#/modules/platform/announcement/AnnouncementExpiry";
 import { DashboardAddons } from "#/modules/platform/DashboardAddons";
 import { GlobalLockdownGate } from "#/modules/platform/globalLockdown/GlobalLockdown";
+import { useTerminateFlash } from "#/modules/platform/globalLockdown/TerminateSignoff";
 import { WorkspaceScheduleGate } from "#/modules/platform/scheduler/WorkspaceScheduleGate";
 import { Navbar } from "./Navbar/Navbar";
 import { NavbarActionTarget, NavbarStartTarget } from "./Navbar/NavbarAction";
@@ -21,13 +23,20 @@ import { useUpdateCheck } from "./useUpdateCheck";
 export const DashboardLayout: React.FC = () => {
 	const [actionTarget, setActionTarget] = useState<HTMLDivElement | null>(null);
 	const [startTarget, setStartTarget] = useState<HTMLDivElement | null>(null);
-	const { permissions } = useAuthenticated();
+	const { permissions, user } = useAuthenticated();
 	const { data: lockdown } = useQuery(globalLockdown());
 	const updateCheck = useUpdateCheck(permissions.viewDeploymentConfig);
 	const canViewDeployment = Boolean(permissions.viewDeploymentConfig);
 	// Platform: a page in another dashboard page's frame (the workspace grid) is that page alone - the page round it
 	// has the navigation bar, the banners and the deployment's bar.
 	const embedded = isEmbeddedFrame();
+	const observeTerminate =
+		!embedded && Boolean(permissions.editDeploymentConfig);
+	const { data: terminateRound } = useQuery({
+		...terminateSignoffs(),
+		enabled: observeTerminate,
+	});
+	useTerminateFlash(observeTerminate ? terminateRound : undefined);
 
 	return (
 		<NavbarActionTarget.Provider value={embedded ? undefined : actionTarget}>
@@ -58,7 +67,12 @@ export const DashboardLayout: React.FC = () => {
 						data-dashboard-mobile-announcement
 						className="@[48rem]/dashboard:hidden sticky top-[calc(72px+var(--coder-classification-h,0px))] z-39 empty:hidden"
 					>
-						<AnnouncementBanner placement="page" />
+						<AnnouncementBanner
+							placement="page"
+							terminateAlertViewerId={
+								permissions.editDeploymentConfig ? user.id : undefined
+							}
+						/>
 					</div>
 
 					{/* Pages that scroll end with room to spare, so their last line clears

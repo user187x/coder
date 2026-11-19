@@ -6,3 +6,11 @@ export const CHAT_CONSOLE_WINDOW = "/chat-console";
 export const CHAT_CONSOLE_WINDOW_NAME = "coder-chat-console";
 /** How the card and its popped-out window talk (BroadcastChannel): "out" (it opened), "in" (pop back in). */
 export const CHAT_CONSOLE_CHANNEL = "coder-chat-console";
+
+/** Views shared by the console tabs and its navigation shortcuts. */
+export const chatConsoleViews = [
+	{ id: "conversations", label: "Conversations" },
+	{ id: "people", label: "People" },
+	{ id: "connections", label: "Connections" },
+	{ id: "settings", label: "Settings" },
+] as const;

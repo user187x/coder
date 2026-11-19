@@ -33,7 +33,7 @@ type Story = StoryObj<typeof DeploymentSettingsLayout>;
 export const CategoriesExpanded: Story = {};
 export const CategoriesCollapsed: Story = {
 	play: async ({ canvasElement }) => {
-		await userEvent.dblClick(
+		await userEvent.click(
 			await within(canvasElement).findByRole("button", {
 				name: "Accounts",
 			}),

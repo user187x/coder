@@ -182,6 +182,7 @@ controlPlaneNodeAffinity: &controlPlaneNodeAffinity
 coder:
   enabled: true
   coder:
+    deploymentName: coder-server
     # Never two replicas on one node (required: a node's loss takes at most one, and the Network page's replica menu
     # offers one per node that can run one), and never an external node (controlPlaneNodeAffinity)
     affinity:
@@ -594,14 +595,14 @@ platformWebhook:
     serviceNamespace: coder-runtime-system
     trustedAdminGroups: ["system:masters", "kubeadm:cluster-admins"]
     platformControllers:
-      - Deployment:coder
-      - Deployment:coder-code-server-replicator
+      - Deployment:coder-server
+      - Deployment:coder-server-replicator
       - Deployment:coder-image-registry
       - Deployment:coder-platform-webhook
       - Deployment:coder-ui-logs-db
-      - Deployment:coder-ui-updates
+      - Deployment:coder-ui
       - Deployment:coder-user-storage-minio
-      - Deployment:metrics-server
+      - Deployment:coder-metrics-server
       - DaemonSet:coder-image-registry-proxy
       - DaemonSet:coder-user-storage-csi
       - Cluster:coder-db
@@ -683,6 +684,7 @@ uiUpdates:
   # Trusted host observations; workspace containers never collect physical node load.
   nodeLoad:
     enabled: true
+    namespace: coder-system
   enabled: true
   # The service's code (files/ui-updates) in /app of the tools image - the bundled Python with shellcheck, shfmt, trivy
   # (+ its database) and regctl (development/image-tools), which the Images view lints, formats and scans with -
@@ -727,7 +729,7 @@ uiUpdates:
   appearanceDefaults:
     backgrounds:
       login: {picture: /pictures/meta.jpeg, opacity: 0.2, fit: span, layer: under}
-      dashboard: {picture: /pictures/meta.jpeg, opacity: 0.2, fit: span, layer: under}
+      dashboard: {picture: /pictures/dashboard-default.webp, opacity: 0.17, fit: span, layer: under}
   # Default logo / avatar ConfigMaps (binaryData), created by ../install.sh from ../defaults/ (kept out of the
   # chart: Helm's release record is limited to 1 MiB). Optional mounts: missing ConfigMaps are fine.
   defaults:

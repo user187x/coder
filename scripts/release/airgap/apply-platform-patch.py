@@ -102,7 +102,8 @@ def coder_ha(chart):
     tpl = os.path.join(chart, "templates", "_coder.tpl")
     edit(os.path.join(chart, "templates", "_coder.tpl"),
          '{{- define "coder.deployment" -}}\nspec:\n',
-         '{{- define "coder.deployment" -}}\nspec:\n'
+         '{{- define "coder.deployment" -}}\n'
+         '{{- with .Values.coder.deploymentName }}\nmetadata:\n  name: {{ . | quote }}\n{{- end }}\nspec:\n'
          '  {{- with .Values.coder.deploymentStrategy }}\n  strategy:\n'
          '    {{- toYaml . | nindent 4 }}\n  {{- end }}\n')
     if HA_MODE not in open(tpl).read():

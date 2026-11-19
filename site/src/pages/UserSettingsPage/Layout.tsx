@@ -1,4 +1,4 @@
-import { Suspense, useId, useState } from "react";
+import { Suspense, useId, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Navigate, Outlet, useMatch } from "react-router";
 import { userUIPreferences } from "#/api/queries/platform";
@@ -8,24 +8,19 @@ import {
 	BreadcrumbLink,
 	BreadcrumbList,
 } from "#/components/Breadcrumb/Breadcrumb";
-import { PageLoader } from "#/components/Loader/Loader";
 import {
-	Popover,
-	PopoverAnchor,
-	PopoverContent,
-} from "#/components/Popover/Popover";
+	DropdownMenu,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
+import { PageLoader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { BreadcrumbDropdownContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import {
 	NavbarActionTarget,
 	NavbarStart,
 } from "#/modules/dashboard/Navbar/NavbarAction";
-import {
-	navbarSettingsSide,
-	settingsDockedMid,
-	settingsMenuSlot,
-	useRegisterPageSettingsBreadcrumb,
-	useSettingsMenuPresent,
-} from "#/modules/dashboard/Navbar/settingsMenuHost";
+import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
+import { useRegisterPageSettingsBreadcrumb } from "#/modules/dashboard/Navbar/settingsMenuHost";
 import { AdminBreadcrumb } from "#/modules/management/AdminBreadcrumb";
 import { CategoryBreadcrumbButton } from "#/modules/management/CategoryBreadcrumbButton";
 import "#/modules/platform/settingsPage/settingsPage.css";
@@ -34,7 +29,6 @@ import { Sidebar } from "./Sidebar";
 import { settingsSections } from "./settingsSections";
 import "./userSettings.css";
 import "#/modules/dashboard/Navbar/settingsMenuSkeuo.css";
-import "#/modules/dashboard/Navbar/skeuoPopover.css";
 
 const Layout: React.FC = () => {
 	const { user: me } = useAuthenticated();
@@ -48,10 +42,10 @@ const Layout: React.FC = () => {
 	// a page's action button (NavbarAction); the page sits centred without the sections list beside it.
 	const preferences = useQuery(userUIPreferences());
 	const inNavbar = Boolean(preferences.data?.admin_nav_in_navbar);
-	const settingsMenu = useSettingsMenuPresent();
 	useRegisterPageSettingsBreadcrumb(inNavbar);
 	const [sectionsOpen, setSectionsOpen] = useState(false);
-	const [actionHost, setActionHost] = useState<HTMLSpanElement | null>(null);
+	const sectionTrigger = useRef<HTMLSpanElement>(null);
+	const [actionHost, setActionHost] = useState<HTMLElement | null>(null);
 	if (!match) return <Navigate to="/settings/account" replace />;
 	const section =
 		Object.entries(settingsSections).find(
@@ -93,13 +87,6 @@ const Layout: React.FC = () => {
 		</AdminBreadcrumb>
 	);
 	// In the navbar, one click on User Settings or on its section opens the sections, hanging from User Settings.
-	// Docked at its middle size, the panel at the side is the Settings navigation: the navbar's top left holds only
-	// the page's action button.
-	const dockedActionOnly = settingsDockedMid(preferences.data) && (
-		<NavbarStart>
-			<span ref={setActionHost} className="navbar-action flex items-center" />
-		</NavbarStart>
-	);
 	const navbarBreadcrumb = (
 		<NavbarStart>
 			<AdminBreadcrumb
@@ -108,16 +95,17 @@ const Layout: React.FC = () => {
 				className="deployment-breadcrumb admin-navbar-breadcrumb"
 			>
 				<BreadcrumbList>
-					{settingsMenu && <BreadcrumbItem ref={settingsMenuSlot} />}
-					<Popover open={sectionsOpen} onOpenChange={setSectionsOpen}>
+					<SettingsBreadcrumbRoot />
+					<DropdownMenu
+						modal={false}
+						open={sectionsOpen}
+						onOpenChange={setSectionsOpen}
+					>
 						<BreadcrumbItem>
-							<PopoverAnchor asChild>
+							<DropdownMenuTrigger asChild>
 								<button
 									type="button"
 									title={`${me.username}: User Settings sections`}
-									aria-expanded={sectionsOpen}
-									aria-controls={sidebarId}
-									onClick={() => setSectionsOpen((value) => !value)}
 								>
 									<Avatar
 										size="sm"
@@ -127,42 +115,37 @@ const Layout: React.FC = () => {
 									/>
 									User Settings
 								</button>
-							</PopoverAnchor>
+							</DropdownMenuTrigger>
 						</BreadcrumbItem>
+						<BreadcrumbItem
+							ref={setActionHost}
+							className="category-action-host"
+						/>
 						<BreadcrumbItem>
-							<span className="inline-flex">
+							<span ref={sectionTrigger} className="inline-flex">
 								<CategoryBreadcrumbButton
 									label={section.label}
 									icon={section.icon}
-									controls={sidebarId}
+									hasMenu
 									sidebarOpen={sectionsOpen}
-									singleClick
 									onToggle={() => setSectionsOpen((value) => !value)}
 								/>
-								<span ref={setActionHost} className="category-action-host" />
 							</span>
 						</BreadcrumbItem>
-						<PopoverContent
-							id={sidebarId}
-							align={
-								navbarSettingsSide(preferences.data) === "right"
-									? "end"
-									: "start"
-							}
-							className="skeuo-popover max-h-[calc(70vh/var(--app-zoom,1))] w-72 overflow-y-auto p-2"
-							// A section picked from it closes it.
-							onClick={(event) => {
+						<BreadcrumbDropdownContent
+							aria-label="User Settings sections"
+							onInteractOutside={(event) => {
 								if (
-									event.target instanceof Element &&
-									event.target.closest("a")
+									event.target instanceof Node &&
+									sectionTrigger.current?.contains(event.target)
 								) {
-									setSectionsOpen(false);
+									event.preventDefault();
 								}
 							}}
 						>
-							<Sidebar />
-						</PopoverContent>
-					</Popover>
+							<Sidebar menu />
+						</BreadcrumbDropdownContent>
+					</DropdownMenu>
 				</BreadcrumbList>
 			</AdminBreadcrumb>
 		</NavbarStart>
@@ -186,7 +169,7 @@ const Layout: React.FC = () => {
 		return (
 			<>
 				<title>{pageTitle("Settings")}</title>
-				{dockedActionOnly || navbarBreadcrumb}
+				{navbarBreadcrumb}
 				{/* Centred in the window, and filling the page's room so a page that fits does not scroll */}
 				<div data-admin-layout="" className="flex flex-1 flex-col">
 					<div className="mx-auto my-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-10">

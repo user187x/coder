@@ -31,7 +31,9 @@ export const ContextMenuContent: React.FC<
 	}
 > = ({ className, container, ...props }) => {
 	return (
-		<ContextMenuPrimitive.Portal container={container}>
+		<ContextMenuPrimitive.Portal
+			container={container ?? document.fullscreenElement}
+		>
 			<ContextMenuPrimitive.Content
 				className={cn(menuContentClass, className)}
 				{...props}

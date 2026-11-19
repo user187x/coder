@@ -14,9 +14,14 @@
 	--dock-radius: 1.125rem;
 }
 
-/* Navbar controls share a rounded outline. The announcement owns its buttons. */
-.navbar-soft button:not(#coder-system-banner button, .navbar-split-menu),
-.navbar-soft a.inline-flex:not(#coder-system-banner a) {
+/* Breadcrumbs and page actions define their own corners and joins. */
+.navbar-soft
+:is(button, a.inline-flex):not(
+	#coder-system-banner *,
+	.navbar-split-menu,
+	.breadcrumb-connected *,
+	.navbar-action > *
+) {
 	border-radius: 10px;
 }
 .navbar-soft {
@@ -31,7 +36,7 @@
 	z-index: -1;
 	top: 0;
 	bottom: -1px; /* Covers the navbar's bottom border, which it draws itself. */
-	left: 0;
+	left: calc(-1 * var(--dashboard-dock-left, 0px) / var(--navbar-zoom, 1));
 	/* The navbar is zoomed, so the inset is divided by the zoom to span unscaled pixels. */
 	right: calc(-1 * var(--dashboard-dock-inset, 0px) / var(--navbar-zoom, 1));
 	border-bottom: 1px solid;
@@ -142,8 +147,16 @@
 	align-items: center;
 	justify-content: center;
 	gap: 0.25rem;
-	padding-inline: 0.5rem;
+	padding-inline: calc(0.5rem + var(--crumb-edge, 8px));
 	line-height: 1;
+}
+.navbar-soft .navbar-action > :is(button, a):has(> .dropdown-chevron) {
+	width: max-content;
+	min-width: var(--navbar-action-width);
+}
+.navbar-soft .navbar-action > :is(button, a):focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: -3px;
 }
 .navbar-soft .navbar-action > :is(button, a) > svg {
 	width: 1.125rem;
@@ -153,6 +166,36 @@
 .navbar-soft .navbar-action > :is(button, a) > svg.dropdown-chevron {
 	width: 0.75rem;
 	height: 0.75rem;
+}
+.navbar-soft .navbar-action > :is(button, a) {
+	--navbar-button-radius: 0;
+	border-radius: var(--navbar-button-radius);
+	clip-path: polygon(
+		0 0,
+		calc(100% - var(--crumb-edge, 8px)) 0,
+		100% 50%,
+		calc(100% - var(--crumb-edge, 8px)) 100%,
+		0 100%,
+		var(--crumb-edge, 8px) 50%
+	);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-action
+	> :is(button, a) {
+	clip-path: polygon(
+		var(--crumb-edge, 8px) 0,
+		100% 0,
+		calc(100% - var(--crumb-edge, 8px)) 50%,
+		100% 100%,
+		var(--crumb-edge, 8px) 100%,
+		0 50%
+	);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	:is(.navbar-action, .category-action-host)
+	> :is(button, a)
+	> .dropdown-chevron {
+	order: -1;
 }
 .navbar-soft #coder-system-banner {
 	box-sizing: border-box;
@@ -201,27 +244,18 @@
 }
 
 .settings-menu {
-	width: min(364px, calc(calc(100vw / var(--app-zoom, 1)) - 32px));
+	--settings-menu-width: min(364px, calc(100vw / var(--app-zoom, 1) - 32px));
+	--settings-tray-gutter: 4rem;
+	width: var(--settings-menu-width);
 	min-width: 0;
 	/* The Settings panel's corner radius (rounded-2xl), shared by its trays. */
 	--settings-tray-radius: 1rem;
 }
+.settings-menu-sections {
+	width: calc(var(--settings-menu-width) - var(--settings-tray-gutter));
+}
 .settings-menu[data-settings-docked] {
 	--settings-tray-radius: var(--dock-radius);
-}
-.settings-menu:has(
-		[data-workspaces-expanded="true"],
-		[data-settings-expanded="true"],
-		[data-settings-chat]
-	)
-	.settings-admin-notes-handle,
-.settings-menu:has(
-		[data-workspaces-expanded="true"],
-		[data-settings-expanded="true"],
-		[data-settings-chat]
-	)
-	.settings-admin-notes-panel {
-	display: none;
 }
 .settings-compact-chat {
 	animation: settings-chat-reveal 160ms ease-out;
@@ -272,6 +306,13 @@ html[data-settings-side="compact"] {
 	min-width: 0 !important; /* Override the popper wrapper’s inline max-content minimum. */
 	z-index: 42 !important;
 }
+html[data-settings-dock-edge="left"]
+	[data-radix-popper-content-wrapper]:has(
+		> .settings-menu[data-settings-docked]
+	) {
+	left: var(--dock-gutter) !important;
+	right: auto !important;
+}
 .settings-menu[data-settings-docked] {
 	width: 100%;
 	height: 100%;
@@ -286,6 +327,11 @@ html[data-settings-side="compact"] {
 	min-height: 0;
 	overflow: clip;
 	border-radius: var(--dock-radius);
+}
+.settings-menu[data-settings-docked]
+	> .settings-menu-surface:has([data-face-collapsed="up"]) {
+	height: auto;
+	max-height: 62%;
 }
 /* The Quick links scroll on their own (AdminQuickLinksMenu), so Controls below them stays in view. */
 .settings-menu[data-settings-docked] nav[aria-label="Settings"] {
@@ -306,17 +352,22 @@ html[data-settings-side="compact"] {
 	overflow-y: auto;
 	scrollbar-width: none;
 }
-.settings-menu[data-settings-docked] .settings-admin-notes-tray {
+.settings-menu[data-settings-docked][data-settings-edge="right"]
+	.settings-admin-notes-tray {
 	/* The tray's right edge meets the panel's left edge exactly. */
 	left: -48px;
 }
+.settings-menu[data-settings-docked][data-settings-edge="left"]
+	.settings-admin-notes-tray {
+	right: -48px;
+}
 /* Docked beside an attached chat, the expanded Settings shares its column: Settings above, chat below (chatDock.css). */
-html[data-settings-side="expanded"][data-chat-side] {
+html[data-settings-side="expanded"][data-settings-dock-edge="right"][data-chat-side] {
 	--settings-dock-inset: 0px;
 	/* The chat's top edge (chatDock.css); the Settings bottom derives from it, so the gap is always one --dock-block-gap. */
 	--dock-split: 50%;
 }
-html[data-settings-side="expanded"][data-chat-side]
+html[data-settings-side="expanded"][data-settings-dock-edge="right"][data-chat-side]
 	[data-radix-popper-content-wrapper]:has(
 		> .settings-menu[data-settings-docked]
 	) {
@@ -333,8 +384,13 @@ html:is([data-settings-side], [data-chat-side]) {
 		var(--chat-side-width, 0px)
 	);
 }
+html[data-settings-dock-edge="left"] {
+	--dashboard-dock-left: var(--settings-dock-inset);
+	--dashboard-dock-inset: var(--chat-side-width, 0px);
+}
 html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
-	margin-inline-end: var(--dashboard-dock-inset);
+	margin-left: var(--dashboard-dock-left, 0px);
+	margin-right: var(--dashboard-dock-inset);
 }
 
 .navbar-soft [data-navbar-item="action"]:has(.navbar-action:empty) {
@@ -345,15 +401,9 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	[data-navbar-item="action"]:has(.navbar-action:empty) {
 	display: block;
 }
-.navbar-soft [data-arranging] .navbar-action:empty::before {
-	content: "Page action";
-	display: grid;
-	place-items: center;
-	width: var(--navbar-action-width);
-	height: var(--navbar-action-height);
-	border-radius: 0.5rem;
-	background: hsl(var(--surface-secondary));
-	color: hsl(var(--content-secondary));
+.navbar-soft [data-arranging] .navbar-action,
+.navbar-soft .navbar-start:has(+ [data-arranging-settings]) {
+	display: none;
 }
 @container dashboard (width < 48rem) {
 	.navbar-soft [data-navbar-item]:not([data-navbar-item="action"]) {
@@ -398,16 +448,9 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	display: block;
 }
 
-/* The settings breadcrumb moved into the navbar (NavbarStart): its buttons spaced like every other navbar control,
-   apart from each other and from the controls after them, not interlocked as beside the page. */
-.navbar-start:not(:empty) {
+/* Keep the breadcrumb group spaced from the other navbar controls. */
+.navbar-start:not(:empty, .navbar-resizable-group > *) {
 	margin-right: var(--navbar-control-gap);
-}
-.navbar-start .admin-navbar-breadcrumb > ol {
-	gap: var(--navbar-control-gap);
-}
-.navbar-start .admin-navbar-breadcrumb > ol > li + li {
-	margin-left: 0;
 }
 
 /* The navbar's own Settings chevron (pages without a settings breadcrumb): shaped as the breadcrumb's first chevron,
@@ -416,7 +459,7 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	> ol
 	> li:only-child
 	> :is(a, span, button) {
-	border-radius: 6px 0 0 6px;
+	border-radius: var(--crumb-end-radius) 0 0 var(--crumb-end-radius);
 	padding-inline: 8px calc(8px + var(--crumb-edge));
 	clip-path: polygon(
 		0 0,
@@ -432,7 +475,8 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 .navbar-soft[data-navbar-settings-side="right"] .navbar-start {
 	order: 99;
 }
-.navbar-soft[data-navbar-settings-side="right"] .navbar-start:not(:empty) {
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start:not(:empty, .navbar-resizable-group > *) {
 	margin-right: 0;
 	margin-left: var(--navbar-control-gap);
 }
@@ -471,7 +515,7 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	> ol
 	> li:only-child
 	> :is(a, span, button) {
-	border-radius: 0 6px 6px 0;
+	border-radius: 0 var(--crumb-end-radius) var(--crumb-end-radius) 0;
 	padding-left: calc(8px + var(--crumb-edge));
 	padding-right: 8px;
 	clip-path: polygon(
@@ -503,7 +547,7 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	> ol
 	> li:last-child:not(:first-child)
 	> :is(a, span, button) {
-	border-radius: 6px 0 0 6px;
+	border-radius: var(--crumb-end-radius) 0 0 var(--crumb-end-radius);
 	padding-left: 8px;
 	padding-right: calc(8px + var(--crumb-edge));
 	clip-path: polygon(
@@ -642,4 +686,53 @@ html[data-animations="off"]
 		inset 0 1px 2px rgb(0 0 0 / 0.35),
 		0 0 0 1px hsl(var(--content-link)),
 		0 1px 0 rgb(255 255 255 / 0.5);
+}
+
+/* Keep the indication inside the row so the scrolling Settings lists cannot clip it. */
+.settings-unread-row {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: -2px;
+}
+
+@keyframes settings-unread-row-pulse {
+	0%,
+	100% {
+		outline-color: hsl(var(--content-link) / 0.45);
+	}
+	50% {
+		outline-color: hsl(var(--content-link));
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html:not([data-animations="off"]) .settings-unread-row {
+		animation: settings-unread-row-pulse 1.6s ease-in-out infinite;
+	}
+}
+
+.settings-menu[data-settings-docked]:has(> .settings-chat-dock-slot) {
+	display: flex;
+	flex-direction: column;
+	gap: var(--dock-block-gap, 8px);
+}
+
+.settings-chat-dock-slot {
+	flex: 1 1 0;
+	min-height: 0;
+	border-radius: var(--dock-radius);
+}
+
+.settings-chat-dock-slot > [data-settings-chat] {
+	min-height: 0;
+	border-radius: inherit;
+}
+
+.settings-chat-dock-slot:empty {
+	pointer-events: none;
+}
+
+html:has(.chat-floating-dock[data-dragging]) .settings-chat-dock-slot:empty {
+	outline: 1px dashed hsl(var(--content-link));
+	outline-offset: -2px;
+	background: hsl(var(--content-link) / 0.08);
 }

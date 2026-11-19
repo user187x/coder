@@ -82,6 +82,23 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 		unit: RESOURCE_UNIT[resource],
 		stroke: RESOURCE_STYLE[resource].stroke,
 	}));
+	const gpuIndex = rings.length;
+	const gpuStatus =
+		gpus === null
+			? "GPU: Allocation unavailable"
+			: gpus === 0
+				? "GPU: None claimed"
+				: `GPU: ${formatQuotaNumber(gpus)} claimed by running workspaces`;
+	rings.push({
+		label: "GPU",
+		used: gpus ?? 0,
+		limit: null,
+		unit: gpus === 1 ? "GPU" : "GPUs",
+		stroke: "stroke-content-success",
+		track: gpus ? "stroke-content-success" : undefined,
+		description: gpuStatus,
+		reading: gpus === null ? "N/A" : undefined,
+	});
 	return (
 		<div className="@container flex flex-col gap-5">
 			<div className="flex flex-col items-center gap-5">
@@ -102,13 +119,19 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 									key="gpu"
 									className={cn(
 										"-mx-2 flex min-w-0 flex-col rounded-lg px-2",
-										none && "opacity-40",
+										none && active !== gpuIndex && "opacity-40",
+										active === gpuIndex && "bg-surface-secondary",
 									)}
+									onMouseEnter={() => setActive(gpuIndex)}
+									onMouseLeave={() => setActive(null)}
 								>
 									<span className="flex items-center gap-2 whitespace-nowrap text-xs text-content-secondary">
 										<span
 											aria-hidden
-											className="size-2 rounded-full bg-content-success"
+											className={cn(
+												"size-2 rounded-full",
+												none ? "bg-content-secondary" : "bg-content-success",
+											)}
 										/>
 										GPU
 									</span>

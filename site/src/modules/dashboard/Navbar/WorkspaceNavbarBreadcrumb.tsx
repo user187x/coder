@@ -6,11 +6,13 @@ import {
 	BreadcrumbItem,
 	BreadcrumbLink,
 	BreadcrumbList,
-	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
+import { BreadcrumbViewMenu } from "./BreadcrumbMenu";
+import { CategoryDefaultMenu } from "./DefaultViewOption";
 import { NavbarStart } from "./NavbarAction";
+import { SettingsBreadcrumbRoot } from "./SettingsBreadcrumbRoot";
+import { WorkspaceDestinations } from "./SettingsDestinationMenu";
 import {
-	settingsMenuSlot,
 	useRegisterPageSettingsBreadcrumb,
 	useSettingsMenuPresent,
 } from "./settingsMenuHost";
@@ -26,7 +28,9 @@ export const WorkspaceNavbarBreadcrumb: React.FC<{ workspaceName: string }> = ({
 	const preferences = useQuery(userUIPreferences());
 	// The Settings menu is there to open from the chevron only while the navigation is in the navbar and undocked.
 	const settingsMenu = useSettingsMenuPresent();
-	const shown = Boolean(preferences.data?.admin_nav_in_navbar) && settingsMenu;
+	const shown =
+		Boolean(preferences.data?.admin_nav_in_navbar) &&
+		(settingsMenu || Boolean(preferences.data?.settings_sidebar));
 	useRegisterPageSettingsBreadcrumb(shown);
 	if (!shown) return null;
 	return (
@@ -37,17 +41,22 @@ export const WorkspaceNavbarBreadcrumb: React.FC<{ workspaceName: string }> = ({
 				className="deployment-breadcrumb admin-navbar-breadcrumb"
 			>
 				<BreadcrumbList>
-					<BreadcrumbItem ref={settingsMenuSlot} />
+					<SettingsBreadcrumbRoot />
+					<CategoryDefaultMenu path="/workspaces">
+						<BreadcrumbItem>
+							<BreadcrumbLink to="/workspaces" end>
+								<MonitorIcon aria-hidden className="size-4 shrink-0" />
+								Workspaces
+							</BreadcrumbLink>
+						</BreadcrumbItem>
+					</CategoryDefaultMenu>
 					<BreadcrumbItem>
-						<BreadcrumbLink to="/workspaces" end>
-							<MonitorIcon aria-hidden className="size-4 shrink-0" />
-							Workspaces
-						</BreadcrumbLink>
-					</BreadcrumbItem>
-					<BreadcrumbItem>
-						<BreadcrumbPage title={workspaceName}>
-							<span className="truncate">{workspaceName}</span>
-						</BreadcrumbPage>
+						<BreadcrumbViewMenu
+							label={`Switch workspace from ${workspaceName}`}
+							trigger={<span className="truncate">{workspaceName}</span>}
+						>
+							<WorkspaceDestinations />
+						</BreadcrumbViewMenu>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>

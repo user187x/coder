@@ -2,6 +2,7 @@ import {
 	keepPreviousData,
 	type Query,
 	type QueryClient,
+	type QueryFunctionContext,
 	type UseQueryOptions,
 } from "react-query";
 import {
@@ -31,6 +32,36 @@ import {
 } from "#/modules/platform/cloudDrive/attachment";
 
 const platformKey = ["platform"] as const;
+
+const coderHeartbeatKey = [...platformKey, "coder-heartbeat"] as const;
+type HeartbeatReading = { latency: number; previous?: number };
+
+export const coderHeartbeat = () => ({
+	queryKey: coderHeartbeatKey,
+	queryFn: async ({
+		signal,
+		client,
+	}: QueryFunctionContext<
+		typeof coderHeartbeatKey
+	>): Promise<HeartbeatReading> => {
+		const startedAt = performance.now();
+		const response = await fetch("/healthz", {
+			cache: "no-store",
+			redirect: "error",
+			signal: AbortSignal.any([signal, AbortSignal.timeout(4_000)]),
+		});
+		if (!response.ok || (await response.text()).trim() !== "OK") {
+			throw new Error("Coder did not return a health response.");
+		}
+		return {
+			latency: Math.round(performance.now() - startedAt),
+			previous:
+				client.getQueryData<HeartbeatReading>(coderHeartbeatKey)?.latency,
+		};
+	},
+	refetchInterval: 5_000,
+	retry: false,
+});
 
 export const dashboardAddress = () => ({
 	queryKey: [...platformKey, "dashboard-address"],
@@ -97,6 +128,10 @@ export const networkReportKey = [...platformKey, "network"] as const;
 export const monitoringKey = [...platformKey, "monitoring"] as const;
 export const keycloakReportKey = [...platformKey, "keycloak"] as const;
 export const persistenceReportKey = [...platformKey, "persistence"] as const;
+export const databaseInventoryKey = [
+	...persistenceReportKey,
+	"inventory",
+] as const;
 export const templateIconsKey = [...platformKey, "icons"] as const;
 const keycloakStatusKey = [...platformKey, "keycloak", "status"] as const;
 export const quotaReportKey = [...platformKey, "quota"] as const;
@@ -226,6 +261,8 @@ export const confirmAnnouncement = (queryClient: QueryClient) => ({
 		}
 		return { previous };
 	},
+	onSuccess: () =>
+		queryClient.invalidateQueries({ queryKey: announcementReportKey }),
 	onError: (
 		_error: unknown,
 		id: string,
@@ -668,10 +705,17 @@ export const resetBanner = (queryClient: QueryClient) => ({
 const PERSISTENCE_REFRESH_MS = 10_000;
 
 /** The database map is live: re-read every 10 seconds unless paused. */
-export const persistenceReport = (paused: boolean) => ({
-	queryKey: persistenceReportKey,
-	queryFn: PlatformAPI.getPersistenceReport,
-	refetchInterval: paused ? (false as const) : PERSISTENCE_REFRESH_MS,
+export const persistenceReport = (
+	paused: boolean,
+	includeInventory = false,
+) => ({
+	queryKey: includeInventory ? databaseInventoryKey : persistenceReportKey,
+	queryFn: () => PlatformAPI.getPersistenceReport(includeInventory),
+	refetchInterval: paused
+		? (false as const)
+		: includeInventory
+			? 30_000
+			: PERSISTENCE_REFRESH_MS,
 });
 
 export const applyPersistenceFixes = (queryClient: QueryClient) => ({

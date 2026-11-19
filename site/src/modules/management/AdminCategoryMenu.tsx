@@ -1,64 +1,145 @@
-import { SettingsIcon } from "lucide-react";
-import { useQuery } from "react-query";
+import { arrayMove } from "@dnd-kit/sortable";
+import { GaugeIcon } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link } from "react-router";
-import { preferenceSettings } from "#/api/queries/users";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
+import {
+	preferenceSettings,
+	preferenceSettingsKey,
+	updatePreferenceSettings,
+} from "#/api/queries/users";
 import { BreadcrumbLink } from "#/components/Breadcrumb/Breadcrumb";
 import {
 	ContextMenu,
-	ContextMenuContent,
 	ContextMenuItem,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
-import { adminPagesFor } from "#/modules/dashboard/Navbar/adminQuickLinks";
+import { settingsUtilityPages } from "#/modules/dashboard/Navbar/AdminSettings";
+import {
+	canonicalAdminPageId,
+	defaultHomePresentation,
+	settingsPagesFor,
+} from "#/modules/dashboard/Navbar/adminQuickLinks";
+import { BreadcrumbContextMenuContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
+import { orderCategories, SortableCategories } from "./SortableCategories";
 import { useSettingsDefaultView } from "./settingsDefaultView";
 
 /** The admin landing link and permission-filtered category shortcuts. */
-export const AdminCategoryMenu = () => {
+export const AdminCategoryMenu = ({
+	fallbackPath = "/deployment/users",
+}: {
+	fallbackPath?: string;
+}) => {
 	const { permissions } = useAuthenticated();
-	const { buildInfo } = useDashboard();
+	const { buildInfo, canViewOrganizationSettings } = useDashboard();
+	const features = useFeatureVisibility();
+	const client = useQueryClient();
 	const preferences = useQuery(preferenceSettings());
-	// Settings opens on the user's Default View (a category's right-click menu), else Accounts.
+	const save = useMutation(updatePreferenceSettings(client));
 	const defaultView = useSettingsDefaultView();
+	const { label, icon: HomeIcon } = defaultHomePresentation(defaultView.path);
 	const order = preferences.data?.admin_sidebar_order ?? [];
-	const pages = adminPagesFor({
-		permissions,
-		oauth2Provider: buildInfo.oauth2_provider,
-	}).sort((a, b) => {
-		const ai = order.indexOf(a.id);
-		const bi = order.indexOf(b.id);
-		return (
-			(ai < 0 ? Number.POSITIVE_INFINITY : ai) -
-				(bi < 0 ? Number.POSITIVE_INFINITY : bi) ||
-			a.label.localeCompare(b.label, "en-US")
+	const pages = [
+		...(permissions.viewDeploymentConfig
+			? [{ id: "hud", label: "HUD", icon: GaugeIcon, path: "/hud" }]
+			: []),
+		...settingsPagesFor({
+			permissions,
+			oauth2Provider: buildInfo.oauth2_provider,
+		}),
+		...settingsUtilityPages({
+			canViewOrganizations: canViewOrganizationSettings,
+			canViewAuditLog: features.audit_log && permissions.viewAnyAuditLog,
+			canViewConnectionLog:
+				features.connection_log && permissions.viewAnyConnectionLog,
+		}),
+	];
+	const reorder = (ids: string[]) => {
+		const next = ids.length
+			? [
+					...ids,
+					...order.filter(
+						(id) => !pages.some((page) => page.id === canonicalAdminPageId(id)),
+					),
+				]
+			: ids;
+		client.setQueryData(preferenceSettingsKey, {
+			...preferences.data,
+			admin_sidebar_order: next,
+		});
+		save.mutate(
+			{ admin_sidebar_order: next },
+			{
+				onError: (error) => {
+					void client.invalidateQueries({ queryKey: preferenceSettingsKey });
+					toast.error(
+						getErrorMessage(error, "Could not save the categories' order."),
+					);
+				},
+			},
 		);
-	});
+	};
+	const pageOrder = orderCategories(
+		pages.map(({ id, label }) => ({ id, label, node: null })),
+		order,
+	).map(({ id }) => id);
+
 	return (
-		<ContextMenu>
+		<ContextMenu modal={false}>
 			<ContextMenuTrigger asChild>
 				<BreadcrumbLink
-					to={defaultView.path ?? "/deployment/users"}
+					to={defaultView.path ?? fallbackPath}
 					end
-					title={`${defaultView.path ? "Your default view" : "Accounts"}; right-click for admin categories`}
+					title="Right-click for admin categories"
 				>
-					<SettingsIcon aria-hidden className="size-4 shrink-0" />
-					Settings
+					<HomeIcon aria-hidden className="size-4 shrink-0" />
+					<span className="min-w-0 truncate">{label}</span>
 				</BreadcrumbLink>
 			</ContextMenuTrigger>
-			<ContextMenuContent
-				aria-label="Admin categories"
-				className="max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto"
-			>
-				{pages.map((page) => (
-					<ContextMenuItem key={page.id} asChild>
-						<Link to={page.path}>
-							<page.icon aria-hidden className="size-4" />
-							{page.label}
-						</Link>
-					</ContextMenuItem>
-				))}
-			</ContextMenuContent>
+			<BreadcrumbContextMenuContent aria-label="Admin categories">
+				<SortableCategories
+					header={
+						<span className="pl-2 text-xs font-medium text-content-secondary">
+							Admin categories
+						</span>
+					}
+					order={order}
+					onReorder={reorder}
+					categories={pages.map((page) => ({
+						id: page.id,
+						label: page.label,
+						node: (
+							<ContextMenuItem
+								asChild
+								aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+								onKeyDown={(event) => {
+									if (
+										!event.altKey ||
+										(event.key !== "ArrowUp" && event.key !== "ArrowDown")
+									) {
+										return;
+									}
+									event.preventDefault();
+									const from = pageOrder.indexOf(page.id);
+									const to = from + (event.key === "ArrowUp" ? -1 : 1);
+									if (to >= 0 && to < pageOrder.length) {
+										reorder(arrayMove(pageOrder, from, to));
+									}
+								}}
+							>
+								<Link to={page.path}>
+									<page.icon aria-hidden className="size-4" />
+									<span className="truncate">{page.label}</span>
+								</Link>
+							</ContextMenuItem>
+						),
+					}))}
+				/>
+			</BreadcrumbContextMenuContent>
 		</ContextMenu>
 	);
 };

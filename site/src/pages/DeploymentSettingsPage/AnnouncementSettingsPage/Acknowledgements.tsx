@@ -42,6 +42,7 @@ import {
 	parseColors,
 	plainLabel,
 } from "#/modules/platform/announcement/bannerTokens";
+import { formatFingerprint } from "#/utils/pkcs12";
 
 const formatWhen = (iso: string | null) =>
 	iso
@@ -402,7 +403,17 @@ const ReceiptsTable: React.FC<{ event: AnnouncementEvent }> = ({ event }) => {
 								</Badge>
 							)}
 						</TableCell>
-						<TableCell>{formatWhen(receipt.viewedAt)}</TableCell>
+						<TableCell>
+							{formatWhen(receipt.viewedAt)}
+							{receipt.certificateFingerprint && (
+								<div
+									className="mt-1 break-all font-mono text-xs text-content-secondary"
+									title="Certificate fingerprint (SHA-256)"
+								>
+									{formatFingerprint(receipt.certificateFingerprint)}
+								</div>
+							)}
+						</TableCell>
 						<TableCell>{formatWhen(receipt.ackedAt)}</TableCell>
 					</TableRow>
 				))}

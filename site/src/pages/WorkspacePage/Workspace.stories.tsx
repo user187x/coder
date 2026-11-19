@@ -1008,7 +1008,12 @@ export const CollapsedOverview: Story = {
 			canvas.getByRole("button", { name: "Expand workspace dashboard" }),
 		);
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Collapse workspace overview" }),
+			canvas.getByRole("button", { name: "Workspace overview options" }),
+		);
+		await userEvent.click(
+			within(canvasElement.ownerDocument.body).getByRole("menuitem", {
+				name: "Collapse workspace overview",
+			}),
 		);
 	},
 };

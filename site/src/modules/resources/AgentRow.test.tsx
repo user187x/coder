@@ -42,6 +42,32 @@ it("does not start embedded log streaming until the logs panel is opened", async
 	);
 });
 
+it("opens overview actions on click and lets the user collapse or request fullscreen", async () => {
+	const user = userEvent.setup();
+	const onToggleFullscreen = vi.fn();
+	renderWithAuth(
+		<AgentRow
+			agent={MockWorkspaceAgentReady}
+			workspace={MockWorkspace}
+			template={MockTemplate}
+			onUpdateAgent={() => {}}
+			onToggleFullscreen={onToggleFullscreen}
+			topbar={<header>Workspace test overview</header>}
+		/>,
+	);
+	const trigger = await screen.findByRole("button", {
+		name: "Workspace overview options",
+	});
+	await user.click(trigger);
+	await user.click(
+		screen.getByRole("menuitem", { name: "Collapse workspace overview" }),
+	);
+	await user.click(trigger);
+	screen.getByRole("menuitem", { name: "Expand workspace overview" });
+	await user.click(screen.getByRole("menuitem", { name: "Enter fullscreen" }));
+	expect(onToggleFullscreen).toHaveBeenCalledOnce();
+});
+
 describe("organizeAgentApps", () => {
 	test("returns one ungrouped app", () => {
 		const result = organizeAgentApps([{ ...MockWorkspaceApp }]);

@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import {
 	ChevronDownIcon,
 	GaugeIcon,
@@ -8,7 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import type { PanelAccent } from "#/api/platform";
+import type { PanelAccent, UserUIPreferences } from "#/api/platform";
 import {
 	panelAccentGlobal,
 	updatePanelAccentGlobal,
@@ -40,6 +41,7 @@ const DEFAULT_CARD = "#e4e7eb";
 /** How long a picker or slider rests before its value is saved. */
 const SAVE_DELAY_MS = 400;
 type Mode = "off" | PanelAccent["mode"];
+type PreviewPart = "accent" | "text" | "card";
 
 const accentFor = (mode: Mode, color: string): PanelAccent | null =>
 	mode === "off"
@@ -94,25 +96,49 @@ export const PanelAccentSection: React.FC<{
 		isGlobal
 			? saveGlobal.mutate(next ?? null)
 			: save.mutate({ panel_accent: next });
-	const pending = useRef<ReturnType<typeof setTimeout>>(undefined);
-	const later = (action: () => void) => {
-		clearTimeout(pending.current);
-		pending.current = setTimeout(action, SAVE_DELAY_MS);
+	const pending = useRef<{
+		preferences?: ReturnType<typeof setTimeout>;
+		global?: ReturnType<typeof setTimeout>;
+	}>({});
+	const changes = useRef<UserUIPreferences>({});
+	const later = (patch: UserUIPreferences) => {
+		Object.assign(changes.current, patch);
+		clearTimeout(pending.current.preferences);
+		pending.current.preferences = setTimeout(() => {
+			save.mutate(changes.current);
+			changes.current = {};
+		}, SAVE_DELAY_MS);
 	};
-	useEffect(() => () => clearTimeout(pending.current), []);
+	useEffect(() => {
+		const timers = pending.current;
+		return () => Object.values(timers).forEach((timer) => clearTimeout(timer));
+	}, []);
 	// An admin's Global accent decides for everyone else: they see it, without changing it.
 	const locked = isGlobal && !admin;
 	const busy = preferences.isLoading || save.isPending || saveGlobal.isPending;
 	const previewAccent = accentFor(mode, color);
 	// The part of the preview clicked on, whose colour the swatch below it sets.
-	const [picking, setPicking] = useState<"accent" | "text" | null>(null);
+	const [picking, setPicking] = useState<PreviewPart | null>(null);
 	const pickAccent = (value: string) => {
 		setColor(value);
-		later(() => apply({ mode: "custom", color: value }));
+		const next: PanelAccent = { mode: "custom", color: value };
+		if (isGlobal) {
+			clearTimeout(pending.current.global);
+			pending.current.global = setTimeout(
+				() => saveGlobal.mutate(next),
+				SAVE_DELAY_MS,
+			);
+		} else {
+			later({ panel_accent: next });
+		}
 	};
 	const pickText = (value: string) => {
 		setText(value);
-		later(() => save.mutate({ panel_text_color: value }));
+		later({ panel_text_color: value });
+	};
+	const pickCard = (value: string) => {
+		setCard(value);
+		later({ panel_card_color: value });
 	};
 
 	return (
@@ -165,10 +191,7 @@ export const PanelAccentSection: React.FC<{
 							<ColorField
 								label="Accent colour"
 								value={color}
-								onChange={(value) => {
-									setColor(value);
-									later(() => apply({ mode: "custom", color: value }));
-								}}
+								onChange={pickAccent}
 							/>
 						)}
 						{locked && (
@@ -222,10 +245,7 @@ export const PanelAccentSection: React.FC<{
 							<ColorField
 								label="Text colour"
 								value={text}
-								onChange={(value) => {
-									setText(value);
-									later(() => save.mutate({ panel_text_color: value }));
-								}}
+								onChange={pickText}
 							/>
 						)}
 					</div>
@@ -257,10 +277,7 @@ export const PanelAccentSection: React.FC<{
 							<ColorField
 								label="Card panel colour"
 								value={card}
-								onChange={(value) => {
-									setCard(value);
-									later(() => save.mutate({ panel_card_color: value }));
-								}}
+								onChange={pickCard}
 							/>
 						)}
 					</div>
@@ -280,11 +297,9 @@ export const PanelAccentSection: React.FC<{
 								onValueChange={([next]) => {
 									if (next === undefined) return;
 									setScale(next);
-									later(() =>
-										save.mutate({
-											panel_scale: next === PANEL_SCALE.default ? null : next,
-										}),
-									);
+									later({
+										panel_scale: next === PANEL_SCALE.default ? null : next,
+									});
 								}}
 							/>
 							<span className="w-12 text-sm tabular-nums text-content-secondary">
@@ -304,17 +319,26 @@ export const PanelAccentSection: React.FC<{
 				>
 					<span className="text-sm font-medium">Preview</span>
 					<span className="text-xs text-content-secondary">
-						Click a part of the panel: its cards and rows for the accent, its
-						text for the text colour.
+						Select the backdrop for card panels, a panel surface for the accent,
+						or a label or icon for the text colour.
 					</span>
-					<div className="flex min-h-72 items-start justify-center overflow-hidden rounded-xl bg-surface-tertiary p-4">
+					<div
+						className="relative flex min-h-72 items-start justify-center overflow-hidden rounded-xl bg-(--dashboard-panel-bg) p-4"
+						style={{ backgroundColor: savedCard ? card : undefined }}
+					>
+						<button
+							type="button"
+							aria-label="Edit card panel colour"
+							aria-pressed={picking === "card"}
+							onClick={() => setPicking("card")}
+							className={previewSurfaceTarget}
+						/>
 						<SettingsPanelPreview
 							accent={previewAccent}
 							scale={scale}
 							text={savedText ? text : null}
-							onPick={(part) =>
-								setPicking((now) => (now === part ? null : part))
-							}
+							picking={picking}
+							onPick={setPicking}
 						/>
 					</div>
 					{picking === "accent" && !locked && (
@@ -332,102 +356,144 @@ export const PanelAccentSection: React.FC<{
 					{picking === "text" && (
 						<ColorField label="Text colour" value={text} onChange={pickText} />
 					)}
+					{picking === "card" && (
+						<ColorField
+							label="Card panel colour"
+							value={card}
+							onChange={pickCard}
+						/>
+					)}
 				</div>
 			</div>
 		</section>
 	);
 };
 
-/** The Settings panel's look, its accent and size applied, for the preview: its controls are pictures only. */
+const previewSurfaceTarget =
+	"absolute inset-0 cursor-pointer rounded-[inherit] border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link";
+
 const SettingsPanelPreview: React.FC<{
 	accent: PanelAccent | null;
 	scale: number;
 	text: string | null;
-	/** A part clicked on: its text (an element marked data-part="text"), else its cards and rows (the accent). */
+	picking: PreviewPart | null;
 	onPick: (part: "accent" | "text") => void;
-}> = ({ accent, scale, text, onPick }) => (
-	<div
-		role="button"
-		tabIndex={0}
-		aria-label="Panel preview: click a part to set its colour (Enter: the accent)"
-		data-testid="panel-preview"
-		onClick={(event) =>
-			onPick(
-				event.target instanceof Element &&
-					event.target.closest('[data-part="text"]')
-					? "text"
-					: "accent",
-			)
-		}
-		onKeyDown={(event) => {
-			if (event.key === "Enter" || event.key === " ") {
-				event.preventDefault();
-				onPick("accent");
+}> = ({ accent, scale, text, picking, onPick }) => {
+	const tokens = text ? panelTextTokens(text) : null;
+	const textTarget = (
+		children: React.ReactNode,
+		className?: string,
+		label?: string,
+	) => (
+		<button
+			type="button"
+			aria-label={label}
+			aria-pressed={picking === "text"}
+			title="Edit panel text colour"
+			onClick={() => onPick("text")}
+			className={cn(
+				"pointer-events-auto inline-flex cursor-pointer items-center gap-1.5 rounded border-0 bg-transparent p-0 text-xs text-inherit [font-weight:inherit] focus-visible:outline-content-link",
+				className,
+			)}
+		>
+			{children}
+		</button>
+	);
+
+	return (
+		<div
+			data-panel-accent-preview={accent ? "" : undefined}
+			data-panel-text-preview={text ? "" : undefined}
+			className="relative w-64 shrink-0 rounded-2xl border border-solid border-border bg-surface-primary p-2 text-xs shadow-md"
+			style={
+				{
+					zoom: scale / 100,
+					...(accent ? { "--panel-accent": panelAccentColor(accent) } : {}),
+					...(tokens
+						? {
+								"--panel-text-primary": tokens.primary,
+								"--panel-text-secondary": tokens.secondary,
+							}
+						: {}),
+				} as React.CSSProperties
 			}
-		}}
-		data-panel-accent-preview={accent ? "" : undefined}
-		data-panel-text-preview={text ? "" : undefined}
-		className="w-64 shrink-0 cursor-pointer rounded-2xl border border-solid border-border bg-surface-primary p-2 text-xs shadow-md"
-		style={
-			{
-				zoom: scale / 100,
-				...(accent ? { "--panel-accent": panelAccentColor(accent) } : {}),
-				...(text
-					? {
-							"--panel-text-primary": panelTextTokens(text).primary,
-							"--panel-text-secondary": panelTextTokens(text).secondary,
-						}
-					: {}),
-			} as React.CSSProperties
-		}
-	>
-		<div className="mb-2 flex items-center justify-between px-1 text-content-secondary">
-			<span className="inline-flex items-center gap-1.5 font-medium text-content-primary">
-				<SettingsIcon className="size-3.5" />
-				<span data-part="text">Settings</span>
-			</span>
-			<ChevronDownIcon className="size-3.5" />
-		</div>
-		<div className="mb-1 flex gap-1">
-			<span className="flex min-h-7 flex-[2] items-center justify-center gap-1 rounded-full border border-solid border-border">
-				<GaugeIcon className="size-3.5" />
-				<span data-part="text">HUD</span>
-			</span>
-			<span className="flex min-h-7 flex-1 items-center justify-center rounded-full border border-solid border-border">
-				<PanelRightCloseIcon className="size-3.5" />
-			</span>
-		</div>
-		<div className="flex items-center justify-between px-2 py-1.5 text-content-secondary">
-			<span className="inline-flex items-center gap-1.5">
-				<RadioIcon className="size-3.5" />
-				<span data-part="text">Region</span>
-			</span>
-			<span data-part="text">Default</span>
-		</div>
-		<span className="mb-2 flex min-h-7 items-center justify-center gap-1.5 rounded-full border border-solid border-border font-medium">
-			<MonitorIcon className="size-3.5" />
-			<span data-part="text">Workspaces</span>
-		</span>
-		<div className="flex flex-col gap-2 rounded-lg border border-solid border-border p-2 bg-surface-primary">
-			<span data-part="text" className="self-start font-semibold">
-				Cluster
-			</span>
-			{[
-				["CPU", "40%", "w-2/5"],
-				["Memory", "73%", "w-3/4"],
-			].map(([label, value, width]) => (
-				<div key={label} className="flex flex-col gap-1">
-					<span className="flex justify-between text-content-secondary">
-						<span data-part="text">{label}</span>
-						<span data-part="text">{value}</span>
+		>
+			<button
+				type="button"
+				aria-label="Edit panel accent colour"
+				aria-pressed={picking === "accent"}
+				onClick={() => onPick("accent")}
+				className={previewSurfaceTarget}
+			/>
+			<div className="pointer-events-none relative">
+				<div className="mb-2 flex items-center justify-between px-1 text-content-secondary">
+					{textTarget(
+						<>
+							<SettingsIcon aria-hidden className="size-3.5" />
+							Settings
+						</>,
+						"font-medium text-content-primary",
+					)}
+					{textTarget(
+						<ChevronDownIcon aria-hidden className="size-3.5" />,
+						undefined,
+						"Settings chevron colour",
+					)}
+				</div>
+				<div className="mb-1 flex gap-1">
+					<span className="flex min-h-7 flex-[2] items-center justify-center gap-1 rounded-full border border-solid border-border">
+						{textTarget(
+							<>
+								<GaugeIcon aria-hidden className="size-3.5" />
+								HUD
+							</>,
+						)}
 					</span>
-					<span className="h-1.5 rounded-full bg-surface-quaternary">
-						<span
-							className={`block h-full rounded-full bg-content-success ${width}`}
-						/>
+					<span className="flex min-h-7 flex-1 items-center justify-center rounded-full border border-solid border-border">
+						{textTarget(
+							<PanelRightCloseIcon aria-hidden className="size-3.5" />,
+							undefined,
+							"Sidebar icon colour",
+						)}
 					</span>
 				</div>
-			))}
+				<div className="flex items-center justify-between px-2 py-1.5 text-content-secondary">
+					{textTarget(
+						<>
+							<RadioIcon aria-hidden className="size-3.5" />
+							Region
+						</>,
+					)}
+					{textTarget("Default")}
+				</div>
+				<span className="mb-2 flex min-h-7 items-center justify-center gap-1.5 rounded-full border border-solid border-border font-medium">
+					{textTarget(
+						<>
+							<MonitorIcon aria-hidden className="size-3.5" />
+							Workspaces
+						</>,
+					)}
+				</span>
+				<div className="flex flex-col gap-2 rounded-lg border border-solid border-border p-2 bg-surface-primary">
+					{textTarget("Cluster", "self-start font-semibold")}
+					{[
+						["CPU", "40%", "w-2/5"],
+						["Memory", "73%", "w-3/4"],
+					].map(([label, value, width]) => (
+						<div key={label} className="flex flex-col gap-1">
+							<span className="flex justify-between text-content-secondary">
+								{textTarget(label)}
+								{textTarget(value)}
+							</span>
+							<span className="h-1.5 rounded-full bg-surface-quaternary">
+								<span
+									className={`block h-full rounded-full bg-content-success ${width}`}
+								/>
+							</span>
+						</div>
+					))}
+				</div>
+			</div>
 		</div>
-	</div>
-);
+	);
+};

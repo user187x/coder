@@ -29,7 +29,7 @@ export const Slider: React.FC<
 			{...props}
 		>
 			<SliderPrimitive.Track className="relative h-2 w-full grow overflow-hidden rounded-full bg-surface-secondary data-disabled:opacity-40">
-				<SliderPrimitive.Range className="absolute h-full bg-content-primary" />
+				<SliderPrimitive.Range className="absolute h-full bg-content-link" />
 			</SliderPrimitive.Track>
 			{Array.from({ length: thumbCount }, (_, index) => (
 				<SliderPrimitive.Thumb
@@ -38,7 +38,7 @@ export const Slider: React.FC<
 					aria-labelledby={props["aria-labelledby"]}
 					className="block size-4 rounded-full border border-solid border-surface-invert-secondary bg-surface-primary shadow transition-colors
 			focus-visible:outline-hidden hover:border-content-primary
-			focus-visible:ring-0 focus-visible:ring-content-primary focus-visible:ring-offset-surface-primary
+			focus-visible:ring-2 focus-visible:ring-content-link focus-visible:ring-offset-surface-primary
 			disabled:pointer-events-none data-disabled:opacity-100 data-disabled:border-border"
 				/>
 			))}

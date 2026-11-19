@@ -235,7 +235,9 @@ const AnnouncementSettingsPage: React.FC = () => {
 			) : (
 				<div className="flex flex-col gap-6">
 					<AnnouncementEditor state={stateQuery.data} />
-					<Acknowledgements banner={stateQuery.data.banner} />
+					<div className="dashboard-panel">
+						<Acknowledgements banner={stateQuery.data.banner} />
+					</div>
 				</div>
 			)}
 		</>
@@ -295,182 +297,186 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 
 	return (
 		<>
-			<BannerEditor
-				visibility={
-					<div className="grid grid-cols-[1fr_auto] items-center gap-4">
-						<h3 className="m-0 text-sm font-semibold">Controls</h3>
-						<div className="flex items-center gap-3">
-							<Switch
-								id="announcement-visible"
-								checked={live}
-								disabled={busy}
-								onCheckedChange={(enabled) => {
-									// Published blank with a written draft: the draft goes out, showing.
-									if (
-										enabled &&
-										!hasContent(state.banner) &&
-										hasContent(form)
-									) {
-										doPublish();
-										return;
-									}
-									publish.mutate(
-										{ ...published, enabled },
-										{
-											onSuccess: (next) => {
-												setProblem(null);
-												toast.success(
-													`${enabled ? "Banner is showing again." : "Banner hidden."}${sentTo(next)}`,
-												);
-											},
-											onError,
-										},
-									);
-								}}
-							/>
-							<Label htmlFor="announcement-visible">Show banner</Label>
-							<span
-								className="sr-only"
-								data-testid="announcement-visibility-state"
-							>
-								{live
-									? "On: developers see it"
-									: !hasContent(state.banner) && hasContent(form)
-										? "Off: turn it on to publish your message and show it"
-										: "Off: hidden from everyone"}
-							</span>
-						</div>
-						<Button
-							variant="outline"
-							className="col-start-2 row-start-1 row-span-2 self-center border-highlight-orange text-highlight-orange"
-							disabled={busy}
-							title="Show the banner again to everyone, including people who dismissed it"
-							onClick={() => setConfirm("reshow")}
-						>
-							Force Display
-						</Button>
-					</div>
-				}
-				previewing={previewing}
-				onPreviewChange={(next) => {
-					setClosing(false);
-					setGone(false);
-					setPreviewing(next);
-				}}
-				preview={
-					<section
-						aria-labelledby="announcement-preview"
-						className="flex min-h-40 flex-col gap-3"
-					>
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<h2
-								id="announcement-preview"
-								className="m-0 text-base font-semibold"
-							>
-								What developers see
-							</h2>
+			<div className="dashboard-panel">
+				<BannerEditor
+					visibility={
+						<div className="grid grid-cols-[1fr_auto] items-center gap-4">
+							<h3 className="m-0 text-sm font-semibold">Controls</h3>
 							<div className="flex items-center gap-3">
-								<Button
-									size="sm"
-									variant="outline"
-									disabled={
-										(form.effect === "none" &&
-											(form.openEffect ?? "none") === "none") ||
-										!hasContent(form) ||
-										closing
-									}
-									title="Play the open transition and the text effect again"
-									onClick={() => setRun((n) => n + 1)}
-								>
-									<PlayIcon />
-									Replay
-								</Button>
-								<Badge variant={live ? "green" : "default"} role="status">
-									{live
-										? `Live for all developers${tabsText(state, " · ", " connected")}`
-										: "Hidden"}
-								</Badge>
-							</div>
-						</div>
-						<div
-							className="min-h-[62px] rounded-md bg-surface-secondary p-3"
-							data-testid="announcement-preview"
-						>
-							{!gone && (
-								<BannerPreview
-									// A new effect (or its speed, or repeat), or open transition, plays from the start.
-									key={`${run}:${form.effect}:${form.speed}:${form.repeat}:${form.openEffect}`}
-									banner={form}
-									animate
-									closing={closing}
-									onClosed={() => {
-										setGone(true);
-										window.setTimeout(() => {
-											setGone(false);
-											setClosing(false);
-											setRun((n) => n + 1);
-										}, 700);
+								<Switch
+									id="announcement-visible"
+									checked={live}
+									disabled={busy}
+									onCheckedChange={(enabled) => {
+										// Published blank with a written draft: the draft goes out, showing.
+										if (
+											enabled &&
+											!hasContent(state.banner) &&
+											hasContent(form)
+										) {
+											doPublish();
+											return;
+										}
+										publish.mutate(
+											{ ...published, enabled },
+											{
+												onSuccess: (next) => {
+													setProblem(null);
+													toast.success(
+														`${enabled ? "Banner is showing again." : "Banner hidden."}${sentTo(next)}`,
+													);
+												},
+												onError,
+											},
+										);
 									}}
 								/>
-							)}
+								<Label htmlFor="announcement-visible">Show banner</Label>
+								<span
+									className="sr-only"
+									data-testid="announcement-visibility-state"
+								>
+									{live
+										? "On: developers see it"
+										: !hasContent(state.banner) && hasContent(form)
+											? "Off: turn it on to publish your message and show it"
+											: "Off: hidden from everyone"}
+								</span>
+							</div>
+							<Button
+								variant="outline"
+								className="col-start-2 row-start-1 row-span-2 self-center border-highlight-orange text-highlight-orange"
+								disabled={busy}
+								title="Show the banner again to everyone, including people who dismissed it"
+								onClick={() => setConfirm("reshow")}
+							>
+								Force Display
+							</Button>
 						</div>
-						<p className="m-0 text-sm text-content-secondary">
-							Preview of your draft with its text effect playing. Nothing is
-							published until you press <strong>Publish changes</strong>.
-							{reducedMotion &&
-								" This device asks for reduced motion, so effects are not played here, or for anyone with that setting."}
-						</p>
-					</section>
-				}
-				form={form}
-				dirty={dirty}
-				isPublishing={publish.isPending}
-				problem={problem}
-				onChange={(change) => {
-					setProblem(null);
-					setDraft({ ...form, ...change });
-				}}
-				onProblem={setProblem}
-				onPublish={doPublish}
-				onTryOpen={() => {
-					setClosing(false);
-					setGone(false);
-					setPreviewing(true);
-					setRun((n) => n + 1);
-				}}
-				onTryClose={() => {
-					setPreviewing(true);
-					setClosing(true);
-				}}
-				onDiscard={() => {
-					setDraft(null);
-					setProblem(null);
-				}}
-			/>
+					}
+					previewing={previewing}
+					onPreviewChange={(next) => {
+						setClosing(false);
+						setGone(false);
+						setPreviewing(next);
+					}}
+					preview={
+						<section
+							aria-labelledby="announcement-preview"
+							className="flex min-h-40 flex-col gap-3"
+						>
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<h2
+									id="announcement-preview"
+									className="m-0 text-base font-semibold"
+								>
+									What developers see
+								</h2>
+								<div className="flex items-center gap-3">
+									<Button
+										size="sm"
+										variant="outline"
+										disabled={
+											(form.effect === "none" &&
+												(form.openEffect ?? "none") === "none") ||
+											!hasContent(form) ||
+											closing
+										}
+										title="Play the open transition and the text effect again"
+										onClick={() => setRun((n) => n + 1)}
+									>
+										<PlayIcon />
+										Replay
+									</Button>
+									<Badge variant={live ? "green" : "default"} role="status">
+										{live
+											? `Live for all developers${tabsText(state, " · ", " connected")}`
+											: "Hidden"}
+									</Badge>
+								</div>
+							</div>
+							<div
+								className="min-h-[62px] rounded-md bg-surface-secondary p-3"
+								data-testid="announcement-preview"
+							>
+								{!gone && (
+									<BannerPreview
+										// A new effect (or its speed, or repeat), or open transition, plays from the start.
+										key={`${run}:${form.effect}:${form.speed}:${form.repeat}:${form.openEffect}`}
+										banner={form}
+										animate
+										closing={closing}
+										onClosed={() => {
+											setGone(true);
+											window.setTimeout(() => {
+												setGone(false);
+												setClosing(false);
+												setRun((n) => n + 1);
+											}, 700);
+										}}
+									/>
+								)}
+							</div>
+							<p className="m-0 text-sm text-content-secondary">
+								Preview of your draft with its text effect playing. Nothing is
+								published until you press <strong>Publish changes</strong>.
+								{reducedMotion &&
+									" This device asks for reduced motion, so effects are not played here, or for anyone with that setting."}
+							</p>
+						</section>
+					}
+					form={form}
+					dirty={dirty}
+					isPublishing={publish.isPending}
+					problem={problem}
+					onChange={(change) => {
+						setProblem(null);
+						setDraft({ ...form, ...change });
+					}}
+					onProblem={setProblem}
+					onPublish={doPublish}
+					onTryOpen={() => {
+						setClosing(false);
+						setGone(false);
+						setPreviewing(true);
+						setRun((n) => n + 1);
+					}}
+					onTryClose={() => {
+						setPreviewing(true);
+						setClosing(true);
+					}}
+					onDiscard={() => {
+						setDraft(null);
+						setProblem(null);
+					}}
+				/>
+			</div>
 
-			<IntroductionCard
-				settings={published}
-				banner={published}
-				disabled={busy}
-				onChange={(change) =>
-					publish.mutate(
-						{ ...published, ...change },
-						{
-							onSuccess: () => {
-								setProblem(null);
-								toast.success(
-									change.introductions === undefined
-										? "Introduction saved."
-										: `Section introductions ${change.introductions ? "on" : "off"}.`,
-								);
+			<div className="dashboard-panel">
+				<IntroductionCard
+					settings={published}
+					banner={published}
+					disabled={busy}
+					onChange={(change) =>
+						publish.mutate(
+							{ ...published, ...change },
+							{
+								onSuccess: () => {
+									setProblem(null);
+									toast.success(
+										change.introductions === undefined
+											? "Introduction saved."
+											: `Section introductions ${change.introductions ? "on" : "off"}.`,
+									);
+								},
+								onError,
 							},
-							onError,
-						},
-					)
-				}
-			/>
+						)
+					}
+				/>
+			</div>
 
-			<div className="flex flex-col gap-1 text-sm text-content-secondary">
+			<div className="dashboard-panel flex flex-col gap-1 text-sm text-content-secondary">
 				<p className="m-0">
 					{state.overrideActive
 						? state.updatedBy && state.updatedAt

@@ -34,6 +34,7 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
+import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
 import { WorkspaceGrid } from "#/modules/platform/workspaceGrid/WorkspaceGrid";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
@@ -43,8 +44,9 @@ import {
 	type AdminSettingsPermissions,
 	canViewAdminSettings,
 } from "./AdminSettings";
-import type { AdminPage } from "./adminQuickLinks";
+import { type AdminPage, defaultHomePresentation } from "./adminQuickLinks";
 import { CompactQuickLinks } from "./CompactQuickLinkMenu";
+import { HudHeartbeat } from "./HudHeartbeat";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
@@ -54,6 +56,7 @@ import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
 import {
+	settingsChatSlot,
 	useRegisterSettingsMenu,
 	useSettingsMenuHost,
 } from "./settingsMenuHost";
@@ -135,6 +138,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		onError: () => toast.error("Could not save Settings sidebar preference."),
 	});
 	const docked = Boolean(controls && prefs.data?.settings_sidebar);
+	const dockEdge = prefs.data?.navbar_settings_side ?? "right";
 	// The admin settings' navigation in the navbar: on a settings page this menu opens from the breadcrumb's Settings
 	// chevron, in place of the navbar's Settings button, its panel's left edge on the chevron's.
 	const settingsInNavbar = Boolean(
@@ -173,6 +177,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			: "expanded";
 		const navbar = document.querySelector<HTMLElement>(".navbar-soft");
 		const root = document.documentElement;
+		root.dataset.settingsDockEdge = dockEdge;
 		const measure = () => {
 			if (!navbar) return;
 			root.style.setProperty(
@@ -189,8 +194,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			window.removeEventListener("resize", measure);
 			root.style.removeProperty("--settings-navbar-scale");
 			delete root.dataset.settingsSide;
+			delete root.dataset.settingsDockEdge;
 		};
-	}, [docked, compact]);
+	}, [docked, compact, dockEdge]);
 	const closeMenu = () => setOpen(false);
 	// The workspaces in the grid (their ids), while it is open.
 	const [workspaceView, setWorkspaceView] = useState<{
@@ -254,6 +260,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		</DropdownMenuItem>
 	);
 
+	const defaultHome = useSettingsDefaultView();
+	const { label: homeLabel, icon: HomeIcon } = defaultHomePresentation(
+		defaultHome.path,
+	);
 	const reading = (
 		<>
 			<span className="inline-flex items-center gap-1.5">
@@ -338,14 +348,15 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			proxy?.refetchProxyLatencies();
 		}
 	};
-	const edge = docked ? "right" : openEdge;
+	const edge = docked ? dockEdge : openEdge;
 	// Opened another way than from its button (Return to dropdown from the docked panel, whose button is not on the
 	// page until then): its side from the button once it shows, so it hangs from it, not from the screen's right.
 	useLayoutEffect(() => {
 		if (open && !docked) measureEdge();
 	}, [open, docked, breadcrumbHost]);
 	// Unread chats or notifications while the chat is not on screen: the closed chevron glows (navbarSoft.css).
-	const glow = unreadGlow && !open && !docked;
+	const glow =
+		(unreadGlow.chat || unreadGlow.notifications) && !open && !docked;
 	// Only for the breadcrumb: nothing to show until a breadcrumb takes its button, unless it is docked at the side.
 	if (breadcrumbOnly && !breadcrumbHost && !docked) return null;
 
@@ -385,7 +396,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								ref={trigger}
 								type="button"
 								className="settings-breadcrumb-trigger"
-								title="Settings"
+								title={
+									homeLabel === "Settings"
+										? "Settings"
+										: `${homeLabel}: open Settings`
+								}
 								data-testid="navbar-latency-controls"
 								data-unread-glow={glow || undefined}
 								// One click opens it, and another closes it (the menu's own outside-click is told to leave
@@ -393,8 +408,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								onPointerDown={(event) => event.preventDefault()}
 								onClick={() => changeOpen(!open)}
 							>
-								<SettingsIcon aria-hidden className="size-4 shrink-0" />
-								Settings
+								<HomeIcon aria-hidden className="size-4 shrink-0" />
+								{homeLabel}
 							</button>
 						</DropdownMenuTrigger>,
 						breadcrumbHost,
@@ -438,8 +453,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					// The floating menu reserves space for the slide-out trays.
 					className={cn(
 						"relative w-max min-w-[240px] max-w-[calc(calc(100vw/var(--app-zoom,1))-32px)] overflow-visible border-0 bg-transparent p-0 shadow-none",
-						"settings-menu",
-						!docked && (edge === "left" ? "pr-16" : "pl-16"),
+						"settings-menu settings-menu-fill",
+						!docked &&
+							(edge === "left"
+								? "pr-(--settings-tray-gutter)"
+								: "pl-(--settings-tray-gutter)"),
 					)}
 				>
 					{!compact && (
@@ -457,7 +475,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						// (the thin strip, compact, still scrolls as a whole).
 						className={cn(
 							"settings-menu-surface flex flex-col rounded-2xl border border-solid border-border bg-surface-primary p-2 shadow-md max-h-[calc(var(--radix-dropdown-menu-content-available-height)/var(--app-zoom,1))] scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]",
-							compact ? "overflow-y-auto" : "overflow-hidden",
+							compact ? "overflow-y-auto px-1" : "overflow-hidden",
 						)}
 					>
 						{!compact && (
@@ -486,10 +504,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								{hud && hudMenu.open && (
 									<InlineMenuPanel
 										id={hudMenu.id}
-										label="HUD options"
+										label="HUD heartbeat"
 										className="order-last"
 									>
-										<OpenMenuItem to="/hud" />
+										<HudHeartbeat />
 									</InlineMenuPanel>
 								)}
 								{controls && (
@@ -516,8 +534,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 													className="-rotate-90"
 												/>
 											) : (
-												// undocked: its arrow points right, where Settings docks; docked, up to the dropdown it returns to
-												<PanelRightCloseIcon aria-hidden />
+												<PanelRightCloseIcon
+													aria-hidden
+													className={
+														dockEdge === "left" ? "-scale-x-100" : undefined
+													}
+												/>
 											)}
 										</DropdownMenuItem>
 										{!compact && compactToggle}
@@ -571,20 +593,21 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										</DropdownMenuItem>
 									)}
 									<CompactQuickLinks
+										unreadGlow={unreadGlow}
 										links={controls?.quickLinks ?? []}
 										pages={controls?.pages ?? []}
 										onChange={controls?.quickLinksEditor?.onChange}
-										onChat={() => {
-											docking.mutate({ settings_sidebar_compact: false });
-											setChatExpanded(true);
-										}}
 									/>
 								</div>
 								{controls && canViewAdminSettings(controls.permissions) && (
 									<>
 										{/* A little mark between the quick links and the metrics */}
 										<DropdownMenuSeparator className="mx-auto my-1 w-3 shrink-0" />
-										<SettingsMetricGraphs compact chatExpanded={false} />
+										<SettingsMetricGraphs
+											compact
+											canViewHud={hud}
+											chatExpanded={false}
+										/>
 									</>
 								)}
 							</>
@@ -713,12 +736,18 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									<nav
 										aria-label="Settings"
 										data-testid="controls-group"
-										className="mx-1 mt-2 mb-1 flex min-h-0 flex-auto flex-col rounded-lg border border-solid border-border p-1 bg-surface-primary"
+										className="settings-menu-well mx-1 mt-2 mb-1 flex min-h-0 flex-auto flex-col rounded-lg border border-solid border-border p-1 bg-surface-primary"
 									>
 										<AdminSettingsItems
+											unreadGlow={unreadGlow}
 											externalMetrics
 											chatExpanded={chatExpanded}
-											onChatToggle={() => setChatExpanded(!chatExpanded)}
+											onChatToggle={() => {
+												if (!chatExpanded && prefs.data?.settings_face_hidden) {
+													docking.mutate({ settings_face_hidden: null });
+												}
+												setChatExpanded(!chatExpanded);
+											}}
 											permissions={controls.permissions}
 											quickLinks={controls.quickLinks}
 											quickLinksEditor={controls.quickLinksEditor}
@@ -729,7 +758,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										/>
 									</nav>
 								)}
-								{!topFull && (
+								{(!topFull || chatExpanded) && (
 									<SettingsFacePanel
 										face={face}
 										onFaceChange={(next) => {
@@ -752,6 +781,14 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							</>
 						)}
 					</div>
+					{docked &&
+						!compact &&
+						!chatFull &&
+						(!topFull || chatExpanded) &&
+						prefs.data?.settings_face_hidden &&
+						prefs.data.settings_face_collapse_direction === "up" && (
+							<div ref={settingsChatSlot} className="settings-chat-dock-slot" />
+						)}
 				</DropdownMenuContent>
 			</DropdownMenu>
 			<WorkspaceGrid

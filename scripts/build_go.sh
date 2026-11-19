@@ -120,6 +120,16 @@ if [[ "$version" == "" ]]; then
 	version="$(execrelative ./version.sh)"
 fi
 
+# Air-gapped builds carry the agent archive's version next to the payload.
+# Refuse to embed an archive from an earlier build.
+if [[ "$slim" == 0 && -f site/out/bin/agent-build.json ]]; then
+	dependencies python3
+	agent_version=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])' <site/out/bin/agent-build.json)
+	if [[ "${agent_version#v}" != "$version" ]]; then
+		error "Agent archive version $agent_version does not match server version $version. Run scripts/release/airgap/build-agent-archive.sh $version before building the server."
+	fi
+fi
+
 # Check dependencies
 dependencies go
 if [[ "$sign_darwin" == 1 ]]; then

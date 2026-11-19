@@ -1,3 +1,8 @@
+import {
+	LockOpenIcon,
+	PanelTopCloseIcon,
+	PanelTopOpenIcon,
+} from "lucide-react";
 import { useId } from "react";
 import {
 	ContextMenu,
@@ -14,7 +19,6 @@ export const SettingsTrayHandle = ({
 	label,
 	attention,
 	instructions,
-	horizontal = false,
 	expanded,
 	locked,
 	busy,
@@ -26,7 +30,6 @@ export const SettingsTrayHandle = ({
 	label: string;
 	attention?: string;
 	instructions?: string;
-	horizontal?: boolean;
 	expanded: boolean;
 	locked?: boolean;
 	busy: boolean;
@@ -50,7 +53,7 @@ export const SettingsTrayHandle = ({
 						? `${label} locked ${expanded ? "open" : "closed"}.`
 						: `${label} unlocked.`}
 			</span>
-			{(horizontal ? ["left", "right"] : ["top", "bottom"]).map((edge) => (
+			{["top", "bottom"].map((edge) => (
 				<DropdownMenuItem
 					key={edge}
 					role="menuitemcheckbox"
@@ -109,15 +112,18 @@ export const SettingsTrayHandle = ({
 					onContextMenu={(event) => event.stopPropagation()}
 				>
 					<ContextMenuItem disabled={busy} onSelect={() => lock(true)}>
+						<PanelTopOpenIcon aria-hidden />
 						Lock open
 					</ContextMenuItem>
 					<ContextMenuItem disabled={busy} onSelect={() => lock(false)}>
+						<PanelTopCloseIcon aria-hidden />
 						Lock closed
 					</ContextMenuItem>
 					<ContextMenuItem
 						disabled={busy || !locked}
 						onSelect={() => lock(null)}
 					>
+						<LockOpenIcon aria-hidden />
 						Unlock
 					</ContextMenuItem>
 					{children}

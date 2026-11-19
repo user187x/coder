@@ -38,7 +38,7 @@ const HealthOverviewPage: React.FC = () => {
 	}, [hash]);
 
 	return (
-		<div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
+		<div className="grid grid-cols-1 gap-6 pb-6 xl:grid-cols-2">
 			{HEALTH_CARD_IDS.map((id) => {
 				const Section = SECTIONS[id];
 				return (
@@ -47,14 +47,16 @@ const HealthOverviewPage: React.FC = () => {
 						id={id}
 						data-testid="health-card"
 						className={cn(
-							"min-w-0 scroll-mt-4 rounded-lg border border-solid border-border bg-surface-primary/50 p-4",
+							"dashboard-panel flex min-w-0 scroll-mt-4 flex-col",
 							(id === "workspace-health" ||
 								id === "provisioner-daemons" ||
 								id === "derp") &&
 								"xl:col-span-2",
 						)}
 					>
-						<Section />
+						<div className="grow rounded-lg border border-solid border-border bg-surface-primary/50 p-4">
+							<Section />
+						</div>
 					</section>
 				);
 			})}

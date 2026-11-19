@@ -10,6 +10,7 @@ import {
 } from "#/testHelpers/platform";
 import { withAuthProvider, withToaster } from "#/testHelpers/storybook";
 import AnnouncementSettingsPage from "./AnnouncementSettingsPage";
+import "#/dashboardPanel.css";
 
 const meta: Meta<typeof AnnouncementSettingsPage> = {
 	title: "pages/DeploymentSettingsPage/AnnouncementSettingsPage",

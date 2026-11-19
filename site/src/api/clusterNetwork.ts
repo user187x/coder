@@ -1,4 +1,4 @@
-import type { QueryClient } from "react-query";
+import type { Query, QueryClient } from "react-query";
 /**
  * @file The Cluster Network view in depth (Settings > Network), served by the
  * platform service (clusternet.py): what each pod and Service on the map is
@@ -413,6 +413,15 @@ type StorageVolume = {
 	created?: string | null;
 };
 
+type VolumeResource = {
+	name: string;
+	storageClass: string | null;
+	phase: string | null;
+	capacity: string | null;
+	accessModes: string[];
+	usedBy: string[];
+};
+
 export type StorageReport = {
 	classes: {
 		name: string;
@@ -430,6 +439,18 @@ export type StorageReport = {
 	/** Volumes of no storage class (made by hand: the Cloud Drive's). */
 	static: { volumes: number; bound: number; drivers: string[] };
 	volumesReadable: boolean;
+	volumes?: (VolumeResource & {
+		claim: string | null;
+		driver: string | null;
+		reclaimPolicy: string | null;
+		created: string | null;
+	})[];
+	claims?: (VolumeResource & {
+		namespace: string;
+		volume: string | null;
+		requested: string | null;
+	})[];
+	claimScope?: string | null;
 	csiDrivers:
 		| {
 				name: string;
@@ -524,6 +545,19 @@ type NodeDrainResult = {
 	failed: { pod: string; error: string }[];
 };
 
+export type CloudDriveCleanupScan = {
+	id: string;
+	status: "scanning" | "ready" | "deleting" | "complete" | "failed";
+	candidates?: { name: string; account: string }[];
+	deleted?: string[];
+	kept?: number;
+	skipped?: { name: string; reason: string }[];
+	error?: string;
+};
+
+type CleanupResponse = { scan: CloudDriveCleanupScan | null };
+const cleanupPath = `${base}/api/network/cloud-drive-volumes/cleanup`;
+
 export const ClusterNetworkAPI = {
 	nodePods: (name?: string) =>
 		get<{ node: string | null; pods: NodePod[] }>(
@@ -560,6 +594,15 @@ export const ClusterNetworkAPI = {
 		get<NetworkPodLogs>(
 			`${base}/api/network/pod-logs?${new URLSearchParams({ namespace: pod.namespace, name: pod.name, uid: pod.uid, container, previous: String(previous) })}`,
 		),
+	podControllers: (ref: KubernetesEntityRef) =>
+		get<{ controllers: PodController[] }>(
+			`${base}/api/network/pod-controllers?${entityQuery(ref)}`,
+		),
+	deletePod: (pod: NetworkLogPod, confirmation: string) =>
+		platformRequest.post<{ accepted: boolean; message: string }>(
+			`${base}/api/network/delete-pod`,
+			{ namespace: pod.namespace, name: pod.name, uid: pod.uid, confirmation },
+		),
 	restartPod: (pod: NetworkLogPod, confirmation: string) =>
 		platformRequest.post<{ accepted: boolean; message: string }>(
 			`${base}/api/network/restart-pod`,
@@ -568,6 +611,11 @@ export const ClusterNetworkAPI = {
 	entity: (ref: EntityRef) =>
 		get<EntityDetails>(`${base}/api/network/entity?${entityQuery(ref)}`),
 	haAndStorage: () => get<HAStorageReport>(`${base}/api/network/ha`),
+	getCloudDriveCleanup: () => get<CleanupResponse>(cleanupPath),
+	startCloudDriveCleanup: () =>
+		platformRequest.post<CleanupResponse>(cleanupPath, {}),
+	reviewCloudDriveCleanup: (review: { id: string; names: readonly string[] }) =>
+		platformRequest.post<CleanupResponse>(`${cleanupPath}/review`, review),
 	deleteCloudDriveVolumes: (names: readonly string[]) =>
 		platformRequest.post<{
 			deleted: string[];
@@ -641,6 +689,18 @@ export const updateCoderScale = () => ({
 });
 
 export type KubernetesEntityRef = Exclude<EntityRef, { type: "link" }>;
+export type PodController = {
+	kind: string;
+	name: string;
+	manifest: Record<string, unknown> | null;
+};
+
+export const networkPodControllers = (ref: KubernetesEntityRef) => ({
+	queryKey: [...clusterNetworkKey, "pod-controllers", entityQuery(ref)],
+	queryFn: () => ClusterNetworkAPI.podControllers(ref),
+	retry: false,
+});
+
 export type NetworkLogPod = {
 	namespace: string;
 	name: string;
@@ -676,7 +736,10 @@ export const networkPodLogs = (
 	retry: false,
 });
 
-export const restartNetworkPod = (client: QueryClient) => ({
+export const restartNetworkPod = (
+	client: QueryClient,
+	operation: "restart" | "delete" = "restart",
+) => ({
 	onSettled: () =>
 		Promise.all([
 			client.invalidateQueries({ queryKey: clusterNetworkKey }),
@@ -688,7 +751,10 @@ export const restartNetworkPod = (client: QueryClient) => ({
 	}: {
 		pod: NetworkLogPod;
 		confirmation: string;
-	}) => ClusterNetworkAPI.restartPod(pod, confirmation),
+	}) =>
+		operation === "delete"
+			? ClusterNetworkAPI.deletePod(pod, confirmation)
+			: ClusterNetworkAPI.restartPod(pod, confirmation),
 });
 
 /** All namespaces are included, with optional filtering by the hosting node. */
@@ -731,5 +797,31 @@ export const drainNetworkNode = (client: QueryClient) => ({
 export const deleteCloudDriveVolumes = (client: QueryClient) => ({
 	mutationFn: (names: readonly string[]) =>
 		ClusterNetworkAPI.deleteCloudDriveVolumes(names),
+	onSettled: () => client.invalidateQueries({ queryKey: clusterHAKey }),
+});
+
+const cloudDriveCleanupKey = [
+	...clusterNetworkKey,
+	"cloud-drive-cleanup",
+] as const;
+export const cloudDriveCleanup = () => ({
+	queryKey: cloudDriveCleanupKey,
+	queryFn: ClusterNetworkAPI.getCloudDriveCleanup,
+	refetchInterval: (query: Query<CleanupResponse>) => {
+		const status = query.state.data?.scan?.status;
+		return status === "scanning" || status === "deleting" ? 1500 : false;
+	},
+});
+
+export const startCloudDriveCleanup = (client: QueryClient) => ({
+	mutationFn: ClusterNetworkAPI.startCloudDriveCleanup,
+	onSuccess: (data: CleanupResponse) =>
+		client.setQueryData(cloudDriveCleanupKey, data),
+});
+
+export const reviewCloudDriveCleanup = (client: QueryClient) => ({
+	mutationFn: ClusterNetworkAPI.reviewCloudDriveCleanup,
+	onSuccess: (data: CleanupResponse) =>
+		client.setQueryData(cloudDriveCleanupKey, data),
 	onSettled: () => client.invalidateQueries({ queryKey: clusterHAKey }),
 });

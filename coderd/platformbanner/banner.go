@@ -137,11 +137,22 @@ func FieldDefaults() Fields {
 	}
 }
 
-// Defaults is the banner before anything is published (and after a reset):
-// none shown.
+// Defaults draws the bundled announcement art before a message is published.
 func Defaults() Fields {
 	f := FieldDefaults()
-	f.Enabled = false
+	f.Picture = "/pictures/announcement-default.jpeg"
+	f.PictureEffect = "pan-up"
+	f.ShowOnLoginPage = false
+	f.Receipts = false
+	f.Effect = "flap"
+	f.AutoScrollSpeed = 10
+	f.Outline = true
+	f.Introductions = true
+	f.IntroEffect = "flap"
+	f.IntroDurationMs = 5000
+	f.IntroSize = "xlarge"
+	f.IntroWeight = "black"
+	f.IntroUppercase = true
 	return f
 }
 

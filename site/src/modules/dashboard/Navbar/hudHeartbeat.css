@@ -1,0 +1,60 @@
+.hud-heartbeat {
+	--hud-heartbeat-warning: #a34b00;
+	--hud-heartbeat-critical: #ba2323;
+	background-image:
+		linear-gradient(
+			to right,
+			color-mix(in srgb, currentColor 8%, transparent) 1px,
+			transparent 1px
+		),
+		linear-gradient(
+			to bottom,
+			color-mix(in srgb, currentColor 8%, transparent) 1px,
+			transparent 1px
+		);
+	background-size: 10px 10px;
+	border-radius: 4px;
+}
+
+.dark .hud-heartbeat {
+	--hud-heartbeat-warning: #ff9a48;
+	--hud-heartbeat-critical: #ff6868;
+}
+
+.hud-heartbeat-baseline,
+.hud-heartbeat-flatline,
+.hud-heartbeat-trace {
+	fill: none;
+	stroke: currentColor;
+	vector-effect: non-scaling-stroke;
+}
+
+.hud-heartbeat-baseline {
+	opacity: 0.25;
+}
+
+.hud-heartbeat-flatline,
+.hud-heartbeat-trace {
+	stroke-width: 1.5px;
+}
+
+.hud-heartbeat-trace {
+	stroke-linejoin: round;
+	stroke-dasharray: 1;
+	filter: drop-shadow(0 0 3px currentColor);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html:not([data-animations="off"]) .hud-heartbeat-trace {
+		animation: hud-heartbeat-sweep 650ms linear both;
+	}
+}
+
+@keyframes hud-heartbeat-sweep {
+	from {
+		stroke-dashoffset: 1;
+	}
+	to {
+		stroke-dashoffset: 0;
+	}
+}

@@ -47,6 +47,9 @@ beforeEach(() => {
 	vi.spyOn(ClusterNetworkAPI, "logTargets").mockResolvedValue({
 		pods: [MockNetworkLogPod],
 	});
+	vi.spyOn(ClusterNetworkAPI, "podControllers").mockResolvedValue({
+		controllers: [],
+	});
 	vi.spyOn(ClusterNetworkAPI, "podLogs").mockResolvedValue(MockNetworkPodLogs);
 });
 afterEach(() => vi.restoreAllMocks());
@@ -65,6 +68,42 @@ it("copies readable log text without terminal controls and preserves literal mar
 	const copied = await user.copy();
 	expect(copied?.getData("text/plain")).toBe(
 		"2026-10-31T17:00:00Z INF server ready\n2026-10-31T17:00:01Z WRN upstream connection delayed: retrying request to http://coder.coder.svc.cluster.local:8080/api/v2/buildinfo after timeout\n2026-10-31T17:00:02Z literal <script>alert('log text')</script>\n",
+	);
+});
+
+it("returns to the drawer with the same log settings when expanded logs are dismissed", async () => {
+	const user = userEvent.setup();
+	show();
+	await menu("View Logs");
+	await user.selectOptions(
+		await screen.findByRole("combobox", { name: "Container" }),
+		"init",
+	);
+	await user.click(screen.getByRole("button", { name: "Pause logs" }));
+	await user.click(
+		await screen.findByRole("textbox", { name: "Pod log output" }),
+	);
+	expect(
+		await screen.findByRole("dialog", { name: "Expanded pod logs" }),
+	).toBeInTheDocument();
+	expect(screen.getByRole("combobox", { name: "Container" })).toHaveValue(
+		"init",
+	);
+	await user.click(screen.getByRole("button", { name: "Close expanded logs" }));
+	await waitFor(() =>
+		expect(
+			screen.queryByRole("dialog", { name: "Expanded pod logs" }),
+		).not.toBeInTheDocument(),
+	);
+	expect(screen.getByRole("dialog", { name: "Pod logs" })).toBeInTheDocument();
+	expect(
+		screen.getByRole("button", { name: "Resume logs" }),
+	).toBeInTheDocument();
+	await user.click(screen.getByRole("button", { name: "Expand logs" }));
+	await screen.findByRole("dialog", { name: "Expanded pod logs" });
+	await user.keyboard("{Escape}");
+	await waitFor(() =>
+		expect(screen.getByRole("button", { name: "Expand logs" })).toHaveFocus(),
 	);
 });
 
@@ -128,6 +167,46 @@ it("requires the exact pod name before submitting a UID-bound restart", async ()
 			MockNetworkLogPod.name,
 		),
 	);
+});
+
+it("requires an admin to confirm deletion of the selected pod", async () => {
+	auth.admin = true;
+	const remove = vi.spyOn(ClusterNetworkAPI, "deletePod").mockResolvedValue({
+		accepted: true,
+		message: "Pod deletion requested.",
+	});
+	show();
+	await menu("Delete Pod");
+	const button = await screen.findByRole("button", { name: "Delete Pod" });
+	await userEvent.click(button);
+	expect(remove).not.toHaveBeenCalled();
+	await userEvent.type(
+		screen.getByRole("textbox", { name: "Type the pod name to confirm" }),
+		MockNetworkLogPod.name,
+	);
+	await userEvent.click(button);
+	await waitFor(() =>
+		expect(remove).toHaveBeenCalledWith(
+			MockNetworkLogPod,
+			MockNetworkLogPod.name,
+		),
+	);
+});
+
+it("opens the manifest for the selected controller", async () => {
+	vi.mocked(ClusterNetworkAPI.podControllers).mockResolvedValue({
+		controllers: [
+			{
+				kind: "Deployment",
+				name: "coder",
+				manifest: { apiVersion: "apps/v1", spec: { replicas: 2 } },
+			},
+		],
+	});
+	show();
+	await menu("Deployment · coder");
+	expect(await screen.findByText(/"replicas": 2/)).toBeInTheDocument();
+	expect(ClusterNetworkAPI.podControllers).toHaveBeenCalledWith(target);
 });
 
 it("does not send restart requests for unmanaged pods", async () => {

@@ -12,6 +12,7 @@ import {
 } from "#/testHelpers/platform";
 import { withAuthProvider } from "#/testHelpers/storybook";
 import MonitoringSettingsPage from "./MonitoringSettingsPage";
+import "#/dashboardPanel.css";
 
 const meta: Meta<typeof MonitoringSettingsPage> = {
 	title: "pages/DeploymentSettingsPage/MonitoringSettingsPage",

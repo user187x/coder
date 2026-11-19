@@ -438,7 +438,7 @@ describe("any app in a panel", () => {
 		]);
 	});
 
-	it("adds an app from the + tab - apps only, no ports or web addresses", () => {
+	it("adds an app from the + tab - apps only, no ports or web addresses", async () => {
 		const onAdd = vi.fn();
 		render(
 			<AddPanelTab
@@ -450,10 +450,7 @@ describe("any app in a panel", () => {
 				onAdd={onAdd}
 			/>,
 		);
-		fireEvent.pointerDown(screen.getByRole("button", { name: "Add a panel" }), {
-			button: 0,
-			ctrlKey: false,
-		});
+		await userEvent.click(screen.getByRole("button", { name: "Add a panel" }));
 		expect(
 			screen.getByRole("menuitem", { name: /htop.*terminal/ }),
 		).toBeVisible();

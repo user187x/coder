@@ -87,7 +87,7 @@ export type ChatWindowState = {
  * attached to the right side, from the navbar down; "full", over the page
  * below the navbar.
  */
-type DockMode = "bar" | "compact" | "window" | "side" | "full";
+type DockMode = "bar" | "compact" | "window" | "side" | "settings" | "full";
 
 /**
  * How the chat's link to Coder is doing: "connecting", before its first answer; "connected"; "degraded", a request
@@ -371,7 +371,9 @@ const findWindow = (peerId: string) =>
 
 /** Attached to the right side or full screen: conversations open in it, and the windows are put away. */
 const attached = () =>
-	snapshot.dockMode === "side" || snapshot.dockMode === "full";
+	snapshot.dockMode === "side" ||
+	snapshot.dockMode === "settings" ||
+	snapshot.dockMode === "full";
 
 /** The console is on screen: on the Chat page (or popped out), or over the page (consoleOverlay). */
 const consoleShown = () => snapshot.consoleOpen || snapshot.consoleOverlay;
@@ -1070,7 +1072,7 @@ export const setDockMode = (mode: DockMode) => {
 			}));
 		}
 	}
-	const attaching = next === "side" || next === "full";
+	const attaching = next === "side" || next === "settings" || next === "full";
 	const fullFrom =
 		next === "full" ? (from === "side" ? "side" : "window") : snapshot.fullFrom;
 	if (attaching && !wasAttached) {

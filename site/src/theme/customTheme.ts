@@ -12,6 +12,22 @@ export type CustomTheme = {
 const PREFIX = "custom-v1:";
 const HEX = /^#[0-9a-f]{6}$/i;
 
+const defaultThemePreference =
+	"custom-v1:dark-tritan:#09090b:#232327:#fafafa:#0ea5e9:#3f3f46";
+
+/** Apply the bundled palette when an account has no saved theme selection. */
+export const withDefaultTheme = <
+	T extends {
+		theme_preference?: string;
+		theme_mode?: string;
+	},
+>(
+	settings: T,
+) =>
+	settings.theme_preference || settings.theme_mode
+		? settings
+		: { ...settings, theme_preference: defaultThemePreference };
+
 /** Custom palettes use the existing per-user appearance preference and retain a concrete fallback. */
 export const parseCustomTheme = (preference = ""): CustomTheme | undefined => {
 	if (!preference.startsWith(PREFIX)) return;

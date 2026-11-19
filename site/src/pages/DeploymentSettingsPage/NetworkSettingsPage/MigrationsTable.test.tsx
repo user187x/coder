@@ -1,4 +1,5 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
 	type WorkspaceMigrationSummary,
 	WorkspaceMigrationsAPI,
@@ -64,3 +65,33 @@ it("says so when there are no migrations", async () => {
 	render(<MigrationsTable />);
 	expect(await screen.findByText("No migrations yet.")).toBeInTheDocument();
 });
+
+it.each([
+	["Remove migration history for prod", "Remove entry", done.id],
+	["Clear finished history", "Clear history", null],
+])(
+	"confirms %s and refreshes history while keeping active migrations",
+	async (action, confirm, id) => {
+		const list = vi
+			.spyOn(WorkspaceMigrationsAPI, "list")
+			.mockResolvedValue({ migrations: [running, done] });
+		const hide = vi
+			.spyOn(WorkspaceMigrationsAPI, "hideHistory")
+			.mockImplementation(async () => {
+				list.mockResolvedValue({ migrations: [running] });
+				return { hidden: 1 };
+			});
+		const user = userEvent.setup();
+		render(<MigrationsTable />);
+		await user.click(await screen.findByRole("button", { name: action }));
+		expect(hide).not.toHaveBeenCalled();
+		await user.click(
+			within(screen.getByRole("dialog")).getByRole("button", { name: confirm }),
+		);
+		await waitFor(() => expect(hide).toHaveBeenCalledWith(id));
+		await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+		expect(screen.getByRole("row", { name: /^dev/ })).toHaveTextContent(
+			"Running",
+		);
+	},
+);

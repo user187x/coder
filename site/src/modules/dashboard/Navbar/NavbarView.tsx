@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
 import { useQuery } from "react-query";
+import { useLocation } from "react-router";
 import { API } from "#/api/api";
 import { type NavbarLayout, PlatformAPI } from "#/api/platform";
 import { userUIPreferences } from "#/api/queries/platform";
@@ -8,6 +8,7 @@ import {
 	Breadcrumb,
 	BreadcrumbItem,
 	BreadcrumbList,
+	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
 import { Button } from "#/components/Button/Button";
 import { useProductLogoURL } from "#/components/Icons/ProductLogo";
@@ -26,17 +27,26 @@ import type {
 	AdminSettingsPermissions,
 } from "./AdminSettings";
 import { canViewAdminSettings } from "./AdminSettings";
-import { addableAdminPages } from "./adminQuickLinks";
+import {
+	addableAdminPages,
+	adminCategory,
+	navbarPageLabel,
+} from "./adminQuickLinks";
+import { BreadcrumbViewMenu } from "./BreadcrumbMenu";
+import { CategoryDefaultMenu } from "./DefaultViewOption";
 import { MobileMenu } from "./MobileMenu";
 import { NavbarLogo } from "./NavbarLogo";
 import { NavbarResizableGroup } from "./NavbarResizableGroup";
 import { navbarInk, navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
+import { SettingsBreadcrumbRoot } from "./SettingsBreadcrumbRoot";
+import {
+	TemplateDestinations,
+	WorkspaceDestinations,
+} from "./SettingsDestinationMenu";
 import { SupportIcon } from "./SupportIcon";
 import {
 	navbarSettingsSide,
-	settingsDockedMid,
-	settingsMenuSlot,
 	usePageSettingsBreadcrumb,
 	useSettingsMenuPresent,
 } from "./settingsMenuHost";
@@ -97,6 +107,8 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 		Boolean(preferences.data?.admin_nav_in_navbar) &&
 		canViewAdminSettings(adminPermissions);
 	const pageCrumb = usePageSettingsBreadcrumb();
+	const { pathname } = useLocation();
+	const pageLabel = navbarPageLabel(pathname);
 	const settingsMenuPresent = useSettingsMenuPresent();
 	// Editable where there is anything to link to.
 	const quickLinksEditor =
@@ -110,26 +122,24 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				}
 			: undefined;
 
-	// A native listener: the page's action button is portaled in, so React
-	// would bubble its events to the page and never through this element.
-	const root = useRef<HTMLDivElement>(null);
-	useEffect(() => {
-		const element = root.current;
-		if (!element) return;
-		const onContextMenu = (event: MouseEvent) => {
-			// Portaled dropdowns are not inside the navbar.
-			if (
-				event.target instanceof Element &&
-				element.contains(event.target) &&
-				!event.target.closest("[role=menu]")
-			) {
-				event.preventDefault();
-				startNavbarArrange();
-			}
-		};
-		element.addEventListener("contextmenu", onContextMenu);
-		return () => element.removeEventListener("contextmenu", onContextMenu);
-	}, []);
+	const arrangeFromBackstrip = (event: React.MouseEvent<HTMLDivElement>) => {
+		const { target, currentTarget } = event;
+		if (
+			stripOff ||
+			!(target instanceof Element) ||
+			!currentTarget.contains(target)
+		) {
+			return;
+		}
+		// Match the hit element itself so controls above the backstrip keep their own menus.
+		if (
+			target.matches(".navbar-arrange, .navbar-resizable-group") ||
+			(!floating && target === currentTarget)
+		) {
+			event.preventDefault();
+			startNavbarArrange();
+		}
+	};
 
 	// The latency and Settings menu; with the navbar's item hidden, still the settings breadcrumb's Settings chevron menu.
 	const settingsMenu = (breadcrumbOnly: boolean) => (
@@ -155,7 +165,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 
 	return (
 		<div
-			ref={root}
+			onContextMenu={arrangeFromBackstrip}
 			style={
 				{
 					"--navbar-zoom": `var(--navbar-preview-scale, ${scale / 100})`,
@@ -192,17 +202,36 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					data-testid="navbar-start"
 					className="navbar-start flex shrink-0 items-center empty:hidden"
 				>
-					{/* Pages without a settings breadcrumb of their own: the Settings chevron alone */}
+					{/* Pages without a breadcrumb of their own use the navbar’s section label. */}
 					{settingsInNavbar &&
-						settingsMenuPresent &&
-						!pageCrumb &&
-						!settingsDockedMid(preferences.data) && (
+						(settingsMenuPresent || preferences.data?.settings_sidebar) &&
+						!pageCrumb && (
 							<Breadcrumb
 								variant="connected"
+								data-inline=""
 								className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
 							>
 								<BreadcrumbList>
-									<BreadcrumbItem ref={settingsMenuSlot} />
+									<SettingsBreadcrumbRoot />
+									{pageLabel && (
+										<CategoryDefaultMenu path={adminCategory(pathname)?.path}>
+											<BreadcrumbItem>
+												{pageLabel === "Template" ||
+												pageLabel === "Templates" ? (
+													<BreadcrumbViewMenu label={pageLabel}>
+														<TemplateDestinations />
+													</BreadcrumbViewMenu>
+												) : pageLabel === "Workspace" ||
+													pageLabel === "Workspaces" ? (
+													<BreadcrumbViewMenu label={pageLabel}>
+														<WorkspaceDestinations />
+													</BreadcrumbViewMenu>
+												) : (
+													<BreadcrumbPage>{pageLabel}</BreadcrumbPage>
+												)}
+											</BreadcrumbItem>
+										</CategoryDefaultMenu>
+									)}
 								</BreadcrumbList>
 							</Breadcrumb>
 						)}
@@ -211,6 +240,8 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
 				<NavbarArrange
 					defaultLayout={defaultLayout}
+					showSettingsChevrons
+					settingsDocked={Boolean(preferences.data?.settings_sidebar)}
 					canSetDefault={adminPermissions.canEditDeployment}
 					className="navbar-arrange relative flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
 					items={{
@@ -223,7 +254,14 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 								/>
 							</nav>
 						),
-						banner: <AnnouncementBanner placement="navbar" />,
+						banner: (
+							<AnnouncementBanner
+								placement="navbar"
+								terminateAlertViewerId={
+									adminPermissions.canEditDeployment ? user.id : undefined
+								}
+							/>
+						),
 						// the latency and the Controls in one menu, the HUD joined on as one split button (admins)
 						latency: settingsInNavbar ? null : settingsMenu(false),
 						notifications: (

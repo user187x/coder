@@ -44,7 +44,7 @@ def ha_checks(B, ha_render, default_render):
     one Coder replica gets no budget (it would only block node drains)."""
     import yaml
     docs = {(d["kind"], d["metadata"]["name"]): d for d in yaml.safe_load_all(ha_render) if d}
-    got = {"coder": docs.get(("Deployment", "coder"), {}).get("spec", {}).get("replicas"),
+    got = {"coder": docs.get(("Deployment", "coder-server"), {}).get("spec", {}).get("replicas"),
            "coder-db": docs.get(("Cluster", "coder-db"), {}).get("spec", {}).get("instances"),
            "budget": docs.get(("PodDisruptionBudget", "coder"), {}).get("spec")}
     check("high availability: 2 Coder replicas (one down at a time), 3 database instances",
@@ -78,7 +78,7 @@ def ha_checks(B, ha_render, default_render):
     ddb = dflt.get(("Cluster", "coder-db"), {}).get("spec", {})
     druri = dflt.get(("Secret", "coder-code-server-ha-relay"), {}).get("stringData", {}).get("uri", "")
     def ha_env(objs):
-        dep = objs.get(("Deployment", "coder"), {})
+        dep = objs.get(("Deployment", "coder-server"), {})
         env = (dep.get("spec", {}).get("template", {}).get("spec", {}).get("containers") or [{}])[0].get("env") or []
         return {e["name"]: e.get("value", e.get("valueFrom")) for e in env if e["name"].startswith("CODER_PLATFORM_HA_")}
     denv = ha_env(dflt)
@@ -91,7 +91,7 @@ def ha_checks(B, ha_render, default_render):
     # ADR-0001 phase 2: activeStandby - the Service on the active pod only, probes on the health port, the preStop
     # hands over; any other mode renders upstream's
     def coder_spec(objs):
-        dep = objs.get(("Deployment", "coder"), {})
+        dep = objs.get(("Deployment", "coder-server"), {})
         c = (dep.get("spec", {}).get("template", {}).get("spec", {}).get("containers") or [{}])[0]
         svc = objs.get(("Service", "coder"), {}).get("spec", {}).get("selector", {})
         return svc, (c.get("readinessProbe") or {}).get("httpGet"), (c.get("lifecycle") or {}).get("preStop")
@@ -221,7 +221,7 @@ def webhook_checks(B, chart):
           == "coder-platform-webhook", "")
     dep = by.get(("Deployment", "coder-platform-webhook"), {})
     c = (dep.get("spec", {}).get("template", {}).get("spec", {}).get("containers") or [{}])[0]
-    ui = by.get(("Deployment", "coder-ui-updates"), {}).get("spec", {}).get("template", {}).get("spec", {}).get("containers", [{}])[0]
+    ui = by.get(("Deployment", "coder-ui"), {}).get("spec", {}).get("template", {}).get("spec", {}).get("containers", [{}])[0]
     check("webhook: two replicas of the platform service's image (/app/webhook.py), a PodDisruptionBudget",
           dep.get("spec", {}).get("replicas") == 2 and c.get("image") == ui.get("image")
           and c.get("command") == ["python3", "/app/webhook.py"]
@@ -271,13 +271,18 @@ def one_step_checks(B, chart):
     push = [d for d in docs if d["kind"] == "Job" and "push-template" in d["metadata"]["name"]]
     check("one step: the workspace templates are pushed with the release's namespace",
           push and out.count('--variable namespace="cf"') == len(push) and 'namespace="coder"' not in out, len(push))
-    stray = sorted({(d["metadata"].get("namespace"), d["kind"]) for d in docs if d["metadata"].get("namespace") not in (None, "cf")})
-    # The node load collector runs outside the protected release namespace on purpose (templates/node-load.yaml).
-    runtime_ns = "coder-runtime-system"
-    check("one step: nothing lands in another namespace (no coder, no keycloak/argocd with them off; only the DNS "
-          "Role in kube-system and the node load collector in %s)" % runtime_ns,
-          stray == sorted([("kube-system", "Role"), ("kube-system", "RoleBinding"),
-                           (runtime_ns, "DaemonSet"), (runtime_ns, "ServiceAccount")]), stray)
+    system = {(d["kind"], d["metadata"]["name"]) for d in docs if d["metadata"].get("namespace") == "coder-system"}
+    system_addons = {("DaemonSet", "coder-node-load-average-collector"), ("ServiceAccount", "coder-node-load"),
+                     ("Deployment", "coder-metrics-server"), ("Service", "metrics-server"),
+                     ("ServiceAccount", "metrics-server"), ("PodDisruptionBudget", "metrics-server"),
+                     ("DaemonSet", "coder-image-registry-proxy"), ("DaemonSet", "coder-user-storage-csi"),
+                     ("ServiceAccount", "coder-user-storage-csi")}
+    stray = sorted({(d["metadata"].get("namespace"), d["kind"]) for d in docs
+                    if d["metadata"].get("namespace") not in (None, "cf", "coder-system")})
+    check("one step: only the DNS bindings and the system add-ons leave the release namespace",
+          stray == [("kube-system", "Role"), ("kube-system", "RoleBinding")]
+          and {("DaemonSet", "coder-node-load-average-collector"), ("ServiceAccount", "coder-node-load")} <= system <= system_addons,
+          {"other": stray, "system": sorted(system)})
 
     def pod_images(d):
         spec = d.get("spec", {})
@@ -337,7 +342,7 @@ def safe_checks(chart, default_render):
     runs its MinIO and CSI driver; off, nothing of it anywhere; an S3 service of one's own needs its endpoint and keys."""
     import yaml
     docs = {(d["kind"], d["metadata"]["name"]): d for d in yaml.safe_load_all(default_render) if d}
-    ui_env = {e["name"]: e.get("value") for c in docs[("Deployment", "coder-ui-updates")]["spec"]["template"]["spec"]["containers"]
+    ui_env = {e["name"]: e.get("value") for c in docs[("Deployment", "coder-ui")]["spec"]["template"]["spec"]["containers"]
               for e in c.get("env", [])}
     push = "\n".join(c["args"][0] for k, d in docs.items() if k[0] == "Job" and "push-template" in k[1]
                      for c in d["spec"]["template"]["spec"]["containers"])
@@ -349,7 +354,7 @@ def safe_checks(chart, default_render):
           sorted(want - set(docs)) or {k: ui_env.get(k) for k in ("SAFE_ENABLED", "SAFE_NODE_SERVICE")})
     def parsed(out):
         found = {(d["kind"], d["metadata"]["name"]): d for d in yaml.safe_load_all(out) if d}
-        env = {e["name"]: e for c in found[("Deployment", "coder-ui-updates")]["spec"]["template"]["spec"]["containers"]
+        env = {e["name"]: e for c in found[("Deployment", "coder-ui")]["spec"]["template"]["spec"]["containers"]
                for e in c.get("env", [])}
         args = "\n".join(c["args"][0] for k, d in found.items() if k[0] == "Job" and "push-template" in k[1]
                          for c in d["spec"]["template"]["spec"]["containers"])
@@ -460,7 +465,7 @@ def template_checks(B, chart, default_render, dataflow_render):
           and not any(v in dflow or v in dflt for v in ("--variable gateway_name=", "--variable coder_service="))
           and not re.search(r"--variable (code_server|default_memory|terminal_app|terminal|gateway_\w+|coder_service\w*|app_set)=",
                             dflt), sorted(jobs))
-    ui_env = {e["name"]: e.get("value") for c in docs[("Deployment", "coder-ui-updates")]["spec"]["template"]["spec"]["containers"]
+    ui_env = {e["name"]: e.get("value") for c in docs[("Deployment", "coder-ui")]["spec"]["template"]["spec"]["containers"]
               for e in c.get("env", [])}
     names = [t["name"] for t in json.loads(ui_env.get("BUILDER_TEMPLATES") or "[]")]
     check("templates: with DATAFLOW on, the Images view's In use list has DEFAULT and DATAFLOW, no AI template",
@@ -593,7 +598,7 @@ def decorator_checks(B, chart, full_render):
           if (base & layer) or (base | layer) != full else "%d + %d objects" % (len(base), len(layer)))
     check("decorator: the base is Coder, its database and first owner only",
           {k for k, _ in base} <= {"Deployment", "Service", "ServiceAccount", "Role", "RoleBinding", "HTTPRoute", "Cluster",
-                                    "Secret", "ConfigMap", "Job", "BackendTLSPolicy"} and ("Cluster", "coder-db") in base and ("Deployment", "coder") in base
+                                    "Secret", "ConfigMap", "Job", "BackendTLSPolicy"} and ("Cluster", "coder-db") in base and ("Deployment", "coder-server") in base
           and not any(n.startswith(("coder-ui", "coder-workspace-push", "coder-image")) for _, n in base),
           sorted(base))
     plain, dec = renders["base"], renders["base+layer"]
@@ -839,7 +844,7 @@ def main():
     check("marimo is gone (code, templates, images, docs; history and reference exports aside)", not left, left[:5])
     # code-server HA (templates/code-server-ha.yaml, files/ui-updates/csha.py)
     ui_img = re.search(r"image: (docker\.io/mrshll187/coder-ui-updates:[A-Za-z0-9._-]+)", r)
-    op = re.search(r"name: coder-code-server-replicator\n(?:.*\n){0,40}?\s+command: \[python3, /app/csha\.py, operator\]", r)
+    op = re.search(r"name: coder-server-replicator\n(?:.*\n){0,40}?\s+command: \[python3, /app/csha\.py, operator\]", r)
     check("code-server HA: the code-server-replicator runs the platform service's code, as Coder's database's owner",
           op and "CSHA_DB" in r and re.search(r"name: CSHA_DB\s*\n\s*valueFrom: \{secretKeyRef: \{name: coder-db-app, key: uri\}\}", r),
           "")
@@ -904,12 +909,12 @@ def main():
     # DEFAULT's leaves main.tf's default, and no template has a Ghostty app.
     import yaml
     deployment = next(d for d in yaml.safe_load_all(rdf) if d and d["kind"] == "Deployment"
-                      and d["metadata"]["name"] == "coder-ui-updates")
+                      and d["metadata"]["name"] == "coder-ui")
     env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
     defaults = json.loads(next(e["value"] for e in env if e["name"] == "BACKGROUND_DEFAULTS"))
-    check("appearance: fresh installs use the bundled metal background for login and dashboard",
+    check("appearance: fresh installs use the bundled login and dashboard backgrounds",
           defaults.get("login", {}).get("picture") == "/pictures/meta.jpeg"
-          and defaults.get("dashboard", {}).get("picture") == "/pictures/meta.jpeg", defaults)
+          and defaults.get("dashboard", {}).get("picture") == "/pictures/dashboard-default.webp", defaults)
     push_jobs = {d["metadata"]["name"]: "\n".join(c["args"][0] for c in d["spec"]["template"]["spec"]["containers"])
                  for d in yaml.safe_load_all(rdf) if d and d.get("kind") == "Job" and "push-template" in d["metadata"]["name"]}
     pushes = {n.rsplit("push-template", 1)[1] or "default": re.findall(r'--variable (terminal_app="\w+"|terminal=\w+)', a)

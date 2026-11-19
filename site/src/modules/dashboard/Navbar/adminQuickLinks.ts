@@ -4,8 +4,8 @@ import {
 	BellIcon,
 	CloudIcon,
 	ContainerIcon,
-	DatabaseIcon,
 	FileTextIcon,
+	HardDriveIcon,
 	HeartPulseIcon,
 	HourglassIcon,
 	KeyRoundIcon,
@@ -18,18 +18,22 @@ import {
 	MonitorIcon,
 	NetworkIcon,
 	PaletteIcon,
+	SettingsIcon,
 	TagIcon,
 	UsersIcon,
 	WaypointsIcon,
 } from "lucide-react";
+import { matchPath } from "react-router";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import type { Permissions } from "#/modules/permissions";
 import { canSeeTemplates } from "#/modules/permissions/templates";
+import { accountsPath } from "#/modules/users/AccountCreationMenuItems";
 
 /** An admin page (a category of General) the Admin menu can link to directly. */
 export type AdminPage = {
 	/** Stored in the user's preferences; never change an existing ID. */
 	id: string;
+	accountActions?: { canCreateLease: boolean };
 	label: string;
 	path: string;
 	/** Shown before its label in the Admin menu. */
@@ -53,7 +57,7 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		id: "accounts",
 		label: "Accounts",
 		icon: UsersIcon,
-		path: "/deployment/users",
+		path: accountsPath,
 		allowed: ({ permissions }) => permissions.viewAllUsers,
 	},
 	{
@@ -150,10 +154,10 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{
-		id: "persistence",
-		label: "Persistence",
-		icon: DatabaseIcon,
-		path: "/deployment/persistence",
+		id: "storage",
+		label: "Storage",
+		icon: HardDriveIcon,
+		path: "/deployment/storage",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 	{
@@ -203,6 +207,17 @@ const WORKSPACE_PAGES: readonly AdminPage[] = [
 	},
 ];
 
+const withAccountActions = (
+	page: AdminPage,
+	{ permissions }: AdminPageAccess,
+): AdminPage =>
+	page.id === "accounts" && permissions.createUser
+		? {
+				...page,
+				accountActions: { canCreateLease: permissions.editDeploymentConfig },
+			}
+		: page;
+
 /** Personal destinations and the deployment controls the current user can open. */
 export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
 	...WORKSPACE_PAGES.filter(
@@ -218,19 +233,33 @@ export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
 				},
 			]
 		: []),
-	...ADMIN_PAGES.filter((page) => page.id === "chat" || page.allowed(access)),
+	...ADMIN_PAGES.filter(
+		(page) => page.id === "chat" || page.allowed(access),
+	).map((page) => withAccountActions(page, access)),
 ];
 
 /** The admin pages this user can open, in the order the add menu lists them. */
 export const adminPagesFor = (access: AdminPageAccess): AdminPage[] =>
 	ADMIN_PAGES.filter((page) => page.allowed(access)).map(
-		({ allowed: _allowed, ...page }) => page,
+		({ allowed: _allowed, ...page }) => withAccountActions(page, access),
 	);
 
 /**
  * The user's quick links, in their order: the pages they chose that they can
  * still open, each once. None until they add some.
  */
+export const canonicalAdminPageId = (id: string): string => {
+	switch (id) {
+		case "database":
+		case "persistence":
+			return "storage";
+		case "observability":
+			return "monitoring";
+		default:
+			return id;
+	}
+};
+
 export const resolveAdminQuickLinks = (
 	chosen: readonly string[],
 	pages: readonly AdminPage[],
@@ -238,9 +267,7 @@ export const resolveAdminQuickLinks = (
 	const used = new Set<string>();
 	const links: AdminPage[] = [];
 	for (const id of chosen) {
-		const page = pages.find(
-			(p) => p.id === (id === "observability" ? "monitoring" : id),
-		);
+		const page = pages.find((p) => p.id === canonicalAdminPageId(id));
 		if (page && !used.has(page.id)) {
 			used.add(page.id);
 			links.push(page);
@@ -281,9 +308,43 @@ export const adminCategory = (pathname: string): AdminPage | null => {
 	return category;
 };
 
+/** The home destination's appearance on the root chevron. */
+export const defaultHomePresentation = (path: string | null) => {
+	const page = path ? adminCategory(path) : null;
+	return { label: page?.label ?? "Settings", icon: page?.icon ?? SettingsIcon };
+};
+
 /** The category's label, e.g. "Health" for /health/derp/regions/1. */
 export const adminCategoryLabel = (pathname: string): string | null =>
 	adminCategory(pathname)?.label ?? null;
+
+const navbarRouteLabels = [
+	["/templates", "Templates"],
+	["/templates/*", "Template"],
+	["/starter-templates/*", "Template"],
+	["/images/*", "Images"],
+	["/organizations/*", "Organizations"],
+	["/audit", "Audit logs"],
+	["/connectionlog", "Connection logs"],
+	["/hud", "HUD"],
+	["/install", "Install CLI"],
+	["/external-auth/:provider", "External authentication"],
+] as const;
+
+/** The section shown beside Settings when the current page has no breadcrumb of its own. */
+export const navbarPageLabel = (pathname: string): string | null => {
+	const route = navbarRouteLabels.find(([pattern]) =>
+		matchPath(pattern, pathname),
+	);
+	if (route) return route[1];
+	if (
+		pathname.startsWith("/@") &&
+		matchPath("/:username/:workspace/*", pathname)
+	) {
+		return "Workspace";
+	}
+	return adminCategoryLabel(pathname);
+};
 
 /** A category's icon (the one its quick link shows), by its ID. */
 export const adminPageIcon = (id: string): LucideIcon | undefined =>

@@ -9,6 +9,7 @@ import { globalLockdownKey } from "./globalLockdown";
 import { workspacesQueryKeyPrefix } from "./workspaces";
 
 const workspacePowerKey = ["platform", "workspace-power"] as const;
+export const runWorkspacePowerKey = [...workspacePowerKey, "run"] as const;
 export const workspacePowerHistory = (organizationId: string) => ({
 	queryKey: [...workspacePowerKey, organizationId],
 	queryFn: () => PlatformAPI.getWorkspacePowerHistory(organizationId),
@@ -50,6 +51,7 @@ export const runWorkspacePower = (
 	client: QueryClient,
 	globalToken?: string,
 ) => ({
+	mutationKey: runWorkspacePowerKey,
 	mutationFn: async ({
 		action,
 		targets,
@@ -163,19 +165,34 @@ const terminateSignoffsKey = [
 	"terminate-signoffs",
 ] as const;
 
+const localizeCountdown = (round: TerminateSignoffs) => ({
+	...round,
+	deadline_ms:
+		round.deadline_ms != null && round.server_now_ms != null
+			? Date.now() + round.deadline_ms - round.server_now_ms
+			: round.deadline_ms,
+});
+
 /** The open round of administrators' sign-offs on Global Terminate, kept current while another admin signs. */
 export const terminateSignoffs = () => ({
 	queryKey: terminateSignoffsKey,
-	queryFn: () => PlatformAPI.getTerminateSignoffs(),
-	refetchInterval: 3000,
+	queryFn: async () =>
+		localizeCountdown(await PlatformAPI.getTerminateSignoffs()),
+	refetchInterval: (query: { state: { data?: TerminateSignoffs } }) =>
+		query.state.data?.signoffs.length ? 500 : 3000,
 	retry: false,
 });
 
 const signoffMutation =
-	(client: QueryClient) => (mutationFn: () => Promise<TerminateSignoffs>) => ({
+	(client: QueryClient) =>
+	<T>(mutationFn: (value: T) => Promise<TerminateSignoffs>) => ({
 		mutationFn,
-		onSuccess: (data: TerminateSignoffs) =>
-			client.setQueryData(terminateSignoffsKey, data),
+		onSuccess: async (data: TerminateSignoffs) => {
+			const received = localizeCountdown(data);
+			await client.cancelQueries({ queryKey: terminateSignoffsKey });
+			client.setQueryData(terminateSignoffsKey, received);
+		},
+		onError: () => client.invalidateQueries({ queryKey: terminateSignoffsKey }),
 	});
 
 export const signTerminate = (client: QueryClient) =>
@@ -183,3 +200,9 @@ export const signTerminate = (client: QueryClient) =>
 
 export const cancelTerminate = (client: QueryClient) =>
 	signoffMutation(client)(PlatformAPI.cancelTerminate);
+
+export const revokeTerminateSignoff = (client: QueryClient) =>
+	signoffMutation(client)(PlatformAPI.revokeTerminateSignoff);
+
+export const setTerminatePaused = (client: QueryClient) =>
+	signoffMutation(client)(PlatformAPI.setTerminatePaused);

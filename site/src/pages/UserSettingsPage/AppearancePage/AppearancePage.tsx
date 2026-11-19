@@ -8,6 +8,7 @@ import type { UpdateUserAppearanceSettingsRequest } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { PageLoader } from "#/components/Loader/Loader";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
+import { withDefaultTheme } from "#/theme/customTheme";
 import { usePreferredColorScheme } from "#/theme/usePreferredColorScheme";
 import { AppearanceForm } from "./AppearanceForm";
 import { CompactAppearanceForm } from "./CompactAppearanceForm";
@@ -84,7 +85,7 @@ const AppearancePage: React.FC<{
 	const formProps = {
 		isUpdating: updateAppearanceSettingsMutation.isPending,
 		error: updateAppearanceSettingsMutation.error,
-		initialValues: appearanceSettingsQuery.data,
+		initialValues: withDefaultTheme(appearanceSettingsQuery.data),
 		activeScheme: osColorScheme,
 		onSubmit: submitAppearanceSettings,
 	};

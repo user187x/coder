@@ -1,5 +1,6 @@
 .breadcrumb-connected {
 	--crumb-edge: 8px;
+	--crumb-end-radius: var(--navbar-pill-radius, 9999px);
 }
 
 .breadcrumb-connected > ol {
@@ -30,6 +31,7 @@
 	min-width: 0;
 	height: var(--navbar-action-height, 2.5rem);
 	box-sizing: border-box;
+	border-radius: 0;
 	font-size: 0.8125rem;
 	padding: 8px 8px;
 	background: hsl(var(--surface-tertiary));
@@ -56,7 +58,7 @@
 }
 
 .breadcrumb-connected > ol > li:first-child > :is(a, span, button) {
-	border-radius: 6px 0 0 6px;
+	border-radius: var(--crumb-end-radius) 0 0 var(--crumb-end-radius);
 	padding-right: calc(8px + var(--crumb-edge));
 	clip-path: polygon(
 		0 0,
@@ -81,13 +83,13 @@
 }
 
 .breadcrumb-connected > ol > li:last-child > :is(a, span, button) {
-	border-radius: 0 6px 6px 0;
+	border-radius: 0 var(--crumb-end-radius) var(--crumb-end-radius) 0;
 	padding-right: 8px;
 	clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--crumb-edge) 50%);
 }
 
 .breadcrumb-connected > ol > li:only-child > :is(a, span, button) {
-	border-radius: 6px;
+	border-radius: var(--crumb-end-radius);
 	padding-inline: 8px;
 	clip-path: none;
 }
@@ -150,22 +152,6 @@
 	height: 0.875rem;
 	flex-shrink: 0;
 }
-/* The Settings chevron as a link, or (in the navbar) as the Settings menu's button. */
-.breadcrumb-connected.deployment-breadcrumb > ol > li:first-child > a,
-.breadcrumb-connected.deployment-breadcrumb
-	> ol
-	> li:first-child
-	> .settings-breadcrumb-trigger:not(:hover):not([data-state="open"]) {
-	background: hsl(var(--surface-tertiary));
-	color: hsl(var(--content-primary));
-}
-.breadcrumb-connected.deployment-breadcrumb
-	> ol
-	> li:last-child
-	> [aria-current="page"] {
-	color: var(--color-gray-900);
-}
-
 .category-breadcrumb-button {
 	--arrow-shift: -2px;
 }
@@ -257,7 +243,7 @@
 		calc(100% - var(--crumb-edge)) 100%,
 		0 100%
 	);
-	border-radius: 6px 0 0 6px;
+	border-radius: var(--crumb-end-radius) 0 0 var(--crumb-end-radius);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -295,6 +281,21 @@
 	flex: 0 0 auto;
 }
 
+:has(> .deployment-breadcrumb[data-inline]:not(.admin-navbar-breadcrumb)) {
+	margin-bottom: 0.25rem;
+}
+.deployment-breadcrumb[data-inline]:not(.admin-navbar-breadcrumb)
+	> ol
+	> li:last-child:not(:only-child) {
+	min-width: 6rem;
+}
+.deployment-breadcrumb[data-inline]:not(.admin-navbar-breadcrumb)
+	> ol
+	> li
+	> button.category-breadcrumb-button {
+	--toggle-width: 2.5rem;
+}
+
 /* The Settings breadcrumb in the navbar as the Settings menu's hardware (settingsMenuSkeuo.css): its chevrons are matte
    faces in a recessed well, the seam between them a dark channel; its colours are the navbar's (navbarSkeuo.css). The
    copy in the category list keeps its look. */
@@ -306,7 +307,7 @@
 .breadcrumb-connected.admin-navbar-breadcrumb > ol {
 	gap: 0;
 	padding: 3.5px;
-	border-radius: 10px;
+	border-radius: var(--crumb-end-radius);
 	background:
 		linear-gradient(var(--crumb-seam), var(--crumb-seam)) content-box,
 		var(--crumb-well) border-box;
@@ -345,26 +346,13 @@
 .breadcrumb-connected.admin-navbar-breadcrumb
 	> ol
 	> li
-	> :is(a, .settings-breadcrumb-trigger):hover,
+	> :where(a, .settings-breadcrumb-trigger):hover,
 .breadcrumb-connected.admin-navbar-breadcrumb
-	.category-breadcrumb-button:hover::before,
+	.category-breadcrumb-button:where(:hover)::before,
 .breadcrumb-connected.admin-navbar-breadcrumb
 	.category-breadcrumb-button
-	[data-category-toggle]:hover {
+	[data-category-toggle]:where(:hover) {
 	background: var(--crumb-face-hover);
-}
-.breadcrumb-connected.admin-navbar-breadcrumb
-	> ol
-	> li
-	> .settings-breadcrumb-trigger[data-state="open"],
-.breadcrumb-connected.admin-navbar-breadcrumb
-	> ol
-	> li
-	> :is(a, button):active {
-	background: var(--crumb-face-pressed);
-	box-shadow:
-		inset 0 1.5px 3px rgb(0 0 0 / 0.28),
-		inset 0 1px 1px rgb(0 0 0 / 0.18);
 }
 .breadcrumb-connected.admin-navbar-breadcrumb
 	> ol
@@ -372,156 +360,80 @@
 	> [aria-current="page"] {
 	color: var(--crumb-ink);
 }
-/* An empty Settings slot (no Settings menu to put its button there) leaves no gap in the well. */
+/* Empty portal slots do not occupy a segment. */
 .admin-navbar-breadcrumb > ol > li:empty {
 	display: none;
 }
-/* A page with an action (NavbarAction) puts its button in the category chevron's place: the button keeps its own
-   colours and dropdown, cut to the chevron's notched shape; the category's icon button steps aside meanwhile. */
-.admin-navbar-breadcrumb .category-action-host:empty {
-	display: none;
-}
-.admin-navbar-breadcrumb .category-action-host {
-	display: flex;
-	align-self: stretch;
-	width: 100%;
-	text-shadow: none;
-}
-.breadcrumb-connected.admin-navbar-breadcrumb
-	> ol
-	> li
-	> span:has(> .category-action-host:not(:empty)) {
-	padding: 0;
-	background: transparent;
-	overflow: hidden;
-}
-.admin-navbar-breadcrumb
-	span:has(> .category-action-host:not(:empty))
-	> .category-breadcrumb-button {
-	display: none;
-}
-.admin-navbar-breadcrumb .category-action-host > :is(a, button) {
-	width: 100%;
-	height: 100%;
-	min-height: 0;
-	border-radius: 0;
-	padding-left: calc(var(--crumb-edge) + 0.75rem);
-	padding-right: 0.875rem;
-}
-.breadcrumb-connected.admin-navbar-breadcrumb
-	> ol
-	> li
-	> :is(a, span, button)
-	.category-action-host
-	svg {
-	filter: none;
-}
-
-/* Every connected breadcrumb alike: the root crumb gray, each crumb after it white (the current page's too), in the
-   light and the dark theme. A page action standing in for a crumb (NavbarAction) keeps its own colours. */
-.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:first-child
-	> :is(a, span, button),
-.breadcrumb-connected.deployment-breadcrumb:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:first-child
-	> a {
-	background: #d9dce1;
-	color: #1f2329;
-}
-.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:first-child
-	> a:hover {
-	background: #cbcfd6;
-}
-.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:not(:first-child)
-	> :is(a, span, button),
-.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:not(:first-child)
-	> :is(a, span)[aria-current="page"],
-.breadcrumb-connected.deployment-breadcrumb:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:last-child
-	> [aria-current="page"] {
-	background: #fff;
-	color: #1f2329;
-}
-.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:not(:first-child)
-	> a:hover {
-	background: #f1f2f4;
-}
-.dark
-	.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:first-child
-	> :is(a, span, button),
-.dark
-	.breadcrumb-connected.deployment-breadcrumb:not(.admin-navbar-breadcrumb)
-	> ol
-	> li:first-child
-	> a {
-	background: #4b5059;
-	color: #eef0f3;
-}
-/* The category chevron: its face white like any child crumb (its toggle a shade darker, as a control). */
-.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	> ol
-	> li
-	> button.category-breadcrumb-button {
-	background: transparent;
-}
-.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	.category-breadcrumb-button::before {
-	background: #fff;
-}
-.breadcrumb-connected:not(.admin-navbar-breadcrumb)
-	.category-breadcrumb-button
-	[data-category-toggle] {
-	background: #eceef1;
-	color: #1f2329;
-}
-/* The navbar's matte breadcrumb draws its faces from tokens, zebra striped light and dark for as many crumbs as it
-   has: the root and every other crumb after it light gray, the ones between dark (as a page action standing in for a
-   crumb is). In the dark theme the stripes are dark gray and white. */
-.breadcrumb-connected.admin-navbar-breadcrumb > ol > li:nth-child(odd) {
-	--crumb-face: linear-gradient(180deg, #e3e6ea 0%, #d6dae0 50%, #c8cdd4 100%);
-	--crumb-face-hover: linear-gradient(
-		180deg,
-		#e9ecef 0%,
-		#dde0e5 50%,
-		#cfd3da 100%
-	);
-	--crumb-face-pressed: linear-gradient(180deg, #c3c8cf 0%, #cfd3d9 100%);
-	--crumb-ink: #1f2329;
-	--crumb-engrave: 0 1px 0 rgb(255 255 255 / 0.9);
-}
-.breadcrumb-connected.admin-navbar-breadcrumb > ol > li:nth-child(even) {
-	--crumb-face: linear-gradient(180deg, #3d424a 0%, #2f333a 50%, #262a30 100%);
-	--crumb-face-hover: linear-gradient(180deg, #484d56 0%, #383d44 100%);
-	--crumb-face-pressed: linear-gradient(180deg, #1f2227 0%, #2b2f35 100%);
-	--crumb-ink: #f3f4f6;
-	--crumb-engrave: 0 -1px 0 rgb(0 0 0 / 0.6);
-}
-.dark .breadcrumb-connected.admin-navbar-breadcrumb > ol > li:nth-child(odd) {
+/* Count populated crumbs so a portal's empty slot cannot change the visible stripes. */
+.breadcrumb-connected > ol > li {
 	--crumb-face: linear-gradient(180deg, #5a5f68 0%, #4b5059 50%, #40444c 100%);
 	--crumb-face-hover: linear-gradient(180deg, #636872 0%, #545962 100%);
 	--crumb-face-pressed: linear-gradient(180deg, #3b3f46 0%, #474b53 100%);
 	--crumb-ink: #eef0f3;
 	--crumb-engrave: 0 -1px 0 rgb(0 0 0 / 0.7);
 }
-.dark .breadcrumb-connected.admin-navbar-breadcrumb > ol > li:nth-child(even) {
+.breadcrumb-connected:not([data-categories-collapsed])
+	> ol
+	> li:nth-child(even of li:not(:empty)) {
 	--crumb-face: linear-gradient(180deg, #ffffff 0%, #fbfbfc 50%, #f1f2f4 100%);
 	--crumb-face-hover: linear-gradient(180deg, #ffffff 0%, #f6f7f8 100%);
 	--crumb-face-pressed: linear-gradient(180deg, #e9ebee 0%, #f3f4f6 100%);
 	--crumb-ink: #1f2329;
 	--crumb-engrave: 0 1px 0 rgb(255 255 255 / 0.9);
+}
+
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li
+	> :is(a, span, button),
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	.category-breadcrumb-button::before,
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	.category-breadcrumb-button
+	[data-category-toggle] {
+	background: var(--crumb-face);
+	color: var(--crumb-ink);
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li
+	> :is(a, span, button)[aria-current="page"],
+.breadcrumb-connected.deployment-breadcrumb
+	> ol
+	> li:last-child
+	> [aria-current="page"] {
+	color: var(--crumb-ink);
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li
+	> :is(a, span, button)[aria-current="page"] {
+	background: var(--crumb-face);
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li
+	> button.category-breadcrumb-button,
+.breadcrumb-connected:not(.admin-navbar-breadcrumb)
+	> ol
+	> li
+	> button.category-breadcrumb-button[aria-current="page"] {
+	background: transparent;
+}
+.breadcrumb-connected:not(.admin-navbar-breadcrumb) > ol > li > a:hover {
+	background: var(--crumb-face-hover);
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li.category-action-host
+	> :is(a, button) {
+	white-space: nowrap;
+}
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li.category-action-host
+	> :is(a, button):where(:hover) {
+	background: var(--crumb-face-hover);
 }
 /* The current page's crumb takes its stripe's ink, not the beside-the-page breadcrumb's dark gray. */
 .breadcrumb-connected.deployment-breadcrumb.admin-navbar-breadcrumb
@@ -529,4 +441,67 @@
 	> li:last-child
 	> [aria-current="page"] {
 	color: var(--crumb-ink);
+}
+
+.breadcrumb-connected
+	> ol
+	> li
+	> :is(a, button):not(.category-breadcrumb-button):is(
+		:active,
+		[data-state="open"],
+		[aria-expanded="true"]
+	),
+.breadcrumb-connected
+	> ol
+	> li[data-state="open"]
+	> :is(a, button):not(.category-breadcrumb-button),
+.breadcrumb-connected
+	.category-breadcrumb-button:is(:active, [aria-expanded="true"])::before,
+.breadcrumb-connected
+	.category-breadcrumb-button:is(:active, [aria-expanded="true"])
+	[data-category-toggle],
+.breadcrumb-connected
+	> ol
+	> li[data-state="open"]
+	.category-breadcrumb-button::before,
+.breadcrumb-connected
+	> ol
+	> li[data-state="open"]
+	.category-breadcrumb-button
+	[data-category-toggle],
+.breadcrumb-connected
+	> ol
+	> li
+	> .category-breadcrumb-anchor:has(
+		> .category-breadcrumb-button:is(:active, [aria-expanded="true"])
+	),
+.breadcrumb-connected
+	> ol
+	> li[data-state="open"]
+	> .category-breadcrumb-anchor {
+	background: var(--crumb-face-pressed);
+	box-shadow:
+		inset 0 1.5px 3px rgb(0 0 0 / 0.28),
+		inset 0 1px 1px rgb(0 0 0 / 0.18);
+}
+
+/* The popover anchor owns the clipped face. Its button fills that face. */
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li
+	> .category-breadcrumb-anchor {
+	padding: 0;
+}
+
+.category-breadcrumb-anchor > .category-breadcrumb-button {
+	display: grid;
+	place-items: center;
+	width: 100%;
+	height: 100%;
+	background: transparent;
+}
+
+.category-breadcrumb-anchor .category-breadcrumb-button::before,
+.category-breadcrumb-anchor .category-breadcrumb-button [data-category-toggle] {
+	display: none;
 }

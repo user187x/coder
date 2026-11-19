@@ -85,7 +85,7 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: coder
+  name: coder-server
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "cp.labels" . | nindent 4 }}

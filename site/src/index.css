@@ -248,6 +248,10 @@
 		cursor: text;
 	}
 
+	input:where([type="range"], [type="checkbox"], [type="radio"]) {
+		accent-color: hsl(var(--content-link));
+	}
+
 	button,
 	select {
 		text-transform: none;
@@ -441,6 +445,7 @@
 @layer base {
 	:root,
 	.light {
+		color-scheme: light;
 		--content-primary: 240 10% 4%;
 		--content-secondary: 240 5% 34%;
 		--content-link: 221 83% 53%;
@@ -518,6 +523,7 @@
 		--avatar-sm: 1.5rem;
 	}
 	.dark {
+		color-scheme: dark;
 		--content-primary: 0 0% 100%;
 		--content-secondary: 240 5% 65%;
 		--content-link: 213 94% 68%;

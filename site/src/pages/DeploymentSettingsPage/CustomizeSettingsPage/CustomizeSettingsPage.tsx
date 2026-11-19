@@ -284,7 +284,11 @@ export const LogoView: React.FC<LogoViewProps> = ({
 							if (value === "dark" || value === "light") setPreviewTheme(value);
 						}}
 					>
-						<TabsList aria-label="Logo preview theme">
+						<TabsList
+							aria-label="Logo preview theme"
+							variant={null}
+							className="mb-2 gap-1 [&>[data-slot=tabs-trigger]]:m-0 [&>[data-slot=tabs-trigger]]:rounded-md [&>[data-slot=tabs-trigger]]:px-3 [&>[data-slot=tabs-trigger]]:py-1.5 [&>[data-state=active]]:bg-surface-secondary"
+						>
 							<TabsTrigger value="dark">Dark</TabsTrigger>
 							<TabsTrigger value="light">Light</TabsTrigger>
 						</TabsList>

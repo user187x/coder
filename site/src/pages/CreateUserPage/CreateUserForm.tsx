@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { useFormik } from "formik";
-import { ArrowLeftIcon, CheckIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 import { useState } from "react";
 import { useQuery } from "react-query";
@@ -14,6 +14,7 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { FormFields, FormFooter } from "#/components/Form/Form";
 import { FormField } from "#/components/FormField/FormField";
+import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { OrganizationAutocomplete } from "#/components/OrganizationAutocomplete/OrganizationAutocomplete";
 import {
@@ -31,6 +32,7 @@ import { Spinner } from "#/components/Spinner/Spinner";
 import { RoleSelector } from "#/modules/roles/RoleSelector";
 import {
 	displayNameValidator,
+	type FormHelpers,
 	getFormHelpers,
 	nameValidator,
 	onChangeTrimmed,
@@ -76,6 +78,13 @@ const validationSchema = Yup.object({
 				.max(128)
 				.required("Choose a download password."),
 	}),
+	certificate_password_confirmation: Yup.string().when("issue_certificate", {
+		is: true,
+		then: (schema) =>
+			schema
+				.required("Confirm the download password.")
+				.oneOf([Yup.ref("certificate_password")], "Passwords must match."),
+	}),
 	password: Yup.string().when("login_type", {
 		is: "password",
 		then: (schema) => schema.required("Please enter a password."),
@@ -86,6 +95,7 @@ const validationSchema = Yup.object({
 type CreateUserFormData = {
 	readonly issue_certificate: boolean;
 	readonly certificate_password: string;
+	readonly certificate_password_confirmation: string;
 	readonly username: string;
 	readonly name: string;
 	readonly email: string;
@@ -94,6 +104,52 @@ type CreateUserFormData = {
 	readonly password: string;
 	readonly service_account: boolean;
 	readonly roles: Set<string>;
+};
+
+const CertificatePasswordField = ({
+	field,
+	label,
+}: {
+	field: FormHelpers;
+	label: string;
+}) => {
+	const [visible, setVisible] = useState(false);
+	const Icon = visible ? EyeOffIcon : EyeIcon;
+	const toggleLabel = `${visible ? "Hide" : "Show"} ${label.toLowerCase()}`;
+	return (
+		<FormField
+			field={field}
+			label={label}
+			required
+			control={(props) => (
+				<div className="relative">
+					<Input
+						{...props}
+						name={field.name}
+						value={field.value}
+						onChange={field.onChange}
+						onBlur={field.onBlur}
+						type={visible ? "text" : "password"}
+						autoComplete="new-password"
+						required
+						className={cn("pr-10", field.error && "border-border-destructive")}
+					/>
+					<Button
+						type="button"
+						size="icon"
+						variant="subtle"
+						className="absolute inset-y-0 right-0 h-full"
+						aria-label={toggleLabel}
+						title={toggleLabel}
+						aria-controls={props.id}
+						onClick={() => setVisible(!visible)}
+					>
+						<Icon aria-hidden />
+					</Button>
+				</div>
+			)}
+		/>
+	);
 };
 
 type CreateUserFormProps = {
@@ -132,7 +188,7 @@ export const CreateUserForm: React.FC<CreateUserFormProps> = (props) => {
 
 	if (!defaultLoginType) {
 		return (
-			<div>
+			<div className="dashboard-panel">
 				<Button variant="subtle" asChild className="-ml-3">
 					<Link to="/deployment/users">
 						<ArrowLeftIcon />
@@ -189,6 +245,7 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 			password: "",
 			issue_certificate: false,
 			certificate_password: "",
+			certificate_password_confirmation: "",
 			username: "",
 			name: "",
 			organization: showOrganizations
@@ -240,7 +297,7 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 	});
 
 	return (
-		<div>
+		<div className="dashboard-panel">
 			<Button variant="subtle" asChild className="-ml-3">
 				<Link to="/deployment/users">
 					<ArrowLeftIcon />
@@ -415,12 +472,15 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 												certificate is valid for 90 days. Choose a password to
 												protect its one-time download.
 											</p>
-											<FormField
+											<CertificatePasswordField
 												field={getFieldHelpers("certificate_password")}
 												label="Certificate download password"
-												type="password"
-												autoComplete="new-password"
-												required
+											/>
+											<CertificatePasswordField
+												field={getFieldHelpers(
+													"certificate_password_confirmation",
+												)}
+												label="Confirm download password"
 											/>
 										</>
 									)}

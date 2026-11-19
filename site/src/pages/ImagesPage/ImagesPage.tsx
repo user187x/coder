@@ -123,176 +123,182 @@ const ImagesPage: React.FC = () => {
 	}, [query.data, search, status, onlyNeedsFixing]);
 
 	return (
-		<div className="min-w-0 pb-12">
+		<div className="flex min-w-0 flex-col gap-6 pb-12">
 			<title>{pageTitle("Images")}</title>
 			<h1 className="sr-only">Images</h1>
-			<div className="mb-5 flex flex-wrap items-center justify-end gap-2">
-				{(needFixing > 0 || onlyNeedsFixing) && (
-					<Button
-						variant="outline"
-						size="lg"
-						aria-pressed={onlyNeedsFixing}
-						onClick={() => setOnlyNeedsFixing(!onlyNeedsFixing)}
-						title={
-							onlyNeedsFixing
-								? "Show every image again"
-								: "Show only the images that need fixing"
-						}
-						className="border-border-destructive/60 bg-surface-destructive/25 text-highlight-red aria-pressed:bg-surface-destructive/60"
-						data-testid="images-need-fixing"
-					>
-						<span
-							aria-hidden
-							className="size-2 rounded-full bg-border-destructive"
-						/>
-						{needFixing} image{needFixing === 1 ? "" : "s"} need
-						{needFixing === 1 ? "s" : ""} fixing
-					</Button>
-				)}
-				<SecurityDataBadge onOpen={() => setSettings(true)} />
-				{canEdit && (
-					<ResearchSandboxButton sandbox={query.data?.researchSandbox} />
-				)}
-				<Button variant="outline" size="lg" onClick={() => setSettings(true)}>
-					<SettingsIcon />
-					Settings
-				</Button>
-				{canEdit && (
-					<Button variant="outline" size="lg" onClick={() => setImporting({})}>
-						<ImportIcon />
-						Import
-					</Button>
-				)}
-				{canEdit && (
-					<NavbarAction>
-						<Button size="lg" onClick={() => setCreating(true)}>
-							<BoxIcon />
-							New Image
+			<div className="dashboard-panel min-w-0">
+				<div className="mb-5 flex flex-wrap items-center justify-end gap-2">
+					{(needFixing > 0 || onlyNeedsFixing) && (
+						<Button
+							variant="outline"
+							size="lg"
+							aria-pressed={onlyNeedsFixing}
+							onClick={() => setOnlyNeedsFixing(!onlyNeedsFixing)}
+							title={
+								onlyNeedsFixing
+									? "Show every image again"
+									: "Show only the images that need fixing"
+							}
+							className="border-border-destructive/60 bg-surface-destructive/25 text-highlight-red aria-pressed:bg-surface-destructive/60"
+							data-testid="images-need-fixing"
+						>
+							<span
+								aria-hidden
+								className="size-2 rounded-full bg-border-destructive"
+							/>
+							{needFixing} image{needFixing === 1 ? "" : "s"} need
+							{needFixing === 1 ? "s" : ""} fixing
 						</Button>
-					</NavbarAction>
-				)}
-			</div>
-
-			<div className="mb-4 flex flex-wrap items-center gap-3">
-				<SearchField
-					value={search}
-					onChange={setSearch}
-					placeholder="Search images…"
-					className="min-w-64 flex-1"
-					aria-label="Search images"
-				/>
-				<div role="tablist" aria-label="Status" className="flex gap-1">
-					{(["all", "ready", "building", "draft", "failed"] as const).map(
-						(s) => (
-							<Button
-								key={s}
-								role="tab"
-								aria-selected={status === s}
-								size="sm"
-								variant={status === s ? "default" : "outline"}
-								onClick={() => setStatus(s)}
-								className="capitalize"
-							>
-								{s}
+					)}
+					<SecurityDataBadge onOpen={() => setSettings(true)} />
+					{canEdit && (
+						<ResearchSandboxButton sandbox={query.data?.researchSandbox} />
+					)}
+					<Button variant="outline" size="lg" onClick={() => setSettings(true)}>
+						<SettingsIcon />
+						Settings
+					</Button>
+					{canEdit && (
+						<Button
+							variant="outline"
+							size="lg"
+							onClick={() => setImporting({})}
+						>
+							<ImportIcon />
+							Import
+						</Button>
+					)}
+					{canEdit && (
+						<NavbarAction>
+							<Button size="lg" onClick={() => setCreating(true)}>
+								<BoxIcon />
+								New Image
 							</Button>
-						),
+						</NavbarAction>
 					)}
 				</div>
-			</div>
 
-			{query.error ? <ErrorAlert error={query.error} /> : null}
+				<div className="mb-4 flex flex-wrap items-center gap-3">
+					<SearchField
+						value={search}
+						onChange={setSearch}
+						placeholder="Search images…"
+						className="min-w-64 flex-1"
+						aria-label="Search images"
+					/>
+					<div role="tablist" aria-label="Status" className="flex gap-1">
+						{(["all", "ready", "building", "draft", "failed"] as const).map(
+							(s) => (
+								<Button
+									key={s}
+									role="tab"
+									aria-selected={status === s}
+									size="sm"
+									variant={status === s ? "default" : "outline"}
+									onClick={() => setStatus(s)}
+									className="capitalize"
+								>
+									{s}
+								</Button>
+							),
+						)}
+					</div>
+				</div>
 
-			{/* Platform: in a rounded card, its footer saying what it holds and what anything in it does */}
-			<TableCard
-				data-testid="images-card"
-				summary={
-					query.data && query.data.images.length > 0 ? (
-						<span data-testid="images-summary">
-							Showing{" "}
-							<strong className="font-semibold text-content-primary">
-								{images.length}
-							</strong>{" "}
-							of{" "}
-							<strong className="font-semibold text-content-primary">
-								{query.data.images.length}
-							</strong>{" "}
-							{query.data.images.length === 1 ? "image" : "images"} ·{" "}
-							{query.data.images.filter((i) => i.status === "ready").length}{" "}
-							ready
-							{needFixing > 0 && ` · ${needFixing} need fixing`}
-						</span>
-					) : undefined
-				}
-				hint="Point at anything in the table to read what it does"
-			>
-				<Table data-testid="images-table">
-					<TableHeader>
-						<TableRow>
-							<TableHead className="w-[26%]">Name</TableHead>
-							<TableHead>Version</TableHead>
-							<TableHead className="w-[14%]">Contents</TableHead>
-							<TableHead className="w-[10%]">Size</TableHead>
-							<TableHead className="w-[12%]">Security</TableHead>
-							<TableHead className="w-[10%]">FIPS</TableHead>
-							<TableHead className="w-[14%]">Last built</TableHead>
-							<TableHead className="w-[1%]" />
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{query.isLoading ? (
+				{query.error ? <ErrorAlert error={query.error} /> : null}
+
+				{/* Platform: in a rounded card, its footer saying what it holds and what anything in it does */}
+				<TableCard
+					data-testid="images-card"
+					summary={
+						query.data && query.data.images.length > 0 ? (
+							<span data-testid="images-summary">
+								Showing{" "}
+								<strong className="font-semibold text-content-primary">
+									{images.length}
+								</strong>{" "}
+								of{" "}
+								<strong className="font-semibold text-content-primary">
+									{query.data.images.length}
+								</strong>{" "}
+								{query.data.images.length === 1 ? "image" : "images"} ·{" "}
+								{query.data.images.filter((i) => i.status === "ready").length}{" "}
+								ready
+								{needFixing > 0 && ` · ${needFixing} need fixing`}
+							</span>
+						) : undefined
+					}
+					hint="Point at anything in the table to read what it does"
+				>
+					<Table data-testid="images-table">
+						<TableHeader>
 							<TableRow>
-								<TableCell colSpan={8} className="text-content-secondary">
-									Loading…
-								</TableCell>
+								<TableHead className="w-[26%]">Name</TableHead>
+								<TableHead>Version</TableHead>
+								<TableHead className="w-[14%]">Contents</TableHead>
+								<TableHead className="w-[10%]">Size</TableHead>
+								<TableHead className="w-[12%]">Security</TableHead>
+								<TableHead className="w-[10%]">FIPS</TableHead>
+								<TableHead className="w-[14%]">Last built</TableHead>
+								<TableHead className="w-[1%]" />
 							</TableRow>
-						) : images.length === 0 ? (
-							<TableEmpty
-								message={
-									query.data?.images.length
-										? "No image matches."
-										: "No images yet"
-								}
-								description={
-									query.data?.images.length
-										? undefined
-										: canEdit
-											? "Build one: apt packages, installations, hardening, a desktop and your configuration on top of the workspace image."
-											: "Admins and template admins build images here."
-								}
-								cta={
-									canEdit && !query.data?.images.length ? (
-										<Button onClick={() => setCreating(true)}>
-											<PlusIcon />
-											New Image
-										</Button>
-									) : undefined
-								}
-							/>
-						) : (
-							images.map((image) => (
-								<ImageRow
-									key={image.id}
-									image={image}
-									canEdit={canEdit}
-									onImport={() =>
-										setImporting({
-											name: image.id,
-											ref:
-												image.imported?.source === "registry"
-													? image.imported.from
-													: undefined,
-											source:
-												image.imported?.source === "copa"
-													? undefined
-													: image.imported?.source,
-										})
+						</TableHeader>
+						<TableBody>
+							{query.isLoading ? (
+								<TableRow>
+									<TableCell colSpan={8} className="text-content-secondary">
+										Loading…
+									</TableCell>
+								</TableRow>
+							) : images.length === 0 ? (
+								<TableEmpty
+									message={
+										query.data?.images.length
+											? "No image matches."
+											: "No images yet"
+									}
+									description={
+										query.data?.images.length
+											? undefined
+											: canEdit
+												? "Build one: apt packages, installations, hardening, a desktop and your configuration on top of the workspace image."
+												: "Admins and template admins build images here."
+									}
+									cta={
+										canEdit && !query.data?.images.length ? (
+											<Button onClick={() => setCreating(true)}>
+												<PlusIcon />
+												New Image
+											</Button>
+										) : undefined
 									}
 								/>
-							))
-						)}
-					</TableBody>
-				</Table>
-			</TableCard>
+							) : (
+								images.map((image) => (
+									<ImageRow
+										key={image.id}
+										image={image}
+										canEdit={canEdit}
+										onImport={() =>
+											setImporting({
+												name: image.id,
+												ref:
+													image.imported?.source === "registry"
+														? image.imported.from
+														: undefined,
+												source:
+													image.imported?.source === "copa"
+														? undefined
+														: image.imported?.source,
+											})
+										}
+									/>
+								))
+							)}
+						</TableBody>
+					</Table>
+				</TableCard>
+			</div>
 
 			<PlatformImages />
 			<ImagesInUse

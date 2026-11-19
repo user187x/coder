@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useQuery } from "react-query";
 import { useSearchParams } from "react-router";
 import { deploymentConfig } from "#/api/queries/deployment";
@@ -10,13 +9,20 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { usePaginatedQuery } from "#/hooks/usePaginatedQuery";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { ShortTermLeases } from "#/modules/platform/shortTermLeases/ShortTermLeases";
+import { createLeaseParam } from "#/modules/users/AccountCreationMenuItems";
 import { pageTitle } from "#/utils/page";
 import { UserQuotaProvider, UserQuotaSection } from "./UserQuotaSection";
 import { UsersPageView } from "./UsersPageView";
 
 const UsersPage: React.FC = () => {
 	const [searchParams, setSearchParams] = useSearchParams();
-	const [createLeaseOpen, setCreateLeaseOpen] = useState(false);
+	const createLeaseOpen = searchParams.get(createLeaseParam) === "1";
+	const setCreateLeaseOpen = (open: boolean) => {
+		const next = new URLSearchParams(searchParams);
+		if (open) next.set(createLeaseParam, "1");
+		else next.delete(createLeaseParam);
+		setSearchParams(next, { replace: !open, preventScrollReset: true });
+	};
 	const { entitlements } = useDashboard();
 
 	const groupsByUserIdQuery = useQuery(groupsByUserId());
@@ -97,11 +103,7 @@ const UsersPage: React.FC = () => {
 					groupsByUserId={groupsByUserIdQuery.data}
 					me={me.id}
 					canCreateUser={canCreateUser}
-					onCreateLease={
-						permissions.editDeploymentConfig
-							? () => setCreateLeaseOpen(true)
-							: undefined
-					}
+					canCreateLease={permissions.editDeploymentConfig}
 					leases={
 						permissions.editDeploymentConfig && (
 							<ShortTermLeases

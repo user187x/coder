@@ -73,9 +73,7 @@ it("opens account and lease creation from a single trigger", async () => {
 	const user = userEvent.setup();
 	const trigger = await screen.findByRole("button", { name: "New account" });
 	await user.click(trigger);
-	await user.click(
-		await screen.findByRole("menuitem", { name: "Create Lease" }),
-	);
+	await user.click(await screen.findByRole("menuitem", { name: "New Lease" }));
 	const dialog = await screen.findByRole("dialog", {
 		name: "New short term lease",
 	});

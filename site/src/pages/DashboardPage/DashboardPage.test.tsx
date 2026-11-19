@@ -53,7 +53,7 @@ it("shows each allocation against the quota", async () => {
 	expect(rings).toHaveAccessibleName(
 		"Memory: 12 of 16 GB allocated (75% of quota), within quota; " +
 			"CPU: 6 of 8 cores allocated (75% of quota), within quota; " +
-			"Disk: 30 of 50 GB allocated (60% of quota), within quota",
+			"Disk: 30 of 50 GB allocated (60% of quota), within quota; GPU: None claimed",
 	);
 	expect(screen.getByRole("meter", { name: "Disk allocated" })).toHaveAttribute(
 		"aria-valuetext",
@@ -102,6 +102,11 @@ it("shows the GPUs a running workspace claims", async () => {
 	setup({ ...MockQuotaMeResources, workspaces: [{ ...dev, gpus: 2 }, data] });
 	const gpu = await screen.findByRole("region", { name: "GPU" });
 	expect(within(gpu).getByRole("definition")).toHaveTextContent("2 GPU");
+	expect(
+		await within(summary()).findByRole("img", {
+			name: /GPU: 2 claimed by running workspaces/,
+		}),
+	).toBeTruthy();
 });
 
 it("stops refreshing while Live is switched off", async () => {

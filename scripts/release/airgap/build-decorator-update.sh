@@ -131,8 +131,8 @@ Argo CD then syncs: Coder restarts on ${fork_tag} (the new pod first, no gap), t
 services update, and the template pushes run (new template versions; workspaces show "Update" once they are older).
 
   kubectl -n argocd get application coder -w        Synced, Healthy
-  kubectl -n coder rollout status deploy/coder
-  kubectl -n coder get deploy coder -o jsonpath='{.spec.template.spec.containers[0].image}'
+  kubectl -n coder rollout status deploy/coder-server
+  kubectl -n coder get deploy coder-server -o jsonpath='{.spec.template.spec.containers[0].image}'
 
 Back to the previous release: restore the .bak file and kubectl apply -f it (the earlier charts and image are still
 in your registry).

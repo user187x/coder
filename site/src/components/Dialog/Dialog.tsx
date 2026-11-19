@@ -66,7 +66,7 @@ export const DialogContent: React.FC<DialogContentProps> = ({
 	...props
 }) => {
 	return (
-		<DialogPortal>
+		<DialogPortal container={document.fullscreenElement}>
 			<DialogOverlay className={overlayClassName} />
 			<DialogPrimitive.Content
 				className={cn(dialogVariants({ variant }), className)}

@@ -32,7 +32,7 @@ def warm_pod(template, node, image, namespace):
 
 def prepare(run, image, namespace, template=None):
     """Warm the target image without replacing the running writer or mounting its data."""
-    current = run(["get", "deployment", "coder-ui-updates", "--ignore-not-found", "-o", "json"])
+    current = run(["get", "deployment", "coder-ui", "--ignore-not-found", "-o", "json"])
     if not current.strip():
         return
     deployment = json.loads(current)
@@ -55,15 +55,15 @@ def prepare(run, image, namespace, template=None):
 
 def update(run, image, namespace):
     prepare(run, image, namespace)
-    run(["set", "image", "deployment/coder-ui-updates", "ui=" + image])
-    run(["rollout", "status", "deployment/coder-ui-updates", "--timeout=180s"])
+    run(["set", "image", "deployment/coder-ui", "ui=" + image])
+    run(["rollout", "status", "deployment/coder-ui", "--timeout=180s"])
 
 
 def prepare_manifest(run, manifest, namespace):
     """Prepare the platform-service deployment from Helm's rendered target values."""
     documents = manifest.get("items", []) if manifest.get("kind") == "List" else [manifest]
     for document in documents:
-        if document.get("kind") != "Deployment" or document.get("metadata", {}).get("name") != "coder-ui-updates":
+        if document.get("kind") != "Deployment" or document.get("metadata", {}).get("name") != "coder-ui":
             continue
         template = document["spec"]["template"]
         image = next(c["image"] for c in template["spec"]["containers"] if c["name"] == "ui")

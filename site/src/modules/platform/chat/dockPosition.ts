@@ -3,46 +3,37 @@ import { toCssPx, toScreenPx } from "#/utils/appZoom";
 export type DockPosition = NonNullable<UserUIPreferences["chat_position"]>;
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
-/** Snap the rectangle to its nearest usable screen edge, retaining its position along that edge. */
+export const defaultChatBarPosition = { edge: "bottom", offset: 0.5 } as const;
+
+/** Remember a free location, or snap when released close to an edge. */
 export const snapDockPosition = (
 	rect: { left: number; top: number; width: number; height: number },
 	bounds: { width: number; height: number; top: number; bottom: number },
 ): DockPosition => {
-	const distances: [DockPosition["edge"], number][] = [
+	const distances: [Exclude<DockPosition["edge"], "free">, number][] = [
 		["left", rect.left - 16],
 		["right", bounds.width - rect.left - rect.width - 16],
 		["top", rect.top - bounds.top - 8],
 		["bottom", bounds.height - bounds.bottom - rect.top - rect.height - 10],
 	];
 	distances.sort((a, b) => Math.abs(a[1]) - Math.abs(b[1]));
-	const edge = distances[0][0];
+	const [edge, distance] = distances[0];
+	const horizontal = Math.max(1, bounds.width - rect.width - 32);
+	const vertical = Math.max(
+		1,
+		bounds.height - bounds.top - bounds.bottom - rect.height - 18,
+	);
+	const x = clamp((rect.left - 16) / horizontal);
+	const y = clamp((rect.top - bounds.top - 8) / vertical);
+	if (Math.abs(distance) > 24) return { edge: "free", x, y };
 	return {
 		edge,
-		offset: clamp(
-			edge === "left" || edge === "right"
-				? (rect.top - bounds.top - 8) /
-						Math.max(
-							1,
-							bounds.height - bounds.top - bounds.bottom - rect.height - 18,
-						)
-				: (rect.left - 16) / Math.max(1, bounds.width - rect.width - 32),
-		),
+		offset: edge === "left" || edge === "right" ? y : x,
 	};
 };
 
-/** The content right edge follows the Settings panel in both docked sizes. */
-export const chatRightEdge = () => {
-	const side = document.querySelector(".settings-menu[data-settings-docked]");
-	return side
-		? Math.max(
-				0,
-				Math.min(
-					document.documentElement.clientWidth,
-					side.getBoundingClientRect().left,
-				),
-			)
-		: document.documentElement.clientWidth;
-};
+/** Floating chat can use the full viewport, including in front of Settings. */
+export const chatViewportWidth = () => document.documentElement.clientWidth;
 
 /**
  * The dock's top limit (--chat-top, set as a CSS length under the app's scale), in the screen pixels its placement
@@ -65,7 +56,7 @@ export const placeDock = (
 	top: number,
 	bottom: number,
 ) => {
-	const width = chatRightEdge();
+	const width = chatViewportWidth();
 	const height = window.innerHeight;
 	// Opposing anchors stretch an auto-sized dock and feed the previous position into its next measurement.
 	element.style.right = "auto";
@@ -73,6 +64,14 @@ export const placeDock = (
 	const rect = element.getBoundingClientRect();
 	const horizontal = Math.max(0, width - rect.width - 32);
 	const vertical = Math.max(0, height - top - bottom - rect.height - 18);
+	if (position.edge === "free") {
+		moveDock(
+			element,
+			16 + position.x * horizontal,
+			top + 8 + position.y * vertical,
+		);
+		return;
+	}
 	const left =
 		position.edge === "left"
 			? 16

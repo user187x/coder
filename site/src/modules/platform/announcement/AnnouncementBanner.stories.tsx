@@ -37,10 +37,16 @@ export const Navbar: Story = {
 export const ConfirmedAndKept: Story = {
 	parameters: {
 		queries: [
-			{ key: bannerKey, data: { ...MockBanner, dismissible: false } },
+			{ key: bannerKey, data: { ...MockBanner, dismissible: true } },
 			{
 				key: announcementStatusKey(MockBanner.id),
-				data: { signedIn: true, username: "admin", acked: true },
+				data: {
+					signedIn: true,
+					username: "admin",
+					acked: true,
+					viewedAt: "2026-11-17T20:00:00Z",
+					certificateFingerprint: "ab".repeat(32),
+				},
 			},
 		],
 	},

@@ -14,9 +14,9 @@ upgrades, replacing an existing Coder, and troubleshooting.
 
 | Component                       | Objects                                                        | Purpose                                                                                                                         |
 |---------------------------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| Coder (this repository's image) | Deployment `coder`, Service, ConfigMap `coder-platform-config` | Coder; it serves the announcement banner (`/__banner`) and forwards `/__coder-ui` to the service below                           |
+| Coder (this repository's image) | Deployment `coder-server`, Service, ConfigMap `coder-platform-config` | Coder; it serves the announcement banner (`/__banner`) and forwards `/__coder-ui` to the service below                           |
 | PostgreSQL (optional)           | StatefulSet `coder-db`, Service                                | Coder's database, including uploaded logos, avatars and template icons                                                          |
-| Platform service                | Deployment `coder-ui-updates`, Service, PVC                    | Logo, avatars, template icons, classification, announcements, chat, and the Keycloak, Network, Monitoring and Persistence pages |
+| Platform service                | Deployment `coder-ui`, Service, PVC                    | Logo, avatars, template icons, classification, announcements, chat, and the Keycloak, Network, Monitoring and Persistence pages |
 | Setup Jobs                      | Hook Jobs                                                      | Generate the database and first-admin passwords, then create the first admin                                                    |
 | Routing (optional)              | Ingress, Gateway API HTTPRoute                                 | `accessURL` and `wildcardAccessURL`                                                                                             |
 

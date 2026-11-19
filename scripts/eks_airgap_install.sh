@@ -1105,7 +1105,7 @@ phase_platform() {
 		# The load balancer takes a minute or two to register the nodes. Checked from inside the VPC (the Coder pod),
 		# since the balancer is internal.
 		wait_until 600 "Coder to answer at $ACCESS_URL" \
-			kubectl -n "$NAMESPACE" exec deploy/coder -- curl -fsS -o /dev/null --max-time 5 "$ACCESS_URL/healthz" ||
+			kubectl -n "$NAMESPACE" exec deploy/coder-server -- curl -fsS -o /dev/null --max-time 5 "$ACCESS_URL/healthz" ||
 			warn "Coder doesn't answer at $ACCESS_URL from inside the VPC yet; check the load balancer's health."
 	fi
 }
@@ -1132,17 +1132,17 @@ deploy_coder() {
 		log "Installing Coder with Helm (first install: 5 to 10 minutes)"
 		clear_undeployed_release
 		helm upgrade --install "$RELEASE" "$chart" -n "$NAMESPACE" -f "$values" --wait --timeout 20m ||
-			die "The Helm install failed: kubectl -n $NAMESPACE get pods; kubectl -n $NAMESPACE logs deploy/coder"
+			die "The Helm install failed: kubectl -n $NAMESPACE get pods; kubectl -n $NAMESPACE logs deploy/coder-server"
 	else
 		install_argocd
 		serve_chart
 		apply_application "$values"
 	fi
-	kubectl -n "$NAMESPACE" rollout status deploy/coder --timeout=10m >/dev/null
+	kubectl -n "$NAMESPACE" rollout status deploy/coder-server --timeout=10m >/dev/null
 	if [[ -n $ACCESS_URL ]]; then
 		wait_until 300 "Coder to use $ACCESS_URL" coder_config_is CODER_ACCESS_URL "$ACCESS_URL" ||
 			die "Coder's configuration didn't pick up $ACCESS_URL."
-		kubectl -n "$NAMESPACE" rollout status deploy/coder --timeout=10m >/dev/null
+		kubectl -n "$NAMESPACE" rollout status deploy/coder-server --timeout=10m >/dev/null
 	fi
 }
 
@@ -1330,7 +1330,7 @@ phase_template() {
 	password=$(base64 -d <<<"$secret")
 	ws=$(image_ref "$IMG_WORKSPACE")
 	# The script goes over stdin, so the password never appears in a command line.
-	kubectl -n "$NAMESPACE" exec -i deploy/coder -- sh -s <<EOF || die "Creating the template failed (see above)."
+	kubectl -n "$NAMESPACE" exec -i deploy/coder-server -- sh -s <<EOF || die "Creating the template failed (see above)."
 set -eu
 export HOME=/tmp CODER_URL=http://127.0.0.1:8080
 body='{"email":"$ADMIN_EMAIL","password":"$password"}'

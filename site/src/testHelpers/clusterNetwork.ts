@@ -365,6 +365,45 @@ export const MockHAStorageReport: HAStorageReport = {
 		error: null,
 	},
 	storage: {
+		claimScope: "all namespaces",
+		claims: [
+			{
+				name: "data",
+				namespace: "coder",
+				storageClass: "local-path",
+				phase: "Bound",
+				volume: "pv-data",
+				requested: "10Gi",
+				capacity: "10Gi",
+				accessModes: ["ReadWriteOnce"],
+				usedBy: ["db-1"],
+			},
+			{
+				name: "data",
+				namespace: "other",
+				storageClass: "local-path",
+				phase: "Pending",
+				volume: null,
+				requested: "5Gi",
+				capacity: null,
+				accessModes: ["ReadWriteOnce"],
+				usedBy: [],
+			},
+		],
+		volumes: [
+			{
+				name: "pv-data",
+				claim: "coder/data",
+				storageClass: "local-path",
+				phase: "Bound",
+				capacity: "10Gi",
+				accessModes: ["ReadWriteOnce"],
+				usedBy: ["db-1"],
+				reclaimPolicy: "Retain",
+				driver: null,
+				created: null,
+			},
+		],
 		classes: [
 			{
 				name: "local-path",

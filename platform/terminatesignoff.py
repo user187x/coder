@@ -8,15 +8,22 @@ them (workspacepower.start) and the client marks the round complete once every o
 
   GET    /__coder-ui/api/workspace-power/terminate-signoffs           the current round
   POST   /__coder-ui/api/workspace-power/terminate-signoffs           sign off on it (a new round if none is open)
-  DELETE /__coder-ui/api/workspace-power/terminate-signoffs           cancel it
+  DELETE /__coder-ui/api/workspace-power/terminate-signoffs           cancel it (older clients)
+  POST   /__coder-ui/api/workspace-power/terminate-signoffs/cancel    {round_id}: cancel the specified round
+  POST   /__coder-ui/api/workspace-power/terminate-signoffs/pause     {round_id}: pause the shared countdown
+  POST   /__coder-ui/api/workspace-power/terminate-signoffs/resume    {round_id}: resume the shared countdown
+  POST   /__coder-ui/api/workspace-power/terminate-signoffs/revoke    {round_id}: withdraw your own sign-off
   POST   /__coder-ui/api/workspace-power/terminate-signoffs/complete  {round_id}: the terminate ran; close it
 """
+import contextlib
 import json
 import threading
+import time
 import uuid
 
 PATH = "/__coder-ui/api/workspace-power/terminate-signoffs"
 REQUIRED = 2
+COUNTDOWN_MS = 5000
 ROUND_SECONDS = 15 * 60
 STATE = LOG = None
 READY = False
@@ -40,8 +47,16 @@ def database():
                     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     username text NOT NULL, name text NOT NULL, fingerprint text NOT NULL,
                     signed_at timestamptz NOT NULL DEFAULT now(),
-                    closed_at timestamptz, closed_by uuid, closed_reason text CHECK (closed_reason IN ('completed', 'cancelled')),
-                    UNIQUE (round_id, user_id))""")
+                    closed_at timestamptz, closed_by uuid, closed_reason text)""")
+                tx.query("""ALTER TABLE coder_ui_updates.terminate_signoffs
+                    ADD COLUMN IF NOT EXISTS deadline_ms bigint,
+                    ADD COLUMN IF NOT EXISTS paused_ms bigint,
+                    DROP CONSTRAINT IF EXISTS terminate_signoffs_round_id_user_id_key,
+                    DROP CONSTRAINT IF EXISTS terminate_signoffs_closed_reason_check,
+                    ADD CONSTRAINT terminate_signoffs_closed_reason_check
+                    CHECK (closed_reason IN ('completed', 'cancelled', 'revoked'))""")
+                tx.query("""CREATE UNIQUE INDEX IF NOT EXISTS terminate_signoffs_open_signer
+                    ON coder_ui_updates.terminate_signoffs(round_id, user_id) WHERE closed_at IS NULL""")
                 tx.query("CREATE INDEX IF NOT EXISTS terminate_signoffs_open ON coder_ui_updates.terminate_signoffs(signed_at DESC) "
                          "WHERE closed_at IS NULL")
             READY = True
@@ -61,21 +76,30 @@ def thumbprint(db, user_id):
 def current(db):
     """The open round (its first sign-off at most ROUND_SECONDS ago): (round_id or None, [sign-offs, oldest first])."""
     rows = db.query("""SELECT row_to_json(s)::text FROM (
-        SELECT round_id, user_id, username, name, fingerprint, signed_at,
+        SELECT round_id, user_id, username, name, fingerprint, signed_at, deadline_ms, paused_ms,
             (SELECT min(signed_at) FROM coder_ui_updates.terminate_signoffs f WHERE f.round_id=t.round_id) AS opened_at
         FROM coder_ui_updates.terminate_signoffs t
         WHERE closed_at IS NULL AND round_id = (
             SELECT round_id FROM coder_ui_updates.terminate_signoffs WHERE closed_at IS NULL
-            GROUP BY round_id HAVING min(signed_at) > now() - make_interval(secs => $1::int)
+            GROUP BY round_id HAVING (
+                SELECT min(f.signed_at) FROM coder_ui_updates.terminate_signoffs f
+                WHERE f.round_id = terminate_signoffs.round_id
+            ) > now() - make_interval(secs => $1::int)
             ORDER BY min(signed_at) DESC LIMIT 1)
         ORDER BY signed_at, id) s""", [ROUND_SECONDS])
     signoffs = [json.loads(row[0]) for row in rows]
     return (signoffs[0]["round_id"] if signoffs else None), signoffs
 
 
+def now_ms():
+    return time.time_ns() // 1_000_000
+
+
 def view(db):
     round_id, signoffs = current(db)
-    return {"round_id": round_id, "required": REQUIRED, "round_seconds": ROUND_SECONDS,
+    final = signoffs[-1] if len(signoffs) == REQUIRED else {}
+    return {"round_id": round_id, "deadline_ms": final.get("deadline_ms"),
+            "paused_ms": final.get("paused_ms"), "server_now_ms": now_ms(), "required": REQUIRED, "round_seconds": ROUND_SECONDS,
             "opened_at": signoffs[0]["opened_at"] if signoffs else None,
             "signoffs": [{k: s[k] for k in ("user_id", "username", "name", "fingerprint", "signed_at")} for s in signoffs]}
 
@@ -93,11 +117,13 @@ def sign(user):
             raise ValueError("You already signed off. Another administrator must sign off too.")
         if len(signoffs) >= REQUIRED:
             raise ValueError("This terminate already has its sign-offs.")
-        tx.query("""INSERT INTO coder_ui_updates.terminate_signoffs (id, round_id, user_id, username, name, fingerprint)
-            VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6)""",
-                 [str(uuid.uuid4()), round_id or str(uuid.uuid4()), user["id"], user["username"],
-                  user.get("name") or "", fingerprint])
-    LOG(event="terminate-signoff", user=user["username"], fingerprint=fingerprint)
+        recorded_round = round_id or str(uuid.uuid4())
+        tx.query("""INSERT INTO coder_ui_updates.terminate_signoffs (id, round_id, user_id, username, name, fingerprint, deadline_ms, signed_at)
+            VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7::bigint, clock_timestamp())""",
+                 [str(uuid.uuid4()), recorded_round, user["id"], user["username"],
+                  user.get("name") or "", fingerprint,
+                  str(now_ms() + COUNTDOWN_MS) if len(signoffs) == REQUIRED - 1 else None])
+    LOG(event="terminate-signoff", user=user["username"], fingerprint=fingerprint, round=recorded_round)
     return view(db)
 
 
@@ -114,16 +140,61 @@ def close(user, reason, round_id=None):
     return view(db)
 
 
-def ready(round_id):
+def revoke(user, round_id):
+    db = database()
+    with db.transaction() as tx:
+        tx.query("SELECT pg_advisory_xact_lock(731947, 1)")
+        open_round, signoffs = current(tx)
+        if round_id != open_round or not any(s["user_id"] == user["id"] for s in signoffs):
+            raise LookupError("You have no active sign-off in this round.")
+        tx.query("""UPDATE coder_ui_updates.terminate_signoffs
+            SET closed_at=now(), closed_by=$2::uuid, closed_reason='revoked'
+            WHERE round_id=$1::uuid AND user_id=$2::uuid AND closed_at IS NULL""", [round_id, user["id"]])
+    LOG(event="terminate-signoff-revoked", user=user["username"], round=round_id)
+    return view(db)
+
+
+def set_paused(round_id, pause):
+    db = database()
+    with db.transaction() as tx:
+        tx.query("SELECT pg_advisory_xact_lock(731947, 1)")
+        final = ready(round_id, tx)[-1]
+        now = now_ms()
+        deadline, remaining = final["deadline_ms"], final["paused_ms"]
+        if deadline is None or (remaining is None and deadline <= now):
+            raise ValueError("The Terminate countdown has ended.")
+        if pause != (remaining is not None):
+            tx.query("""UPDATE coder_ui_updates.terminate_signoffs
+                SET deadline_ms=$3::bigint, paused_ms=$4::bigint
+                WHERE round_id=$1::uuid AND user_id=$2::uuid AND closed_at IS NULL""",
+                     [round_id, final["user_id"], str(deadline if pause else now + remaining),
+                      str(deadline - now) if pause else None])
+    return view(db)
+
+
+@contextlib.contextmanager
+def authorized_start(round_id):
+    """Serialize revocation with the final authorization and recording of an operation."""
+    with database().transaction() as tx:
+        tx.query("SELECT pg_advisory_xact_lock(731947, 1)")
+        signoffs = ready(round_id, tx)
+        final = signoffs[-1]
+        if final["deadline_ms"] is None or final["paused_ms"] is not None or final["deadline_ms"] > now_ms():
+            raise PermissionError("Wait for the Terminate countdown to finish.")
+        yield [{k: signer[k] for k in ("user_id", "username", "name", "signed_at")} for signer in signoffs]
+
+
+def ready(round_id, db=None):
     """Raise unless round_id is the open round and it has its sign-offs from REQUIRED different administrators."""
-    _, signoffs = current(database())
+    _, signoffs = current(db if db is not None else database())
     if not round_id or not signoffs or signoffs[0]["round_id"] != round_id or \
             len({s["user_id"] for s in signoffs}) < REQUIRED:
         raise PermissionError("Terminate needs the sign-off of two administrators.")
+    return signoffs
 
 
 def handle(h, method, path):
-    if path not in (PATH, PATH + "/complete"):
+    if path not in (PATH, PATH + "/complete", PATH + "/revoke", PATH + "/pause", PATH + "/resume", PATH + "/cancel"):
         return False
     try:
         if method in ("POST", "DELETE") and not h.csrf_ok():
@@ -145,7 +216,14 @@ def handle(h, method, path):
             round_id = body.get("round_id") if isinstance(body, dict) else None
             if not isinstance(round_id, str):
                 raise ValueError("round_id is required.")
-            h.send_json(200, close(user, "completed", str(uuid.UUID(round_id))))
+            round_id = str(uuid.UUID(round_id))
+            if path.endswith(("/pause", "/resume")):
+                h.send_json(200, set_paused(round_id, path.endswith("/pause")))
+            elif path.endswith("/cancel"):
+                h.send_json(200, close(user, "cancelled", round_id))
+            else:
+                h.send_json(200, revoke(user, round_id) if path.endswith("/revoke")
+                            else close(user, "completed", round_id))
         else:
             h.send_json(405, {"error": "Method not allowed."})
     except PermissionError as error:

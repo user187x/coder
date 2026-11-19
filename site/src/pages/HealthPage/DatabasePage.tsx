@@ -36,6 +36,9 @@ const DatabasePage = () => {
 				})}
 
 				<GridData>
+					<GridDataLabel>Severity</GridDataLabel>
+					<GridDataValue>{database.severity}</GridDataValue>
+
 					<GridDataLabel>Reachable</GridDataLabel>
 					<GridDataValue>{database.reachable ? "Yes" : "No"}</GridDataValue>
 

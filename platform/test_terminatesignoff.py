@@ -6,6 +6,7 @@ import unittest
 import urllib.parse
 import uuid
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pgwire
 import terminatesignoff
@@ -90,6 +91,54 @@ class TerminateSignoffTest(unittest.TestCase):
         self.assertIsNone(done.body['round_id'])
         with self.assertRaises(PermissionError):
             terminatesignoff.ready(second.body['round_id'])
+
+    def test_countdown_is_shared_and_blocks_early_execution(self):
+        ada, grace, _ = self.admins
+        self.call('POST', ada)
+        path = terminatesignoff.PATH
+        with patch.object(terminatesignoff, 'now_ms', return_value=10_000) as now:
+            signed = self.call('POST', grace).body
+            round_id = signed['round_id']
+            body = {'round_id': round_id}
+            self.assertEqual(signed['deadline_ms'], 15_000)
+            self.assertEqual(self.call('GET', ada).body, signed)
+            with self.assertRaises(PermissionError), terminatesignoff.authorized_start(round_id):
+                self.fail('Countdown has not finished')
+            now.return_value = 12_000
+            paused = self.call('POST', ada, path + '/pause', body)
+            self.assertEqual(paused.status, 200, paused.body)
+            self.assertEqual(paused.body['paused_ms'], 3_000)
+            now.return_value = 21_000
+            with self.assertRaises(PermissionError), terminatesignoff.authorized_start(round_id):
+                self.fail('Countdown remains paused')
+            resumed = self.call('POST', grace, path + '/resume', body)
+            self.assertEqual(resumed.status, 200, resumed.body)
+            self.assertEqual(resumed.body['deadline_ms'], 24_000)
+            self.assertIsNone(resumed.body['paused_ms'])
+            now.return_value = 24_000
+            with terminatesignoff.authorized_start(round_id) as signoffs:
+                self.assertEqual([s["username"] for s in signoffs], ["ada", "grace"])
+
+    def test_revocation_is_scoped_to_the_signer_and_round(self):
+        ada, grace, other = self.admins
+        first = self.call('POST', ada)
+        round_id = first.body['round_id']
+        body = {'round_id': round_id}
+        path = terminatesignoff.PATH + '/revoke'
+        self.call('POST', grace)
+        self.assertEqual(self.call('POST', other, path, body).status, 404)
+        self.assertEqual(self.call('POST', ada, path, {'round_id': str(uuid.uuid4())}).status, 404)
+        revoked = self.call('POST', ada, path, body)
+        self.assertEqual(revoked.status, 200, revoked.body)
+        self.assertEqual([s['user_id'] for s in revoked.body['signoffs']], [grace['id']])
+        self.assertEqual(revoked.body['opened_at'], first.body['opened_at'])
+        with self.assertRaises(PermissionError), terminatesignoff.authorized_start(round_id):
+            self.fail('A revoked sign-off cannot authorize a new operation')
+        signed_again = self.call('POST', ada)
+        self.assertEqual(signed_again.status, 200, signed_again.body)
+        self.assertEqual(signed_again.body['round_id'], round_id)
+        self.assertEqual(signed_again.body['opened_at'], first.body['opened_at'])
+        self.assertEqual(self.pool.query("SELECT closed_reason FROM coder_ui_updates.terminate_signoffs WHERE closed_reason='revoked'"), [('revoked',)])
 
     def test_cancel_and_certificate_and_role_required(self):
         ada, _, nocert = self.admins

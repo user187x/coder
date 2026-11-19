@@ -1,6 +1,11 @@
 import { cn } from "cn";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "react-query";
+import {
+	type UseQueryResult,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import type {
@@ -26,8 +31,12 @@ import {
 	CHECK_STATUS_VARIANTS,
 	worstCheckStatus,
 } from "#/modules/platform/checkStatus";
+import {
+	DatabaseConfigurationCard,
+	DatabaseTopology,
+} from "../DatabaseSettingsPage/DatabaseDiscovery";
+import { InspectableDatabaseMap } from "../DatabaseSettingsPage/InspectableDatabaseMap";
 import { DisasterRecoveryCard, newDrTarget } from "./DisasterRecoveryCard";
-import { PersistenceMap } from "./PersistenceMap";
 import { ClusterSettingsCard, OperatorSetupCard } from "./PersistenceSetup";
 import { InstancesTable, StorageClassesTable } from "./PersistenceTables";
 import { FIX_LABELS, fixesForSettings, fixesNeeded } from "./persistenceFixes";
@@ -40,12 +49,34 @@ import { FIX_LABELS, fixesForSettings, fixesNeeded } from "./persistenceFixes";
  * approval.
  */
 export const PersistenceView: React.FC = () => {
+	const [paused, setPaused] = useState(false);
+	const reportQuery = useQuery(persistenceReport(paused));
+	return (
+		<DatabaseOperations
+			reportQuery={reportQuery}
+			paused={paused}
+			setPaused={setPaused}
+		/>
+	);
+};
+
+export function DatabaseOperations({
+	reportQuery,
+	paused,
+	setPaused,
+	storage = false,
+	hasStorageClasses = false,
+}: {
+	reportQuery: UseQueryResult<PersistenceReport>;
+	paused: boolean;
+	setPaused: (paused: boolean) => void;
+	storage?: boolean;
+	hasStorageClasses?: boolean;
+}) {
 	const queryClient = useQueryClient();
 	const [editingTarget, setEditingTarget] = useState<DrTargetInput | null>(
 		null,
 	);
-	const [paused, setPaused] = useState(false);
-	const reportQuery = useQuery(persistenceReport(paused));
 	const report = reportQuery.data;
 	const apply = useMutation(applyPersistenceFixes(queryClient));
 	const [draft, setDraft] = useState<PersistenceSettings | null>(null);
@@ -82,71 +113,113 @@ export const PersistenceView: React.FC = () => {
 
 	return (
 		<div className="flex flex-col gap-6">
-			<StatusCard
-				report={report}
-				fixes={fixes}
-				checking={reportQuery.isFetching}
-				onApproveAll={() => setPending(fixes)}
-				onRecheck={() => {
-					void reportQuery.refetch();
-				}}
-			/>
-			<section
-				aria-labelledby="persistence-map"
-				className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6 bg-surface-primary"
-			>
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<h2 id="persistence-map" className="m-0 text-base font-semibold">
-						Database map
-					</h2>
-					<div className="flex items-center gap-3">
-						<LiveStatus paused={paused} updatedAt={reportQuery.dataUpdatedAt} />
-						<Button
-							size="sm"
-							variant="outline"
-							aria-pressed={paused}
-							onClick={() => setPaused(!paused)}
-						>
-							{paused ? "Resume" : "Pause"}
-						</Button>
+			<div className="dashboard-panel">
+				<StatusCard
+					report={report}
+					fixes={fixes}
+					checking={reportQuery.isFetching}
+					onApproveAll={() => setPending(fixes)}
+					onRecheck={() => {
+						void reportQuery.refetch();
+					}}
+				/>
+			</div>
+			<div className="dashboard-panel">
+				<section
+					id="database-map"
+					aria-labelledby="persistence-map"
+					className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6 bg-surface-primary"
+				>
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						<h2 id="persistence-map" className="m-0 text-base font-semibold">
+							Database map
+						</h2>
+						{!storage && (
+							<div className="flex items-center gap-3">
+								<LiveStatus
+									paused={paused}
+									updatedAt={reportQuery.dataUpdatedAt}
+								/>
+								<Button
+									size="sm"
+									variant="outline"
+									aria-pressed={paused}
+									onClick={() => setPaused(!paused)}
+								>
+									{paused ? "Resume" : "Pause"}
+								</Button>
+							</div>
+						)}
 					</div>
-				</div>
-				{reportQuery.error ? (
-					<p role="alert" className="m-0 text-sm text-content-destructive">
-						The latest re-check failed:{" "}
-						{getErrorMessage(reportQuery.error, "unknown error")}
-					</p>
-				) : null}
-				<PersistenceMap
-					report={report}
-					onAddTarget={() => setEditingTarget(newDrTarget("s3"))}
-				/>
-			</section>
-			{!report.facts.operator.installed && report.mode !== "external" && (
-				<OperatorSetupCard />
+					{storage && (
+						<p className="m-0 text-sm text-content-secondary">
+							{report.facts.provider ?? "Database provider unknown"}
+							{report.facts.cluster &&
+								` · ${report.facts.cluster.namespace}/${report.facts.cluster.name}`}
+						</p>
+					)}
+
+					{reportQuery.error ? (
+						<p role="alert" className="m-0 text-sm text-content-destructive">
+							The latest re-check failed:{" "}
+							{getErrorMessage(reportQuery.error, "unknown error")}
+						</p>
+					) : null}
+					<InspectableDatabaseMap
+						report={report}
+						onAddTarget={() => setEditingTarget(newDrTarget("s3"))}
+					/>
+				</section>
+			</div>
+			{storage && (
+				<>
+					<DatabaseTopology report={report} />
+					<DatabaseConfigurationCard
+						configuration={report.facts.configuration}
+					/>
+				</>
 			)}
-			<ChecksCard
-				report={report}
-				checkedAt={reportQuery.dataUpdatedAt}
-				onFix={(fix) => setPending([fix])}
-			/>
-			{report.mode !== "external" && (
-				<ClusterSettingsCard
+			{!report.facts.operator.installed && report.mode !== "external" && (
+				<div className="dashboard-panel">
+					<OperatorSetupCard />
+				</div>
+			)}
+			<div id="database-checks" className="dashboard-panel scroll-mt-6">
+				<ChecksCard
 					report={report}
-					settings={settings}
-					nothingToApply={!formFixes.length}
-					onChange={(change) => setDraft({ ...settings, ...change })}
-					onReset={() => setDraft(null)}
-					onApply={() => setPending(formFixes)}
+					checkedAt={reportQuery.dataUpdatedAt}
+					onFix={(fix) => setPending([fix])}
 				/>
+			</div>
+			{report.mode !== "external" && (
+				<div className="dashboard-panel">
+					<ClusterSettingsCard
+						report={report}
+						settings={settings}
+						nothingToApply={!formFixes.length}
+						onChange={(change) => setDraft({ ...settings, ...change })}
+						onReset={() => setDraft(null)}
+						onApply={() => setPending(formFixes)}
+					/>
+				</div>
 			)}
 			{/* Platform: copies of the database outside the cluster. */}
-			<DisasterRecoveryCard
-				editing={editingTarget}
-				onEditingChange={setEditingTarget}
-			/>
-			{report.facts.cluster && <InstancesTable report={report} />}
-			<StorageClassesTable report={report} />
+			<div id="disaster-recovery" className="dashboard-panel scroll-mt-6">
+				<DisasterRecoveryCard
+					editing={editingTarget}
+					onEditingChange={setEditingTarget}
+				/>
+			</div>
+			{report.facts.cluster && (
+				<div id="database-instances" className="dashboard-panel scroll-mt-6">
+					<InstancesTable report={report} />
+				</div>
+			)}
+			{!hasStorageClasses && (
+				<div className="dashboard-panel">
+					<StorageClassesTable report={report} />
+				</div>
+			)}
 			<ConfirmDialog
 				type="info"
 				hideCancel={false}
@@ -193,7 +266,7 @@ export const PersistenceView: React.FC = () => {
 			/>
 		</div>
 	);
-};
+}
 
 type StatusCardProps = {
 	report: PersistenceReport;
@@ -323,7 +396,7 @@ const ChecksCard: React.FC<ChecksCardProps> = ({
 	>
 		<div className="flex flex-wrap items-center justify-between gap-3">
 			<h2 id="persistence-checks" className="m-0 text-base font-semibold">
-				What was found
+				Database checks
 			</h2>
 			{checkedAt > 0 && (
 				<span className="text-xs text-content-secondary" data-pixel="ignore">
@@ -331,6 +404,11 @@ const ChecksCard: React.FC<ChecksCardProps> = ({
 				</span>
 			)}
 		</div>
+		{report.checks.length === 0 && (
+			<p className="m-0 text-sm text-content-secondary">
+				No database checks were reported.
+			</p>
+		)}
 		{CHECK_GROUPS.map((group) => {
 			const checks = report.checks.filter((c) => c.group === group);
 			if (!checks.length) {

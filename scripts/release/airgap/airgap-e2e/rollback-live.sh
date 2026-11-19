@@ -9,7 +9,7 @@ exec > >(tee "$W/rollback-live.log") 2>&1
 bundles=("$W"/airgap/coder-airgapped-*)
 B=${bundles[0]}
 UP=$(awk '$1 ~ /^docker.io\/mrshll187\/coder-upstream:/ {print $1; exit}' "$B/images.txt")
-FORK_TAG=$(kubectl -n coder get deploy coder -o jsonpath='{.spec.template.spec.containers[0].image}' | sed 's/.*://')
+FORK_TAG=$(kubectl -n coder get deploy coder-server -o jsonpath='{.spec.template.spec.containers[0].image}' | sed 's/.*://')
 probe() { "$W/inpod.sh" "$W/rollback_probe.py" 2>&1 | tail -1; }
 cat >"$W/rollback_probe.py" <<'PY'
 import json, ssl, sys, time, urllib.request, urllib.error
@@ -45,10 +45,10 @@ fi; }
 set_image() { # repo tag
 	kubectl -n argocd patch application coder --type=merge -p "{\"spec\":{\"source\":{\"helm\":{\"valuesObject\":{\"coder\":{\"coder\":{\"image\":{\"repo\":\"localhost:5001/${1#*/}\",\"tag\":\"$2\"}}}}}}}}" >/dev/null
 	for _ in $(seq 60); do
-		[[ "$(kubectl -n coder get deploy coder -o jsonpath='{.spec.template.spec.containers[0].image}')" == *":$2" ]] && break
+		[[ "$(kubectl -n coder get deploy coder-server -o jsonpath='{.spec.template.spec.containers[0].image}')" == *":$2" ]] && break
 		sleep 10
 	done
-	kubectl -n coder rollout status deploy/coder --timeout=600s >/dev/null 2>&1
+	kubectl -n coder rollout status deploy/coder-server --timeout=600s >/dev/null 2>&1
 }
 before=$(probe)
 echo "fork:     $before"

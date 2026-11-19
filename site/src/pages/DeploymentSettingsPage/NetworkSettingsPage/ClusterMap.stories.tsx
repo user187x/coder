@@ -188,12 +188,3 @@ export const IngressOnSeparateNode: Story = {
 		],
 	},
 };
-
-export const FocusView: Story = {
-	...IngressOnSeparateNode,
-	play: async ({ canvasElement }) => {
-		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: "Focus view" }),
-		);
-	},
-};

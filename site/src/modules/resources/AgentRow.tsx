@@ -5,6 +5,7 @@ import {
 	EllipsisIcon,
 	InfoIcon,
 	MaximizeIcon,
+	MinimizeIcon,
 	PackageIcon,
 	PlayIcon,
 	TriangleAlertIcon,
@@ -30,14 +31,9 @@ import {
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
 import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuTrigger,
-} from "#/components/ContextMenu/ContextMenu";
-import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuItem,
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
@@ -528,13 +524,42 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 				)}
 			>
 				{topbar && (
-					<ContextMenu>
-						<ContextMenuTrigger asChild>
+					<DropdownMenu modal={false}>
+						<DropdownMenuTrigger asChild>
 							<Button
 								type="button"
 								variant="subtle"
 								size="icon"
 								className="workspace-overview-toggle absolute left-1/2 top-1 z-20 h-3 w-9 -translate-x-1/2 rounded-b-full rounded-t-none border border-t-0 border-solid border-border bg-surface-secondary text-content-secondary"
+								aria-label="Workspace overview options"
+								title="Workspace overview options"
+							>
+								<ChevronUpIcon aria-hidden className="size-3 rotate-180" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent
+							aria-label="Workspace overview options"
+							container={fullscreen ? document.fullscreenElement : undefined}
+							side="bottom"
+							sideOffset={0}
+							className="flex min-w-0 gap-1 rounded-b-xl rounded-t-none p-1"
+						>
+							{onToggleFullscreen && (
+								<DropdownMenuItem
+									aria-label={
+										fullscreen ? "Exit fullscreen" : "Enter fullscreen"
+									}
+									title={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+									onSelect={onToggleFullscreen}
+								>
+									{fullscreen ? (
+										<MinimizeIcon aria-hidden />
+									) : (
+										<MaximizeIcon aria-hidden />
+									)}
+								</DropdownMenuItem>
+							)}
+							<DropdownMenuItem
 								aria-label={
 									overviewCollapsed
 										? "Expand workspace overview"
@@ -545,26 +570,16 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 										? "Expand workspace overview"
 										: "Collapse workspace overview"
 								}
-								aria-expanded={!overviewCollapsed}
 								aria-controls={`${overviewId} ${overviewId}-network ${overviewId}-metrics`}
-								onClick={() => setOverviewCollapsed((current) => !current)}
+								onSelect={() => setOverviewCollapsed((current) => !current)}
 							>
-								{overviewCollapsed ? (
-									<ChevronUpIcon className="size-3 rotate-180" />
-								) : (
-									<ChevronUpIcon className="size-3" />
-								)}
-							</Button>
-						</ContextMenuTrigger>
-						{onToggleFullscreen && (
-							<ContextMenuContent>
-								<ContextMenuItem onSelect={onToggleFullscreen}>
-									<MaximizeIcon />{" "}
-									{fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-								</ContextMenuItem>
-							</ContextMenuContent>
-						)}
-					</ContextMenu>
+								<ChevronUpIcon
+									aria-hidden
+									className={cn(overviewCollapsed && "rotate-180")}
+								/>
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				)}
 				{topbar && (
 					<div
@@ -799,6 +814,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 
 					<div data-agent-panels className="relative w-full min-w-0">
 						<AddPanelTab
+							fullscreen={fullscreen}
 							apps={panelApps}
 							terminal={agent.display_apps.includes("web_terminal")}
 							actions={

@@ -1,19 +1,11 @@
-import {
-	HourglassIcon,
-	Maximize2Icon,
-	Minimize2Icon,
-	UserPlusIcon,
-} from "lucide-react";
+import { Maximize2Icon, Minimize2Icon, UserPlusIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
 import type * as TypesGen from "#/api/typesGenerated";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import { Dialog, DialogContent, DialogTitle } from "#/components/Dialog/Dialog";
 import {
 	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { UsersFilter } from "#/components/Filter/UsersFilter";
@@ -27,8 +19,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/Select/Select";
+import { BreadcrumbDropdownContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
+import { AccountCreationMenuItems } from "#/modules/users/AccountCreationMenuItems";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
 import {
 	UserActionDialogs,
@@ -49,7 +43,7 @@ type UsersPageViewProps = Omit<
 	onPageSizeChange: (size: number) => void;
 	canCreateUser?: boolean;
 	leases?: React.ReactNode;
-	onCreateLease?: () => void;
+	canCreateLease?: boolean;
 	/** User Quota (UserQuotaSection), for admins: shared controls below the merged accounts table. */
 	quota?: React.ReactNode;
 };
@@ -62,7 +56,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 	onPageSizeChange,
 	canCreateUser,
 	leases,
-	onCreateLease,
+	canCreateLease = false,
 	quota,
 	...props
 }) => {
@@ -187,20 +181,9 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 								<ChevronDownIcon aria-hidden />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							<DropdownMenuItem asChild>
-								<Link to="create">
-									<UserPlusIcon aria-hidden />
-									New account
-								</Link>
-							</DropdownMenuItem>
-							{onCreateLease && (
-								<DropdownMenuItem onSelect={onCreateLease}>
-									<HourglassIcon aria-hidden />
-									Create Lease
-								</DropdownMenuItem>
-							)}
-						</DropdownMenuContent>
+						<BreadcrumbDropdownContent>
+							<AccountCreationMenuItems canCreateLease={canCreateLease} />
+						</BreadcrumbDropdownContent>
 					</DropdownMenu>
 				</NavbarAction>
 			)}

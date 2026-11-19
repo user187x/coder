@@ -1,10 +1,11 @@
 {{- include "ca.values" . -}}
 {{- if and .Values.uiUpdates.enabled .Values.uiUpdates.nodeLoad.enabled (include "platform.hasLayer" .) }}
-{{- $ns := .Values.platformWebhook.runtimeIsolation.serviceNamespace }}
+{{- $ns := .Values.uiUpdates.nodeLoad.namespace | default "coder-system" }}
+{{- $runtime := .Values.platformWebhook.runtimeIsolation }}
 {{- if eq $ns .Release.Namespace }}
-{{- fail "node load collector serviceNamespace must differ from the protected release namespace" }}
+{{- fail "uiUpdates.nodeLoad.namespace must differ from the protected release namespace" }}
 {{- end }}
-{{- if not (and .Values.platformWebhook.enabled (or .Values.platformWebhook.runtimeIsolation.enabled .Values.platformWebhook.runtimeIsolation.prepareBackend)) }}
+{{- if and (ne $ns "coder-system") (not (and .Values.platformWebhook.enabled (or $runtime.enabled $runtime.prepareBackend) (eq $ns ($runtime.serviceNamespace | default "coder-runtime-system")))) }}
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -42,7 +43,7 @@ subjects:
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: coder-node-load
+  name: coder-node-load-average-collector
   namespace: {{ $ns }}
 spec:
   selector:

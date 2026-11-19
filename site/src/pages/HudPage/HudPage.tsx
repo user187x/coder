@@ -27,6 +27,7 @@ import { pageTitle } from "#/utils/page";
 import "./hud.css";
 import { useFitText } from "#/hooks/useFitText";
 import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
+import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { HudGraphs } from "./HudGraphs";
 import { HudNodeStrip } from "./HudNodeStrip";
 import { HudSortableGrid } from "./HudSortableGrid";
@@ -66,6 +67,7 @@ const formatValue = (m: HudMetric) => {
  */
 const HudPage: React.FC = () => {
 	const { permissions } = useAuthenticated();
+	const { buildInfo } = useDashboard();
 	const allowed = Boolean(permissions.viewDeploymentConfig);
 	const { data, error } = useQuery({ ...hud(), enabled: allowed });
 	const [order, setOrder] = useState(readHudOrder);
@@ -132,6 +134,10 @@ const HudPage: React.FC = () => {
 						<GaugeIcon aria-hidden className="size-6" />
 						HUD
 					</h1>
+					<p className="m-0 text-xs text-content-secondary">
+						Server Version:{" "}
+						<span className="font-mono">{buildInfo.version}</span>
+					</p>
 					<div className="flex items-center justify-between gap-3">
 						{data && (
 							<span

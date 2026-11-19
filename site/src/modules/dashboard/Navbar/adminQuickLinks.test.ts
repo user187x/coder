@@ -6,6 +6,7 @@ import {
 	adminCategoryLabel,
 	adminPageIcon,
 	adminPagesFor,
+	navbarPageLabel,
 	resolveAdminQuickLinks,
 	settingsPagesFor,
 } from "./adminQuickLinks";
@@ -53,7 +54,7 @@ describe("adminPagesFor", () => {
 			"Notifications",
 			"OAuth2 Applications",
 			"Quick Menu",
-			"Persistence",
+			"Storage",
 			"Security",
 		]);
 	});
@@ -167,6 +168,17 @@ it("retains Observability shortcuts under Monitoring for configuration viewers",
 	).toEqual(["monitoring"]);
 });
 
+it("merges saved Database and Persistence shortcuts in their existing order", () => {
+	expect(
+		ids(
+			resolveAdminQuickLinks(
+				["persistence", "network", "database", "storage"],
+				allPages,
+			),
+		),
+	).toEqual(["storage", "network"]);
+});
+
 it("offers personal destinations to members and restores their saved quick links in order", () => {
 	const pages = settingsPagesFor({
 		permissions: MockNoPermissions,
@@ -195,4 +207,19 @@ it("offers Templates to those who make templates", () => {
 		oauth2Provider: false,
 	});
 	expect(ids(addableAdminPages([], pages))).toContain("templates");
+});
+
+it.each([
+	["/templates", "Templates"],
+	["/templates/new/builder", "Template"],
+	["/templates/default/web/versions/v1", "Template"],
+	["/starter-templates/docker", "Template"],
+	["/@owner/dev/builds/1", "Workspace"],
+	["/workspaces", "Workspaces"],
+	["/images/base/edit", "Images"],
+	["/organizations/default/roles", "Organizations"],
+	["/audit", "Audit logs"],
+	["/unknown-route", null],
+])("resolves the fallback breadcrumb for %s", (path, label) => {
+	expect(navbarPageLabel(path)).toBe(label);
 });

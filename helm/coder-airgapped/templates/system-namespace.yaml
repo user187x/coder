@@ -1,0 +1,10 @@
+{{- include "ca.values" . -}}
+{{- $runtime := .Values.platformWebhook.runtimeIsolation }}
+{{- if and .Values.uiUpdates.enabled (include "platform.hasLayer" .) (ne .Release.Namespace "coder-system") (not (and .Values.platformWebhook.enabled (or $runtime.enabled $runtime.prepareBackend) (eq ($runtime.serviceNamespace | default "coder-runtime-system") "coder-system"))) }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: coder-system
+  annotations:
+    helm.sh/resource-policy: keep
+{{- end }}

@@ -6,7 +6,11 @@ import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import themes, { baseModeFor, CONCRETE_THEMES, type Theme } from "#/theme";
 import { AppearanceProvider } from "#/theme/appearance";
 import { ThemeContextProvider } from "#/theme/context";
-import { customThemeStyle, parseCustomTheme } from "#/theme/customTheme";
+import {
+	customThemeStyle,
+	parseCustomTheme,
+	withDefaultTheme,
+} from "#/theme/customTheme";
 import {
 	migrateLegacyPreference,
 	resolveActiveThemeName,
@@ -22,8 +26,9 @@ export const ThemeProvider: React.FC<React.PropsWithChildren> = ({
 	);
 	const preferredColorScheme = usePreferredColorScheme();
 
-	const settings: Partial<UserAppearanceSettings> =
-		appearanceSettingsQuery.data ?? metadata.userAppearance?.value ?? {};
+	const settings: Partial<UserAppearanceSettings> = withDefaultTheme(
+		appearanceSettingsQuery.data ?? metadata.userAppearance?.value ?? {},
+	);
 	const state = migrateLegacyPreference(settings);
 	const custom =
 		settings.theme_mode !== "sync"

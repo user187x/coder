@@ -2,13 +2,21 @@ import { cn } from "cn";
 import { PlusIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { useQuery } from "react-query";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { deploymentConfig } from "#/api/queries/deployment";
 import { templates } from "#/api/queries/templates";
 import { workspaces } from "#/api/queries/workspaces";
-import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import {
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+} from "#/components/DropdownMenu/DropdownMenu";
+import { useOptionalAuthContext } from "#/contexts/auth/AuthProvider";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
-import { linkToTemplate, useLinks } from "#/modules/navigation";
+import {
+	createWorkspaceSearchParam,
+	linkToTemplate,
+	useLinks,
+} from "#/modules/navigation";
 import type { AdminPage } from "./adminQuickLinks";
 
 export function SettingsDestinationMenu({
@@ -73,11 +81,19 @@ export function SettingsDestinationMenu({
 	);
 }
 
-function WorkspaceDestinations() {
+export function WorkspaceDestinations() {
+	const canCreateWorkspace =
+		useOptionalAuthContext()?.permissions?.createWorkspace;
 	const query = useQuery(workspaces({ q: "owner:me" }));
+	const { pathname, search } = useLocation();
+	const createSearch = new URLSearchParams(
+		pathname === "/workspaces" ? search : "",
+	);
+	createSearch.set(createWorkspaceSearchParam, "1");
+	const ownedWorkspaces = query.data?.workspaces ?? [];
 	return (
 		<>
-			{query.data?.workspaces.map((item) => (
+			{ownedWorkspaces.map((item) => (
 				<DropdownMenuItem key={item.id} asChild>
 					<Link
 						to={`/@${encodeURIComponent(item.owner_name)}/${encodeURIComponent(item.name)}`}
@@ -86,20 +102,33 @@ function WorkspaceDestinations() {
 					</Link>
 				</DropdownMenuItem>
 			))}
-			{!query.data?.workspaces.length && (
-				<DropdownMenuItem disabled>
-					{query.isLoading
-						? "Loading workspaces…"
-						: query.isError
-							? "Could not load workspaces"
-							: "No workspaces"}
-				</DropdownMenuItem>
+			{query.isLoading && (
+				<DropdownMenuItem disabled>Loading workspaces…</DropdownMenuItem>
+			)}
+			{!ownedWorkspaces.length && query.isError && (
+				<DropdownMenuItem disabled>Could not load workspaces</DropdownMenuItem>
+			)}
+			{query.isSuccess && !ownedWorkspaces.length && !canCreateWorkspace && (
+				<DropdownMenuItem disabled>No workspaces</DropdownMenuItem>
+			)}
+			{canCreateWorkspace && (
+				<>
+					{ownedWorkspaces.length > 0 && <DropdownMenuSeparator />}
+					<DropdownMenuItem asChild>
+						<Link
+							to={{ pathname: "/workspaces", search: createSearch.toString() }}
+						>
+							<PlusIcon aria-hidden />
+							Create Workspace
+						</Link>
+					</DropdownMenuItem>
+				</>
 			)}
 		</>
 	);
 }
 
-function TemplateDestinations() {
+export function TemplateDestinations() {
 	const { permissions } = useAuthenticated();
 	const getLink = useLinks();
 	const query = useQuery(templates());

@@ -139,8 +139,11 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
 	);
 };
 
+/** Reads auth state for controls that can also render without an AuthProvider. */
+export const useOptionalAuthContext = () => useContext(AuthContext);
+
 export const useAuthContext = () => {
-	const context = useContext(AuthContext);
+	const context = useOptionalAuthContext();
 
 	if (!context) {
 		throw new Error("useAuth should be used inside of <AuthProvider />");

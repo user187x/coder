@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, within } from "storybook/test";
 import type { SerpentGroup, SerpentOption } from "#/api/typesGenerated";
 import { SecuritySettingsPageView } from "./SecuritySettingsPageView";
+import "#/dashboardPanel.css";
 
 const group: SerpentGroup = {
 	name: "Networking",

@@ -9,6 +9,7 @@ import {
 	useDeploymentOptions,
 } from "#/utils/deployOptions";
 import OptionsTable from "../OptionsTable";
+import { CollapsibleSecurityCard } from "./CollapsibleSecurityCard";
 
 type SecuritySettingsPageViewProps = {
 	options: SerpentOption[];
@@ -25,39 +26,38 @@ export const SecuritySettingsPageView: React.FC<
 		deploymentGroupHasParent(o.group, "TLS"),
 	);
 
+	const securityOptions = useDeploymentOptions(
+		options,
+		"SSH Keygen Algorithm",
+		"Secure Auth Cookie",
+		"Disable Owner Workspace Access",
+	);
+
 	return (
-		<div className="flex flex-col gap-12">
-			<div>
-				<h1 className="sr-only">Security</h1>
-
-				{lockdown && <div className="mb-12">{lockdown}</div>}
-				{certificates && <div className="mb-12">{certificates}</div>}
-
-				<OptionsTable
-					options={useDeploymentOptions(
-						options,
-						"SSH Keygen Algorithm",
-						"Secure Auth Cookie",
-						"Disable Owner Workspace Access",
-					)}
-				/>
-			</div>
-
-			{tlsOptions.length > 0 && (
-				<div>
+		<div className="flex min-w-0 flex-col gap-6">
+			<h1 className="sr-only">Security</h1>
+			{lockdown}
+			{certificates && <div className="dashboard-panel">{certificates}</div>}
+			<div className="dashboard-panel">
+				<CollapsibleSecurityCard
+					id="tls"
+					title="TLS Configurations"
+					defaultOpen={false}
+				>
 					<SettingsHeader>
 						<SettingsHeaderTitle level="h2" hierarchy="secondary">
-							TLS
+							TLS Configurations
 						</SettingsHeaderTitle>
 						<SettingsHeaderDescription>
-							Ensure TLS is properly configured for your Coder deployment.
+							Review TLS and related Coder security options.
 						</SettingsHeaderDescription>
 					</SettingsHeader>
-
-					<OptionsTable options={tlsOptions} />
-				</div>
-			)}
-			{activity}
+					<OptionsTable
+						options={[...new Set([...tlsOptions, ...securityOptions])]}
+					/>
+				</CollapsibleSecurityCard>
+			</div>
+			{activity && <div className="dashboard-panel">{activity}</div>}
 		</div>
 	);
 };

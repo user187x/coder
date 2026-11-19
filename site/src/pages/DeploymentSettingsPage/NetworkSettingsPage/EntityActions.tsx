@@ -3,11 +3,13 @@ import {
 	FileTextIcon,
 	InfoIcon,
 	LogOutIcon,
+	Maximize2Icon,
 	MoveRightIcon,
 	PencilIcon,
 	RotateCwIcon,
 	ShieldIcon,
 	TagIcon,
+	Trash2Icon,
 	XIcon,
 } from "lucide-react";
 import {
@@ -25,7 +27,9 @@ import {
 	type KubernetesEntityRef,
 	type NetworkLogPod,
 	networkLogTargets,
+	networkPodControllers,
 	networkPodLogs,
+	type PodController,
 	restartNetworkPod,
 } from "#/api/clusterNetwork";
 import { getErrorMessage } from "#/api/errors";
@@ -36,8 +40,17 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
+	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogTitle,
+	DialogTrigger,
+} from "#/components/Dialog/Dialog";
 import {
 	Drawer,
 	DrawerClose,
@@ -53,9 +66,13 @@ import { MigrateWorkspaceDialog } from "#/modules/workspaces/WorkspaceMoreAction
 
 import { type NodeAction, NodeActions, nodeActionTitles } from "./NodeActions";
 
-type Mode = "logs" | "restart" | NodeAction;
+type Mode = "logs" | "restart" | "delete" | "controller" | NodeAction;
 const Actions = createContext<
-	(target: EntityRef, mode: Mode | "details") => void
+	(
+		target: EntityRef,
+		mode: Mode | "details",
+		controller?: PodController,
+	) => void
 >(() => {});
 type MigrationTarget = { id: string; name: string };
 const MigrateAction = createContext<(workspace: MigrationTarget) => void>(
@@ -105,6 +122,39 @@ const MigratePodItem: React.FC<{ target: KubernetesEntityRef }> = ({
 	);
 };
 
+const PodControllerItems: React.FC<{ target: KubernetesEntityRef }> = ({
+	target,
+}) => {
+	const action = useContext(Actions);
+	const query = useQuery(networkPodControllers(target));
+	return (
+		<>
+			<ContextMenuSeparator />
+			<div className="px-2 py-1 text-xs font-medium text-content-secondary">
+				Controlled By
+			</div>
+			{query.data?.controllers.length ? (
+				query.data.controllers.map((controller) => (
+					<ContextMenuItem
+						key={`${controller.kind}/${controller.name}`}
+						onSelect={() => action(target, "controller", controller)}
+					>
+						<FileTextIcon /> {controller.kind} · {controller.name}
+					</ContextMenuItem>
+				))
+			) : (
+				<ContextMenuItem disabled>
+					{query.isLoading
+						? "Loading controllers…"
+						: query.error
+							? "Controller lookup unavailable"
+							: "No controlling resource"}
+				</ContextMenuItem>
+			)}
+		</>
+	);
+};
+
 /** Adds the same Kubernetes actions to buttons and SVG nodes without changing their layout. */
 export const EntityContextMenu: React.FC<{
 	target?: EntityRef;
@@ -129,7 +179,12 @@ export const EntityContextMenu: React.FC<{
 					Restart Pod
 				</ContextMenuItem>
 				{target.type === "pod" && permissions.editDeploymentConfig && (
-					<MigratePodItem target={target} />
+					<>
+						<ContextMenuItem onSelect={() => action(target, "delete")}>
+							<Trash2Icon /> Delete Pod
+						</ContextMenuItem>
+						<MigratePodItem target={target} />
+					</>
 				)}
 				{target.type === "node" && (
 					<>
@@ -159,6 +214,7 @@ export const EntityContextMenu: React.FC<{
 					<InfoIcon />
 					{target.type === "node" ? "Describe" : "Details"}
 				</ContextMenuItem>
+				{target.type === "pod" && <PodControllerItems target={target} />}
 			</ContextMenuContent>
 		</ContextMenu>
 	);
@@ -172,18 +228,19 @@ export const EntityActionsProvider: React.FC<{
 	const [view, setView] = useState<{
 		target: KubernetesEntityRef;
 		mode: Mode;
+		controller?: PodController;
 	}>();
 	const [migrating, setMigrating] = useState<MigrationTarget>();
 	return (
 		<MigrateAction.Provider value={setMigrating}>
 			<Actions.Provider
-				value={(target, mode) => {
+				value={(target, mode, controller) => {
 					if (mode === "details") {
 						setView(undefined);
 						onDetails(target);
 					} else if (target.type !== "link") {
 						onOpen();
-						setView({ target, mode });
+						setView({ target, mode, controller });
 					}
 				}}
 			>
@@ -202,7 +259,11 @@ export const EntityActionsProvider: React.FC<{
 										? "Pod logs"
 										: view.mode === "restart"
 											? "Restart Pod"
-											: nodeActionTitles[view.mode]}
+											: view.mode === "delete"
+												? "Delete Pod"
+												: view.mode === "controller"
+													? `${view.controller?.kind} manifest`
+													: nodeActionTitles[view.mode]}
 								</DrawerTitle>
 								<DrawerDescription className="break-all">
 									{view?.target.type === "node"
@@ -221,7 +282,24 @@ export const EntityActionsProvider: React.FC<{
 							</DrawerClose>
 						</div>
 						{view &&
-							(view.mode === "logs" || view.mode === "restart" ? (
+							(view.mode === "controller" ? (
+								view.controller?.manifest ? (
+									<>
+										<p className="m-0 text-xs text-content-secondary">
+											Operational fields from the controller manifest.
+										</p>
+										<pre className="overflow-auto rounded-md border border-border p-3 text-xs">
+											{JSON.stringify(view.controller.manifest, null, 2)}
+										</pre>
+									</>
+								) : (
+									<p className="text-sm text-content-secondary">
+										The controller manifest is unavailable.
+									</p>
+								)
+							) : view.mode === "logs" ||
+								view.mode === "restart" ||
+								view.mode === "delete" ? (
 								<PodSelection
 									key={JSON.stringify(view)}
 									target={view.target}
@@ -254,7 +332,7 @@ const selectClass =
 
 const PodSelection: React.FC<{
 	target: KubernetesEntityRef;
-	mode: "logs" | "restart";
+	mode: "logs" | "restart" | "delete";
 }> = ({ target, mode }) => {
 	const targets = useQuery(networkLogTargets(target));
 	const [uid, setUid] = useState("");
@@ -294,10 +372,10 @@ const PodSelection: React.FC<{
 				<Loader />
 			) : !pod ? (
 				<p className="text-sm text-content-secondary">
-					This object has no related pods with logs.
+					This object has no related pods.
 				</p>
-			) : mode === "restart" ? (
-				<RestartPod key={pod.uid} pod={pod} />
+			) : mode !== "logs" ? (
+				<PodOperation key={pod.uid} pod={pod} operation={mode} />
 			) : (
 				<PodLogs key={pod.uid} pod={pod} />
 			)}
@@ -311,18 +389,32 @@ const PodLogs: React.FC<{ pod: NetworkLogPod }> = ({ pod }) => {
 	const [paused, setPaused] = useState(false);
 	const [follow, setFollow] = useState(true);
 	const [wrap, setWrap] = useState(true);
+	const [expanded, setExpanded] = useState(false);
 	const logs = useQuery(networkPodLogs(pod, container, previous, paused));
 	const output = useMemo(
 		() => stripAnsi(logs.data?.text ?? ""),
 		[logs.data?.text],
 	);
 	const viewport = useRef<HTMLTextAreaElement>(null);
+	const offset = useRef({ top: 0, left: 0 });
 	const id = useId();
+	const changeExpanded = (open: boolean) => {
+		if (viewport.current) {
+			offset.current = {
+				top: viewport.current.scrollTop,
+				left: viewport.current.scrollLeft,
+			};
+		}
+		setExpanded(open);
+	};
+	useEffect(() => {
+		viewport.current?.scrollTo?.(offset.current.left, offset.current.top);
+	}, [expanded]);
 	useEffect(() => {
 		if (follow && viewport.current)
 			viewport.current.scrollTop = viewport.current.scrollHeight;
-	}, [follow, logs.data]);
-	return (
+	}, [expanded, follow, output, logs.isLoading]);
+	const logView = (
 		<>
 			<div>
 				<Label htmlFor={id}>Container</Label>
@@ -388,6 +480,11 @@ const PodLogs: React.FC<{ pod: NetworkLogPod }> = ({ pod }) => {
 					aria-label="Pod log output"
 					aria-live="off"
 					wrap={wrap ? "soft" : "off"}
+					onClick={(event) => {
+						const { selectionStart, selectionEnd } = event.currentTarget;
+						if (!expanded && selectionStart === selectionEnd)
+							changeExpanded(true);
+					}}
 					onScroll={(e) => {
 						const el = e.currentTarget;
 						if (el.scrollHeight - el.scrollTop - el.clientHeight > 40)
@@ -399,20 +496,67 @@ const PodLogs: React.FC<{ pod: NetworkLogPod }> = ({ pod }) => {
 			)}
 		</>
 	);
+	return (
+		<Dialog open={expanded} onOpenChange={changeExpanded}>
+			<div className="flex justify-end">
+				<DialogTrigger asChild>
+					<Button size="sm" variant="outline">
+						<Maximize2Icon aria-hidden /> Expand logs
+					</Button>
+				</DialogTrigger>
+			</div>
+			{!expanded && logView}
+			<DialogContent
+				className="flex h-[85dvh] w-[calc(100%_-_2rem)] max-w-6xl flex-col gap-4 p-4 sm:p-6"
+				overlayClassName="backdrop-blur-md"
+				onOpenAutoFocus={(event) => {
+					if (viewport.current) {
+						event.preventDefault();
+						viewport.current.focus({ preventScroll: true });
+					}
+				}}
+			>
+				<div className="flex items-start justify-between gap-3">
+					<div className="min-w-0">
+						<DialogTitle>Expanded pod logs</DialogTitle>
+						<DialogDescription className="wrap-anywhere">
+							{pod.namespace}/{pod.name}
+						</DialogDescription>
+					</div>
+					<DialogClose asChild>
+						<Button
+							size="icon"
+							variant="subtle"
+							aria-label="Close expanded logs"
+						>
+							<XIcon />
+						</Button>
+					</DialogClose>
+				</div>
+				{expanded && logView}
+			</DialogContent>
+		</Dialog>
+	);
 };
 
-const RestartPod: React.FC<{ pod: NetworkLogPod }> = ({ pod }) => {
+const PodOperation: React.FC<{
+	pod: NetworkLogPod;
+	operation: "restart" | "delete";
+}> = ({ pod, operation }) => {
+	const deleting = operation === "delete";
+	const allowed = deleting || pod.restartable;
 	const [confirmation, setConfirmation] = useState("");
-	const request = useMutation(restartNetworkPod(useQueryClient()));
+	const request = useMutation(restartNetworkPod(useQueryClient(), operation));
 	const id = useId();
 	return (
 		<div className="flex flex-col gap-4 text-sm">
 			<p className="m-0">
-				Restart {pod.namespace}/{pod.name}? Active connections to this pod may
-				be interrupted. Kubernetes disruption budgets are respected, and its
-				workload controller creates the replacement.
+				{deleting ? "Delete" : "Restart"} {pod.namespace}/{pod.name}?{" "}
+				{deleting
+					? "Direct deletion interrupts active connections and bypasses pod disruption budgets. An unmanaged pod may have no replacement."
+					: "Active connections to this pod may be interrupted. Kubernetes disruption budgets are respected, and its workload controller creates the replacement."}
 			</p>
-			{!pod.restartable && (
+			{!allowed && (
 				<p role="status" className="text-content-warning">
 					{pod.restartReason || "This pod is already terminating."}
 				</p>
@@ -423,21 +567,21 @@ const RestartPod: React.FC<{ pod: NetworkLogPod }> = ({ pod }) => {
 				value={confirmation}
 				onChange={(e) => setConfirmation(e.target.value)}
 				autoComplete="off"
-				disabled={!pod.restartable || request.isPending || request.isSuccess}
+				disabled={!allowed || request.isPending || request.isSuccess}
 			/>
 			{request.error ? <ErrorAlert error={request.error} /> : null}
 			{request.data && <p role="status">{request.data.message}</p>}
 			<Button
 				variant="destructive"
 				disabled={
-					!pod.restartable ||
+					!allowed ||
 					confirmation !== pod.name ||
 					request.isPending ||
 					request.isSuccess
 				}
 				onClick={() => request.mutate({ pod, confirmation })}
 			>
-				Restart Pod
+				{deleting ? "Delete Pod" : "Restart Pod"}
 			</Button>
 		</div>
 	);

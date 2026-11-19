@@ -11,10 +11,12 @@ import {
 	confirmAnnouncement,
 	markAnnouncementViewed,
 } from "#/api/queries/platform";
+import { terminateSignoffs } from "#/api/queries/workspacePower";
 import { workspaceByOwnerAndName } from "#/api/queries/workspaces";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
 import { GlobalLockdownNotice } from "#/modules/platform/globalLockdown/GlobalLockdown";
+import { SignoffLight } from "../globalLockdown/TerminateSignoff";
 import {
 	useWorkspaceRestricted,
 	WorkspaceRestrictionNotice,
@@ -42,14 +44,10 @@ import { useSectionSplash } from "./sectionIntroductions";
 import { useAnnouncementMotion } from "./useAnnouncementMotion";
 import { usePulldownAllowed } from "./usePulldownAllowed";
 import "./bannerLcd.css";
+import { formatFingerprint } from "#/utils/pkcs12";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
 import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
 import { useBannerLive, wasPushed } from "./useBannerLive";
-import {
-	type CertificateFingerprints,
-	NOT_RECORDED,
-	useCertificateFingerprint,
-} from "./useCertificateFingerprint";
 
 /**
  * Where the banner is drawn:
@@ -61,21 +59,22 @@ import {
  */
 type Placement = "navbar" | "page" | "login";
 
-// The coder-banner service's own key for the dismissed announcement, kept so
-// dismissals made before this dashboard version still count.
+// The legacy key also contains dismissals that were triggered by confirmation.
 const DISMISSED_KEY = "coder-banner-dismissed";
 
-const readDismissed = (): string | null => {
+const RECEIPT_DISMISSED_KEY = "coder-banner-receipt-dismissed";
+
+const readDismissed = (key: string): string | null => {
 	try {
-		return localStorage.getItem(DISMISSED_KEY);
+		return localStorage.getItem(key);
 	} catch {
 		return null;
 	}
 };
 
-const writeDismissed = (id: string) => {
+const writeDismissed = (key: string, id: string) => {
 	try {
-		localStorage.setItem(DISMISSED_KEY, id);
+		localStorage.setItem(key, id);
 	} catch {
 		// Storage unavailable: the banner returns on the next page load.
 	}
@@ -135,11 +134,14 @@ const CARD_RADIUS: Record<Placement, number> = {
 
 type AnnouncementBannerProps = {
 	placement: Placement;
+	/** Set only for administrators who can use Global Command & Control. */
+	terminateAlertViewerId?: string;
 };
 
 /** The announcement published in General > Announcement. */
 export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 	placement,
+	terminateAlertViewerId,
 }) => {
 	const { pathname } = useLocation();
 	const match = pathname.match(/^\/@([^/]+)\/([^/]+)\/?$/);
@@ -154,7 +156,14 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 	const enabled = !isEmbeddedFrame();
 	const live = useBannerLive(enabled);
 	const { data: banner } = useQuery({ ...bannerQuery(live), enabled });
-	const [dismissedId, setDismissedId] = useState(readDismissed);
+	const dismissalKey =
+		banner && hasReceipts(banner, placement)
+			? RECEIPT_DISMISSED_KEY
+			: DISMISSED_KEY;
+	const [dismissed, setDismissed] = useState(() => ({
+		[DISMISSED_KEY]: readDismissed(DISMISSED_KEY),
+		[RECEIPT_DISMISSED_KEY]: readDismissed(RECEIPT_DISMISSED_KEY),
+	}));
 	const lockdown = useQuery({
 		...globalLockdown(),
 		enabled: enabled && placement !== "login",
@@ -186,7 +195,7 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 
 	const shown =
 		banner?.enabled &&
-		!(banner.dismissible && dismissedId === banner.id) &&
+		!(banner.dismissible && dismissed[dismissalKey] === banner.id) &&
 		(placement !== "login" || banner.showOnLoginPage);
 
 	if (!banner || !shown) {
@@ -200,15 +209,25 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 			key={`${banner.id}:${banner.message}:${banner.effect}`}
 			banner={banner}
 			placement={placement}
+			terminateAlertViewerId={
+				placement === "login" ? undefined : terminateAlertViewerId
+			}
 			onDismiss={() => {
-				writeDismissed(banner.id);
-				setDismissedId(banner.id);
+				writeDismissed(dismissalKey, banner.id);
+				setDismissed((previous) => ({
+					...previous,
+					[dismissalKey]: banner.id,
+				}));
 			}}
 		/>
 	);
 };
 
+const hasReceipts = (banner: Banner, placement: Placement) =>
+	placement !== "login" && banner.receipts !== false && hasContent(banner);
+
 type AnnouncementCardProps = {
+	terminateAlertViewerId?: string;
 	banner: Banner;
 	placement: Placement;
 	onDismiss: () => void;
@@ -218,7 +237,18 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	banner,
 	placement,
 	onDismiss,
+	terminateAlertViewerId,
 }) => {
+	const { data: terminateRound } = useQuery({
+		...terminateSignoffs(),
+		enabled: Boolean(terminateAlertViewerId) && !isEmbeddedFrame(),
+	});
+	const activeSignoffs =
+		terminateAlertViewerId && !isEmbeddedFrame()
+			? terminateRound?.signoffs
+			: undefined;
+	const leftSignoff = activeSignoffs?.[0];
+	const rightSignoff = activeSignoffs?.[1] ?? leftSignoff;
 	const motion = useAnnouncementMotion(banner.animationsDisabled);
 	const introductions = banner.introductions === true && placement !== "login";
 	const sectionSplash = useSectionSplash();
@@ -228,7 +258,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	// the announcement asks for them (a greeting need not).
 	// A blank banner has nothing to read or confirm, and announces nothing.
 	const blank = !hasContent(banner);
-	const receipts = placement !== "login" && banner.receipts !== false && !blank;
+	const receipts = hasReceipts(banner, placement);
 	const compact = placement !== "page";
 	const inNavbar = placement === "navbar";
 	// A single click on the banner (not on its buttons or links) takes the user to their Default View.
@@ -291,15 +321,6 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 		}
 	}, [receipts, signedIn, banner.id, reportView]);
 
-	// Confirmed already (maybe in another browser): a dismissible announcement
-	// goes away here too.
-	useEffect(() => {
-		if (receipts && acked && banner.dismissible) {
-			onDismiss();
-		}
-	}, [receipts, acked, banner.dismissible, onDismiss]);
-
-	// Dismissed here (the close button, or Confirm): it goes with its close transition.
 	const closeEffect = motion.effects ? (banner.closeEffect ?? "fade") : "none";
 	const close = useCloseTransition(closeEffect, onDismiss);
 	// Appearing (the page loads with it, or a new announcement arrives): its open transition.
@@ -348,6 +369,11 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					radius={CARD_RADIUS[placement]}
 					opacity={banner.opacity}
 				>
+					{leftSignoff && (
+						<span className="relative z-10 ml-2 flex shrink-0 items-center">
+							<SignoffLight signoff={leftSignoff} />
+						</span>
+					)}
 					<BannerText
 						banner={banner}
 						animate
@@ -370,6 +396,11 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 								SPLASH_MIN_HEIGHT_CLASS[banner.introSize ?? "normal"],
 						)}
 					/>
+					{rightSignoff && (
+						<span className="relative z-10 flex shrink-0 items-center">
+							<SignoffLight signoff={rightSignoff} />
+						</span>
+					)}
 					{/* The section's name over whatever the banner shows, on a blurred pill. */}
 					{introductions && (
 						<span
@@ -402,29 +433,29 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					<CloseLayers effect={closeEffect} />
 				)}
 				{receipts && signedIn && viewedAt && (
-					<ViewedStamp viewedAt={viewedAt} />
+					<ViewedStamp
+						viewedAt={viewedAt}
+						fingerprint={
+							status?.signedIn ? status.certificateFingerprint : undefined
+						}
+					/>
 				)}
 				{receipts && signedIn && (
 					<ConfirmButton
 						background={confirmBackground(bg)}
-						confirmed={acked && !banner.dismissible}
-						onConfirm={() => {
-							confirm.mutate(banner.id);
-							if (banner.dismissible) {
-								close.start();
-							}
-						}}
+						confirmed={acked}
+						onConfirm={() => confirm.mutate(banner.id)}
 					/>
 				)}
-				{!receipts && placement !== "login" && banner.dismissible && (
-					<DismissButton onDismiss={close.start} />
-				)}
+				{(!receipts || acked) &&
+					placement !== "login" &&
+					banner.dismissible && <DismissButton onDismiss={close.start} />}
 			</div>
 		</AnnouncementReader>
 	);
 };
 
-/** Without receipts there is no Confirm to put a dismissible announcement away: a plain close button does. */
+/** A separate close button keeps dismissal independent of confirmation. */
 const DismissButton: React.FC<{ onDismiss: () => void }> = ({ onDismiss }) => (
 	<button
 		type="button"
@@ -450,18 +481,8 @@ const utcOffset = (at: Date): string => {
 	return `UTC${sign}${h}${m ? `:${String(m).padStart(2, "0")}` : ""}`;
 };
 
-/**
- * The Viewed box's tooltip:
- *   Announcement Viewed:
- *   Date: October 11, 2026 @ 10:29 PM UTC-5
- *   Certificate Fingerprint: AB:CD:…   (SHA-256 of the user's certificate)
- *   MD5 HASH: 01:23:…                  (MD5 of it)
- * The two certificate lines only when the user has a certificate on file.
- */
-export const viewedTooltip = (
-	at: Date,
-	certificate: CertificateFingerprints | null | undefined,
-) => {
+/** The date and certificate evidence recorded by the server for the first view. */
+export const viewedTooltip = (at: Date, fingerprint?: string | null) => {
 	const date = at.toLocaleDateString("en-US", {
 		month: "long",
 		day: "numeric",
@@ -475,10 +496,9 @@ export const viewedTooltip = (
 		"Announcement Viewed:",
 		`Date: ${date} @ ${time} ${utcOffset(at)}`,
 	];
-	if (certificate) {
+	if (fingerprint) {
 		lines.push(
-			`Certificate Fingerprint: ${certificate.sha256 ?? NOT_RECORDED}`,
-			`MD5 HASH: ${certificate.md5 ?? NOT_RECORDED}`,
+			`Certificate Fingerprint (SHA-256): ${formatFingerprint(fingerprint)}`,
 		);
 	}
 	return lines.join("\n");
@@ -492,8 +512,10 @@ const RECEIPT_BOX =
  * When this user first saw the announcement, as the admins' report records it:
  * whether or not they confirm it, both sides know it was seen.
  */
-const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
-	const fingerprint = useCertificateFingerprint();
+const ViewedStamp: React.FC<{
+	viewedAt: string;
+	fingerprint?: string | null;
+}> = ({ viewedAt, fingerprint }) => {
 	const at = new Date(viewedAt);
 	if (Number.isNaN(at.getTime())) {
 		return null;

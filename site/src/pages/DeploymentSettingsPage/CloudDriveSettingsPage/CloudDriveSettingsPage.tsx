@@ -46,51 +46,59 @@ const CloudDriveSettingsPage: React.FC = () => {
 			) : (
 				settings.data && (
 					<div className="flex flex-col gap-6">
-						<section
-							data-testid="cloud-drive-enabled"
-							className="flex items-center gap-4 rounded-lg border border-solid border-border px-6 py-5 bg-surface-primary"
-						>
-							<CloudIcon
-								aria-hidden
-								className={
-									on
-										? "size-6 shrink-0 text-content-success"
-										: "size-6 shrink-0 text-content-disabled"
-								}
-							/>
-							<div className="flex min-w-0 flex-1 flex-col gap-1">
-								<label
-									htmlFor="cloud-drive-enabled"
-									className="text-base font-semibold text-content-primary"
-								>
-									Cloud Drive for everyone
-								</label>
-								<span className="text-sm text-content-secondary">
-									{on
-										? "On: every user has their Cloud Drive, linked into their workspaces."
-										: `Off${
-												settings.data.turnedOff?.by
-													? ` (by ${settings.data.turnedOff.by}${
-															settings.data.turnedOff.at
-																? `, ${new Date(settings.data.turnedOff.at * 1000).toLocaleString()}`
-																: ""
-														})`
-													: ""
-											}: no one is shown a Cloud Drive, and it is unlinked from every workspace. Its files stay where they are.`}
-								</span>
-							</div>
-							<Switch
-								id="cloud-drive-enabled"
-								data-testid="cloud-drive-enabled-switch"
-								checked={on}
-								disabled={!settings.data.canEdit || toggle.isPending}
-								onCheckedChange={(next) => toggle.mutate(next)}
-							/>
-						</section>
-						<div className="rounded-lg border border-solid border-border bg-surface-primary">
-							<CloudDriveSettings settings={settings.data} />
+						<div className="dashboard-panel">
+							<section
+								data-testid="cloud-drive-enabled"
+								className="flex items-center gap-4 rounded-lg border border-solid border-border px-6 py-5 bg-surface-primary"
+							>
+								<CloudIcon
+									aria-hidden
+									className={
+										on
+											? "size-6 shrink-0 text-content-success"
+											: "size-6 shrink-0 text-content-disabled"
+									}
+								/>
+								<div className="flex min-w-0 flex-1 flex-col gap-1">
+									<label
+										htmlFor="cloud-drive-enabled"
+										className="text-base font-semibold text-content-primary"
+									>
+										Cloud Drive for everyone
+									</label>
+									<span className="text-sm text-content-secondary">
+										{on
+											? "On: every user has their Cloud Drive, linked into their workspaces."
+											: `Off${
+													settings.data.turnedOff?.by
+														? ` (by ${settings.data.turnedOff.by}${
+																settings.data.turnedOff.at
+																	? `, ${new Date(settings.data.turnedOff.at * 1000).toLocaleString()}`
+																	: ""
+															})`
+														: ""
+												}: no one is shown a Cloud Drive, and it is unlinked from every workspace. Its files stay where they are.`}
+									</span>
+								</div>
+								<Switch
+									id="cloud-drive-enabled"
+									data-testid="cloud-drive-enabled-switch"
+									checked={on}
+									disabled={!settings.data.canEdit || toggle.isPending}
+									onCheckedChange={(next) => toggle.mutate(next)}
+								/>
+							</section>
 						</div>
-						{on && <CloudDriveConnectionsCard />}
+						<div className="dashboard-panel">
+							<div className="rounded-lg border border-solid border-border bg-surface-primary">
+								<CloudDriveSettings settings={settings.data} />
+							</div>
+						</div>
+						{on && (
+							<div className="dashboard-panel">
+								<CloudDriveConnectionsCard />
+							</div>
+						)}
 					</div>
 				)
 			)}

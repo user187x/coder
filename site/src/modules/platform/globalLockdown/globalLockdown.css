@@ -63,6 +63,9 @@
 	transform: translateY(-100%);
 	pointer-events: none;
 }
+.global-control-door-slow-close {
+	transition-duration: 1800ms;
+}
 .global-control-bottom-bar {
 	position: absolute;
 	inset: auto 0 0;

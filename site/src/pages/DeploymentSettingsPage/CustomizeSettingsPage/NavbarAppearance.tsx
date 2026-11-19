@@ -108,7 +108,7 @@ export function NavbarAppearance() {
 							min="0"
 							max="100"
 							step="1"
-							className="block my-3 w-full accent-content-link"
+							className="block my-3 w-full"
 							aria-valuetext={`${value.transparency}% transparent`}
 							value={value.transparency}
 							disabled={save.isPending}
@@ -131,7 +131,7 @@ export function NavbarAppearance() {
 							min={75}
 							max={125}
 							step={1}
-							className="block my-3 w-full accent-content-link"
+							className="block my-3 w-full"
 							aria-valuetext={`${value.scale}%`}
 							value={value.scale}
 							disabled={save.isPending}

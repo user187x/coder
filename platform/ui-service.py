@@ -203,6 +203,7 @@ import workspacecapacity
 import workspacenodemetrics
 import math
 import drivepeers  # noqa: E402  (Cloud Drives shared between users: asked for in chat, approved by admins)
+import database_inventory  # noqa: E402
 import clusternet  # noqa: E402  (the Cluster Network view in depth: entity details, code-server HA, the mesh)
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1179,6 +1180,9 @@ class Store:
                 if column not in have:
                     db.execute("ALTER TABLE notes ADD COLUMN %s TEXT" % column)
 
+            if "certificate_fingerprint" not in {r["name"] for r in db.execute("PRAGMA table_info(receipts)")}:
+                db.execute("ALTER TABLE receipts ADD COLUMN certificate_fingerprint TEXT")
+
     # ---- post-it notes (admins stick them on a user's workspace page)
     @staticmethod
     def _note(row):
@@ -1339,15 +1343,16 @@ class Store:
                 is not None
             )
 
-    def record(self, event_id, user, ack, banner):
+    def record(self, event_id, user, ack, banner, fingerprint=None):
         stamp = now()
         with self.lock, self.connect() as db:
             if banner and banner.get("receipts") is not False and banner["id"] == event_id:
                 self.ensure_event(db, banner)
             db.execute(
-                "INSERT INTO receipts (event_id, user_id, username, name, email, viewed_at, acked_at) VALUES (?,?,?,?,?,?,?) "
+                "INSERT INTO receipts (event_id, user_id, username, name, email, viewed_at, acked_at, certificate_fingerprint) VALUES (?,?,?,?,?,?,?,?) "
                 "ON CONFLICT(event_id, user_id) DO UPDATE SET username=excluded.username, name=excluded.name, email=excluded.email, "
-                "acked_at=COALESCE(receipts.acked_at, excluded.acked_at)",
+                "acked_at=COALESCE(receipts.acked_at, excluded.acked_at), "
+                "certificate_fingerprint=COALESCE(receipts.certificate_fingerprint, excluded.certificate_fingerprint)",
                 (
                     event_id,
                     user["id"],
@@ -1356,6 +1361,7 @@ class Store:
                     user["email"],
                     stamp,
                     stamp if ack else None,
+                    fingerprint,
                 ),
             )
 
@@ -1374,13 +1380,15 @@ class Store:
         return bool(self.receipt_times(event_id, user_id)[1])
 
     def receipt_times(self, event_id, user_id):
-        """(viewed_at, acked_at) of this user's receipt for the announcement: when they first saw it and confirmed it."""
+        return self.receipt_details(event_id, user_id)[:2]
+
+    def receipt_details(self, event_id, user_id):
         with self.connect() as db:
             row = db.execute(
-                "SELECT viewed_at, acked_at FROM receipts WHERE event_id=? AND user_id=?",
+                "SELECT viewed_at, acked_at, certificate_fingerprint FROM receipts WHERE event_id=? AND user_id=?",
                 (event_id, user_id),
             ).fetchone()
-            return (row["viewed_at"], row["acked_at"]) if row else (None, None)
+            return tuple(row) if row else (None, None, None)
 
     def report(self, banner, users):
         with self.lock, self.connect() as db:
@@ -1413,6 +1421,7 @@ class Store:
                                 "email": r["email"],
                                 "viewedAt": r["viewed_at"],
                                 "ackedAt": r["acked_at"],
+                                "certificateFingerprint": r["certificate_fingerprint"],
                             }
                             for r in rows
                         ],
@@ -1566,6 +1575,56 @@ def certificate_identity_provider():
     if not client_id:
         raise RuntimeError("Cannot verify the configured OpenID Connect client.")
     return Keycloak(match[1]), match[2], issuer, client_id
+
+
+def receipt_certificate_fingerprint(token, user_id):
+    """Resolve only a certificate proven by the OIDC audit event for this exact Coder session."""
+    if not token or not LOGOS or not LOGOS.pool:
+        return None
+    key_id, _, _ = token.partition("-")
+    if len(key_id) != 10:
+        return None
+    key_hash = hashlib.sha256(key_id.encode()).hexdigest()
+    try:
+        db = LOGOS.pool
+        rows = db.query("""SELECT additional_fields::text FROM public.audit_logs
+            WHERE action = 'login' AND resource_id = $1::uuid AND status_code < 400
+            AND additional_fields->>'coder_session_key_sha256' = $2 ORDER BY time DESC LIMIT 1""",
+                        [user_id, key_hash])
+        if not rows:
+            return None
+        proof = json.loads(rows[0][0])
+        kc, realm, issuer, client = certificate_identity_provider()
+        subject = proof.get("oidc_subject")
+        if not subject or proof.get("oidc_issuer") != issuer:
+            return None
+        certificates = db.query("""SELECT serial, subject, fingerprint FROM coder_ui_updates.client_certificates
+            WHERE user_id = $1::uuid AND issuer = $2 AND identity_id = $3""", [user_id, issuer, subject])
+        if not certificates:
+            return None
+        events = kc.api("GET", "/" + realm + "/events?" + urllib.parse.urlencode({
+            "type": "LOGIN", "client": client, "user": subject, "max": 100,
+        }))
+        matches = set()
+        for event in events:
+            sid = event.get("sessionId")
+            if not isinstance(sid, str) or hashlib.sha256(sid.encode()).hexdigest() != proof.get("oidc_session_sha256"):
+                continue
+            if event.get("userId") != subject or event.get("clientId") != client or event.get("type") != "LOGIN":
+                continue
+            details = event.get("details") or {}
+            serial = details.get("x509_cert_serial_number", "")
+            dn = details.get("x509_cert_subject_distinguished_name")
+            if not re.fullmatch(r"[0-9]{1,50}", serial) or not dn:
+                continue
+            for stored_serial, stored_dn, fingerprint in certificates:
+                if (stored_serial == format(int(serial), "x") and stored_dn == dn
+                        and re.fullmatch(r"[a-fA-F0-9]{64}", fingerprint)):
+                    matches.add(fingerprint.lower())
+        return next(iter(matches)) if len(matches) == 1 else None
+    except Exception as e:  # noqa: BLE001 - recording a view should still work without certificate evidence
+        log(event="announcement-certificate-unavailable", error=type(e).__name__)
+        return None
 
 
 def kc_settings(declared_env):
@@ -3884,6 +3943,15 @@ class AvatarStore:
         finally:
             self.refreshing = False
 
+    def url_for_user(self, user_id):
+        with self.lock:
+            self._schema()
+            rows = self.pool.query(
+                "SELECT sha256 FROM coder_ui_updates.avatar WHERE user_id = $1",
+                [user_id],
+            )
+        return "%s/avatar/%s?v=%s" % (BASE, user_id, rows[0][0]) if rows else None
+
     def get(self, user_id):
         """(content_type, data) or None."""
         with self.lock:
@@ -5009,7 +5077,7 @@ def suggested_settings(cluster, classes, snaps):
     return s
 
 
-def persistence_report(token):
+def persistence_report(token, include_inventory=False):
     checks, facts = [], {}
     status, dep = KUBE.call(
         "GET",
@@ -5043,6 +5111,13 @@ def persistence_report(token):
             ),
         }
     )
+
+    if include_inventory:
+        database_instances = cluster_instances(cluster, (stats or {}).get("replication")) if cluster else []
+        facts["configuration"] = database_inventory.discover(
+            KUBE, dep if status == 200 else {}, conn, cluster,
+            database_instances, CODER_NAMESPACE, CODER_DEPLOYMENT,
+        )
 
     # Database
     if host:
@@ -5179,7 +5254,7 @@ def persistence_report(token):
     )
     storage = spec.get("storage") or {}
     backup_spec = spec.get("backup") or {}
-    instances = cluster_instances(cluster, (stats or {}).get("replication"))
+    instances = database_instances if include_inventory else cluster_instances(cluster, (stats or {}).get("replication"))
     owner = managed_by(cluster)
     facts["cluster"] = {
         "name": meta.get("name"),
@@ -8603,7 +8678,7 @@ ANIMATION_PARTS = ("all", "effects", "gifs", "graphs", "background", "announceme
 
 
 def navbar_appearance():
-    legacy = {"transparency": STORE.get_setting("navbar_transparency", 0), "scale": 100, "wireframe": True}
+    legacy = {"color": "#2e3137", "transparency": STORE.get_setting("navbar_transparency", 19), "scale": 105, "wireframe": False}
     # color: the backstrip's own colour (#rrggbb), or None for the theme's surface
     appearance = {"color": None, **STORE.get_setting("navbar_appearance", legacy)}
     layout = STORE.get_setting("navbar_layout_default", None)
@@ -8613,7 +8688,7 @@ def navbar_appearance():
 def panel_accent_global():
     """Appearance > Panel accents set for everyone by an admin (Global): {"mode": "theme"} or {"mode": "custom",
     "color": "#rrggbb"}; None leaves each user's own."""
-    return STORE.get_setting("panel_accent_global", None)
+    return STORE.get_setting("panel_accent_global", {"mode": "custom", "color": "#ffffff"})
 
 
 def clean_panel_accent(value):
@@ -8949,8 +9024,8 @@ class Handler(BaseHTTPRequestHandler):
                     503, {"error": "Coder could not be reached to check your session."}
                 )
             event_id = urllib.parse.parse_qs(url.query).get("id", [""])[0]
-            viewed_at, acked_at = (
-                STORE.receipt_times(event_id, user["id"]) if ID_RE.match(event_id) else (None, None)
+            viewed_at, acked_at, fingerprint = (
+                STORE.receipt_details(event_id, user["id"]) if ID_RE.match(event_id) else (None, None, None)
             )
             # viewedAt: when this user first saw it (what the admin's report shows), so they know it is on record.
             return self.send_json(
@@ -8961,6 +9036,7 @@ class Handler(BaseHTTPRequestHandler):
                     "acked": bool(acked_at),
                     "viewedAt": viewed_at,
                     "ackedAt": acked_at,
+                    "certificateFingerprint": fingerprint,
                 },
             )
         if path == BASE + "/api/acks":
@@ -9034,6 +9110,16 @@ class Handler(BaseHTTPRequestHandler):
                     "Cache-Control": "public, max-age=31536000, immutable" if "v=" in url.query else "no-cache"})
             return self.send(200, bg["data"], bg["type"], {
                 "Cache-Control": "public, max-age=31536000, immutable" if "v=" in url.query else "no-cache"})
+        if path == BASE + "/api/dashboard-background":
+            try:
+                if not BACKGROUNDS or not BACKGROUNDS.pool:
+                    return self.send_json(503, {"error": "Background storage is unavailable"})
+                return self.send_json(200, {
+                    "dashboard": background_public("dashboard", BACKGROUNDS.all().get("dashboard")),
+                })
+            except Exception as e:  # noqa: BLE001
+                log(event="dashboard-background-read-failed", error=str(e)[:200])
+                return self.send_json(503, {"error": "Background storage is unavailable"})
         if path == BASE + "/api/backgrounds":
             user, err = self.user(admin=True)
             if err:
@@ -9134,7 +9220,11 @@ class Handler(BaseHTTPRequestHandler):
             user, err = self.user()
             if err:
                 return
-            url_ = (AVATARS.urls() if AVATARS else {}).get(user["username"])
+            try:
+                url_ = AVATARS.url_for_user(user["id"]) if AVATARS and AVATARS.pool else None
+            except Exception as e:  # noqa: BLE001
+                log(event="avatar-read-failed", error=str(e)[:200])
+                return self.send_json(503, {"error": "Avatar storage is unavailable"})
             default = (
                 AVATARS.default_url()
                 if AVATARS and user["username"] in AVATARS.default_users()
@@ -9316,7 +9406,7 @@ class Handler(BaseHTTPRequestHandler):
             if err:
                 return
             try:
-                return self.send_json(200, persistence_report(self.token()))
+                return self.send_json(200, persistence_report(self.token(), url.query == "inventory=1"))
             except Exception as e:  # noqa: BLE001
                 log(event="persistence-report-failed", error=str(e)[:300])
                 return self.send_json(
@@ -10628,7 +10718,10 @@ class Handler(BaseHTTPRequestHandler):
             )  # published seconds ago: the cached copy may be the previous one
         if not (banner and banner["id"] == event_id) and not STORE.known(event_id):
             return self.send_json(409, {"error": "That announcement is not live."})
-        STORE.record(event_id, user, ack, banner)
+        fingerprint = None
+        if STORE.receipt_details(event_id, user["id"])[2] is None:
+            fingerprint = receipt_certificate_fingerprint(self.token(), user["id"])
+        STORE.record(event_id, user, ack, banner, fingerprint)
         if banner and banner.get("id") == event_id:
             publish_announcement_notification(user, banner)
         log(
@@ -10934,7 +11027,7 @@ def main():
     trafficprobes.setup(KUBE, workspacetunnels.NAMESPACE, log)
     provisioners.setup(log, KUBE, ADMIN_ROLES, _coder_get, _coder_send)
     clusternet.setup(log, KUBE, _coder_get, cluster_snapshot, lambda: LOGOS.pool if LOGOS else None, quantity,
-                     safe=safe, tls=TLS)
+                     safe=safe, tls=TLS, publish_inbox=publish_inbox_notification)
     dr.setup(log, KUBE)
     dr.start()
     lockdown.start()

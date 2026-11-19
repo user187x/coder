@@ -189,6 +189,15 @@ const meta: Meta<typeof WorkspacesPageView> = {
 export default meta;
 type Story = StoryObj<typeof WorkspacesPageView>;
 
+export const TemplatePicker: Story = {
+	args: { workspaces: [], count: 0 },
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Workspace" }),
+		);
+	},
+};
+
 export const AgentUpdateAvailable: Story = {
 	parameters: { buildInfo: MockBuildInfo },
 	args: {

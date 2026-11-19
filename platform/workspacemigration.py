@@ -37,6 +37,7 @@ def database():
                     id uuid PRIMARY KEY, organization_id uuid NOT NULL REFERENCES organizations(id), workspace_id uuid NOT NULL,
                     created_by uuid NOT NULL, status text NOT NULL, worker text NOT NULL, state jsonb NOT NULL,
                     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now())''')
+                tx.query("ALTER TABLE coder_ui_updates.workspace_migrations ADD COLUMN IF NOT EXISTS history_hidden_at timestamptz")
                 tx.query("CREATE UNIQUE INDEX IF NOT EXISTS workspace_migration_active ON coder_ui_updates.workspace_migrations(workspace_id) WHERE status != 'done'")
             SCHEMA_READY = True
     return db
@@ -244,7 +245,7 @@ def listing():
     rows = database().query('''SELECT id::text, workspace_id::text, status, state::text,
         to_char(created_at AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
         to_char(updated_at AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
-        FROM coder_ui_updates.workspace_migrations ORDER BY created_at DESC LIMIT 50''')
+        FROM coder_ui_updates.workspace_migrations WHERE history_hidden_at IS NULL ORDER BY created_at DESC LIMIT 50''')
     out = []
     for mid, wid, status, state, created, updated in rows:
         op = json.loads(state)
@@ -254,6 +255,16 @@ def listing():
                         target=op.get('target'), message=op.get('message'), error=op.get('error'),
                         startedAt=created, updatedAt=updated))
     return out
+
+
+def hide_history(migration_id):
+    """Hide finished history without removing the underlying operation record."""
+    rows = database().query("""UPDATE coder_ui_updates.workspace_migrations
+        SET history_hidden_at=now()
+        WHERE status='done' AND history_hidden_at IS NULL
+          AND ($1::uuid IS NULL OR id=$1::uuid)
+        RETURNING id""", [migration_id])
+    return len(rows)
 
 
 def public(op):
@@ -617,10 +628,16 @@ def handle(h, method, url):
         return True
     try:
         if url.rstrip('/') == BASE.rstrip('/'):
-            if method != 'GET':
-                h.send_json(405, {'error': 'Method not allowed'})
-            else:
+            if method == 'GET':
                 h.send_json(200, {'migrations': listing()})
+            else:
+                body = volumes.read_json(h)
+                if set(body) != {'historyId'} or (body['historyId'] is not None and not isinstance(body['historyId'], str)):
+                    raise ValueError('Expected a migration ID or null to clear finished history.')
+                migration_id = str(uuid.UUID(body['historyId'])) if body['historyId'] is not None else None
+                hidden = hide_history(migration_id)
+                LOG(event='workspace-migration-history-hidden', by=user['id'], migration=migration_id, count=hidden)
+                h.send_json(200, {'hidden': hidden})
             return True
         wid = str(uuid.UUID(url[len(BASE):]))
         token = h.token()

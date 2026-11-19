@@ -1,5 +1,4 @@
 import {
-	ChevronDownIcon,
 	CopyIcon,
 	DownloadIcon,
 	EditIcon,
@@ -15,6 +14,7 @@ import { Link as RouterLink, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { API } from "#/api/api";
 import { getErrorDetail } from "#/api/errors";
+import { userUIPreferences } from "#/api/queries/platform";
 import { templateVersion as versionQuery } from "#/api/queries/templates";
 import { workspaces } from "#/api/queries/workspaces";
 import type {
@@ -22,8 +22,15 @@ import type {
 	Template,
 	TemplateVersion,
 } from "#/api/typesGenerated";
+import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { DeprecatedBadge } from "#/components/Badge/PresetBadges";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+	BreadcrumbPage,
+} from "#/components/Breadcrumb/Breadcrumb";
 import { Button, Button as ShadcnButton } from "#/components/Button/Button";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { DeleteDialog } from "#/components/Dialog/DeleteDialog/DeleteDialog";
@@ -40,7 +47,20 @@ import {
 	PageHeaderSubtitle,
 	PageHeaderTitle,
 } from "#/components/PageHeader/PageHeader";
-import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
+import {
+	BreadcrumbDropdownContent,
+	BreadcrumbViewMenu,
+} from "#/modules/dashboard/Navbar/BreadcrumbMenu";
+import {
+	NavbarAction,
+	NavbarStart,
+} from "#/modules/dashboard/Navbar/NavbarAction";
+import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
+import { TemplateDestinations } from "#/modules/dashboard/Navbar/SettingsDestinationMenu";
+import {
+	useRegisterPageSettingsBreadcrumb,
+	useSettingsMenuPresent,
+} from "#/modules/dashboard/Navbar/settingsMenuHost";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
 import {
@@ -61,6 +81,7 @@ type TemplateMenuProps = {
 	label?: string;
 	/** Render the combined navbar action with optional workspace creation. */
 	navbar?: boolean;
+	breadcrumbName?: string;
 	canCreateWorkspace?: boolean;
 	onDelete: () => void;
 };
@@ -75,6 +96,7 @@ export const TemplateMenu: React.FC<TemplateMenuProps> = ({
 	fileId,
 	label = "Open menu",
 	navbar = false,
+	breadcrumbName,
 	canCreateWorkspace = false,
 	onDelete,
 }) => {
@@ -134,15 +156,21 @@ export const TemplateMenu: React.FC<TemplateMenuProps> = ({
 		}
 	};
 
+	const MenuContent =
+		navbar || breadcrumbName ? BreadcrumbDropdownContent : DropdownMenuContent;
 	return (
 		<>
-			<DropdownMenu open={open} onOpenChange={setOpen}>
+			<DropdownMenu open={open} onOpenChange={setOpen} modal={!breadcrumbName}>
 				<DropdownMenuTrigger asChild>
-					{navbar ? (
+					{breadcrumbName ? (
+						<button type="button" title={breadcrumbName}>
+							<span className="truncate">{breadcrumbName}</span>
+						</button>
+					) : navbar ? (
 						<Button>
 							{canCreateWorkspace ? <MonitorIcon /> : <FileTextIcon />}
 							{canCreateWorkspace ? "Workspace" : "Template"}
-							<ChevronDownIcon className="size-icon-xs opacity-60" />
+							<ChevronDownIcon aria-hidden />
 						</Button>
 					) : (
 						<ShadcnButton size="icon-lg" variant="subtle" aria-label={label}>
@@ -150,7 +178,7 @@ export const TemplateMenu: React.FC<TemplateMenuProps> = ({
 						</ShadcnButton>
 					)}
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
+				<MenuContent align={navbar || breadcrumbName ? undefined : "end"}>
 					{canCreateWorkspace && (
 						<DropdownMenuItem asChild>
 							<RouterLink to={`${templateLink}/workspace`}>
@@ -217,7 +245,7 @@ export const TemplateMenu: React.FC<TemplateMenuProps> = ({
 							</DropdownMenuItem>
 						</>
 					)}
-				</DropdownMenuContent>
+				</MenuContent>
 			</DropdownMenu>
 
 			{safeToDeleteTemplate ? (
@@ -296,23 +324,52 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 	const canCreateWorkspace =
 		!template.deprecated &&
 		Boolean(workspacePermissions.createWorkspaceForUserID);
+	const preferences = useQuery(userUIPreferences());
+	const settingsMenu = useSettingsMenuPresent();
+	const showBreadcrumb =
+		Boolean(preferences.data?.admin_nav_in_navbar) &&
+		(settingsMenu || Boolean(preferences.data?.settings_sidebar));
+	useRegisterPageSettingsBreadcrumb(showBreadcrumb);
+	const displayName = template.display_name || template.name;
+	const menu = (canCreateWorkspace || permissions.canUpdateTemplate) && (
+		<TemplateMenu
+			navbar={!showBreadcrumb}
+			breadcrumbName={showBreadcrumb ? displayName : undefined}
+			template={template}
+			canCreateWorkspace={canCreateWorkspace}
+			canUpdate={permissions.canUpdateTemplate}
+			organizationName={template.organization_name}
+			templateId={template.id}
+			templateName={template.name}
+			templateVersion={activeVersion.name}
+			fileId={activeVersion.job.file_id}
+			onDelete={onDeleteTemplate}
+		/>
+	);
 	return (
 		<>
-			{(canCreateWorkspace || permissions.canUpdateTemplate) && (
-				<NavbarAction>
-					<TemplateMenu
-						navbar
-						template={template}
-						canCreateWorkspace={canCreateWorkspace}
-						canUpdate={permissions.canUpdateTemplate}
-						organizationName={template.organization_name}
-						templateId={template.id}
-						templateName={template.name}
-						templateVersion={activeVersion.name}
-						fileId={activeVersion.job.file_id}
-						onDelete={onDeleteTemplate}
-					/>
-				</NavbarAction>
+			{showBreadcrumb ? (
+				<NavbarStart>
+					<Breadcrumb
+						variant="connected"
+						aria-label="Template breadcrumb"
+						className="deployment-breadcrumb admin-navbar-breadcrumb"
+					>
+						<BreadcrumbList>
+							<SettingsBreadcrumbRoot />
+							<BreadcrumbItem>
+								<BreadcrumbViewMenu label="Template">
+									<TemplateDestinations />
+								</BreadcrumbViewMenu>
+							</BreadcrumbItem>
+							<BreadcrumbItem>
+								{menu || <BreadcrumbPage>{displayName}</BreadcrumbPage>}
+							</BreadcrumbItem>
+						</BreadcrumbList>
+					</Breadcrumb>
+				</NavbarStart>
+			) : (
+				<NavbarAction>{menu}</NavbarAction>
 			)}
 			<PageHeader className={compact ? "px-4 py-3 gap-3" : undefined}>
 				<div className="flex flex-row gap-4">
@@ -325,9 +382,7 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 					<div>
 						<div className="flex flex-row items-center gap-2">
 							<PageHeaderTitle className={compact ? "text-xl" : undefined}>
-								{template.display_name.length > 0
-									? template.display_name
-									: template.name}
+								{displayName}
 							</PageHeaderTitle>
 							{template.deprecated && <DeprecatedBadge />}
 						</div>

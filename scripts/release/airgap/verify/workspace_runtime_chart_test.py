@@ -21,7 +21,7 @@ class WorkspaceRuntimeChartTest(unittest.TestCase):
     def test_gpu_switch_defaults_off_and_never_renders_device_allocation(self):
         for enabled in ('false','true'):
             docs=self.render('--set','platformWebhook.runtimeIsolation.prepareBackend=true','--set','platformWebhook.runtimeIsolation.vm.gpu.enabled='+enabled)
-            backends=[doc for doc in docs if doc['kind']=='Deployment' and doc['metadata']['name'] in ('coder-platform-webhook','coder-ui-updates')]
+            backends=[doc for doc in docs if doc['kind']=='Deployment' and doc['metadata']['name'] in ('coder-platform-webhook','coder-ui')]
             self.assertTrue(backends)
             for backend in backends:
                 container=backend['spec']['template']['spec']['containers'][0]
@@ -34,8 +34,8 @@ class WorkspaceRuntimeChartTest(unittest.TestCase):
 
     def test_load_collector_is_separate_unprivileged_infrastructure(self):
         docs = self.render('--set', 'uiUpdates.nodeLoad.enabled=true')
-        collector = next(doc for doc in docs if doc['kind'] == 'DaemonSet' and doc['metadata']['name'] == 'coder-node-load')
-        self.assertEqual(collector['metadata']['namespace'], 'coder-runtime-system')
+        collector = next(doc for doc in docs if doc['kind'] == 'DaemonSet' and doc['metadata']['name'] == 'coder-node-load-average-collector')
+        self.assertEqual(collector['metadata']['namespace'], 'coder-system')
         spec = collector['spec']['template']['spec']
         self.assertNotIn('hostPID', spec)
         self.assertNotIn('hostNetwork', spec)
@@ -46,7 +46,7 @@ class WorkspaceRuntimeChartTest(unittest.TestCase):
         self.assertNotIn('ports', container)
         self.assertEqual(spec['volumes'], [{'name': 'loadavg', 'hostPath': {'path': '/proc/loadavg', 'type': 'File'}}])
         self.assertTrue(container['volumeMounts'][0]['readOnly'])
-        namespaces = [doc for doc in docs if doc['kind'] == 'Namespace' and doc['metadata']['name'] == 'coder-runtime-system']
+        namespaces = [doc for doc in docs if doc['kind'] == 'Namespace' and doc['metadata']['name'] == 'coder-system']
         self.assertEqual(len(namespaces), 1)
 
     def test_staging_retains_original_backend_and_routing(self):

@@ -1,3 +1,9 @@
+.cluster-map-viewport:fullscreen {
+	overflow: auto;
+	border: 0;
+	border-radius: 0;
+}
+
 .cluster-map-direction {
 	pointer-events: none;
 	offset-anchor: 0px 0px;

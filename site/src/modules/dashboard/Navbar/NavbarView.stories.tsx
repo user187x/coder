@@ -62,7 +62,13 @@ export const AccountActionAlignment: Story = {
 	parameters: {
 		pixel: { matrix: pixelWithDesktop },
 		queries: [
-			{ key: userUIPreferences().queryKey, data: {} },
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					admin_nav_in_navbar: true,
+					navbar_layout: { order: ["action", "banner"], hidden: [] },
+				},
+			},
 			{
 				key: bannerKey,
 				data: {
@@ -89,6 +95,27 @@ export const AccountActionAlignment: Story = {
 				</NavbarAction>
 			</NavbarActionTarget.Provider>
 		);
+	},
+};
+
+export const RightAccountActionAlignment: Story = {
+	...AccountActionAlignment,
+	parameters: {
+		...AccountActionAlignment.parameters,
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: { admin_nav_in_navbar: true, navbar_settings_side: "right" },
+			},
+			{
+				key: bannerKey,
+				data: {
+					...MockBanner,
+					receipts: false,
+					message: "Platform announcement",
+				},
+			},
+		],
 	},
 };
 

@@ -167,7 +167,8 @@ class Service:
             self.binding(profile['organization_id'], profile['workspace_id'], profile['build_id'])
         except RuntimeError:
             return {'enabled': False, 'relay_sources': []}
-        deployment = self.fetch('/apis/apps/v1/namespaces/%s/deployments/coder' % self.namespace)
+        deployment = self.fetch('/apis/apps/v1/namespaces/%s/deployments/%s' % (
+            self.namespace, os.environ.get('CODER_DEPLOYMENT', 'coder')))
         replicas = self.fetch('/apis/apps/v1/namespaces/%s/replicasets?labelSelector=%s' % (
             self.namespace, urllib.parse.quote('app.kubernetes.io/name=coder'))).get('items', [])
         owned = {r['metadata']['uid'] for r in replicas if not r['metadata'].get('deletionTimestamp') and any(

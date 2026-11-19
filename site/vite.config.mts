@@ -70,6 +70,9 @@ if (process.env.STATS !== undefined) {
 	);
 }
 
+const assetVersion = process.env.CODER_SITE_ASSET_VERSION;
+const assetsDir = assetVersion ? `assets/${assetVersion}` : "assets";
+
 export default defineConfig({
 	plugins,
 	worker: {
@@ -80,6 +83,7 @@ export default defineConfig({
 		postcss: { plugins: [cursorTheme] },
 	},
 	build: {
+		assetsDir,
 		outDir: path.resolve(import.meta.dirname, "./out"),
 		emptyOutDir: false, // We need to keep the /bin folder and GITKEEP files
 		sourcemap: isProfilingBuild ? true : "hidden",
@@ -95,7 +99,7 @@ export default defineConfig({
 				entryFileNames: (chunkInfo) => {
 					return chunkInfo.name === "serviceWorker"
 						? "[name].js"
-						: "assets/[name]-[hash].js";
+						: `${assetsDir}/[name]-[hash].js`;
 				},
 				codeSplitting: {
 					groups: [

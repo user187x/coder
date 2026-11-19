@@ -49,7 +49,7 @@ const CreateUserPage: React.FC = () => {
 
 	if (createdUser)
 		return (
-			<div className="mx-auto max-w-xl space-y-4 py-8">
+			<div className="dashboard-panel mx-auto max-w-xl space-y-4">
 				<h1 className="text-xl font-semibold">
 					Account created: {createdUser.username}
 				</h1>

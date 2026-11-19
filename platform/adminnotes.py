@@ -102,7 +102,7 @@ def handle(h, method, path):
                 row = tx.query('''SELECT revision FROM coder_ui_updates.admin_notes
                     WHERE id=$1::uuid AND organization_id=$2::uuid
                     AND (author_id=$3::uuid OR ($4::boolean AND shared)) FOR UPDATE''',
-                    [note_id, organization, author, action == 'read'])
+                    [note_id, organization, author, action in ('read', 'delete')])
                 if not row:
                     raise LookupError('This note was removed or is not accessible.')
                 current_revision = int(row[0][0])
@@ -116,7 +116,8 @@ def handle(h, method, path):
                         revision=GREATEST(admin_note_reads.revision,EXCLUDED.revision)''',
                         [organization, note_id, author, revision])
                 elif action == 'delete':
-                    tx.query('DELETE FROM coder_ui_updates.admin_notes WHERE id=$1::uuid AND organization_id=$2::uuid AND author_id=$3::uuid', [note_id, organization, author])
+                    tx.query('''DELETE FROM coder_ui_updates.admin_notes WHERE id=$1::uuid
+                        AND organization_id=$2::uuid AND (author_id=$3::uuid OR shared)''', [note_id, organization, author])
                 else:
                     tx.query('''UPDATE coder_ui_updates.admin_notes SET text=$4, shared=$5::boolean,
                         revision=revision+1, updated_at=now() WHERE id=$1::uuid AND organization_id=$2::uuid AND author_id=$3::uuid''',

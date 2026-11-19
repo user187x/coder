@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { LockIcon, SettingsIcon } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
 	closeGlobalControls,
@@ -8,12 +8,14 @@ import {
 	globalControls,
 	unlockGlobalControls,
 } from "#/api/queries/globalLockdown";
+import { runWorkspacePowerKey } from "#/api/queries/workspacePower";
 import type { GlobalControlStatus } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { terminateFlashFinished } from "./TerminateSignoff";
 
 /** A local panel close also revokes its server grant; no credential enters browser storage. */
 export const GlobalControlDoor: React.FC<{
@@ -26,6 +28,8 @@ export const GlobalControlDoor: React.FC<{
 	const unlock = useMutation(unlockGlobalControls());
 	const configure = useMutation(configureGlobalControls(client));
 	const close = useMutation(closeGlobalControls());
+	const [revokeAfterPower, setRevokeAfterPower] = useState(false);
+	const [slowClose, setSlowClose] = useState(false);
 	const [grant, setGrant] = useState<GlobalControlStatus | null>(null);
 	const [pin, setPIN] = useState("");
 	const [repeat, setRepeat] = useState("");
@@ -36,8 +40,13 @@ export const GlobalControlDoor: React.FC<{
 	const input = useRef<HTMLInputElement>(null);
 	const opened = Boolean(grant?.token) && !disabled;
 	const setup = !status.data?.configured || settings;
-	const busy = unlock.isPending || configure.isPending || close.isPending;
-	const lock = () => {
+	const busy =
+		unlock.isPending ||
+		configure.isPending ||
+		close.isPending ||
+		revokeAfterPower;
+	const lock = (afterFlash = false) => {
+		setSlowClose(afterFlash);
 		setGrant(null);
 		onUnlock(null);
 		setPIN("");
@@ -46,9 +55,31 @@ export const GlobalControlDoor: React.FC<{
 		setSettings(false);
 		unlock.reset();
 		configure.reset();
-		close.mutate();
+		const powerMutation = { mutationKey: runWorkspacePowerKey };
+		if (afterFlash && client.isMutating(powerMutation)) {
+			setRevokeAfterPower(true);
+			// Later batches still use the captured grant, even if this panel unmounts.
+			const unsubscribe = client.getMutationCache().subscribe(() => {
+				if (client.isMutating(powerMutation)) return;
+				unsubscribe();
+				close.mutate(undefined, {
+					onSettled: () => setRevokeAfterPower(false),
+				});
+			});
+		} else {
+			close.mutate();
+		}
 		window.requestAnimationFrame(() => input.current?.focus());
 	};
+	const lockAfterFlash = useEffectEvent(() => {
+		if (opened) lock(true);
+	});
+	useEffect(() => {
+		const handleFlash = () => lockAfterFlash();
+		window.addEventListener(terminateFlashFinished, handleFlash);
+		return () =>
+			window.removeEventListener(terminateFlashFinished, handleFlash);
+	}, []);
 	useEffect(() => {
 		if (!grant?.expires_at) return;
 		const timer = window.setTimeout(
@@ -65,6 +96,7 @@ export const GlobalControlDoor: React.FC<{
 		return () => window.clearTimeout(timer);
 	}, [grant, onUnlock]);
 	const accepted = (result: GlobalControlStatus) => {
+		setSlowClose(false);
 		setGrant(result);
 		onUnlock(result);
 		setPIN("");
@@ -99,7 +131,7 @@ export const GlobalControlDoor: React.FC<{
 				{opened && children}
 				{opened && (
 					<>
-						<Button variant="outline" onClick={lock} disabled={busy}>
+						<Button variant="outline" onClick={() => lock()} disabled={busy}>
 							Close Panel
 						</Button>
 						<Button
@@ -127,6 +159,7 @@ export const GlobalControlDoor: React.FC<{
 				className={cn(
 					"global-control-door absolute inset-0 flex items-center justify-center p-4",
 					opened && "global-control-door-open",
+					slowClose && "global-control-door-slow-close",
 				)}
 			>
 				<div className="global-control-bottom-bar" aria-hidden />

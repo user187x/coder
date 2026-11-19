@@ -23,7 +23,11 @@ const metalBackground = {
 
 export const DEFAULT_BACKGROUNDS = {
 	login: metalBackground,
-	dashboard: metalBackground,
+	dashboard: {
+		...metalBackground,
+		url: "/pictures/dashboard-default.webp",
+		opacity: 0.17,
+	},
 } satisfies Record<BackgroundSlot, BackgroundImage>;
 
 export const PREBAKED_BACKGROUNDS: readonly PrebakedPicture[] = [
@@ -34,7 +38,7 @@ export const PREBAKED_BACKGROUNDS: readonly PrebakedPicture[] = [
 	},
 	{
 		name: "meta.jpeg",
-		url: DEFAULT_BACKGROUNDS.dashboard.url,
+		url: metalBackground.url,
 		type: "image/jpeg",
 	},
 	{ name: "creeper.gif", url: "/pictures/creeper.gif", type: "image/gif" },

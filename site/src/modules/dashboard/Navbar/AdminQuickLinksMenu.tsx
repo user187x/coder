@@ -27,8 +27,11 @@ import {
 	CollapsibleContent,
 } from "#/components/Collapsible/Collapsible";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import { canonicalAdminPageId } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import "./adminQuickLinksMenu.css";
 import { useChatEnabled } from "#/modules/platform/chat/useChatEnabled";
+import { AccountCreationMenuItems } from "#/modules/users/AccountCreationMenuItems";
+import { toCssPx } from "#/utils/appZoom";
 import type { HideableMenuItem } from "./AdminSettings";
 import { AnnouncementMenuItem } from "./AnnouncementMenuItem";
 import { AppearanceMenuItem } from "./AppearanceMenuItem";
@@ -44,7 +47,10 @@ import {
 } from "./InlineMenu";
 import { SettingsDestinationMenu } from "./SettingsDestinationMenu";
 
+import { type UnreadGlow, unreadRowClass } from "./useUnreadGlow";
+
 type AdminQuickLinksMenuProps = {
+	unreadGlow?: UnreadGlow;
 	/** The quick links, in the user's order. */
 	links: readonly AdminPage[];
 	/** The pages that can still be added, in the order to offer them. */
@@ -104,10 +110,10 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	rows,
 	shownIds = [],
 	topSection,
+	unreadGlow,
 }) => {
-	const [expanded, setExpanded] = useState(false);
-	// The top section expanded down to the panel's bottom: the Controls list opens above its bar.
-	const upward = Boolean(topSection?.full);
+	const [drawerOpen, setExpanded] = useState(false);
+	const full = Boolean(topSection?.full);
 	const chatOn = useChatEnabled();
 	const choicesId = useId();
 	// The pages to add, each once: not those already shown in the menu's list or listed hidden under Controls.
@@ -118,13 +124,19 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			!hiddenItems.some((item) => item.id === page.id),
 	);
 	const linkIds = links.map((link) => link.id);
+	const showChat = chatOn && !linkIds.includes("chat");
+	const hasChoices =
+		showChat || hiddenItems.length > 0 || Boolean(onChange && choices.length);
+	const expanded = hasChoices && drawerOpen;
 	// The quick links and the menu's other rows as one list: in the saved order once it places the quick links too,
 	// else the quick links first and the rows after them in theirs.
 	const extra = rows?.items ?? [];
 	const order = rows?.order ?? [];
 	const mixed = linkIds.some((id) => order.includes(id));
 	const rank = (id: string) => {
-		const index = order.indexOf(id);
+		const index = order.findIndex(
+			(entry) => canonicalAdminPageId(entry) === id,
+		);
 		return index < 0 ? Number.POSITIVE_INFINITY : index;
 	};
 	const entries = [
@@ -188,36 +200,51 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	// Open, the Controls list drops over whatever is below it, down to the Settings panel's bottom, and scrolls the rest:
 	// the panel never grows for it.
 	const controlsRoot = useRef<HTMLDivElement>(null);
-	const [choicesMax, setChoicesMax] = useState<number>();
+	const choicesContent = useRef<HTMLDivElement>(null);
+	const [placement, setPlacement] = useState<{
+		upward: boolean;
+		maxHeight: number;
+	}>();
+	const upward = full || Boolean(placement?.upward);
 	useLayoutEffect(() => {
 		const root = controlsRoot.current;
+		const content = choicesContent.current;
 		const surface = root?.closest<HTMLElement>(".settings-menu-surface");
-		if (!expanded || !root || !surface) return;
-		// Below the bar, down to the panel's bottom; with the top section expanded (the bar at the bottom), above it.
-		const measure = () =>
-			setChoicesMax(
-				Math.max(
-					96,
-					Math.floor(
-						upward
-							? root.getBoundingClientRect().top -
-									surface.getBoundingClientRect().top -
-									12
-							: surface.getBoundingClientRect().bottom -
-									root.getBoundingClientRect().bottom -
-									12,
-					),
-				),
+		if (!expanded || !root || !content || !surface) return;
+
+		const measure = () => {
+			const bounds = surface.getBoundingClientRect();
+			const bar = root.getBoundingClientRect();
+			const panelZoom = Number.parseFloat(getComputedStyle(surface).zoom) || 1;
+			const available = (pixels: number) =>
+				Math.max(0, Math.floor(toCssPx(pixels) / panelZoom) - 12);
+			const above = available(bar.top - Math.max(0, bounds.top));
+			const below = available(
+				Math.min(window.innerHeight, bounds.bottom) - bar.bottom,
 			);
+			const fillsMenu =
+				surface.parentElement?.classList.contains("settings-menu-fill") &&
+				!surface.querySelector("[data-face-collapsed]");
+			const openUp = Boolean(
+				full || fillsMenu || (below < content.scrollHeight && above > below),
+			);
+			const maxHeight = openUp ? above : below;
+			setPlacement((previous) =>
+				previous?.upward === openUp && previous.maxHeight === maxHeight
+					? previous
+					: { upward: openUp, maxHeight },
+			);
+		};
 		measure();
 		const observer = new ResizeObserver(measure);
 		observer.observe(surface);
+		observer.observe(root);
 		window.addEventListener("resize", measure);
 		return () => {
 			observer.disconnect();
 			window.removeEventListener("resize", measure);
 		};
-	}, [expanded, upward]);
+	}, [expanded, full]);
 	const chevronClass =
 		"settings-controls-chevron inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-content-secondary/5 ring-1 ring-inset ring-content-secondary/15";
 	const controlsChevron = (
@@ -235,7 +262,6 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			action();
 		},
 	});
-	const full = Boolean(topSection?.full);
 	// A pointer opens Controls from its icon in the bar's middle only (the bar's ends and a double click do other
 	// things); the keyboard, from the whole bar.
 	const pointerOutsideIcon = useRef(false);
@@ -259,7 +285,10 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 								<HideableRow
 									key={entry.id}
 									item={entry.item}
-									itemClassName={itemClassName}
+									itemClassName={cn(
+										itemClassName,
+										unreadRowClass(entry.id, unreadGlow),
+									)}
 									moving={moving === entry.id}
 									onHide={() => {
 										setMoving(undefined);
@@ -281,7 +310,10 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 									editable={Boolean(onChange)}
 									chatExpanded={chatExpanded}
 									onChatToggle={onChatToggle}
-									itemClassName={itemClassName}
+									itemClassName={cn(
+										itemClassName,
+										unreadRowClass(entry.id, unreadGlow),
+									)}
 									moving={moving === entry.id}
 									handleRef={(node) => {
 										if (node) {
@@ -323,9 +355,10 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			>
 				<DropdownMenuItem
 					{...controlsMenu.trigger}
-					aria-expanded={expanded}
+					aria-expanded={hasChoices ? expanded : undefined}
 					data-settings-expanded={expanded}
-					aria-controls={choicesId}
+					data-settings-empty={!hasChoices || undefined}
+					aria-controls={hasChoices ? choicesId : undefined}
 					className={cn(
 						itemClassName,
 						"settings-controls-bar my-1 rounded-full border border-solid border-border text-content-secondary focus:bg-surface-secondary",
@@ -345,7 +378,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 							pointerOutsideIcon.current = false;
 							return;
 						}
-						setExpanded(!expanded);
+						if (hasChoices) setExpanded(!expanded);
 					}}
 					// A double click: the top section down to the panel's bottom, and back.
 					onDoubleClick={() => topSection?.onToggle()}
@@ -404,15 +437,17 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						controlsChevron
 					)}
 				</DropdownMenuItem>
-				{controlsMenu.open && (
+				{controlsMenu.open && (hasChoices || topSection) && (
 					<InlineMenuPanel id={controlsMenu.id} label="Controls options">
-						<OpenMenuItem
-							label={expanded ? "Close" : "Open"}
-							onOpen={() => {
-								setExpanded(!expanded);
-								controlsMenu.close();
-							}}
-						/>
+						{hasChoices && (
+							<OpenMenuItem
+								label={expanded ? "Close" : "Open"}
+								onOpen={() => {
+									setExpanded(!expanded);
+									controlsMenu.close();
+								}}
+							/>
+						)}
 						{topSection && (
 							<OpenMenuItem
 								label={full ? "Back to normal" : "Expand to the bottom"}
@@ -433,118 +468,128 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						)}
 					</InlineMenuPanel>
 				)}
-				<CollapsibleContent
-					id={choicesId}
-					className={cn(
-						"admin-quick-link-choices settings-controls-overlay absolute inset-x-0 z-50 overflow-hidden",
-						upward ? "bottom-full" : "top-full",
-					)}
-				>
-					<div
-						style={{ maxHeight: expanded ? choicesMax : undefined }}
-						className="my-1 overflow-y-auto shadow-lg overscroll-contain rounded-lg border border-solid border-border bg-surface-secondary p-1 scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
-					>
-						{chatOn && (
-							<div className="flex items-center">
-								<ChatMenuItem
-									className="min-w-0 flex-1"
-									admin={admin}
-									expanded={chatExpanded}
-									onToggle={onChatToggle}
-									onPin={
-										onChange && addable.some((page) => page.id === "chat")
-											? () => onChange([...ids, "chat"])
-											: undefined
-									}
-								/>
-								{onChange && addable.some((page) => page.id === "chat") && (
-									<DropdownMenuItem
-										aria-label="Add Chat to quick links"
-										title="Add Chat to quick links"
-										className="shrink-0"
-										onSelect={(e) => {
-											e.preventDefault();
-											onChange([...ids, "chat"]);
-											setAnnouncement("Chat added to the quick links.");
-										}}
-									>
-										<PinIcon aria-hidden />
-									</DropdownMenuItem>
-								)}
-							</div>
+				{hasChoices && (
+					<CollapsibleContent
+						id={choicesId}
+						className={cn(
+							"admin-quick-link-choices settings-controls-overlay absolute inset-x-0 z-50 overflow-hidden",
+							upward ? "bottom-full" : "top-full",
 						)}
-						{hiddenItems.map((item) => (
-							<div key={item.id} className="flex flex-wrap items-center">
-								<PageMenuItem
-									to={item.path}
-									icon={item.icon}
-									label={item.label}
-									className="min-w-0 flex-1"
-									panelClassName="order-last"
-									options={
-										onShowItem && (
-											<DropdownMenuItem
-												onSelect={(event) => {
-													event.preventDefault();
-													onShowItem(item.id);
-												}}
-											>
-												Show in the menu
-											</DropdownMenuItem>
-										)
-									}
-								/>
-								{onShowItem && (
-									<DropdownMenuItem
-										aria-label={`Show ${item.label} in the menu`}
-										title={`Show ${item.label}`}
-										onSelect={(event) => {
-											event.preventDefault();
-											onShowItem(item.id);
-											setAnnouncement(`${item.label} shown in the menu.`);
-										}}
-									>
-										<PinIcon aria-hidden />
-									</DropdownMenuItem>
-								)}
-							</div>
-						))}
-						{onChange &&
-							choices.map((page) => (
-								<div key={page.id} className="flex flex-wrap items-center">
-									<DestinationLink
-										link={page}
-										options={
-											<DropdownMenuItem
-												onSelect={(event) => {
-													event.preventDefault();
-													onChange([...ids, page.id]);
-													setAnnouncement(
-														`${page.label} added to the quick links.`,
-													);
-												}}
-											>
-												Add to quick links
-											</DropdownMenuItem>
+					>
+						<div
+							ref={choicesContent}
+							style={{ maxHeight: expanded ? placement?.maxHeight : undefined }}
+							className="my-1 overflow-y-auto shadow-lg overscroll-contain rounded-lg border border-solid border-border bg-surface-secondary p-1 scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+						>
+							{showChat && (
+								<div className="flex items-center">
+									<ChatMenuItem
+										className={cn(
+											"min-w-0 flex-1",
+											unreadRowClass("chat", unreadGlow),
+										)}
+										admin={admin}
+										expanded={chatExpanded}
+										onToggle={onChatToggle}
+										onPin={
+											onChange && addable.some((page) => page.id === "chat")
+												? () => onChange([...ids, "chat"])
+												: undefined
 										}
 									/>
-									<DropdownMenuItem
-										aria-label={`Add ${page.label} to quick links`}
-										title={`Pin ${page.label}`}
-										onSelect={(event) => {
-											event.preventDefault();
-											onChange([...ids, page.id]);
-											setAnnouncement(
-												`${page.label} added to the quick links.`,
-											);
-										}}
-									>
-										<PinIcon aria-hidden />
-									</DropdownMenuItem>
+									{onChange && addable.some((page) => page.id === "chat") && (
+										<DropdownMenuItem
+											aria-label="Add Chat to quick links"
+											title="Add Chat to quick links"
+											className="shrink-0"
+											onSelect={(e) => {
+												e.preventDefault();
+												onChange([...ids, "chat"]);
+												setAnnouncement("Chat added to the quick links.");
+											}}
+										>
+											<PinIcon aria-hidden />
+										</DropdownMenuItem>
+									)}
+								</div>
+							)}
+							{hiddenItems.map((item) => (
+								<div key={item.id} className="flex flex-wrap items-center">
+									<PageMenuItem
+										to={item.path}
+										icon={item.icon}
+										label={item.label}
+										className={cn(
+											"min-w-0 flex-1",
+											unreadRowClass(item.id, unreadGlow),
+										)}
+										panelClassName="order-last"
+										options={
+											onShowItem && (
+												<DropdownMenuItem
+													onSelect={(event) => {
+														event.preventDefault();
+														onShowItem(item.id);
+													}}
+												>
+													Show in the menu
+												</DropdownMenuItem>
+											)
+										}
+									/>
+									{onShowItem && (
+										<DropdownMenuItem
+											aria-label={`Show ${item.label} in the menu`}
+											title={`Show ${item.label}`}
+											onSelect={(event) => {
+												event.preventDefault();
+												onShowItem(item.id);
+												setAnnouncement(`${item.label} shown in the menu.`);
+											}}
+										>
+											<PinIcon aria-hidden />
+										</DropdownMenuItem>
+									)}
 								</div>
 							))}
-					</div>
-				</CollapsibleContent>
+							{onChange &&
+								choices.map((page) => (
+									<div key={page.id} className="flex flex-wrap items-center">
+										<DestinationLink
+											link={page}
+											className={cn(unreadRowClass(page.id, unreadGlow))}
+											options={
+												<DropdownMenuItem
+													onSelect={(event) => {
+														event.preventDefault();
+														onChange([...ids, page.id]);
+														setAnnouncement(
+															`${page.label} added to the quick links.`,
+														);
+													}}
+												>
+													Add to quick links
+												</DropdownMenuItem>
+											}
+										/>
+										<DropdownMenuItem
+											aria-label={`Add ${page.label} to quick links`}
+											title={`Pin ${page.label}`}
+											onSelect={(event) => {
+												event.preventDefault();
+												onChange([...ids, page.id]);
+												setAnnouncement(
+													`${page.label} added to the quick links.`,
+												);
+											}}
+										>
+											<PinIcon aria-hidden />
+										</DropdownMenuItem>
+									</div>
+								))}
+						</div>
+					</CollapsibleContent>
+				)}
 			</Collapsible>
 
 			<span className="sr-only" aria-live="polite">
@@ -578,7 +623,14 @@ function DestinationLink({
 			icon={link.icon}
 			label={link.label}
 			className={cn("min-w-0 flex-1", className)}
-			options={options}
+			options={
+				<>
+					{link.accountActions && (
+						<AccountCreationMenuItems {...link.accountActions} />
+					)}
+					{options}
+				</>
+			}
 			panelClassName="order-last"
 		/>
 	);

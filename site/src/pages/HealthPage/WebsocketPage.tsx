@@ -1,19 +1,14 @@
-import { CodeIcon } from "lucide-react";
 import { useOutletContext } from "react-router";
 import type { HealthcheckReport } from "#/api/typesGenerated";
 import { Alert } from "#/components/Alert/Alert";
 import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "#/components/Tooltip/Tooltip";
-import {
+	GridData,
+	GridDataLabel,
+	GridDataValue,
 	Header,
 	HeaderTitle,
 	HealthyDot,
 	Main,
-	Pill,
-	SectionLabel,
 } from "./Content";
 import { MuteWarningsButton } from "./MuteWarningsButton";
 
@@ -46,27 +41,19 @@ const WebsocketPage = () => {
 					);
 				})}
 
-				<section>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Pill icon={<CodeIcon className="size-icon-sm" />}>
-								{websocket.code}
-							</Pill>
-						</TooltipTrigger>
-						<TooltipContent side="bottom">Code</TooltipContent>
-					</Tooltip>
-				</section>
+				<GridData className="w-full grid-cols-[auto_minmax(0,1fr)]">
+					<GridDataLabel>Status Code</GridDataLabel>
+					<GridDataValue>{websocket.code || "Unavailable"}</GridDataValue>
 
-				<section>
-					<SectionLabel>Body</SectionLabel>
-					<div className="bg-surface-secondary border border-solid border-border rounded-lg text-sm p-6 font-mono">
-						{websocket.body !== "" ? (
-							websocket.body
+					<GridDataLabel>Response Body</GridDataLabel>
+					<GridDataValue className="whitespace-pre-wrap wrap-anywhere">
+						{websocket.body ? (
+							<code>{websocket.body}</code>
 						) : (
 							<span className="text-content-secondary">No body message</span>
 						)}
-					</div>
-				</section>
+					</GridDataValue>
+				</GridData>
 			</Main>
 		</>
 	);

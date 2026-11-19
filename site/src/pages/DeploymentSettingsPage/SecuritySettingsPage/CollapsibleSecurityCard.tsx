@@ -5,11 +5,9 @@ import { Button } from "#/components/Button/Button";
 
 const STORAGE_KEY = "security-collapsed-cards";
 
-const readCollapsed = (): string[] => {
+const readOverrides = (key: string): string[] => {
 	try {
-		const value: unknown = JSON.parse(
-			localStorage.getItem(STORAGE_KEY) ?? "[]",
-		);
+		const value: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
 		return Array.isArray(value)
 			? value.filter((v): v is string => typeof v === "string")
 			: [];
@@ -27,17 +25,21 @@ export const CollapsibleSecurityCard: React.FC<{
 	id: string;
 	title: string;
 	children: React.ReactNode;
-}> = ({ id, title, children }) => {
+	defaultOpen?: boolean;
+}> = ({ id, title, children, defaultOpen = true }) => {
 	const contentId = useId();
-	const [open, setOpen] = useState(() => !readCollapsed().includes(id));
+	const storageKey = defaultOpen ? STORAGE_KEY : "security-expanded-cards";
+	const [open, setOpen] = useState(
+		() => defaultOpen !== readOverrides(storageKey).includes(id),
+	);
 	const toggle = () => {
 		const next = !open;
 		setOpen(next);
 		try {
-			const others = readCollapsed().filter((card) => card !== id);
+			const others = readOverrides(storageKey).filter((card) => card !== id);
 			localStorage.setItem(
-				STORAGE_KEY,
-				JSON.stringify(next ? others : [...others, id]),
+				storageKey,
+				JSON.stringify(next === defaultOpen ? others : [...others, id]),
 			);
 		} catch {
 			// a browser without storage still folds, for this visit

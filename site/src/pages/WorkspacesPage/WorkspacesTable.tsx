@@ -148,7 +148,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 	const dashboard = useDashboard();
 	const isLoading = !workspaces;
 	const isEmpty = workspaces && workspaces.length === 0;
-	const hideHeaders = isLoading || isEmpty;
+	const hideHeaders = isLoading;
 	// Platform: admins' Lock Down badges, in a column of their own before Name (no heading).
 	const locks = useAllLockdowns();
 	// Platform: each row's Cloud Drive plug, its own column at the end (none without a Cloud Drive): a click connects or
@@ -158,81 +158,80 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 
 	const table = (
 		<Table aria-label="Workspaces">
-			<TableHeader>
-				<TableRow>
-					<TableHead className="w-0 pr-0">
-						{isLoading ? (
-							<Skeleton className="size-4" />
-						) : (
-							<Checkbox
-								className={cn("my-0", isEmpty && "invisible")}
-								disabled={isEmpty}
-								checked={
-									!isEmpty && checkedWorkspaces.length === workspaces.length
-								}
-								onCheckedChange={(checked) => {
-									if (!checked) {
-										onCheckChange([]);
-									} else {
-										onCheckChange(workspaces);
-									}
-								}}
-								aria-label="Select all workspaces"
-							/>
-						)}
-					</TableHead>
-					{locks.isSuccess && (
-						<TableHead className="w-0 px-1">
-							<span className="sr-only">Lock Down</span>
+			{!isEmpty && (
+				<TableHeader>
+					<TableRow>
+						<TableHead className="w-0 pr-0">
+							{isLoading ? (
+								<Skeleton className="size-4" />
+							) : (
+								<Checkbox
+									className="my-0"
+									checked={checkedWorkspaces.length === workspaces.length}
+									onCheckedChange={(checked) => {
+										if (!checked) {
+											onCheckChange([]);
+										} else {
+											onCheckChange(workspaces);
+										}
+									}}
+									aria-label="Select all workspaces"
+								/>
+							)}
 						</TableHead>
-					)}
-					{/* Platform: as wide as the names, the Resources right beside them */}
-					<TableHead
-						className={cn(
-							"w-0 whitespace-nowrap text-center",
-							hideHeaders && "invisible",
+						{locks.isSuccess && (
+							<TableHead className="w-0 px-1">
+								<span className="sr-only">Lock Down</span>
+							</TableHead>
 						)}
-					>
-						Name
-					</TableHead>
-					{/* Platform: CPU and MEM as live graphs, the disk used of what it was given */}
-					<TableHead
-						className={cn("w-0 px-3 text-center", hideHeaders && "invisible")}
-					>
-						Resources
-					</TableHead>
-					<TableHead
-						className={cn("w-[12%] text-center", hideHeaders && "invisible")}
-					>
-						Template
-					</TableHead>
-					<TableHead
-						className={cn("w-[12%] text-center", hideHeaders && "invisible")}
-					>
-						Status
-					</TableHead>
-					<TableHead
-						className={cn("w-0 text-center", hideHeaders && "invisible")}
-					>
-						Apps
-					</TableHead>
-					<TableHead
-						className={cn("w-0 text-center", hideHeaders && "invisible")}
-					>
-						Controls
-					</TableHead>
-					{drive.enabled && (
+						{/* Platform: as wide as the names, the Resources right beside them */}
 						<TableHead
 							className={cn(
-								"w-16 px-2 text-center",
+								"w-0 whitespace-nowrap text-center",
 								hideHeaders && "invisible",
 							)}
 						>
-							Drive
+							Name
 						</TableHead>
-					)}
-				</TableRow>
-			</TableHeader>
+						{/* Platform: CPU and MEM as live graphs, the disk used of what it was given */}
+						<TableHead
+							className={cn("w-0 px-3 text-center", hideHeaders && "invisible")}
+						>
+							Resources
+						</TableHead>
+						<TableHead
+							className={cn("w-[12%] text-center", hideHeaders && "invisible")}
+						>
+							Template
+						</TableHead>
+						<TableHead
+							className={cn("w-[12%] text-center", hideHeaders && "invisible")}
+						>
+							Status
+						</TableHead>
+						<TableHead
+							className={cn("w-0 text-center", hideHeaders && "invisible")}
+						>
+							Apps
+						</TableHead>
+						<TableHead
+							className={cn("w-0 text-center", hideHeaders && "invisible")}
+						>
+							Controls
+						</TableHead>
+						{drive.enabled && (
+							<TableHead
+								className={cn(
+									"w-16 px-2 text-center",
+									hideHeaders && "invisible",
+								)}
+							>
+								Drive
+							</TableHead>
+						)}
+					</TableRow>
+				</TableHeader>
+			)}
 			<TableBody className="[&_td]:h-[78px]">
 				{isLoading && <TableLoader />}
 				{isEmpty && (

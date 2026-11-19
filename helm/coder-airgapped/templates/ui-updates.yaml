@@ -62,7 +62,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: coder-ui-updates
+  name: coder-ui
   namespace: {{ $ns }}
   labels:
     {{- include "ca.uiLabels" . | nindent 4 }}
@@ -139,7 +139,7 @@ spec:
             # Lock Down > Freeze of a stopped workspace: the image that copies its home volume (the snapshot)
             - {name: LOCKDOWN_COPY_IMAGE, value: {{ tpl (index $.Values "coder-workspace" "workspaceImage") $ | quote }}}
             - {name: WORKSPACE_PLATFORM_IMAGE, value: {{ $.Values.uiUpdates.image | quote }}}
-            - {name: CODER_DEPLOYMENT, value: coder}
+            - {name: CODER_DEPLOYMENT, value: coder-server}
             - {name: CODER_RELEASE, value: {{ .Release.Name | quote }}}
             - {name: ATTACHED, value: "false"}
             {{- if $ui.clientCertificates.enabled }}

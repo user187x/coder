@@ -16,24 +16,24 @@ import {
 	MockNetworkPodLogs,
 	MockPodDetails,
 } from "#/testHelpers/clusterNetwork";
+import { MockPersistenceReportCloud } from "#/testHelpers/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { MockResizeObserver } from "#/testHelpers/resizeObserver";
+import { StorageView } from "../StorageSettingsPage";
 import { ClusterMap } from "./ClusterMap";
 
 vi.mock("#/hooks/useAuthenticated", () => ({
 	useAuthenticated: () => ({ permissions: { editDeploymentConfig: false } }),
 }));
 
-const renderMap = () =>
+const renderMap = (view = <ClusterMap />) =>
 	renderComponent(
 		<QueryClientProvider
 			client={
 				new QueryClient({ defaultOptions: { queries: { retry: false } } })
 			}
 		>
-			<MemoryRouter>
-				<ClusterMap />
-			</MemoryRouter>
+			<MemoryRouter>{view}</MemoryRouter>
 		</QueryClientProvider>,
 	);
 
@@ -43,10 +43,16 @@ describe("ClusterMap", () => {
 	beforeEach(() => {
 		MockResizeObserver.reset();
 		vi.stubGlobal("ResizeObserver", MockResizeObserver);
+		vi.spyOn(PlatformAPI, "getPersistenceReport").mockRejectedValue(
+			new Error("No database fixture"),
+		);
 		vi.spyOn(PlatformAPI, "getNetworkReport").mockResolvedValue(
 			MockClusterNetworkReport,
 		);
 		vi.spyOn(ClusterNetworkAPI, "mesh").mockResolvedValue(MockMeshReport);
+		vi.spyOn(ClusterNetworkAPI, "getCloudDriveCleanup").mockResolvedValue({
+			scan: null,
+		});
 		vi.spyOn(ClusterNetworkAPI, "haAndStorage").mockResolvedValue(
 			MockHAStorageReport,
 		);
@@ -101,6 +107,45 @@ describe("ClusterMap", () => {
 		},
 	);
 
+	it("pans the fullscreen map with the middle button and stops on release", async () => {
+		renderMap();
+		const map = await screen.findByTestId("cluster-map");
+		const capture = vi.fn();
+		Object.defineProperty(map, "setPointerCapture", {
+			configurable: true,
+			value: capture,
+		});
+		const fullscreen = Object.getOwnPropertyDescriptor(
+			document,
+			"fullscreenElement",
+		);
+		Object.defineProperty(document, "fullscreenElement", {
+			configurable: true,
+			value: map,
+		});
+		fireEvent(document, new Event("fullscreenchange"));
+		const pointer = (type: string, x: number, y: number) => {
+			const event = new MouseEvent(type, {
+				bubbles: true,
+				button: 1,
+				clientX: x,
+				clientY: y,
+			});
+			Object.defineProperty(event, "pointerId", { value: 4 });
+			fireEvent(map, event);
+		};
+		pointer("pointerdown", 100, 100);
+		pointer("pointermove", 40, 25);
+		expect(capture).toHaveBeenCalledWith(4);
+		expect([map.scrollLeft, map.scrollTop]).toEqual([60, 75]);
+		pointer("pointerup", 40, 25);
+		pointer("pointermove", 0, 0);
+		expect([map.scrollLeft, map.scrollTop]).toEqual([60, 75]);
+		if (fullscreen)
+			Object.defineProperty(document, "fullscreenElement", fullscreen);
+		else Reflect.deleteProperty(document, "fullscreenElement");
+	});
+
 	it("colours every pod and Service by its kind, and names the colours", async () => {
 		renderMap();
 		const coder = await screen.findByTestId("cluster-map-pod-coder-5d9f7c");
@@ -151,21 +196,16 @@ describe("ClusterMap", () => {
 		);
 	});
 
-	it("opens node details after filtering the focus view", async () => {
+	it("requests native fullscreen for the cluster map", async () => {
 		const user = userEvent.setup();
 		renderMap();
-		await user.click(await screen.findByRole("button", { name: "Focus view" }));
-		const focus = within(
-			screen.getByRole("dialog", { name: "Cluster network focus view" }),
+		const map = await screen.findByRole("region", { name: "Cluster map" });
+		const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+		Object.assign(map, { requestFullscreen });
+		await user.click(
+			await within(map).findByRole("button", { name: "Fullscreen" }),
 		);
-		await user.type(
-			focus.getByRole("textbox", { name: "Filter nodes" }),
-			"node-b",
-		);
-		await user.click(focus.getByRole("button", { name: "node-b" }));
-		await waitFor(() =>
-			expect(entity).toHaveBeenCalledWith({ type: "node", name: "node-b" }),
-		);
+		expect(requestFullscreen).toHaveBeenCalledOnce();
 	});
 
 	it("opens a pod's details from the map", async () => {
@@ -212,6 +252,40 @@ describe("ClusterMap", () => {
 		).toBeInTheDocument();
 	});
 
+	it("sorts recent hand-offs by timestamp in both directions", async () => {
+		const ha = MockHAStorageReport.codeServerHA;
+		vi.mocked(ClusterNetworkAPI.haAndStorage).mockResolvedValue({
+			...MockHAStorageReport,
+			codeServerHA: {
+				...ha,
+				events: [
+					...ha.events,
+					{
+						at: "2026-10-01T10:00:00Z",
+						workspaceId: null,
+						cluster: null,
+						event: "start",
+						detail: "Newer hand-off",
+					},
+				],
+			},
+		});
+		const user = userEvent.setup();
+		renderMap();
+		const recent = within(await screen.findByTestId("ha-events"));
+		expect(recent.getAllByRole("listitem")[0]).toHaveTextContent(
+			"Newer hand-off",
+		);
+		await user.click(recent.getByRole("button", { name: "Newest first" }));
+		expect(recent.getAllByRole("listitem")[1]).toHaveTextContent(
+			"Newer hand-off",
+		);
+		await user.click(recent.getByRole("button", { name: "Oldest first" }));
+		expect(recent.getAllByRole("listitem")[0]).toHaveTextContent(
+			"Newer hand-off",
+		);
+	});
+
 	it("shows code-server HA as it is: who holds the lock, each instance and its relay", async () => {
 		renderMap();
 		const card = await screen.findByTestId("cluster-ha-card");
@@ -232,25 +306,91 @@ describe("ClusterMap", () => {
 		expect(row).toHaveTextContent("gen 3");
 		expect(row).toHaveTextContent("gen 2: relays on until fenced");
 		expect(row).toHaveTextContent("4 files");
+		expect(within(card).queryByTestId("cloud-drive")).not.toBeInTheDocument();
+	});
+
+	it("shows Storage classes and Cloud Drive volumes in Storage", async () => {
+		renderMap(<StorageView />);
 		expect(
-			within(card).getByTestId("storage-class-local-path"),
+			await screen.findByTestId("storage-class-local-path"),
 		).toHaveTextContent("default");
-		expect(within(card).getByTestId("cloud-drive")).toHaveTextContent(
-			"coder-safe-u1",
+		const drive = await screen.findByTestId("cloud-drive");
+		expect(drive).toHaveTextContent("coder-safe-u1");
+		expect(within(drive).queryByText("coder-safe-u2")).not.toBeInTheDocument();
+		fireEvent.click(within(drive).getByRole("button", { name: /Show all 2/ }));
+		expect(within(drive).getByText("coder-safe-u2")).toBeInTheDocument();
+	});
+
+	it("connects a claim to its backing volume and keeps database operations in Storage", async () => {
+		const user = userEvent.setup();
+		vi.mocked(PlatformAPI.getPersistenceReport).mockResolvedValue(
+			MockPersistenceReportCloud,
 		);
-		// the released volume shows once asked for
-		expect(within(card).queryByText("coder-safe-u2")).not.toBeInTheDocument();
-		fireEvent.click(within(card).getByRole("button", { name: /Show all 2/ }));
-		expect(within(card).getByText("coder-safe-u2")).toBeInTheDocument();
+		renderMap(<StorageView />);
+		expect(
+			await screen.findByRole("heading", { name: "Database map" }),
+		).toBeVisible();
+		expect(
+			await screen.findByRole("heading", { name: "Disaster recovery" }),
+		).toBeVisible();
+		await user.click(await screen.findByRole("button", { name: "Pending 1" }));
+		expect(screen.getByText("other/data")).toBeVisible();
+		expect(screen.queryByText("coder/data")).not.toBeInTheDocument();
+		await user.click(screen.getByRole("button", { name: "All resources" }));
+		await user.click(
+			screen.getByRole("button", { name: "Inspect binding to pv-data" }),
+		);
+		const binding = screen.getByRole("region", { name: "Volume binding" });
+		expect(within(binding).getByText("coder/data")).toBeVisible();
+		expect(within(binding).getByText("db-1")).toBeVisible();
+		expect(screen.queryByText("other/data")).not.toBeInTheDocument();
+		await user.click(
+			within(binding).getByRole("button", { name: "Clear binding" }),
+		);
+		expect(screen.getByText("other/data")).toBeVisible();
+		expect(PlatformAPI.getPersistenceReport).toHaveBeenCalledWith(true);
+	});
+
+	it("reviews a cleanup scan and dismisses all flagged volumes without deleting them", async () => {
+		const user = userEvent.setup();
+		const start = vi
+			.spyOn(ClusterNetworkAPI, "startCloudDriveCleanup")
+			.mockResolvedValue({
+				scan: {
+					id: "scan",
+					status: "ready",
+					candidates: [{ name: "coder-safe-u2", account: "removed" }],
+				},
+			});
+		const review = vi
+			.spyOn(ClusterNetworkAPI, "reviewCloudDriveCleanup")
+			.mockResolvedValue({
+				scan: { id: "scan", status: "complete", kept: 1 },
+			});
+		const remove = vi.spyOn(ClusterNetworkAPI, "deleteCloudDriveVolumes");
+		renderMap(<StorageView />);
+		await user.click(await screen.findByRole("button", { name: "Clean Up" }));
+		expect(start).toHaveBeenCalledOnce();
+		await user.click(
+			await screen.findByRole("button", { name: "Review cleanup" }),
+		);
+		const dialog = await screen.findByRole("dialog", {
+			name: "Review Cloud Drive cleanup",
+		});
+		await user.click(
+			within(dialog).getByRole("button", { name: "Keep all and dismiss" }),
+		);
+		expect(review).toHaveBeenCalledExactlyOnceWith({ id: "scan", names: [] });
+		expect(remove).not.toHaveBeenCalled();
+		await screen.findByRole("button", { name: "Clean Up" });
 	});
 
 	it("deletes an unmounted Cloud Drive volume after confirming, never a mounted one", async () => {
 		const remove = vi
 			.spyOn(ClusterNetworkAPI, "deleteCloudDriveVolumes")
 			.mockResolvedValue({ deleted: ["coder-safe-u2"], skipped: [] });
-		renderMap();
-		const card = await screen.findByTestId("cluster-ha-card");
-		const drive = await within(card).findByTestId("cloud-drive");
+		renderMap(<StorageView />);
+		const drive = await screen.findByTestId("cloud-drive");
 		expect(
 			within(drive).getByRole("button", {
 				name: "Delete volume coder-safe-u1",
@@ -272,11 +412,10 @@ describe("ClusterMap", () => {
 		const remove = vi
 			.spyOn(ClusterNetworkAPI, "deleteCloudDriveVolumes")
 			.mockResolvedValue({ deleted: ["coder-safe-u2"], skipped: [] });
-		renderMap();
-		const card = await screen.findByTestId("cluster-ha-card");
-		const drive = await within(card).findByTestId("cloud-drive");
+		renderMap(<StorageView />);
+		const drive = await screen.findByTestId("cloud-drive");
 		// the unmounted one is Released, listed once every volume is shown
-		fireEvent.click(within(card).getByRole("button", { name: /Show all 2/ }));
+		fireEvent.click(within(drive).getByRole("button", { name: /Show all 2/ }));
 		expect(
 			within(drive).getByRole("checkbox", {
 				name: "Select volume coder-safe-u1",

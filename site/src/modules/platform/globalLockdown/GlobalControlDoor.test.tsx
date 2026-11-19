@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GlobalControlsAPI } from "#/api/globalLockdown";
 import {
@@ -7,42 +7,53 @@ import {
 } from "#/testHelpers/globalLockdown";
 import { render } from "#/testHelpers/renderHelpers";
 import { GlobalControlDoor } from "./GlobalControlDoor";
+import { terminateFlashFinished } from "./TerminateSignoff";
 
 afterEach(() => vi.restoreAllMocks());
-it("verifies the PIN on the server before exposing actions and revokes the grant when closed", async () => {
-	vi.spyOn(GlobalControlsAPI, "get").mockResolvedValue(MockGlobalControlStatus);
-	const unlock = vi
-		.spyOn(GlobalControlsAPI, "unlock")
-		.mockResolvedValue(MockGlobalControlGrant);
-	const close = vi
-		.spyOn(GlobalControlsAPI, "close")
-		.mockResolvedValue(MockGlobalControlStatus);
-	const onUnlock = vi.fn();
-	const act = vi.fn();
-	const user = userEvent.setup();
-	render(
-		<GlobalControlDoor onUnlock={onUnlock}>
-			<button type="button" onClick={act}>
-				Privileged action
-			</button>
-		</GlobalControlDoor>,
-	);
-	await user.type(
-		await screen.findByLabelText("Six-digit admin PIN"),
-		"938271",
-	);
-	expect(act).not.toHaveBeenCalled();
-	await user.click(screen.getByRole("button", { name: "Unlock controls" }));
-	await waitFor(() => expect(unlock).toHaveBeenCalledWith({ pin: "938271" }));
-	await user.click(
-		await screen.findByRole("button", { name: "Privileged action" }),
-	);
-	expect(act).toHaveBeenCalledOnce();
-	expect(onUnlock).toHaveBeenCalledWith(MockGlobalControlGrant);
-	await user.click(screen.getByRole("button", { name: "Close Panel" }));
-	await waitFor(() => expect(close).toHaveBeenCalledOnce());
-	expect(onUnlock).toHaveBeenLastCalledWith(null);
-});
+it.each(["manual close", "Terminate flash"])(
+	"verifies the PIN and revokes the grant after %s",
+	async (trigger) => {
+		vi.spyOn(GlobalControlsAPI, "get").mockResolvedValue(
+			MockGlobalControlStatus,
+		);
+		const unlock = vi
+			.spyOn(GlobalControlsAPI, "unlock")
+			.mockResolvedValue(MockGlobalControlGrant);
+		const close = vi
+			.spyOn(GlobalControlsAPI, "close")
+			.mockResolvedValue(MockGlobalControlStatus);
+		const onUnlock = vi.fn();
+		const act = vi.fn();
+		const user = userEvent.setup();
+		render(
+			<GlobalControlDoor onUnlock={onUnlock}>
+				<button type="button" onClick={act}>
+					Privileged action
+				</button>
+			</GlobalControlDoor>,
+		);
+		await user.type(
+			await screen.findByLabelText("Six-digit admin PIN"),
+			"938271",
+		);
+		expect(act).not.toHaveBeenCalled();
+		await user.click(screen.getByRole("button", { name: "Unlock controls" }));
+		await waitFor(() => expect(unlock).toHaveBeenCalledWith({ pin: "938271" }));
+		await user.click(
+			await screen.findByRole("button", { name: "Privileged action" }),
+		);
+		expect(act).toHaveBeenCalledOnce();
+		expect(onUnlock).toHaveBeenCalledWith(MockGlobalControlGrant);
+		if (trigger === "manual close") {
+			await user.click(screen.getByRole("button", { name: "Close Panel" }));
+		} else {
+			expect(close).not.toHaveBeenCalled();
+			fireEvent(window, new Event(terminateFlashFinished));
+		}
+		await waitFor(() => expect(close).toHaveBeenCalledOnce());
+		expect(onUnlock).toHaveBeenLastCalledWith(null);
+	},
+);
 it("requires matching PINs for first-time setup", async () => {
 	vi.spyOn(GlobalControlsAPI, "get").mockResolvedValue({
 		...MockGlobalControlStatus,

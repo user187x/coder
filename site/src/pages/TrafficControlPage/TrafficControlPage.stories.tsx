@@ -7,6 +7,7 @@ import type { Workspace } from "#/api/typesGenerated";
 import { MockUserMember, MockWorkspace } from "#/testHelpers/entities";
 import { withAuthProvider } from "#/testHelpers/storybook";
 import TrafficControlPage from "./TrafficControlPage";
+import "#/dashboardPanel.css";
 
 const workspace = (id: string, running = true): Workspace => ({
 	...MockWorkspace,

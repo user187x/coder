@@ -9,7 +9,7 @@ import {
 import { AdminNotesTray } from "./AdminNotesTray";
 import { settingsNotesPlacement } from "./settingsPanelLayout";
 
-/** The admin notes drawer on the menu's side rail, beside the bottom panel it is anchored to. */
+/** The admin notes drawer on the menu's side rail, positioned independently of the bottom face. */
 export const SettingsSidePanels = ({
 	container,
 	surface,
@@ -37,7 +37,6 @@ export const SettingsSidePanels = ({
 		topInset: 0,
 		width: 0,
 		anchorTop: 0,
-		anchorVisible: false,
 		notesHeight: 124,
 		edge: "right" as "left" | "right",
 	});
@@ -63,7 +62,7 @@ export const SettingsSidePanels = ({
 			const topInset = docked
 				? Math.max(0, (navbar?.getBoundingClientRect().bottom ?? 0) - menu.top)
 				: 0;
-			const notesSpace = images && metric?.height ? 136 : 0;
+			const notesSpace = images ? 136 : 0;
 			const railHeight = 16 + notesSpace;
 			container.style.setProperty(
 				"--settings-rail-height",
@@ -83,22 +82,27 @@ export const SettingsSidePanels = ({
 					Math.min(
 						window.innerWidth - 24,
 						edge === "left"
-							? window.innerWidth - menu.right + 65 - 12
+							? window.innerWidth - menu.right + (docked ? 0 : 65) - 12
 							: menu.left + (docked ? 0 : 65) - 12,
 					),
 				),
-				anchorTop: metric ? metric.top - menu.top : 0,
-				anchorVisible: Boolean(metric?.height),
+
 				notesHeight: 124,
 				edge,
 			};
-			setBounds((previous) =>
-				Object.entries(next).every(
+			setBounds((previous) => {
+				const measured = {
+					...next,
+					anchorTop: metric?.height
+						? metric.top - menu.top
+						: previous.anchorTop,
+				};
+				return Object.entries(measured).every(
 					([key, value]) => Reflect.get(previous, key) === value,
 				)
 					? previous
-					: next,
-			);
+					: measured;
+			});
 		};
 		measure();
 		let frame = 0;
@@ -123,7 +127,6 @@ export const SettingsSidePanels = ({
 			window.removeEventListener("scroll", schedule, true);
 		};
 	}, [container, surface, anchor, notesPanel, images]);
-	const withNotes = images && bounds.anchorVisible;
 	const notes = settingsNotesPlacement({
 		...bounds,
 		notesTop:
@@ -132,7 +135,7 @@ export const SettingsSidePanels = ({
 	if (!images) return null;
 	return (
 		<AdminNotesTray
-			hidden={!withNotes}
+			hidden={notes.maxHeight === 0}
 			onElement={setNotesPanel}
 			maxWidth={bounds.width}
 			edge={bounds.edge}

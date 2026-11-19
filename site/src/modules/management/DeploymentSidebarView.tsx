@@ -156,7 +156,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		permissions.editDeploymentConfig &&
 			item("quick-menu", "/deployment/quick-menu", "Quick Menu"),
 		permissions.viewDeploymentConfig &&
-			item("persistence", "/deployment/persistence", "Persistence"),
+			item("storage", "/deployment/storage", "Storage"),
 		permissions.viewDeploymentConfig &&
 			item("security", "/deployment/security", "Security"),
 		canSeeTemplates(permissions) &&

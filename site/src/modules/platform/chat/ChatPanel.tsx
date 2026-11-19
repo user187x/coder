@@ -13,6 +13,11 @@ import type { ChatPeer, UserUIPreferences } from "#/api/platform";
 import { chatAdmins } from "#/api/queries/platform";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { Button } from "#/components/Button/Button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "#/components/Tooltip/Tooltip";
 
 import { navbarTileTriggerClass } from "#/modules/dashboard/Navbar/NavbarLogo";
 import { ChatAvatar } from "./ChatAvatar";
@@ -41,8 +46,9 @@ export const ChatPanel: React.FC<{
 	dock: React.RefObject<HTMLElement | null>;
 	size: UserUIPreferences["chat_size"];
 	onClose: () => void;
+	onExpand?: () => void;
 	onResize: (size: UserUIPreferences["chat_size"]) => void;
-}> = ({ dock, size, onResize, onClose }) => {
+}> = ({ dock, size, onResize, onClose, onExpand }) => {
 	const panel = useRef<HTMLDivElement>(null);
 	const state = useChatSnapshot();
 	const me = state.me;
@@ -104,7 +110,10 @@ export const ChatPanel: React.FC<{
 									? "Minimize"
 									: undefined
 						}
-						onClick={() => setDockMode(raised ? "bar" : "window")}
+						onClick={() => {
+							if (!raised && onExpand) onExpand();
+							else setDockMode(raised ? "bar" : "window");
+						}}
 						className={cn(
 							"flex h-11 min-w-0 flex-1 items-center gap-2 border-0 bg-transparent pl-3.5 pr-2 text-left text-[13px] font-semibold text-inherit",
 							none
@@ -225,9 +234,10 @@ export const ChatHeading: React.FC = () => {
 };
 
 /** An admin's own switch: off = developers can't write to them. */
-export const ChatOnSwitch: React.FC<{ className?: string }> = ({
-	className,
-}) => {
+export const ChatOnSwitch: React.FC<{
+	className?: string;
+	tooltip?: string;
+}> = ({ className, tooltip }) => {
 	const { me } = useChatSnapshot();
 	if (!me) {
 		return null;
@@ -235,13 +245,13 @@ export const ChatOnSwitch: React.FC<{ className?: string }> = ({
 	const label = me.chatOn
 		? "Chat is on: developers can message you. Click to turn it off."
 		: "Chat is off: developers can't message you. Click to turn it on.";
-	return (
+	const toggle = (
 		<button
 			type="button"
 			role="switch"
 			aria-checked={me.chatOn}
 			aria-label={label}
-			title={label}
+			title={tooltip ? undefined : label}
 			onClick={() => {
 				void setChatOn(!me.chatOn);
 			}}
@@ -266,6 +276,14 @@ export const ChatOnSwitch: React.FC<{ className?: string }> = ({
 				/>
 			</span>
 		</button>
+	);
+	return tooltip ? (
+		<Tooltip>
+			<TooltipTrigger asChild>{toggle}</TooltipTrigger>
+			<TooltipContent className="z-[2147483647]">{tooltip}</TooltipContent>
+		</Tooltip>
+	) : (
+		toggle
 	);
 };
 

@@ -139,11 +139,14 @@ spec:
 # Every node's 127.0.0.1:<localPort> forwards to the registry, so the container runtime pulls
 # localhost:<localPort>/coder-images/... without TLS or a DNS name. Loopback only: nothing else on the node's network
 # can reach it.
+{{- if and .Release.IsUpgrade (ne $ns "coder-system") (lookup "apps/v1" "DaemonSet" $ns "coder-image-registry-proxy") }}
+{{- fail "retire the old coder-image-registry-proxy DaemonSet before moving it to coder-system (see DEPLOY.md, Moving node add-ons)" }}
+{{- end }}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: coder-image-registry-proxy
-  namespace: {{ $ns }}
+  namespace: coder-system
   labels:
     {{- include "ca.labels" . | nindent 4 }}
     app.kubernetes.io/name: coder-image-registry-proxy

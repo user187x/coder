@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { DatabaseInstance, PersistenceReport } from "#/api/platform";
 import { Badge } from "#/components/Badge/Badge";
+import { Button } from "#/components/Button/Button";
 import {
 	ago,
 	bytes,
@@ -38,7 +39,9 @@ export const replicationLabel = (i: DatabaseInstance) => {
 	);
 };
 
-const Tiles: React.FC<{ report: PersistenceReport }> = ({ report }) => {
+const DatabaseSummaryTiles: React.FC<{ report: PersistenceReport }> = ({
+	report,
+}) => {
 	const now = useNow();
 	const { cluster, database, backups, instances, storageClasses, provider } =
 		report.facts;
@@ -158,9 +161,21 @@ const useLinks = (
 					r.top - outer.top + Math.min(r.height / 2, 28),
 				];
 			};
-			const curve = (from: number[], to: number[]) => {
-				const dx = Math.max(30, Math.abs(to[0] - from[0]) / 2);
-				return `M${from[0]},${from[1]} C${from[0] + dx},${from[1]} ${to[0] - dx},${to[1]} ${to[0]},${to[1]}`;
+			const curve = (fromNode: Element, toNode: Element) => {
+				const from = fromNode.getBoundingClientRect();
+				const to = toNode.getBoundingClientRect();
+				if (to.left < from.right && to.top >= from.bottom) {
+					const startX = from.left - outer.left + from.width / 2;
+					const startY = from.bottom - outer.top;
+					const endX = to.left - outer.left + to.width / 2;
+					const endY = to.top - outer.top;
+					const middle = (startY + endY) / 2;
+					return `M${startX},${startY} C${startX},${middle} ${endX},${middle} ${endX},${endY}`;
+				}
+				const [x, y] = side(fromNode, "right");
+				const [endX, endY] = side(toNode, "left");
+				const dx = Math.max(30, Math.abs(endX - x) / 2);
+				return `M${x},${y} C${x + dx},${y} ${endX - dx},${endY} ${endX},${endY}`;
 			};
 			const next: LinkPath[] = [];
 			const coder = root.querySelector("[data-node=coder]");
@@ -170,13 +185,13 @@ const useLinks = (
 			if (coder && service) {
 				next.push({
 					kind: "entry",
-					d: curve(side(coder, "right"), side(service, "left")),
+					d: curve(coder, service),
 				});
 			}
 			if (service && primary) {
 				next.push({
 					kind: "ok",
-					d: curve(side(service, "right"), side(primary, "left")),
+					d: curve(service, primary),
 				});
 			}
 			if (primary) {
@@ -194,7 +209,7 @@ const useLinks = (
 				if (backup) {
 					next.push({
 						kind: "backup",
-						d: curve(side(primary, "right"), side(backup, "left")),
+						d: curve(primary, backup),
 					});
 				}
 			}
@@ -239,11 +254,36 @@ const Box: React.FC<
 	</div>
 );
 
+export type DatabaseMapTarget =
+	| { kind: "coder" | "endpoint" | "backups" }
+	| { kind: "instance"; name: string };
+
+const InspectButton = ({
+	label,
+	onClick,
+}: {
+	label: string;
+	onClick: () => void;
+}) => (
+	<Button
+		type="button"
+		size="sm"
+		variant="outline"
+		className="justify-self-start"
+		aria-label={`Inspect ${label}`}
+		onClick={onClick}
+	>
+		Inspect
+	</Button>
+);
+
 /** General > Persistence: tiles, then a map of how Coder's data is stored. */
 export const PersistenceMap: React.FC<{
 	report: PersistenceReport;
-	onAddTarget: () => void;
-}> = ({ report, onAddTarget }) => {
+	onAddTarget?: () => void;
+	onInspect?: (target: DatabaseMapTarget) => void;
+	showSummary?: boolean;
+}> = ({ report, onAddTarget, onInspect, showSummary = true }) => {
 	const container = useRef<HTMLDivElement>(null);
 	const { paths, box } = useLinks(container, report);
 	const now = useNow();
@@ -257,10 +297,17 @@ export const PersistenceMap: React.FC<{
 	} = report.facts;
 	return (
 		<>
-			<Tiles report={report} />
+			{showSummary && <DatabaseSummaryTiles report={report} />}
 			<div
 				ref={container}
-				className="relative grid items-start gap-12 md:grid-cols-[minmax(150px,190px)_minmax(150px,200px)_minmax(0,1fr)_minmax(150px,200px)]"
+				className={cn(
+					"relative grid items-start gap-12",
+					onInspect && !cluster
+						? "md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+						: onInspect
+							? "xl:grid-cols-[minmax(140px,190px)_minmax(150px,220px)_minmax(0,1fr)_minmax(145px,200px)]"
+							: "md:grid-cols-[minmax(150px,190px)_minmax(150px,200px)_minmax(0,1fr)_minmax(150px,200px)]",
+				)}
 			>
 				<svg
 					aria-hidden
@@ -294,9 +341,21 @@ export const PersistenceMap: React.FC<{
 							From {db.source}
 						</div>
 					)}
+					{onInspect && (
+						<InspectButton
+							label="Coder connection"
+							onClick={() => onInspect({ kind: "coder" })}
+						/>
+					)}
 				</Box>
 				<Box
-					title={cluster ? "Read-write Service" : "Database"}
+					title={
+						onInspect
+							? "Database endpoint"
+							: cluster
+								? "Read-write Service"
+								: "Database"
+					}
 					data-node="service"
 				>
 					<div className="font-semibold [overflow-wrap:anywhere]">
@@ -307,32 +366,46 @@ export const PersistenceMap: React.FC<{
 					)}
 					<div className="text-xs text-content-secondary">
 						{cluster
-							? "Always points at the primary, so fail-over needs no change in Coder."
+							? onInspect
+								? "Configured endpoint for the CloudNativePG primary."
+								: "Always points at the primary, so fail-over needs no change in Coder."
 							: provider && report.mode === "external"
 								? `${provider}: high availability and backups are run by the provider.`
 								: "Not a CloudNativePG cluster in this Kubernetes cluster."}
 					</div>
-				</Box>
-				<div className="grid gap-4">
-					{instances.length ? (
-						instances.map((instance) => (
-							<InstanceCard
-								key={instance.name}
-								instance={instance}
-								dataBytes={database?.sizeBytes ?? null}
-								now={now}
-							/>
-						))
-					) : (
-						<Box title="Instances" dashed>
-							<div className="text-sm text-content-secondary">
-								{report.mode === "external"
-									? "The database's servers are outside this Kubernetes cluster."
-									: "No CloudNativePG cluster serves Coder yet. Create one below."}
-							</div>
-						</Box>
+					{onInspect && (
+						<InspectButton
+							label="database endpoint"
+							onClick={() => onInspect({ kind: "endpoint" })}
+						/>
 					)}
-				</div>
+				</Box>
+				{(!onInspect || cluster || instances.length > 0) && (
+					<div className="grid gap-4">
+						{instances.length ? (
+							instances.map((instance) => (
+								<InstanceCard
+									key={instance.name}
+									instance={instance}
+									dataBytes={database?.sizeBytes ?? null}
+									now={now}
+									onInspect={
+										onInspect &&
+										(() => onInspect({ kind: "instance", name: instance.name }))
+									}
+								/>
+							))
+						) : (
+							<Box title="Instances" dashed>
+								<div className="text-sm text-content-secondary">
+									{report.mode === "external"
+										? "The database's servers are outside this Kubernetes cluster."
+										: "No CloudNativePG cluster serves Coder yet. Create one below."}
+								</div>
+							</Box>
+						)}
+					</div>
+				)}
 				{cluster && (
 					<Box
 						title="Backups"
@@ -355,7 +428,7 @@ export const PersistenceMap: React.FC<{
 						<div className="font-semibold">
 							{backups?.configured ? (
 								backups.method
-							) : (
+							) : onAddTarget ? (
 								<button
 									type="button"
 									aria-label="None scheduled: Add a target"
@@ -364,6 +437,8 @@ export const PersistenceMap: React.FC<{
 								>
 									None scheduled
 								</button>
+							) : (
+								"None scheduled"
 							)}
 						</div>
 						<div className="text-xs text-content-secondary">
@@ -371,6 +446,12 @@ export const PersistenceMap: React.FC<{
 								? `Schedule ${backups.schedule}. ${backups.count} completed; last ${backups.lastSuccess ? `${ago(backups.lastSuccess, now)} ago` : "never"}.`
 								: "Replicas don't protect against deleted or corrupted data."}
 						</div>
+						{onInspect && (
+							<InspectButton
+								label="backups"
+								onClick={() => onInspect({ kind: "backups" })}
+							/>
+						)}
 					</Box>
 				)}
 			</div>
@@ -395,12 +476,14 @@ type InstanceCardProps = {
 	/** The database's size: every instance holds a full copy. */
 	dataBytes: number | null;
 	now: number;
+	onInspect?: () => void;
 };
 
 const InstanceCard: React.FC<InstanceCardProps> = ({
 	instance: i,
 	dataBytes,
 	now,
+	onInspect,
 }) => {
 	const primary = i.role === "primary";
 	const healthy = primary ? i.ready : replicaHealthy(i);
@@ -457,6 +540,7 @@ const InstanceCard: React.FC<InstanceCardProps> = ({
 				<dt className="text-content-secondary">Replication</dt>
 				<dd className="m-0">{replicationLabel(i)}</dd>
 			</dl>
+			{onInspect && <InspectButton label={i.name} onClick={onInspect} />}
 		</article>
 	);
 };

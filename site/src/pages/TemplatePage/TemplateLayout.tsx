@@ -117,8 +117,8 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 	}
 
 	return (
-		<div className={filesView ? "flex-1 min-h-0 py-3" : "pb-12"}>
-			<Margins>
+		<div className={filesView ? "flex flex-1 flex-col py-3" : "pb-12"}>
+			<Margins className={filesView ? "my-auto" : undefined}>
 				<section
 					className={cn(
 						filesView &&

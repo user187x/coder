@@ -81,51 +81,52 @@ const NotificationsPage: React.FC = () => {
 			{!ready ? (
 				<Loader />
 			) : (
-				// One card with its views as tabs along the top, as the Chat console
-				<Tabs
-					value={activeTab}
-					onValueChange={tabState.setValue}
-					className="flex min-w-0 w-full flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary"
-					data-testid="notifications-card"
-				>
-					<div className="flex shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-3">
-						<TabsList
-							aria-label="Notifications views"
-							className="min-w-0 flex-1 flex-wrap gap-x-4 gap-y-0 border-0"
-						>
-							<TabsTrigger value="inbox">Inbox</TabsTrigger>
-							<TabsTrigger value="toast">Toast</TabsTrigger>
-							<TabsTrigger value="events">Events</TabsTrigger>
-							<TabsTrigger value="configuration">Configuration</TabsTrigger>
-						</TabsList>
-					</div>
-					<TabsContent value="inbox" className="p-4">
-						<InboxView />
-					</TabsContent>
-					<TabsContent value="toast" className="p-4">
-						<ToastComposer canEdit={canEditDeploymentConfig} />
-					</TabsContent>
-					<TabsContent value="events" className="p-4">
-						<NotificationEvents
-							templatesByGroup={allTemplatesByGroup}
-							deploymentConfig={deploymentConfig.config}
-							canEdit={canEditDeploymentConfig}
-							defaultMethod={castNotificationMethod(
-								dispatchMethods.data.default,
-							)}
-							availableMethods={dispatchMethods.data.available.map(
-								castNotificationMethod,
-							)}
-						/>
-					</TabsContent>
-					<TabsContent value="configuration" className="p-4">
-						<OptionsTable
-							options={deploymentConfig.options.filter((o) =>
-								deploymentGroupHasParent(o.group, "Notifications"),
-							)}
-						/>
-					</TabsContent>
-				</Tabs>
+				<div className="dashboard-panel">
+					<Tabs
+						value={activeTab}
+						onValueChange={tabState.setValue}
+						className="flex min-w-0 w-full flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary"
+						data-testid="notifications-card"
+					>
+						<div className="flex shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-3">
+							<TabsList
+								aria-label="Notifications views"
+								className="min-w-0 flex-1 flex-wrap gap-x-4 gap-y-0 border-0"
+							>
+								<TabsTrigger value="inbox">Inbox</TabsTrigger>
+								<TabsTrigger value="toast">Toast</TabsTrigger>
+								<TabsTrigger value="events">Events</TabsTrigger>
+								<TabsTrigger value="configuration">Configuration</TabsTrigger>
+							</TabsList>
+						</div>
+						<TabsContent value="inbox" className="p-4">
+							<InboxView />
+						</TabsContent>
+						<TabsContent value="toast" className="p-4">
+							<ToastComposer canEdit={canEditDeploymentConfig} />
+						</TabsContent>
+						<TabsContent value="events" className="p-4">
+							<NotificationEvents
+								templatesByGroup={allTemplatesByGroup}
+								deploymentConfig={deploymentConfig.config}
+								canEdit={canEditDeploymentConfig}
+								defaultMethod={castNotificationMethod(
+									dispatchMethods.data.default,
+								)}
+								availableMethods={dispatchMethods.data.available.map(
+									castNotificationMethod,
+								)}
+							/>
+						</TabsContent>
+						<TabsContent value="configuration" className="p-4">
+							<OptionsTable
+								options={deploymentConfig.options.filter((o) =>
+									deploymentGroupHasParent(o.group, "Notifications"),
+								)}
+							/>
+						</TabsContent>
+					</Tabs>
+				</div>
 			)}
 		</>
 	);

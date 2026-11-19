@@ -11,6 +11,12 @@ export const backgrounds = () => ({
 	queryFn: PlatformAPI.getBackgrounds,
 });
 
+export const dashboardBackground = () => ({
+	queryKey: [...backgroundsKey, "dashboard"] as const,
+	queryFn: PlatformAPI.getDashboardBackground,
+	refetchInterval: 30_000,
+});
+
 export const backgroundHTML = (url: string | undefined) => ({
 	queryKey: [...backgroundsKey, "html", url],
 	enabled: Boolean(url),

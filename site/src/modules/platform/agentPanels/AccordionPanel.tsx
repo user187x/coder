@@ -480,7 +480,7 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 										max={100}
 										step={1}
 										value={Math.round(browserVolume * 100)}
-										className="mx-1 w-20 cursor-pointer accent-content-link"
+										className="mx-1 w-20 cursor-pointer"
 										onChange={(event) => {
 											const volume = event.currentTarget.valueAsNumber / 100;
 											setBrowserVolume(volume);

@@ -23,3 +23,6 @@ export const linkToTemplate =
 		dashboard.showOrganizations
 			? `/templates/${organizationName}/${templateName}`
 			: `/templates/${templateName}`;
+
+/** Opens the template picker on the Workspaces page. */
+export const createWorkspaceSearchParam = "create-workspace";

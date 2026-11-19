@@ -102,7 +102,7 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: coder-code-server-replicator
+  name: coder-server-replicator
   namespace: {{ $ns }}
   labels:
     {{- include "ca.labels" . | nindent 4 }}

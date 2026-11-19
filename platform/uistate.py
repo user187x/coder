@@ -34,8 +34,8 @@ def navbar_layout(value):
     order = value['order']
     if set(order) == items - {'action'}:
         order = [*order, 'action']
-    if set(order) != items or {'action', 'banner'}.intersection(value['hidden']):
-        raise ValueError('The navbar must include all items and keep the page action and banner visible.')
+    if set(order) != items or 'banner' in value['hidden']:
+        raise ValueError('The navbar must include all items and keep the banner visible.')
     return {'order': order, 'hidden': value['hidden']}
 
 
@@ -215,7 +215,7 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'navbar_settings_side', 'settings_unread_glow', 'settings_top_pinned', 'settings_face_hidden', 'panel_card_color', 'settings_menu_hidden'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'navbar_settings_side', 'settings_unread_glow', 'settings_top_pinned', 'settings_face_hidden', 'settings_face_collapse_direction', 'panel_card_color', 'settings_menu_hidden'}:
                 raise ValueError('Unsupported preference.')
             if 'admin_notes_tray_target' in changes and changes['admin_notes_tray_target'] not in ('chat', 'notes'):
                 raise ValueError('Invalid admin notes tray target.')
@@ -261,6 +261,8 @@ class UIState(threading.Thread):
             for key in ('admin_nav_in_navbar', 'navbar_floating', 'settings_unread_glow', 'settings_top_pinned', 'settings_face_hidden'):
                 if key in changes and changes[key] is not None and type(changes[key]) is not bool:
                     raise ValueError('Invalid %s.' % key.replace('_', ' '))
+            if changes.get('settings_face_collapse_direction') not in (None, 'up', 'down'):
+                raise ValueError('Invalid bottom panel collapse direction.')
             if 'navbar_strip_off' in changes and changes['navbar_strip_off'] is not None and \
                     type(changes['navbar_strip_off']) is not bool:
                 raise ValueError('Invalid navbar strip switch.')
@@ -295,7 +297,14 @@ class UIState(threading.Thread):
                 changes = {**changes, 'navbar_layout': navbar_layout(changes['navbar_layout'])}
             if 'chat_position' in changes and changes['chat_position'] is not None:
                 position = changes['chat_position']
-                if not isinstance(position, dict) or set(position) != {'edge', 'offset'} or position['edge'] not in ('top', 'right', 'bottom', 'left') or type(position['offset']) not in (int, float) or not 0 <= position['offset'] <= 1:
+                if not isinstance(position, dict):
+                    raise ValueError('Invalid chat position.')
+                edge = position.get('edge')
+                coordinates = ('x', 'y') if edge == 'free' else ('offset',)
+                if (edge not in ('top', 'right', 'bottom', 'left', 'free')
+                        or set(position) != {'edge', *coordinates}
+                        or any(type(position[key]) not in (int, float) or not 0 <= position[key] <= 1
+                               for key in coordinates)):
                     raise ValueError('Invalid chat position.')
             if 'resource_shortcut_order' in changes:
                 order = changes['resource_shortcut_order']

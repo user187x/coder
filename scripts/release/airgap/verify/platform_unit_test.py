@@ -4619,6 +4619,20 @@ class ClusterNetworkViewTest(unittest.TestCase):
         self.setup_cn(kube, coder_get, db, safe)
         return calls
 
+    def test_workspace_mesh_is_neutral_without_agents_but_reports_errors(self):
+        self.mesh_env()
+        for error in (None, "Coder's API: HTTP 503"):
+            with self.subTest(error=error), \
+                    mock.patch.object(self.cn, "workspaces_agents", return_value=([], error)), \
+                    mock.patch.object(self.cn, "tcp_ms", return_value=(1, None)), \
+                    mock.patch.object(self.cn, "http_ms", return_value=(1, None, 200)):
+                mesh = self.cn.Mesh().measure("tok")
+                edge = next(e for e in mesh["edges"] if e["id"] == "coder-workspaces")
+                self.assertIsNone(edge["ms"])
+                self.assertEqual(edge["measuredBy"], "workspace agents" if error else None)
+                self.assertEqual(edge["error"], error)
+                self.assertEqual(edge["note"], None if error else "No running workspace agent to report one.")
+
     def test_the_mesh_numbers_only_what_was_measured(self):
         calls = self.mesh_env()
         tcp = {"10.0.0.10": (0.21, None), "10.0.0.20": (0.31, None), "10.0.0.21": (None, "timed out"),

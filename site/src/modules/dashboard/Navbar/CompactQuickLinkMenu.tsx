@@ -13,6 +13,8 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { cn } from "cn";
+import { PlusIcon } from "lucide-react";
 import { useRef } from "react";
 import { NavLink } from "react-router";
 import {
@@ -21,25 +23,29 @@ import {
 	ContextMenuGroup,
 	ContextMenuItem,
 	ContextMenuSeparator,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import type { AdminPage } from "./adminQuickLinks";
+import { DefaultViewOption } from "./DefaultViewOption";
+
+import { type UnreadGlow, unreadRowClass } from "./useUnreadGlow";
 
 /**
- * A quick link's right-click menu in the Settings sidebar's thin strip: remove it from the quick links, or put another
- * page in its place. Without an editor (nothing to change) the link has no menu.
+ * A quick link's right-click menu in the Settings sidebar's thin strip.
  */
 const CompactQuickLinkMenu: React.FC<{
 	link: AdminPage;
 	/** The quick links' page IDs, in order. */
 	ids: readonly string[];
-	/** The pages that are not quick links, to put in its place. */
+	/** The pages available to add or replace. */
 	others: readonly AdminPage[];
 	onChange?: (ids: string[]) => void;
 	children: React.ReactElement;
 }> = ({ link, ids, others, onChange, children }) => {
-	if (!onChange) return children;
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger
@@ -53,12 +59,40 @@ const CompactQuickLinkMenu: React.FC<{
 				className="z-[2147483647] max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto"
 				onContextMenu={(event) => event.stopPropagation()}
 			>
-				<ContextMenuItem
-					onSelect={() => onChange(ids.filter((id) => id !== link.id))}
-				>
-					Remove from quick links
-				</ContextMenuItem>
-				{others.length > 0 && (
+				{onChange && others.length > 0 && (
+					<ContextMenuSub>
+						<ContextMenuSubTrigger>
+							<PlusIcon aria-hidden />
+							Add
+						</ContextMenuSubTrigger>
+						<ContextMenuSubContent className="z-[2147483647] max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto">
+							{others.map((page) => (
+								<ContextMenuItem
+									key={page.id}
+									onSelect={() =>
+										onChange(
+											ids.flatMap((id) =>
+												id === link.id ? [id, page.id] : [id],
+											),
+										)
+									}
+								>
+									<page.icon aria-hidden />
+									{page.label}
+								</ContextMenuItem>
+							))}
+						</ContextMenuSubContent>
+					</ContextMenuSub>
+				)}
+				<DefaultViewOption path={link.path} context />
+				{onChange && (
+					<ContextMenuItem
+						onSelect={() => onChange(ids.filter((id) => id !== link.id))}
+					>
+						Remove from quick links
+					</ContextMenuItem>
+				)}
+				{onChange && others.length > 0 && (
 					<>
 						<ContextMenuSeparator />
 						<ContextMenuGroup aria-label={`Replace ${link.label} with`}>
@@ -85,15 +119,15 @@ const CompactQuickLinkMenu: React.FC<{
 };
 
 /**
- * The thin strip's quick links: each opens its page (Chat opens the chat), has the right-click menu above, and a press
+ * The thin strip's quick links: each opens its page, has the right-click menu above, and a press
  * held a moment then dragged moves it, as the Settings menu's own list reorders.
  */
 export const CompactQuickLinks: React.FC<{
+	unreadGlow?: UnreadGlow;
 	links: readonly AdminPage[];
 	pages: readonly AdminPage[];
 	onChange?: (ids: string[]) => void;
-	onChat: () => void;
-}> = ({ links, pages, onChange, onChat }) => {
+}> = ({ links, pages, onChange, unreadGlow }) => {
 	const ids = links.map((link) => link.id);
 	const others = pages.filter((page) => !ids.includes(page.id));
 	// A short hold starts the drag, so a click still opens the link.
@@ -137,29 +171,21 @@ export const CompactQuickLinks: React.FC<{
 							others={others}
 							onChange={onChange}
 						>
-							{link.id === "chat" ? (
-								<DropdownMenuItem
-									aria-label="Chat"
-									title="Chat; right-click to remove or replace, hold to move"
-									className="settings-strip-key"
-									onSelect={(event) => {
-										event.preventDefault();
-										onChat();
-									}}
+							<DropdownMenuItem
+								asChild
+								className={cn(
+									"settings-strip-key",
+									unreadRowClass(link.id, unreadGlow),
+								)}
+							>
+								<NavLink
+									to={link.path}
+									title={`${link.label}; right-click for quick-link options, hold to move`}
+									aria-label={link.label}
 								>
 									<link.icon aria-hidden />
-								</DropdownMenuItem>
-							) : (
-								<DropdownMenuItem asChild className="settings-strip-key">
-									<NavLink
-										to={link.path}
-										title={`${link.label}; right-click to remove or replace, hold to move`}
-										aria-label={link.label}
-									>
-										<link.icon aria-hidden />
-									</NavLink>
-								</DropdownMenuItem>
-							)}
+								</NavLink>
+							</DropdownMenuItem>
 						</CompactQuickLinkMenu>
 					</CompactSortable>
 				))}

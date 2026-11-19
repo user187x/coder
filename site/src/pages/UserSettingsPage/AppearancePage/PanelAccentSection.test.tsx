@@ -97,26 +97,44 @@ describe("PanelAccentSection", () => {
 		document.documentElement.style.removeProperty("--panel-zoom");
 	});
 
-	it("sets the text colour from a click on the preview's text", async () => {
-		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
-		vi.spyOn(PlatformAPI, "getPanelAccentGlobal").mockResolvedValue({
-			global: null,
-		});
-		const save = vi
-			.spyOn(PlatformAPI, "setUserUIPreferences")
-			.mockImplementation(async (changes) => changes);
-		renderWithAuth(<PanelAccentSection />);
-		const preview = await screen.findByRole("button", {
-			name: /Panel preview/,
-		});
-		await userEvent.click(within(preview).getByText("Workspaces"));
-		fireEvent.change(await screen.findByLabelText("Text colour picker"), {
-			target: { value: "#ff0000" },
-		});
-		await waitFor(() =>
-			expect(save).toHaveBeenCalledWith({ panel_text_color: "#ff0000" }),
-		);
-	});
+	it.each([
+		["Workspaces", "Text colour picker", { panel_text_color: "#ff0000" }],
+		[
+			"Sidebar icon colour",
+			"Text colour picker",
+			{ panel_text_color: "#ff0000" },
+		],
+		[
+			"Edit panel accent colour",
+			"Accent colour picker",
+			{ panel_accent: { mode: "custom", color: "#ff0000" } },
+		],
+		[
+			"Edit card panel colour",
+			"Card panel colour picker",
+			{ panel_card_color: "#ff0000" },
+		],
+	])(
+		"edits the corresponding colour when choosing %s in the preview",
+		async (target, picker, patch) => {
+			vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+			vi.spyOn(PlatformAPI, "getPanelAccentGlobal").mockResolvedValue({
+				global: null,
+			});
+			const save = vi
+				.spyOn(PlatformAPI, "setUserUIPreferences")
+				.mockImplementation(async (changes) => changes);
+			renderWithAuth(<PanelAccentSection />);
+			const preview = within(
+				await screen.findByRole("group", { name: "Panel preview" }),
+			);
+			await userEvent.click(preview.getByRole("button", { name: target }));
+			fireEvent.change(await preview.findByLabelText(picker), {
+				target: { value: "#ff0000" },
+			});
+			await waitFor(() => expect(save).toHaveBeenCalledWith(patch));
+		},
+	);
 
 	it("sets the card panels' colour, and the panels take it", async () => {
 		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});

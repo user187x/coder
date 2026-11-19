@@ -43,6 +43,32 @@ it("retries certificate issuance without creating the account again", async () =
 		screen.getByLabelText(/Certificate download password/),
 		"device-password-123",
 	);
+	const password = screen.getByLabelText(/Certificate download password/);
+	const confirmation = screen.getByLabelText(/Confirm download password/);
+	await userEvent.click(
+		screen.getByRole("button", { name: "Show certificate download password" }),
+	);
+	expect(password).toHaveAttribute("type", "text");
+	expect(confirmation).toHaveAttribute("type", "password");
+	await userEvent.click(
+		screen.getByRole("button", { name: "Hide certificate download password" }),
+	);
+	await userEvent.click(
+		screen.getByRole("button", { name: "Show confirm download password" }),
+	);
+	expect(password).toHaveAttribute("type", "password");
+	expect(confirmation).toHaveAttribute("type", "text");
+	await userEvent.click(
+		screen.getByRole("button", { name: "Hide confirm download password" }),
+	);
+	await userEvent.type(confirmation, "wrong-password");
+	await userEvent.click(
+		screen.getByRole("button", { name: "Create user and download" }),
+	);
+	await screen.findByText("Passwords must match.");
+	expect(create).not.toHaveBeenCalled();
+	await userEvent.clear(confirmation);
+	await userEvent.type(confirmation, "device-password-123");
 	await userEvent.click(
 		screen.getByRole("button", { name: "Create user and download" }),
 	);

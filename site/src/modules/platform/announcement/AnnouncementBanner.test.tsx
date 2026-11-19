@@ -1,11 +1,11 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { Banner } from "#/api/platform";
 import { announcementStatusKey } from "#/api/queries/platform";
 import { render } from "#/testHelpers/renderHelpers";
 import { server } from "#/testHelpers/server";
-import { AnnouncementBanner } from "./AnnouncementBanner";
+import { AnnouncementBanner, viewedTooltip } from "./AnnouncementBanner";
 
 const MockBanner: Banner = {
 	id: "announcement-1",
@@ -34,11 +34,18 @@ const useBanner = (banner: Banner, acked = false) => {
 	server.use(
 		http.get("/__banner/banner.json", () => HttpResponse.json(banner)),
 		http.get("/__coder-ui/api/me", () =>
-			HttpResponse.json({ signedIn: true, username: "admin", acked }),
+			HttpResponse.json({
+				signedIn: true,
+				username: "admin",
+				acked,
+				viewedAt: "2026-11-17T20:00:00Z",
+				certificateFingerprint: "ab".repeat(32),
+			}),
 		),
 		http.post("/__coder-ui/api/:kind", async ({ params, request }) => {
 			const body = (await request.json()) as { id: unknown };
 			receipts.push({ kind: String(params.kind), id: body.id });
+			if (params.kind === "ack") acked = true;
 			return HttpResponse.json({ ok: true });
 		}),
 	);
@@ -54,7 +61,68 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 
+it("shows a recorded SHA-256 fingerprint on the last tooltip line", () => {
+	const at = new Date("2026-11-17T20:00:00Z");
+	const fingerprint = "ab".repeat(32);
+	expect(viewedTooltip(at, fingerprint).split("\n").at(-1)).toBe(
+		`Certificate Fingerprint (SHA-256): ${"AB:".repeat(31)}AB`,
+	);
+	expect(viewedTooltip(at)).not.toContain("Certificate Fingerprint");
+});
+
 describe("AnnouncementBanner", () => {
+	it.each([
+		["other-admin", true],
+		["signer", true],
+		[undefined, false],
+	] as const)(
+		"shows both pending Terminate beacons to administrators (%s)",
+		async (viewer, visible) => {
+			useBanner({ ...MockBanner, id: "terminate-beacon" });
+			const fetchSignoffs = vi.fn(() =>
+				HttpResponse.json({
+					signoffs: [
+						{
+							user_id: "signer",
+							username: "ada",
+							name: "Ada",
+							signed_at: "2026-11-17T00:00:00Z",
+							fingerprint: "aa",
+						},
+					],
+					round_id: "round",
+					required: 2,
+				}),
+			);
+			server.use(
+				http.get(
+					"/__coder-ui/api/workspace-power/terminate-signoffs",
+					fetchSignoffs,
+				),
+			);
+			render(
+				<AnnouncementBanner
+					placement="navbar"
+					terminateAlertViewerId={viewer}
+				/>,
+			);
+			const lcd = await screen.findByTestId("announcement-lcd");
+			if (viewer) await waitFor(() => expect(fetchSignoffs).toHaveBeenCalled());
+			else expect(fetchSignoffs).not.toHaveBeenCalled();
+			if (visible) {
+				expect(
+					await within(lcd).findAllByRole("button", {
+						name: "Signed off by Ada",
+					}),
+				).toHaveLength(2);
+			} else {
+				expect(
+					within(lcd).queryByRole("button", { name: "Signed off by Ada" }),
+				).toBeNull();
+			}
+		},
+	);
+
 	it("does not record or dismiss a sign-in announcement using cached authenticated receipts", async () => {
 		const banner = { ...MockBanner, id: "login-cache", showOnLoginPage: true };
 		const receipts = useBanner(banner);
@@ -80,9 +148,11 @@ describe("AnnouncementBanner", () => {
 		);
 	});
 
-	it("records the confirmation and dismisses a dismissible announcement", async () => {
+	it("keeps the same Viewed tooltip after confirmation and reload", async () => {
 		const receipts = useBanner(MockBanner);
-		render(<AnnouncementBanner placement="navbar" />);
+		const firstRender = render(<AnnouncementBanner placement="navbar" />);
+		const title = (await screen.findByRole("note")).getAttribute("title");
+		expect(title).toContain("Certificate Fingerprint");
 
 		await userEvent.click(
 			await screen.findByRole("button", {
@@ -93,7 +163,17 @@ describe("AnnouncementBanner", () => {
 		await waitFor(() =>
 			expect(receipts).toContainEqual({ kind: "ack", id: MockBanner.id }),
 		);
-		expect(localStorage.getItem("coder-banner-dismissed")).toBe(MockBanner.id);
+		expect(screen.getByRole("note").getAttribute("title")).toBe(title);
+		firstRender.unmount();
+
+		localStorage.setItem("coder-banner-dismissed", MockBanner.id);
+		render(<AnnouncementBanner placement="navbar" />);
+		expect(
+			await screen.findByRole("button", {
+				name: "You confirmed this announcement",
+			}),
+		).toBeDisabled();
+		expect(screen.getByRole("note").getAttribute("title")).toBe(title);
 	});
 
 	it("keeps an announcement that cannot be dismissed, confirmed", async () => {

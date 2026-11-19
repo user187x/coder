@@ -4,7 +4,7 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
-import { PlatformAPI, type UserUIPreferences } from "#/api/platform";
+import { PlatformAPI } from "#/api/platform";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
 import * as chatStore from "#/modules/platform/chat/chatStore";
 import {
@@ -34,10 +34,11 @@ const proxyContextValue = {
 const renderNavbar = (
 	adminPermissions: AdminSettingsPermissions,
 	user = MockUserOwner,
+	path = "/",
 ) =>
 	renderComponent(
 		<QueryClientProvider client={new QueryClient()}>
-			<MemoryRouter>
+			<MemoryRouter initialEntries={[path]}>
 				<NavbarView
 					user={user}
 					supportLinks={[]}
@@ -68,6 +69,29 @@ describe("NavbarView", () => {
 	});
 	afterEach(() => vi.restoreAllMocks());
 
+	it.each([true, false])(
+		"keeps the root and Template breadcrumbs with Settings docked (compact: %s)",
+		async (compact) => {
+			vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+				admin_nav_in_navbar: true,
+				settings_sidebar: true,
+				settings_sidebar_compact: compact,
+				settings_default_view: "/dashboard",
+			});
+			renderNavbar(
+				{ canEditDeployment: true },
+				MockUserOwner,
+				"/templates/new/builder?step=base-parameters",
+			);
+
+			const start = within(screen.getByTestId("navbar-start"));
+			expect(
+				await start.findByRole("link", { name: "Dashboard" }),
+			).toHaveAttribute("href", "/dashboard");
+			expect(start.getByRole("button", { name: "Template" })).toBeVisible();
+		},
+	);
+
 	it.each([
 		["Settings", "menu", undefined],
 		["Resources", "menuitem", "Workspaces"],
@@ -92,19 +116,35 @@ describe("NavbarView", () => {
 		},
 	);
 
-	it.each(["Settings", "Resources", "User menu", "navbar surface"])(
-		"starts arranging from the top-level %s item",
+	it.each(["Settings", "Resources", "User menu"])(
+		"keeps right-click on the top-level %s button out of rearrange mode",
 		async (name) => {
+			renderNavbar({ canViewHud: true });
+			await userEvent.pointer({
+				target: screen.getByRole("button", { name: new RegExp(`^${name}`) }),
+				keys: "[MouseRight]",
+			});
+			expect(
+				screen.queryByRole("button", { name: "Move Page action" }),
+			).not.toBeInTheDocument();
+		},
+	);
+
+	it.each([false, true])(
+		"starts arranging on the backstrip (floating: %s)",
+		async (floating) => {
+			vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+				navbar_floating: floating,
+			});
 			const save = vi
 				.spyOn(PlatformAPI, "setUserUIPreferences")
 				.mockImplementation(async (settings) => settings);
 			renderNavbar({ canViewHud: true });
 			const user = userEvent.setup();
 			await user.pointer({
-				target:
-					name === "navbar surface"
-						? screen.getByTestId("navbar-arrange")
-						: screen.getByRole("button", { name: new RegExp(`^${name}`) }),
+				target: await screen.findByTestId(
+					floating ? "navbar-resizable-group" : "navbar-arrange",
+				),
 				keys: "[MouseRight]",
 			});
 			screen.getByRole("button", { name: "Move Page action" }).focus();
@@ -114,7 +154,7 @@ describe("NavbarView", () => {
 		},
 	);
 
-	it("starts arranging from the page action button without clicking it", async () => {
+	it("keeps right-click on a portaled page action out of rearrange mode", async () => {
 		const onClick = vi.fn();
 		const Page = () => {
 			const [target, setTarget] = useState<HTMLDivElement | null>(null);
@@ -147,8 +187,8 @@ describe("NavbarView", () => {
 			keys: "[MouseRight]",
 		});
 		expect(
-			await screen.findByRole("button", { name: "Move Page action" }),
-		).toBeInTheDocument();
+			screen.queryByRole("button", { name: "Move Page action" }),
+		).not.toBeInTheDocument();
 		expect(onClick).not.toHaveBeenCalled();
 	});
 
@@ -258,55 +298,50 @@ describe("NavbarView", () => {
 		expect(pill).toHaveAttribute("aria-expanded", "false");
 	});
 
-	it("saves the graph handle's visibility and restores it after chat", async () => {
-		vi.spyOn(PlatformAPI, "getClusterUsage").mockResolvedValue(
-			MockClusterUsage,
-		);
-		let preferences: UserUIPreferences = {};
-		vi.mocked(PlatformAPI.getUserUIPreferences).mockImplementation(
-			async () => preferences,
-		);
+	it("opens Chat when the bottom panel is hidden and Controls is pinned", async () => {
+		vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
+		vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+			settings_face_hidden: true,
+			settings_top_pinned: true,
+		});
 		const save = vi
 			.spyOn(PlatformAPI, "setUserUIPreferences")
-			.mockImplementation(async (changes) => {
-				preferences = { ...preferences, ...changes };
-				return preferences;
-			});
-		vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
+			.mockImplementation(async (changes) => ({
+				settings_top_pinned: true,
+				...changes,
+			}));
 		renderNavbar({ canEditDeployment: true });
 		const user = userEvent.setup();
 		await user.click(screen.getByRole("button", { name: /^Settings/ }));
 		await user.click(
-			await screen.findByRole("menuitem", { name: "Hide metric graphs" }),
+			within(
+				await screen.findByRole("menuitem", { name: "Controls" }),
+			).getByTitle("Controls"),
 		);
-		expect(save).toHaveBeenLastCalledWith({
-			settings_metrics: { expanded: false, locked: false },
-		});
+		const chat = await screen.findByRole("menuitem", { name: "Chat" });
+		await user.click(chat);
+		expect(save).toHaveBeenCalledWith({ settings_face_hidden: null });
 		await user.click(
-			within(screen.getByRole("menuitem", { name: "Controls" })).getByTitle(
-				"Controls",
-			),
+			await screen.findByRole("button", { name: "Dismiss quick chat" }),
 		);
-		await user.click(screen.getByRole("menuitem", { name: "Chat" }));
-		await user.click(
-			screen.getByRole("button", { name: "Dismiss quick chat" }),
+		expect(chat).toHaveAttribute("aria-expanded", "false");
+	});
+
+	it("shows the Metrics face even if the former graph toggle was locked closed", async () => {
+		vi.spyOn(PlatformAPI, "getClusterUsage").mockResolvedValue(
+			MockClusterUsage,
 		);
-		const grip = await screen.findByRole("menuitem", {
-			name: "Show metric graphs",
+		vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+			settings_metrics: { expanded: false, locked: true },
 		});
-		grip.focus();
-		await user.keyboard("{Enter}");
-		expect(save).toHaveBeenLastCalledWith({
-			settings_metrics: { expanded: true, locked: false },
+		renderNavbar({ canEditDeployment: true });
+		await userEvent.click(screen.getByRole("button", { name: /^Settings/ }));
+		await screen.findByRole("group", {
+			name: "Cluster CPU, memory, network and disk",
 		});
-		await user.click(
-			await screen.findByRole("menuitemcheckbox", {
-				name: "Lock metric graphs (left dimple)",
-			}),
-		);
-		expect(save).toHaveBeenLastCalledWith({
-			settings_metrics: { expanded: true, locked: true },
-		});
+		expect(
+			screen.queryByRole("menuitem", { name: "Show metric graphs" }),
+		).toBeNull();
 	});
 
 	it("lets a member restore chat from the Settings menu", async () => {
@@ -330,7 +365,10 @@ describe("NavbarView", () => {
 		});
 		await user.click(await screen.findByRole("menuitem", { name: "Show" }));
 		await waitFor(() =>
-			expect(save).toHaveBeenCalledWith({ chat_hidden: false }),
+			expect(save).toHaveBeenCalledWith({
+				chat_hidden: false,
+				chat_position: null,
+			}),
 		);
 	});
 

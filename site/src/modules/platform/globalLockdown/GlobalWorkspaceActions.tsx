@@ -1,7 +1,6 @@
 import { PowerIcon } from "lucide-react";
 import { useCallback, useId, useRef, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "react-query";
-import { useNavigate } from "react-router";
 import type {
 	TerminateSignoffs,
 	WorkspacePowerOperation,
@@ -10,7 +9,9 @@ import { users as usersQuery } from "#/api/queries/users";
 import {
 	cancelTerminate,
 	clearWorkspacePowerHistory,
+	revokeTerminateSignoff,
 	runWorkspacePower,
+	setTerminatePaused,
 	signTerminate,
 	terminateSignoffs,
 	type WorkspacePowerResult,
@@ -27,7 +28,6 @@ import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
 import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import {
-	flashScreen,
 	lastSigner,
 	signoffClass,
 	TerminateCountdown,
@@ -72,17 +72,23 @@ export const GlobalWorkspaceActions: React.FC<{
 	const signoffs = useQuery({ ...terminateSignoffs(), enabled: !disabled });
 	const sign = useMutation(signTerminate(client));
 	const cancel = useMutation(cancelTerminate(client));
+	const pause = useMutation(setTerminatePaused(client));
+	const revoke = useMutation(revokeTerminateSignoff(client));
 	const { user } = useAuthContext();
-	const navigate = useNavigate();
 	return (
 		<GlobalWorkspaceActionsView
 			signoffs={signoffs.data}
 			userId={user?.id}
 			signing={sign.isPending}
 			cancelling={cancel.isPending}
+			revoking={revoke.isPending}
+			onRevokeSignoff={(roundId) => revoke.mutate(roundId)}
 			onSign={(onSigned) => sign.mutate(undefined, { onSuccess: onSigned })}
-			onCancelTerminate={() => cancel.mutate()}
-			onTerminateStarted={() => navigate("/workspaces?filter=")}
+			onCancelTerminate={(roundId) => cancel.mutate(roundId)}
+			pausing={pause.isPending}
+			onPauseTerminate={(roundId, paused) =>
+				pause.mutate({ round_id: roundId, paused })
+			}
 			workspaces={workspaces.data?.workspaces ?? []}
 			administratorIds={administratorIds}
 			operations={history.flatMap((q) => q.data?.operations ?? [])}
@@ -102,7 +108,9 @@ export const GlobalWorkspaceActions: React.FC<{
 				history.find((q) => q.error)?.error ||
 				run.error ||
 				sign.error ||
-				cancel.error
+				cancel.error ||
+				pause.error ||
+				revoke.error
 			}
 			failures={run.data?.errors}
 			onRun={(action, targets, excludeAdmins, roundId) =>
@@ -138,11 +146,13 @@ type Props = {
 	userId?: string;
 	signing?: boolean;
 	cancelling?: boolean;
+	revoking?: boolean;
+	onRevokeSignoff?: (roundId: string) => void;
 	/** Sign off on Terminate; onSigned gets the round as it is after it. */
 	onSign?: (onSigned: (round: TerminateSignoffs) => void) => void;
-	onCancelTerminate?: () => void;
-	/** The terminate started: show the workspaces going. */
-	onTerminateStarted?: () => void;
+	onCancelTerminate?: (roundId: string) => void;
+	onPauseTerminate?: (roundId: string, paused: boolean) => void;
+	pausing?: boolean;
 	onRefresh?: () => void;
 	onClear?: (operations: readonly WorkspacePowerOperation[]) => void;
 	clearing?: boolean;
@@ -168,9 +178,12 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 	userId,
 	signing = false,
 	cancelling = false,
+	revoking = false,
+	onRevokeSignoff,
 	onSign,
 	onCancelTerminate,
-	onTerminateStarted,
+	onPauseTerminate,
+	pausing = false,
 }) => {
 	const [action, setAction] = useState<Action>();
 	// The last sign-off was this administrator's: the countdown, then the terminate, run here, with what they reviewed.
@@ -218,19 +231,27 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 		setConfirmation("");
 	};
 	const rounds = signoffs?.signoffs ?? [];
+	const roundId = signoffs?.round_id;
+	const deadline = signoffs?.deadline_ms;
+	const sharedCountdown = Boolean(roundId && deadline != null);
 	const signed = Boolean(userId && rounds.some((s) => s.user_id === userId));
+	const activeCountdown =
+		countdown &&
+		countdown.roundId === signoffs?.round_id &&
+		rounds.length >= (signoffs?.required ?? 2)
+			? countdown
+			: undefined;
+	if (countdown && !activeCountdown) setCountdown(undefined);
 	const finish = useCallback(() => {
-		if (!countdown) return;
-		flashScreen();
+		if (!activeCountdown) return;
 		onRun(
 			"terminate",
-			countdown.targets,
-			countdown.excludeAdmins,
-			countdown.roundId,
+			activeCountdown.targets,
+			activeCountdown.excludeAdmins,
+			activeCountdown.roundId,
 		);
 		setCountdown(undefined);
-		onTerminateStarted?.();
-	}, [countdown, onRun, onTerminateStarted]);
+	}, [activeCountdown, onRun]);
 	return (
 		<div className="bulk-action-surface flex max-w-sm flex-col items-stretch gap-2 rounded-lg p-2">
 			<Button
@@ -248,7 +269,7 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 				<PowerIcon aria-hidden />
 				Shut Down
 			</Button>
-			<div className={signoffClass(Boolean(countdown))}>
+			<div className={signoffClass(sharedCountdown)}>
 				<TerminateSignoffButton
 					signoffs={rounds}
 					signed={signed}
@@ -257,7 +278,8 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 						loading ||
 						running ||
 						signing ||
-						Boolean(countdown) ||
+						sharedCountdown ||
+						revoking ||
 						!onSign ||
 						targets.length === 0 ||
 						Boolean(error)
@@ -265,15 +287,40 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 					onClick={(button) => open("terminate", button)}
 				/>
 			</div>
-			{countdown && (
+			{roundId && deadline != null && (
 				<TerminateCountdown
-					onDone={finish}
-					cancelling={cancelling}
-					onCancel={() => {
-						setCountdown(undefined);
-						onCancelTerminate?.();
-					}}
+					key={roundId}
+					deadline={deadline}
+					pausedMs={signoffs?.paused_ms}
+					onDone={activeCountdown && !disabled ? finish : undefined}
+					busy={cancelling || pausing || revoking}
+					onPause={
+						!disabled && onPauseTerminate
+							? (paused) => onPauseTerminate(roundId, paused)
+							: undefined
+					}
+					onCancel={
+						!disabled && onCancelTerminate
+							? () => {
+									setCountdown(undefined);
+									onCancelTerminate(roundId);
+								}
+							: undefined
+					}
 				/>
+			)}
+			{signed && roundId && onRevokeSignoff && (
+				<Button
+					size="sm"
+					variant="outline"
+					disabled={disabled || busy || revoking || cancelling}
+					onClick={() => {
+						setCountdown(undefined);
+						onRevokeSignoff(roundId);
+					}}
+				>
+					Revoke my sign-off
+				</Button>
 			)}
 			<div className="flex items-center justify-between gap-3 py-1">
 				<Label htmlFor={excludeId} className="text-xs">
@@ -379,6 +426,33 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 										</time>
 										{op.exclude_admins && " · Administrators excluded"}
 									</p>
+									{op.terminate_audit && (
+										<ol
+											aria-label="Terminate audit events"
+											className="mb-0 mt-2 space-y-1 pl-4"
+										>
+											{op.terminate_audit.signoffs.map((signer) => (
+												<li key={signer.user_id}>
+													{signer.username} signed off ·{" "}
+													<time dateTime={signer.signed_at}>
+														{new Date(signer.signed_at).toLocaleString("en-US")}
+													</time>
+												</li>
+											))}
+											<li>
+												{op.terminate_audit.invoked_by} invoked Terminate ·{" "}
+												<time
+													dateTime={new Date(
+														op.created_at * 1000,
+													).toISOString()}
+												>
+													{new Date(op.created_at * 1000).toLocaleString(
+														"en-US",
+													)}
+												</time>
+											</li>
+										</ol>
+									)}
 									<ul className="mb-0 mt-2 space-y-1 pl-4">
 										{op.workspaces.map((w) => (
 											<li

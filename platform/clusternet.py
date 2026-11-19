@@ -27,6 +27,7 @@ replicator's queries) is drawn without a number, and says why.
 """
 import collections
 import concurrent.futures
+import json
 import os
 import re
 import socket
@@ -36,11 +37,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from datetime import datetime, timezone
 
 BASE = "/__coder-ui"
 NAMESPACE = os.environ.get("CODER_NAMESPACE", "coder")
-RELEASE = os.environ.get("CODER_RELEASE", os.environ.get("CODER_DEPLOYMENT", "coder"))
+DEPLOYMENT = os.environ.get("CODER_DEPLOYMENT", "coder")
+RELEASE = os.environ.get("CODER_RELEASE", "coder")
 CODER_URL = os.environ.get("CODER_URL", "http://coder").rstrip("/")
 ACCESS_URL = os.environ.get("CODER_ACCESS_URL", "").rstrip("/")
 KEYCLOAK_NAMESPACE = os.environ.get("KEYCLOAK_NAMESPACE", "keycloak")
@@ -64,16 +67,17 @@ KINDS = ("coder", "database", "workspace", "storage", "gateway", "code-server", 
 PLATFORM_NAMES = {"coder-ui-updates", "coder-platform-webhook", "coder-ui-logs-db", "coder-bootstrap"}
 STORAGE_NAMES = {"coder-user-storage-minio", "coder-user-storage-csi"}  # the Cloud Drive: MinIO and its CSI node plugin
 
-LOG = KUBE = CODER_GET = SNAPSHOT = DB = SAFE = QUANTITY = TLS = None
+LOG = KUBE = CODER_GET = SNAPSHOT = DB = SAFE = QUANTITY = TLS = PUBLISH_INBOX = None
 _cache = {}
 _cache_lock = threading.Lock()
 
 
-def setup(log, kube, coder_get, snapshot, db, quantity, safe=None, tls=None):
+def setup(log, kube, coder_get, snapshot, db, quantity, safe=None, tls=None, publish_inbox=None):
     """coder_get(token, path): Coder's API as the admin; snapshot(): the cluster's nodes, running pods and node metrics
     (ui-service's cluster_snapshot, cached 3 s); db(): a pool on Coder's database as its owner, or None; quantity(text):
     a Kubernetes quantity in base units; safe: the Cloud Drive module; tls: the service's TLS context (its CA)."""
-    global LOG, KUBE, CODER_GET, SNAPSHOT, DB, QUANTITY, SAFE, TLS
+    global LOG, KUBE, CODER_GET, SNAPSHOT, DB, QUANTITY, SAFE, TLS, PUBLISH_INBOX
+    PUBLISH_INBOX = publish_inbox
     LOG, KUBE, CODER_GET, SNAPSHOT, DB, QUANTITY, SAFE, TLS = log, kube, coder_get, snapshot, db, quantity, safe, tls
 
 
@@ -163,7 +167,8 @@ def kind_by_name(name):
     for prefix, kind in (("coder-cs-", "code-server"), ("coder-db", "database"), ("coder-ui-", "platform"),
                          ("coder-platform-", "platform"), ("coder-image-", "platform"),
                          ("coder-user-storage", "storage"),
-                         ("traefik", "gateway"), ("coder-code-server-replicator", "replicator")):
+                         ("traefik", "gateway"), ("coder-server-replicator", "replicator"),
+                         ("coder-code-server-replicator", "replicator")):
         if n.startswith(prefix):
             return kind
     return "coder" if n == RELEASE else "other"
@@ -809,8 +814,9 @@ class Mesh:
         edge("coder-workspaces", "coder", "workspaces", "traffic",
              "each workspace agent's latency to Coder's DERP relay, as the agent last reported it (the median of the "
              "connected agents)",
-             ms=_median([s["ms"] for s in agent_rows if s["ok"]]), error=agent_err, by="workspace agents", measured=at,
-             note=None if agent_rows else "No running workspace agent to report one.",
+             ms=_median([s["ms"] for s in agent_rows if s["ok"]]), error=agent_err,
+             by="workspace agents" if agent_rows or agent_err else None, measured=at,
+             note=None if agent_rows or agent_err else "No running workspace agent to report one.",
              sample=[{"target": s["target"], "ms": s["ms"], "error": None if s["ok"] else s["status"],
                       "method": "agent report"} for s in agent_rows])
         dbh = health.get("database") or {}
@@ -1047,8 +1053,13 @@ def storage_report(pods):
     pvs = (pvs.get("items") or []) if pv_ok else []
     status, drivers = KUBE.call("GET", "/apis/storage.k8s.io/v1/csidrivers")
     drivers = (drivers.get("items") or []) if status == 200 and isinstance(drivers, dict) else None
-    status, pvcs = KUBE.call("GET", "/api/v1/namespaces/%s/persistentvolumeclaims" % NAMESPACE)
-    pvcs = (pvcs.get("items") or []) if status == 200 and isinstance(pvcs, dict) else []
+    status, pvcs = KUBE.call("GET", "/api/v1/persistentvolumeclaims")
+    claim_scope = "all namespaces"
+    if status != 200 or not isinstance(pvcs, dict):
+        status, pvcs = KUBE.call("GET", "/api/v1/namespaces/%s/persistentvolumeclaims" % NAMESPACE)
+        claim_scope = NAMESPACE
+    claims_ok = status == 200 and isinstance(pvcs, dict)
+    pvcs = (pvcs.get("items") or []) if claims_ok else []
     in_use = collections.defaultdict(list)
     for p in pods:
         for v in (p.get("spec") or {}).get("volumes") or []:
@@ -1071,8 +1082,24 @@ def storage_report(pods):
                 "created": meta.get("creationTimestamp")}
 
     by_class = collections.defaultdict(list)
+    volume_rows = []
     for pv in pvs:
-        by_class[(pv.get("spec") or {}).get("storageClassName") or ""].append(pv_row(pv))
+        row = pv_row(pv)
+        row["storageClass"] = (pv.get("spec") or {}).get("storageClassName") or ""
+        by_class[row["storageClass"]].append(row)
+        volume_rows.append(row)
+
+    claim_rows = []
+    for pvc in pvcs:
+        meta, spec, st = pvc.get("metadata") or {}, pvc.get("spec") or {}, pvc.get("status") or {}
+        namespace, name = meta.get("namespace") or NAMESPACE, meta.get("name")
+        claim_rows.append({
+            "name": name, "namespace": namespace, "volume": spec.get("volumeName"),
+            "storageClass": spec.get("storageClassName"), "phase": st.get("phase"),
+            "requested": ((spec.get("resources") or {}).get("requests") or {}).get("storage"),
+            "capacity": (st.get("capacity") or {}).get("storage"), "accessModes": spec.get("accessModes") or [],
+            "usedBy": in_use.get((namespace, name)) or [],
+        })
     classes = []
     for sc in classes_raw:
         meta = sc.get("metadata") or {}
@@ -1090,7 +1117,8 @@ def storage_report(pods):
             "bound": sum(1 for r in rows if r["phase"] == "Bound"),
             "capacityBytes": sum(r["capacityBytes"] or 0 for r in rows if r["phase"] == "Bound"),
             "claims": sorted((r["claim"] for r in rows if r["claim"] and r["phase"] == "Bound"))[:40],
-            "pending": ["%s/%s" % (NAMESPACE, (c.get("metadata") or {}).get("name")) for c in pending],
+            "pending": ["%s/%s" % ((c.get("metadata") or {}).get("namespace") or NAMESPACE,
+                                    (c.get("metadata") or {}).get("name")) for c in pending],
         })
     static = [r for rows in by_class.values() for r in rows]
     cloud = None
@@ -1102,6 +1130,10 @@ def storage_report(pods):
         "static": {"volumes": len(static), "bound": sum(1 for r in static if r["phase"] == "Bound"),
                    "drivers": sorted({r["driver"] for r in static if r["driver"]})},
         "volumesReadable": pv_ok,
+        "volumes": [{k: v for k, v in r.items() if k != "user"}
+                    for r in sorted(volume_rows, key=lambda row: row["name"] or "")],
+        "claims": sorted(claim_rows, key=lambda row: (row["namespace"], row["name"] or "")),
+        "claimScope": claim_scope if claims_ok else None,
         "csiDrivers": None if drivers is None else [{
             "name": (d.get("metadata") or {}).get("name"),
             "attachRequired": (d.get("spec") or {}).get("attachRequired"),
@@ -1260,14 +1292,14 @@ def coder_placement(pod_spec):
 def coder_scale(body=None):
     """Read or update only the central Coder Deployment, using optimistic concurrency. It never asks for more replicas
     than coder_placement finds nodes for, one each."""
-    path = "/apis/apps/v1/namespaces/%s/deployments/coder" % NAMESPACE
+    path = "/apis/apps/v1/namespaces/%s/deployments/%s" % (NAMESPACE, DEPLOYMENT)
     status, deployment = KUBE.call("GET", path)
     if status != 200:
         raise RuntimeError("Cannot read the central Coder deployment")
     status, hpas = KUBE.call("GET", "/apis/autoscaling/v2/namespaces/%s/horizontalpodautoscalers" % NAMESPACE)
     if status != 200:
         raise RuntimeError("Cannot check whether an autoscaler manages Coder")
-    automated = any((h.get("spec", {}).get("scaleTargetRef", {}).get("name") == "coder"
+    automated = any((h.get("spec", {}).get("scaleTargetRef", {}).get("name") == DEPLOYMENT
                      and h.get("spec", {}).get("scaleTargetRef", {}).get("kind") == "Deployment")
                     for h in hpas.get("items", []))
     spec = deployment["spec"]
@@ -1388,6 +1420,204 @@ def delete_cloud_drive_volumes(body, user):
     return {"deleted": deleted, "skipped": skipped}
 
 
+CLEANUP_PATH = BASE + "/api/network/cloud-drive-volumes/cleanup"
+CLEANUP_KEY = "cloud-drive-volume-cleanup"
+
+
+def _cleanup_state(db, uid):
+    rows = db.query("SELECT value FROM user_configs WHERE user_id=$1::uuid AND key=$2", [uid, CLEANUP_KEY])
+    return json.loads(rows[0][0]) if rows else None
+
+
+def _cleanup_save(db, uid, state):
+    db.query("""INSERT INTO user_configs (user_id,key,value) VALUES ($1::uuid,$2,$3)
+        ON CONFLICT (user_id,key) DO UPDATE SET value=excluded.value""", [uid, CLEANUP_KEY, json.dumps(state)])
+
+
+def _cleanup_lock(tx, uid):
+    tx.query("SELECT pg_advisory_xact_lock(hashtext($1),hashtext($2))", [CLEANUP_KEY, uid])
+
+
+def _cleanup_objects(name, pv, claim, mounted, orphans):
+    """Return an identity snapshot only for an unused, retained account volume."""
+    owner = name[len(SAFE.CLAIM_PREFIX):]
+    meta, spec = pv.get("metadata") or {}, pv.get("spec") or {}
+    labels, ref = meta.get("labels") or {}, spec.get("claimRef") or {}
+    cm, cs = (claim or {}).get("metadata") or {}, (claim or {}).get("spec") or {}
+    if (owner not in orphans or name in mounted or meta.get("deletionTimestamp") or not meta.get("uid")
+            or labels.get("app.kubernetes.io/name") != "coder-safe"
+            or labels.get("platform.coder/user-id") != owner
+            or (spec.get("csi") or {}).get("driver") != SAFE.CSI_DRIVER
+            or spec.get("persistentVolumeReclaimPolicy") != "Retain"
+            or ref.get("name") != name or ref.get("namespace") != SAFE.NAMESPACE):
+        return None
+    if claim is not None and (cm.get("deletionTimestamp") or not cm.get("uid")
+            or (cm.get("labels") or {}).get("platform.coder/user-id") != owner
+            or cs.get("volumeName") != name or ref.get("uid") != cm["uid"]):
+        return None
+    if claim is None and (pv.get("status") or {}).get("phase") not in ("Released", "Available"):
+        return None
+    return {"name": name, "account": orphans[owner], "pv": meta["uid"], "claim": cm.get("uid"),
+            "pvVersion": meta.get("resourceVersion"), "claimVersion": cm.get("resourceVersion")}
+
+
+def _cleanup_orphans(db, owners):
+    if not owners:
+        return {}
+    return dict(db.query("""SELECT owner.id, coalesce(u.username, 'Missing account (' || owner.id || ')')
+        FROM jsonb_array_elements_text($1::jsonb) AS owner(id)
+        LEFT JOIN users u ON u.id=owner.id::uuid
+        WHERE (u.id IS NULL OR u.deleted)
+        AND NOT EXISTS (SELECT 1 FROM workspaces w WHERE w.owner_id=owner.id::uuid AND NOT w.deleted)""",
+                          [json.dumps(sorted(owners))]))
+
+
+def _cleanup_candidates(db):
+    if not SAFE or not SAFE.ENABLED:
+        raise ValueError("Cloud Drive is disabled.")
+    mounted = SAFE.claims_in_use()
+    pvs = _get("/api/v1/persistentvolumes", "persistent volumes")
+    pvcs = _get("/api/v1/namespaces/%s/persistentvolumeclaims" % SAFE.NAMESPACE, "persistent volume claims")
+    if pvs.get("metadata", {}).get("continue") or pvcs.get("metadata", {}).get("continue"):
+        raise RuntimeError("Incomplete volume inventory.")
+    owners = set()
+    for pv in pvs.get("items", []):
+        name = (pv.get("metadata") or {}).get("name", "")
+        if not name.startswith(SAFE.CLAIM_PREFIX):
+            continue
+        owner = name[len(SAFE.CLAIM_PREFIX):]
+        try:
+            if str(uuid.UUID(owner)) == owner:
+                owners.add(owner)
+        except ValueError:
+            continue
+    orphans = _cleanup_orphans(db, owners)
+    claims = {p["metadata"]["name"]: p for p in pvcs.get("items", [])}
+    candidates = {}
+    for pv in pvs.get("items", []):
+        name = (pv.get("metadata") or {}).get("name", "")
+        if not name.startswith(SAFE.CLAIM_PREFIX):
+            continue
+        candidate = _cleanup_objects(name, pv, claims.get(name), mounted, orphans)
+        if candidate:
+            candidates[name] = candidate
+    return candidates
+
+
+def _cleanup_public(state):
+    if not state:
+        return None
+    if state["status"] in ("scanning", "deleting") and time.time() - state["startedAt"] > 300:
+        return {"id": state["id"], "status": "failed", "error": "Cleanup was interrupted. Start a new scan."}
+    return {**state, "candidates": [{"name": v["name"], "account": v["account"]}
+                                    for v in state.get("candidates", [])]}
+
+
+def _cleanup_finish(uid, state, result):
+    with DB().transaction() as tx:
+        _cleanup_lock(tx, uid)
+        current = _cleanup_state(tx, uid)
+        if current and current["id"] == state["id"] and current["status"] == state["status"]:
+            _cleanup_save(tx, uid, result)
+            return True
+    return False
+
+
+def _cleanup_scan(uid, state):
+    try:
+        candidates = list(_cleanup_candidates(DB()).values())
+        result = {**state, "status": "ready" if candidates else "complete", "candidates": candidates}
+    except Exception:
+        result = {**state, "status": "failed", "error": "Could not verify the volume inventory."}
+    if _cleanup_finish(uid, state, result) and PUBLISH_INBOX:
+        count = len(result.get("candidates", []))
+        link = "/deployment/storage?volumeCleanup=" + state["id"] + "#cloud-drive"
+        message = ("%d Cloud Drive volume(s) are eligible for review. No volumes were deleted." % count
+                   if count else (result.get("error") or "No eligible Cloud Drive volumes were found."))
+        try:
+            PUBLISH_INBOX(uid, state["id"], "Cloud Drive cleanup", message,
+                          [{"label": "Review cleanup" if count else "View Cloud Drive", "url": link}])
+        except Exception as error:
+            if LOG:
+                LOG(event="cloud-drive-cleanup-notification-failed", error=str(error)[:200])
+
+
+def _cleanup_delete(uid, state, candidates):
+    deleted, skipped = [], []
+    db = DB()
+    for candidate in candidates:
+        current = _cleanup_state(db, uid)
+        if not current or current["id"] != state["id"] or current["status"] != "deleting":
+            return
+        name = candidate["name"]
+        try:
+            fresh = _cleanup_candidates(db).get(name)
+            if not fresh or any(fresh[key] != candidate[key] for key in ("pv", "claim")):
+                raise ValueError("Volume identity or eligibility changed.")
+            if name in SAFE.claims_in_use():
+                raise ValueError("The claim is in use.")
+            paths = [("/api/v1/persistentvolumes/" + name, fresh["pv"], fresh["pvVersion"])]
+            if candidate["claim"]:
+                paths.insert(0, ("/api/v1/namespaces/%s/persistentvolumeclaims/%s" % (SAFE.NAMESPACE, name),
+                                 fresh["claim"], fresh["claimVersion"]))
+            for path, resource_uid, version in paths:
+                if not version:
+                    raise ValueError("Kubernetes did not report a resource version.")
+                status, _ = KUBE.call("DELETE", path, {"apiVersion": "v1", "kind": "DeleteOptions",
+                                                       "preconditions": {"uid": resource_uid, "resourceVersion": version}})
+                if status not in (200, 202, 204, 404):
+                    raise RuntimeError("Kubernetes refused deletion (HTTP %s)." % status)
+            deleted.append(name)
+            if LOG:
+                LOG(event="cloud-drive-cleanup-deleted", volume=name, user_id=uid, scan=state["id"])
+        except Exception as error:
+            skipped.append({"name": name, "reason": str(error)[:180]})
+    _cleanup_finish(uid, state, {**state, "status": "complete", "candidates": [],
+                                "deleted": deleted, "skipped": skipped})
+
+
+def cloud_drive_cleanup(h, method, path, user):
+    uid = user["id"]
+    db = DB()
+    if method == "GET":
+        if path != CLEANUP_PATH:
+            return h.send_json(405, {"error": "Method not allowed."}) or True
+        return h.send_json(200, {"scan": _cleanup_public(_cleanup_state(db, uid))}) or True
+    if not h.csrf_ok():
+        return h.send_json(403, {"error": "Cross-site request refused."}) or True
+    body = h.body() or {}
+    if not isinstance(body, dict):
+        raise ValueError("Expected a cleanup request object.")
+    with db.transaction() as tx:
+        _cleanup_lock(tx, uid)
+        state = _cleanup_state(tx, uid)
+        current = _cleanup_public(state)
+        if path == CLEANUP_PATH:
+            if not SAFE or not SAFE.ENABLED:
+                raise ValueError("Cloud Drive is disabled.")
+            if current and current["status"] in ("scanning", "ready", "deleting"):
+                return h.send_json(200, {"scan": current}) or True
+            state = {"id": str(uuid.uuid4()), "status": "scanning", "startedAt": time.time()}
+            worker = _cleanup_scan
+            args = (uid, state)
+        else:
+            if not current or body.get("id") != current["id"] or current["status"] != "ready":
+                raise ValueError("This cleanup is no longer awaiting review.")
+            names = body.get("names")
+            found = {v["name"]: v for v in state["candidates"]}
+            if not isinstance(names, list) or any(not isinstance(n, str) or n not in found for n in names):
+                raise ValueError("Select volumes from this cleanup scan.")
+            selected = [found[n] for n in dict.fromkeys(names)]
+            state = {**state, "status": "deleting" if selected else "complete", "startedAt": time.time(),
+                     "candidates": [], "kept": len(found) - len(selected)}
+            worker = _cleanup_delete if selected else None
+            args = (uid, state, selected)
+        _cleanup_save(tx, uid, state)
+    if worker:
+        threading.Thread(target=worker, args=args, daemon=True, name="cloud-drive-cleanup").start()
+    return h.send_json(202, {"scan": _cleanup_public(state)}) or True
+
+
 # ---------------------------------------------------------------------------------------------------- HTTP
 def pod_reference(query):
     args = urllib.parse.parse_qs(query or "")
@@ -1461,6 +1691,80 @@ def pod_logs(query):
             raise LookupError("Logs are not available for this container instance.") from error
         raise RuntimeError("Pod logs: Kubernetes HTTP %s" % error.code) from error
     return {"text": text, "readAt": now_iso(), "uid": uid}
+
+
+CONTROLLER_PATHS = {
+    ("apps/v1", "Deployment"): "/apis/apps/v1/namespaces/%s/deployments/%s",
+    ("apps/v1", "ReplicaSet"): "/apis/apps/v1/namespaces/%s/replicasets/%s",
+    ("apps/v1", "StatefulSet"): "/apis/apps/v1/namespaces/%s/statefulsets/%s",
+    ("apps/v1", "DaemonSet"): "/apis/apps/v1/namespaces/%s/daemonsets/%s",
+    ("batch/v1", "Job"): "/apis/batch/v1/namespaces/%s/jobs/%s",
+    ("batch/v1", "CronJob"): "/apis/batch/v1/namespaces/%s/cronjobs/%s",
+    ("postgresql.cnpg.io/v1", "Cluster"): "/apis/postgresql.cnpg.io/v1/namespaces/%s/clusters/%s",
+    ("v1", "ReplicationController"): "/api/v1/namespaces/%s/replicationcontrollers/%s",
+}
+
+
+def pod_controllers(query):
+    namespace, name, _ = pod_reference(query)
+    resource = _get("/api/v1/namespaces/%s/pods/%s" % (namespace, name), "pod")
+    controllers = []
+    # The chain can include a ReplicaSet and its Deployment, or a Job and its CronJob.
+    for _ in range(4):
+        ref = next((r for r in resource.get("metadata", {}).get("ownerReferences", [])
+                    if r.get("controller")), None)
+        if not ref:
+            break
+        kind, owner = ref.get("kind"), ref.get("name", "")
+        entry = {"kind": kind, "name": owner, "manifest": None}
+        controllers.append(entry)
+        path = CONTROLLER_PATHS.get((ref.get("apiVersion"), kind))
+        if not path or not NAME_RE.fullmatch(owner):
+            break
+        status, resource = KUBE.call("GET", path % (namespace, owner))
+        if status != 200 or not isinstance(resource, dict):
+            break
+        meta = resource.get("metadata") or {}
+        if not ref.get("uid") or meta.get("uid") != ref["uid"]:
+            break
+        spec = resource.get("spec") or {}
+        template = (spec.get("jobTemplate") or {}).get("spec", spec).get("template") or {}
+        pod_spec = template.get("spec") or {}
+        # Only expose operational fields. Templates may contain inline credentials.
+        fields = ("replicas", "serviceName", "podManagementPolicy", "parallelism", "completions",
+                  "backoffLimit", "schedule", "timeZone", "suspend", "concurrencyPolicy",
+                  "selector", "strategy", "updateStrategy", "revisionHistoryLimit", "minReadySeconds",
+                  "instances", "imageName")
+        safe_spec = {key: spec[key] for key in fields if key in spec}
+        if pod_spec:
+            safe_spec["template"] = {"spec": {
+                key: [{field: container[field] for field in ("name", "image", "ports", "resources")
+                       if field in container} for container in pod_spec[key]]
+                for key in ("containers", "initContainers") if key in pod_spec}}
+        entry["manifest"] = {"apiVersion": ref["apiVersion"], "kind": kind,
+                             "metadata": {k: meta[k] for k in ("name", "namespace", "uid", "creationTimestamp")
+                                          if k in meta}, "spec": safe_spec}
+    return {"controllers": controllers}
+
+
+def delete_pod(body, user):
+    namespace, name, uid = body.get("namespace"), body.get("name"), body.get("uid")
+    if not all(isinstance(value, str) and NAME_RE.fullmatch(value) for value in (namespace, name)):
+        raise ValueError("A valid Kubernetes namespace and pod name are required.")
+    if not isinstance(uid, str) or not uid or body.get("confirmation") != name:
+        raise ValueError("Confirm the pod name before deleting it.")
+    path = "/api/v1/namespaces/%s/pods/%s" % (namespace, name)
+    status, _ = KUBE.call("DELETE", path, {
+        "apiVersion": "v1", "kind": "DeleteOptions", "preconditions": {"uid": uid}})
+    if status in (404, 409):
+        raise LookupError("The pod no longer matches the selected instance. Refresh its details.")
+    if status == 403:
+        raise PermissionError("Kubernetes denied pod deletion.")
+    if status not in (200, 202):
+        raise RuntimeError("Pod deletion: Kubernetes HTTP %s" % status)
+    if LOG:
+        LOG(event="network-pod-delete-requested", user_id=user.get("id"), namespace=namespace, pod=name, pod_uid=uid)
+    return {"accepted": True, "message": "Pod deletion requested."}
 
 
 def restart_pod(body, user):
@@ -1600,8 +1904,8 @@ def handle(h, method, path, query):
     """True when it answered (the paths under /api/network/)."""
     if not path.startswith(BASE + "/api/network/"):
         return False
-    if method != "GET" and not (method == "POST" and path in (BASE + "/api/network/coder-scale", BASE + "/api/network/restart-pod", BASE + "/api/network/edit-node",
-                                                         BASE + "/api/network/cloud-drive-volumes/delete",
+    if method != "GET" and not (method == "POST" and path in (BASE + "/api/network/coder-scale", BASE + "/api/network/restart-pod", BASE + "/api/network/delete-pod", BASE + "/api/network/edit-node",
+                                                         BASE + "/api/network/cloud-drive-volumes/delete", CLEANUP_PATH, CLEANUP_PATH + "/review",
                                                          BASE + "/api/network/drain-node")):
         h.send_json(405, {"error": "method not allowed"})
         return True
@@ -1609,6 +1913,8 @@ def handle(h, method, path, query):
     if err:
         return True
     try:
+        if path in (CLEANUP_PATH, CLEANUP_PATH + "/review"):
+            return cloud_drive_cleanup(h, method, path, user)
         if path == BASE + "/api/network/node-config":
             return h.send_json(200, node_config(query)) or True
         if path == BASE + "/api/network/node-pods":
@@ -1619,6 +1925,14 @@ def handle(h, method, path, query):
             if not h.csrf_ok():
                 return h.send_json(403, {"error": "Cross-site request refused"}) or True
             return h.send_json(200, edit_node(h.body() or {}, user)) or True
+        if path == BASE + "/api/network/pod-controllers":
+            return h.send_json(200, pod_controllers(query)) or True
+        if path == BASE + "/api/network/delete-pod":
+            if method != "POST":
+                return h.send_json(405, {"error": "method not allowed"}) or True
+            if not h.csrf_ok():
+                return h.send_json(403, {"error": "Cross-site request refused"}) or True
+            return h.send_json(202, delete_pod(h.body() or {}, user)) or True
         if path == BASE + "/api/network/restart-pod":
             if method != "POST":
                 return h.send_json(405, {"error": "method not allowed"}) or True

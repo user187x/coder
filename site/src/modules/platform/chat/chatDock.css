@@ -28,13 +28,14 @@ html[data-settings-side][data-chat-side] {
 	border-radius: var(--dock-radius, 1.125rem);
 }
 /* Under the docked Settings (navbarSoft.css) the chat takes the column's lower half, from --dock-split, which also fixes the Settings bottom. */
-html[data-settings-side="expanded"][data-chat-side] {
+html[data-settings-side="expanded"][data-settings-dock-edge="right"][data-chat-side] {
 	--chat-side-width: min(
 		calc(380px * var(--panel-zoom, 1)),
 		calc(48vw / var(--app-zoom, 1))
 	);
 }
-html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
+html[data-settings-side="expanded"][data-settings-dock-edge="right"][data-chat-side]
+	.chat-side-panel {
 	top: var(--dock-split, 50%);
 }
 
@@ -103,18 +104,6 @@ html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
 .chat-resize-handle[data-edge="top-right"],
 .chat-resize-handle[data-edge="bottom-left"] {
 	cursor: nesw-resize;
-}
-
-html[data-settings-side]
-	.chat-floating-dock:is(
-		[data-mode="bar"],
-		[data-mode="compact"],
-		[data-mode="window"]
-	) {
-	max-width: max(
-		0px,
-		calc(calc(100vw / var(--app-zoom, 1)) - var(--settings-dock-inset) - 32px)
-	);
 }
 
 .chat-resize-handle[data-edge="left"],

@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { PauseIcon, PlayIcon, XIcon, ZapIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { TerminateSignoff } from "#/api/platform";
+import { useEffect, useRef, useState } from "react";
+import type { TerminateSignoff, TerminateSignoffs } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import {
 	Tooltip,
@@ -10,14 +10,11 @@ import {
 } from "#/components/Tooltip/Tooltip";
 import "./terminateSignoff.css";
 
-/** Seconds the folded-down Terminate counts down before it runs. */
-const TERMINATE_COUNTDOWN = 5;
-
 /**
  * One end of the Terminate button: a dimple until an administrator signs off, then a turning red emergency light
  * whose tooltip says who signed, when, and their certificate's thumbprint.
  */
-const SignoffLight: React.FC<{ signoff?: TerminateSignoff }> = ({
+export const SignoffLight: React.FC<{ signoff?: TerminateSignoff }> = ({
 	signoff,
 }) => {
 	if (!signoff) {
@@ -103,39 +100,43 @@ const Flap: React.FC<{ value: number }> = ({ value }) => (
  * pause it or cancel it until it reaches zero, then onDone runs the terminate.
  */
 export const TerminateCountdown: React.FC<{
-	onDone: () => void;
-	onCancel: () => void;
-	cancelling?: boolean;
-}> = ({ onDone, onCancel, cancelling = false }) => {
-	const [left, setLeft] = useState(TERMINATE_COUNTDOWN);
-	const [paused, setPaused] = useState(false);
+	deadline: number;
+	pausedMs?: number | null;
+	onDone?: () => void;
+	onPause?: (paused: boolean) => void;
+	onCancel?: () => void;
+	busy?: boolean;
+}> = ({ deadline, pausedMs, onDone, onPause, onCancel, busy }) => {
+	const [now, setNow] = useState(Date.now);
+	const paused = pausedMs != null;
+	const left = Math.max(0, Math.ceil((pausedMs ?? deadline - now) / 1000));
 	useEffect(() => {
-		if (paused || left <= 0) {
+		if (paused) {
 			return;
 		}
-		const timer = window.setTimeout(() => setLeft((n) => n - 1), 1000);
-		return () => window.clearTimeout(timer);
-	}, [left, paused]);
+		const timer = window.setInterval(() => setNow(Date.now()), 50);
+		return () => window.clearInterval(timer);
+	}, [paused]);
 	useEffect(() => {
-		if (left === 0) {
-			onDone();
+		if (!busy && !paused && left === 0) {
+			onDone?.();
 		}
-	}, [left, onDone]);
+	}, [busy, left, onDone, paused]);
 	return (
 		<section
-			aria-label="Terminate countdown"
+			aria-label={`Terminate countdown: ${left} seconds remaining`}
 			className="terminate-countdown flex flex-col items-center gap-2 rounded-lg border border-solid border-red-500 bg-gray-900 p-3 text-white"
 		>
-			<p role="status" className="m-0 text-xs uppercase tracking-widest">
-				{paused ? "Paused" : "Terminating all workspaces in"}
+			<p className="m-0 text-xs uppercase tracking-widest">
+				{paused ? "Paused" : "Terminating reviewed workspaces in"}
 			</p>
 			<Flap value={left} />
 			<div className="flex gap-2">
 				<Button
 					size="sm"
 					variant="outline"
-					disabled={left === 0}
-					onClick={() => setPaused((p) => !p)}
+					disabled={left === 0 || busy || !onPause}
+					onClick={() => onPause?.(!paused)}
 				>
 					{paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
 					{paused ? "Resume" : "Pause"}
@@ -143,7 +144,7 @@ export const TerminateCountdown: React.FC<{
 				<Button
 					size="sm"
 					variant="destructive"
-					disabled={left === 0 || cancelling}
+					disabled={left === 0 || busy || !onCancel}
 					onClick={onCancel}
 				>
 					<XIcon aria-hidden />
@@ -154,15 +155,45 @@ export const TerminateCountdown: React.FC<{
 	);
 };
 
+export const terminateFlashFinished = "coder:terminate-flash-finished";
+
 /** The whole screen flashes white once, and the flash outlives the page that started it (it leaves the DOM itself). */
-export const flashScreen = () => {
+const flashScreen = () => {
 	const flash = document.createElement("div");
 	flash.className = "terminate-flash";
 	flash.setAttribute("aria-hidden", "true");
-	const remove = () => flash.remove();
-	flash.addEventListener("animationend", remove);
-	window.setTimeout(remove, 2000);
+	const finish = () => {
+		window.clearTimeout(fallback);
+		flash.removeEventListener("animationend", finish);
+		flash.remove();
+		window.dispatchEvent(new Event(terminateFlashFinished));
+	};
+	flash.addEventListener("animationend", finish, { once: true });
+	const fallback = window.setTimeout(finish, 2000);
 	document.body.append(flash);
+};
+
+/** Flash once per deadline observed in this dashboard. */
+export const useTerminateFlash = (round: TerminateSignoffs | undefined) => {
+	const flashed = useRef<string | null>(null);
+	const deadline = round?.deadline_ms;
+	const roundId = round?.round_id;
+	const paused = round?.paused_ms != null;
+	const signedAt = round?.signoffs.at(-1)?.signed_at;
+	useEffect(() => {
+		if (!roundId || !signedAt || deadline == null || paused) return;
+		const signature = `${roundId}:${signedAt}`;
+		const remaining = deadline - Date.now();
+		if (signature === flashed.current || remaining < -1000) return;
+		const timer = window.setTimeout(
+			() => {
+				flashed.current = signature;
+				flashScreen();
+			},
+			Math.max(0, remaining),
+		);
+		return () => window.clearTimeout(timer);
+	}, [deadline, paused, roundId, signedAt]);
 };
 
 /** Whether the sign-off list is complete, and the last one is this administrator's (who runs the countdown). */

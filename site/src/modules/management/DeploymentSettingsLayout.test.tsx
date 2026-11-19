@@ -38,7 +38,7 @@ it("hides and restores the category links without resetting the current page", a
 	expect(category).toHaveFocus();
 	await user.click(category);
 	expect(category).toHaveAttribute("aria-expanded", "true");
-	await user.dblClick(category);
+	await user.click(category);
 	expect(screen.queryByRole("link", { name: "Accounts" })).toBeNull();
 	const toggle = screen.getByRole("button", { name: "Accounts" });
 	expect(toggle).toHaveFocus();
@@ -226,6 +226,31 @@ describe("Default View", () => {
 		);
 	});
 
+	it("sets the category root as the default from a breadcrumb on a subpage", async () => {
+		const user = userEvent.setup();
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => changes);
+		const { router } = renderWithAuth(<DeploymentSettingsLayout />, {
+			path: "/deployment",
+			route: "/deployment/users/create",
+			children: [{ path: "users/create", element: <p>New account page</p> }],
+		});
+		fireEvent.contextMenu(
+			await screen.findByRole("button", { name: "Accounts" }),
+		);
+		await user.click(
+			await screen.findByRole("menuitem", { name: "Set Default" }),
+		);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({
+				settings_default_view: "/deployment/users",
+			}),
+		);
+		expect(router.state.location.pathname).toBe("/deployment/users/create");
+	});
+
 	it("opens Settings on the user's Default View", async () => {
 		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 			settings_default_view: "/deployment/appearance",
@@ -253,9 +278,7 @@ describe("Default View", () => {
 		});
 		await screen.findByText("Accounts page");
 		fireEvent.contextMenu(screen.getByRole("button", { name: "Accounts" }));
-		fireEvent.click(
-			await screen.findByRole("menuitem", { name: "Move to the navbar" }),
-		);
+		fireEvent.click(await screen.findByRole("menuitem", { name: "Navbar" }));
 		await waitFor(() =>
 			expect(save).toHaveBeenCalledWith({ admin_nav_in_navbar: true }),
 		);
@@ -281,10 +304,10 @@ describe("Default View", () => {
 	});
 });
 
-it("puts the page's action button in the category chevron's place when the navigation is in the navbar", async () => {
+it("keeps the page action and category navigation together in the navbar", async () => {
 	const user = userEvent.setup();
 	const onCreate = vi.fn();
-	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+	const read = vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 		admin_nav_in_navbar: true,
 	});
 	const WithNavbarStart = () => {
@@ -321,4 +344,33 @@ it("puts the page's action button in the category chevron's place when the navig
 		await within(breadcrumb).findByRole("button", { name: "New account" }),
 	);
 	expect(onCreate).toHaveBeenCalledOnce();
+	const category = within(breadcrumb).getByRole("button", { name: "Accounts" });
+	category.focus();
+	await user.keyboard("{Enter}");
+	expect(
+		await screen.findByRole("menuitem", { name: "New account" }),
+	).toHaveAttribute("href", "/deployment/users/create");
+	await user.keyboard("{Escape}");
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (changes) => {
+			const prefs = { admin_nav_in_navbar: true, ...changes };
+			read.mockResolvedValue(prefs);
+			return prefs;
+		});
+	await user.pointer({ target: category, keys: "[MouseRight]" });
+	await user.click(await screen.findByRole("menuitem", { name: "Right Side" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({ navbar_settings_side: "right" }),
+	);
+
+	await user.pointer({ target: category, keys: "[MouseRight]" });
+	const left = await screen.findByRole("menuitem", { name: "Left Side" });
+	await waitFor(() =>
+		expect(left).not.toHaveAttribute("aria-disabled", "true"),
+	);
+	await user.click(left);
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({ navbar_settings_side: "left" }),
+	);
 });

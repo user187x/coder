@@ -19,6 +19,7 @@ import { cn } from "cn";
 import { ArrowDownAZIcon, GripVerticalIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "#/components/Button/Button";
+import { canonicalAdminPageId } from "#/modules/dashboard/Navbar/adminQuickLinks";
 
 export type SidebarCategory = {
 	/** The category's page ID (adminQuickLinks' IDs). */
@@ -40,10 +41,11 @@ export const orderCategories = (
 	const byLabel = [...categories].sort((a, b) =>
 		a.label.localeCompare(b.label),
 	);
-	const placed = order
+	const canonicalOrder = [...new Set(order.map(canonicalAdminPageId))];
+	const placed = canonicalOrder
 		.map((id) => byLabel.find((c) => c.id === id))
 		.filter((c): c is SidebarCategory => c !== undefined);
-	return [...placed, ...byLabel.filter((c) => !order.includes(c.id))];
+	return [...placed, ...byLabel.filter((c) => !canonicalOrder.includes(c.id))];
 };
 
 type SortableCategoriesProps = {

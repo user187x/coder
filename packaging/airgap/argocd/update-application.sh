@@ -329,7 +329,7 @@ if ((apply)); then
 	kubectl -n "$ns" annotate application "$name" argocd.argoproj.io/refresh=normal --overwrite >/dev/null
 	say "Argo CD syncs it now; follow it with:"
 	echo "    kubectl -n ${ns} get application ${name} -w      (Synced, Healthy)"
-	echo "    kubectl -n coder rollout status deploy/coder     (Coder on ${fork_image##*:})"
+	echo "    kubectl -n coder rollout status deploy/coder-server (Coder on ${fork_image##*:})"
 else
 	say "Next: kubectl apply -f ${app}   (or run again with --apply)"
 fi

@@ -28,7 +28,7 @@ class PlatformUpdateTest(unittest.TestCase):
             return ""
         updater.prepare_manifest(run, {"kind": "List", "items": [
             {"kind": "Service", "metadata": {"name": "coder-ui-updates"}},
-            {"kind": "Deployment", "metadata": {"name": "coder-ui-updates"}, "spec": {"template": {"spec": {
+            {"kind": "Deployment", "metadata": {"name": "coder-ui"}, "spec": {"template": {"spec": {
                 "imagePullSecrets": [{"name": "new-registry"}],
                 "containers": [{"name": "ui", "image": "new-registry/service:1.5.1", "imagePullPolicy": "Always"}],
             }}}},

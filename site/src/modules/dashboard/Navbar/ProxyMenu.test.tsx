@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
+import { coderHeartbeat } from "#/api/queries/platform";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
 import * as animations from "#/hooks/useAnimationSettings";
 import {
@@ -65,9 +66,10 @@ const controls = {
 
 const renderMenu = (
 	props: Omit<React.ComponentProps<typeof ProxyMenu>, "user" | "onSignOut">,
+	client = new QueryClient(),
 ) =>
 	renderComponent(
-		<QueryClientProvider client={new QueryClient()}>
+		<QueryClientProvider client={client}>
 			<MemoryRouter>
 				<ProxyMenu {...props} user={MockUserOwner} onSignOut={vi.fn()} />
 			</MemoryRouter>
@@ -173,6 +175,15 @@ describe("ProxyMenu", () => {
 			name: "Cluster metric history",
 		});
 		expect(within(graphs).getAllByRole("img")).toHaveLength(4);
+		fireEvent.contextMenu(
+			screen.getByRole("menuitem", { name: "Hide metric graphs" }),
+		);
+		const hudShortcut = await screen.findByRole("menuitem", {
+			name: "Show HUD",
+		});
+		expect(hudShortcut).toHaveAttribute("href", "/hud");
+		expect(save).not.toHaveBeenCalled();
+		await user.keyboard("{Escape}");
 		await user.click(
 			screen.getByRole("menuitem", { name: "Hide metric graphs" }),
 		);
@@ -188,6 +199,37 @@ describe("ProxyMenu", () => {
 		expect(
 			await screen.findByRole("group", { name: "Cluster metric history" }),
 		).toBeVisible();
+	});
+
+	it("opens a server heartbeat from the HUD context menu", async () => {
+		const probe = vi
+			.spyOn(globalThis, "fetch")
+			.mockResolvedValue(new Response("OK"));
+		const client = new QueryClient();
+		client.setQueryData(coderHeartbeat().queryKey, { latency: 4000 });
+		renderMenu({ proxyContextValue: value, hud: true, controls }, client);
+		const menu = await openMenu();
+		const hud = within(menu).getByRole("menuitem", { name: "HUD" });
+		expect(probe).not.toHaveBeenCalledWith("/healthz", expect.anything());
+		fireEvent.contextMenu(hud);
+		const heartbeat = within(menu).getByRole("group", {
+			name: "HUD heartbeat",
+		});
+		await within(heartbeat).findByText("Latency decreased");
+		expect(probe).toHaveBeenCalledWith(
+			"/healthz",
+			expect.objectContaining({ cache: "no-store" }),
+		);
+		expect(
+			within(heartbeat).queryByRole("menuitem", { name: "Open" }),
+		).toBeNull();
+		fireEvent.contextMenu(hud);
+		expect(
+			within(menu).queryByRole("group", { name: "HUD heartbeat" }),
+		).toBeNull();
+		probe.mockResolvedValueOnce(new Response("Unavailable", { status: 503 }));
+		fireEvent.contextMenu(hud);
+		await within(menu).findByText("No response");
 	});
 
 	it("shows latency beside the cluster heading and keeps HUD and docking in navigation", async () => {
@@ -382,44 +424,51 @@ describe("ProxyMenu", () => {
 		).toBeNull();
 	});
 
-	it("with the settings navigation in the navbar, opens from the breadcrumb's Settings chevron on one click", async () => {
-		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
-			admin_nav_in_navbar: true,
-		});
-		const user = userEvent.setup();
-		const slot = document.createElement("li");
-		document.body.append(slot);
-		renderWithAuth(
-			<ProxyMenu
-				proxyContextValue={value}
-				controls={{ ...controls, categories: pages }}
-				user={MockUserOwner}
-				onSignOut={vi.fn()}
-			/>,
-		);
-		let leave: (() => void) | undefined;
-		act(() => {
-			leave = settingsMenuSlot(slot);
-		});
-		const trigger = await within(slot).findByRole("button", {
-			name: "Settings",
-		});
-		await user.click(trigger);
-		const menu = await screen.findByTestId("navbar-latency-controls-menu");
-		expect(menu.dataset.settingsEdge).toBe("left");
-		// every category not already a quick link, each hideable under Controls
-		const category = pages.slice(2).find((page) => page.id !== "chat");
-		if (!category) throw new Error("no admin page past the quick links");
-		expect(
-			within(menu).getByRole("menuitem", {
-				name: `Hide ${category.label} under Controls`,
-			}),
-		).toBeTruthy();
-		await user.click(trigger);
-		await waitFor(() =>
-			expect(screen.queryByTestId("navbar-latency-controls-menu")).toBeNull(),
-		);
-		act(() => leave?.());
-		slot.remove();
-	});
+	it.each([
+		["Settings", undefined],
+		["Storage", "/deployment/storage"],
+	])(
+		"opens Settings from the %s root chevron on one click",
+		async (label, path) => {
+			vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+				admin_nav_in_navbar: true,
+				settings_default_view: path,
+			});
+			const user = userEvent.setup();
+			const slot = document.createElement("li");
+			document.body.append(slot);
+			renderWithAuth(
+				<ProxyMenu
+					proxyContextValue={value}
+					controls={{ ...controls, categories: pages }}
+					user={MockUserOwner}
+					onSignOut={vi.fn()}
+				/>,
+			);
+			let leave: (() => void) | undefined;
+			act(() => {
+				leave = settingsMenuSlot(slot);
+			});
+			const trigger = await within(slot).findByRole("button", {
+				name: label,
+			});
+			await user.click(trigger);
+			const menu = await screen.findByTestId("navbar-latency-controls-menu");
+			expect(menu.dataset.settingsEdge).toBe("left");
+			// every category not already a quick link, each hideable under Controls
+			const category = pages.slice(2).find((page) => page.id !== "chat");
+			if (!category) throw new Error("no admin page past the quick links");
+			expect(
+				within(menu).getByRole("menuitem", {
+					name: `Hide ${category.label} under Controls`,
+				}),
+			).toBeTruthy();
+			await user.click(trigger);
+			await waitFor(() =>
+				expect(screen.queryByTestId("navbar-latency-controls-menu")).toBeNull(),
+			);
+			act(() => leave?.());
+			slot.remove();
+		},
+	);
 });

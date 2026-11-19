@@ -86,7 +86,7 @@ export const DrawerContent: React.FC<
 	const direction = useContext(DrawerDirectionContext);
 
 	return (
-		<DrawerPortal>
+		<DrawerPortal container={document.fullscreenElement}>
 			<DrawerOverlay />
 			<DialogPrimitive.Content
 				className={cn(drawerContentVariants({ direction }), className)}

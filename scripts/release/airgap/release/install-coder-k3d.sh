@@ -215,8 +215,8 @@ helm upgrade --install coder-fork "$assets/coder-airgapped-1.5.0.tgz" \
 	--values "$assets/offline-values.example.yaml" --values "$assets/k3d-values.yaml" \
 	--wait --timeout 20m
 printf '\n[6/7] Checking the server\n'
-kubectl --kubeconfig "$kubeconfig" -n coder-fork rollout status deployment/coder --timeout=10m
-kubectl --kubeconfig "$kubeconfig" -n coder-fork rollout status deployment/coder-ui-updates --timeout=10m
+kubectl --kubeconfig "$kubeconfig" -n coder-fork rollout status deployment/coder-server --timeout=10m
+kubectl --kubeconfig "$kubeconfig" -n coder-fork rollout status deployment/coder-ui --timeout=10m
 kubectl --kubeconfig "$kubeconfig" -n coder-fork get pods
 kubectl --kubeconfig "$kubeconfig" -n coder-fork get pvc
 printf '\n[7/7] Exporting your test CA and sign-in details\n'

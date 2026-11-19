@@ -12,10 +12,12 @@ const realSnapshot = chatStore.useChatSnapshot;
 
 const glowWith = async ({
 	unread,
+	unreadChats = 0,
 	prefs = {},
 	dockMode = "bar",
 }: {
 	unread: number;
+	unreadChats?: number;
 	prefs?: Record<string, unknown>;
 	dockMode?: string;
 }) => {
@@ -24,6 +26,7 @@ const glowWith = async ({
 		notifications: [],
 		unread_count: unread,
 	});
+	vi.spyOn(chatStore, "unreadTotal").mockReturnValue(unreadChats);
 	vi.spyOn(chatStore, "useChatSnapshot").mockImplementation(() => ({
 		...realSnapshot(),
 		dockMode: dockMode as ReturnType<typeof realSnapshot>["dockMode"],
@@ -39,19 +42,41 @@ const glowWith = async ({
 };
 
 it("glows while notifications wait and the chat is folded to its bar", async () => {
-	expect(await glowWith({ unread: 2 })).toBe(true);
+	expect(await glowWith({ unread: 2 })).toEqual({
+		chat: false,
+		notifications: true,
+	});
 });
 
 it("does not glow with nothing unread", async () => {
-	expect(await glowWith({ unread: 0 })).toBe(false);
+	expect(await glowWith({ unread: 0 })).toEqual({
+		chat: false,
+		notifications: false,
+	});
 });
 
 it("does not glow while the chat is attached on screen", async () => {
-	expect(await glowWith({ unread: 2, dockMode: "side" })).toBe(false);
+	expect(await glowWith({ unread: 2, dockMode: "side" })).toEqual({
+		chat: false,
+		notifications: false,
+	});
 });
 
 it("does not glow once the user turned it off", async () => {
 	expect(
 		await glowWith({ unread: 2, prefs: { settings_unread_glow: false } }),
-	).toBe(false);
+	).toEqual({ chat: false, notifications: false });
 });
+
+it.each([
+	{ unread: 0, notifications: false },
+	{ unread: 2, notifications: true },
+])(
+	"keeps Chat distinct from notifications when the inbox has $unread unread",
+	async ({ unread, notifications }) => {
+		expect(await glowWith({ unread, unreadChats: 1 })).toEqual({
+			chat: true,
+			notifications,
+		});
+	},
+);

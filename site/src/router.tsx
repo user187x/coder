@@ -6,6 +6,7 @@ import {
 	Outlet,
 	Route,
 	ScrollRestoration,
+	useLocation,
 } from "react-router";
 import { GlobalErrorBoundary } from "./components/ErrorBoundary/GlobalErrorBoundary";
 import { Loader } from "./components/Loader/Loader";
@@ -176,12 +177,26 @@ const KeycloakSettingsPage = lazy(
 			"./pages/DeploymentSettingsPage/KeycloakSettingsPage/KeycloakSettingsPage"
 		),
 );
-const PersistenceSettingsPage = lazy(
-	() =>
-		import(
-			"./pages/DeploymentSettingsPage/PersistenceSettingsPage/PersistenceSettingsPage"
-		),
+const StorageSettingsPage = lazy(
+	() => import("./pages/DeploymentSettingsPage/StorageSettingsPage"),
 );
+
+function StorageRedirect({ section }: { section?: string }) {
+	const { search, hash } = useLocation();
+	return (
+		<Navigate
+			to={{
+				pathname: "/deployment/storage",
+				search,
+				hash:
+					hash === "#persistence-storage"
+						? "#storage-classes"
+						: hash || section,
+			}}
+			replace
+		/>
+	);
+}
 const QuickMenuSettingsPage = lazy(
 	() =>
 		import(
@@ -608,7 +623,12 @@ export const router = createBrowserRouter(
 						{/* Platform: the quick access wheel's wedges */}
 						<Route path="quick-menu" element={<QuickMenuSettingsPage />} />
 						<Route path="monitoring" element={<MonitoringSettingsPage />} />
-						<Route path="persistence" element={<PersistenceSettingsPage />} />
+						<Route
+							path="database"
+							element={<StorageRedirect section="#database-map" />}
+						/>
+						<Route path="persistence" element={<StorageRedirect />} />
+						<Route path="storage" element={<StorageSettingsPage />} />
 						<Route path="workspace-proxies" element={<WorkspaceProxyPage />} />
 						<Route path="oauth2-provider">
 							<Route index element={<NotFoundPage />} />

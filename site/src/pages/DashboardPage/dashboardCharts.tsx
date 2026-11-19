@@ -31,6 +31,9 @@ export type Ring = {
 	unit: string;
 	/** Stroke class of the ring's own colour (below the warning level). */
 	stroke: string;
+	track?: string;
+	description?: string;
+	reading?: string;
 };
 
 const percentOf = (used: number, limit: number | null) =>
@@ -79,7 +82,9 @@ export const QuotaRings: React.FC<{
 	return (
 		<svg
 			role="img"
-			aria-label={rings.map((r) => allocationText(r, limitName)).join("; ")}
+			aria-label={rings
+				.map((r) => r.description ?? allocationText(r, limitName))
+				.join("; ")}
 			viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
 			className="size-[168px] shrink-0"
 			onMouseLeave={() => onActiveChange?.(null)}
@@ -103,7 +108,7 @@ export const QuotaRings: React.FC<{
 						)}
 						onMouseEnter={() => onActiveChange?.(i)}
 					>
-						<title>{allocationText(ring, limitName)}</title>
+						<title>{ring.description ?? allocationText(ring, limitName)}</title>
 						{/* what the pointer catches: the ring and half the gaps beside it */}
 						<circle
 							cx={centre}
@@ -120,7 +125,7 @@ export const QuotaRings: React.FC<{
 							r={radius}
 							fill="none"
 							strokeWidth={RING_STROKE}
-							className="stroke-surface-tertiary"
+							className={ring.track ?? "stroke-surface-tertiary"}
 						/>
 						{share > 0 && (
 							<circle
@@ -167,9 +172,10 @@ export const QuotaRings: React.FC<{
 						textAnchor="middle"
 						className="fill-content-primary text-[15px] font-semibold tabular-nums"
 					>
-						{shown.limit && shown.limit > 0
-							? `${Math.round((shown.used / shown.limit) * 100)}%`
-							: formatQuotaNumber(shown.used)}
+						{shown.reading ??
+							(shown.limit && shown.limit > 0
+								? `${Math.round((shown.used / shown.limit) * 100)}%`
+								: formatQuotaNumber(shown.used))}
 					</text>
 					<text
 						x={centre}
@@ -177,9 +183,11 @@ export const QuotaRings: React.FC<{
 						textAnchor="middle"
 						className="fill-content-secondary text-[9px] tabular-nums"
 					>
-						{shown.limit === null
-							? shown.unit
-							: `${formatQuotaNumber(shown.used)}/${formatQuotaNumber(shown.limit)} ${shown.unit}`}
+						{shown.reading
+							? ""
+							: shown.limit === null
+								? shown.unit
+								: `${formatQuotaNumber(shown.used)}/${formatQuotaNumber(shown.limit)} ${shown.unit}`}
 					</text>
 				</g>
 			)}

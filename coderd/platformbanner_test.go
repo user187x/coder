@@ -65,10 +65,12 @@ func TestPlatformBanner(t *testing.T) {
 	anon := codersdk.New(client.URL)
 	ctx := testutil.Context(t, testutil.WaitLong)
 
-	// before anything is published: no banner, an id all the same
+	// Before anything is published, the banner displays the bundled art.
 	code, b := bannerCall(ctx, t, anon, http.MethodGet, "/banner.json", nil, nil)
 	require.Equal(t, http.StatusOK, code)
-	require.Equal(t, false, b["enabled"])
+	require.Equal(t, true, b["enabled"])
+	require.Equal(t, "/pictures/announcement-default.jpeg", b["picture"])
+	require.Equal(t, "pan-up", b["pictureEffect"])
 	require.Len(t, b["id"], 12)
 
 	// the live socket: the banner at once
@@ -147,11 +149,11 @@ func TestPlatformBanner(t *testing.T) {
 	require.NotEqual(t, published, bannerOf(t, out)["id"])
 	require.Equal(t, bannerOf(t, out)["id"], next()["id"])
 
-	// reset: no banner again
+	// Reset restores the bundled announcement art.
 	code, out = bannerCall(ctx, t, client, http.MethodPost, "/api/reset", map[string]any{}, nil)
 	require.Equal(t, http.StatusOK, code, out)
 	require.Equal(t, false, out["overrideActive"])
-	require.Equal(t, false, next()["enabled"])
+	require.Equal(t, true, next()["enabled"])
 
 	// the banner service's other files are gone
 	code, _ = bannerCall(ctx, t, anon, http.MethodGet, "/banner.js", nil, nil)

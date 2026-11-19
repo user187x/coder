@@ -21,6 +21,7 @@ import tempfile
 from pathlib import Path
 
 SERVICES = ('coder', 'coder-ui-updates', 'coder-ui-logs-db')
+DEPLOYMENTS = {'coder': 'coder-server', 'coder-ui-updates': 'coder-ui', 'coder-ui-logs-db': 'coder-ui-logs-db'}
 DNS_NAME = re.compile(r'^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$')
 
 
@@ -110,9 +111,10 @@ class Cluster:
         leaf = self.get('secret', service + '-internal-tls')
         digest = hashlib.sha256(base64.b64decode(leaf['data']['tls.crt'], validate=True)).hexdigest()
         payload = {'spec': {'template': {'metadata': {'annotations': {'coder.com/internal-tls-revision': digest}}}}}
-        self.run(['patch', 'deployment', service, '--type=merge', '--patch-file=/dev/stdin'],
+        deployment = DEPLOYMENTS[service]
+        self.run(['patch', 'deployment', deployment, '--type=merge', '--patch-file=/dev/stdin'],
                  data=json.dumps(payload).encode())
-        self.run(['rollout', 'status', 'deployment/' + service, '--timeout=300s'])
+        self.run(['rollout', 'status', 'deployment/' + deployment, '--timeout=300s'])
 
 
 def main():

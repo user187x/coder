@@ -1,3 +1,4 @@
+import { MessagesSquareIcon, NotebookPenIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -65,7 +66,7 @@ export const AdminNotesTray = ({
 		if (!open) setDockMode("bar");
 		else if (chatHidden)
 			save.mutate(
-				{ chat_hidden: false },
+				{ chat_hidden: false, chat_position: null },
 				{ onSuccess: () => setDockMode("side") },
 			);
 		else setDockMode("side");
@@ -141,16 +142,16 @@ export const AdminNotesTray = ({
 					lock={lock}
 				>
 					<ContextMenuSeparator />
-					<ContextMenuGroup aria-label="Set target">
+					<ContextMenuGroup aria-label="Set Action">
 						<div className="px-2 py-1 text-xs text-content-secondary">
-							Set Target
+							Set Action
 						</div>
 						{(
 							[
-								["chat", "Chat"],
-								["notes", "Admin Notes"],
+								["chat", "Chat", MessagesSquareIcon],
+								["notes", "Admin Notes", NotebookPenIcon],
 							] as const
-						).map(([value, name]) => (
+						).map(([value, name, Icon]) => (
 							<ContextMenuCheckboxItem
 								key={value}
 								checked={target === value}
@@ -161,6 +162,7 @@ export const AdminNotesTray = ({
 									save.mutate({ admin_notes_tray_target: value });
 								}}
 							>
+								<Icon aria-hidden />
 								{name}
 							</ContextMenuCheckboxItem>
 						))}

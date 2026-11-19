@@ -56,6 +56,36 @@ class NetworkActionsTest(unittest.TestCase):
         pod = network.log_targets("type=pod&namespace=coder&name=coder-1")["pods"][0]
         self.assertIsNone(pod["workspaceId"])
 
+    def test_delete_pod_requires_confirmation_and_uses_uid_precondition(self):
+        with self.assertRaises(ValueError):
+            network.delete_pod({**self.body, "confirmation": "other"}, {})
+        self.kube.call.assert_not_called()
+        self.kube.call.return_value = (202, {})
+        self.assertTrue(network.delete_pod(self.body, {"id": "admin"})["accepted"])
+        method, path, options = self.kube.call.call_args.args
+        self.assertEqual((method, path), ("DELETE", "/api/v1/namespaces/coder/pods/coder-1"))
+        self.assertEqual(options["preconditions"], {"uid": "original-uid"})
+        self.kube.call.return_value = (409, {})
+        with self.assertRaises(LookupError):
+            network.delete_pod(self.body, {})
+
+    def test_controller_manifests_follow_verified_owner_chain_and_omit_inline_credentials(self):
+        pod = copy.deepcopy(self.pod)
+        pod["metadata"]["ownerReferences"][0].update(apiVersion="apps/v1", uid="rs-uid")
+        rs = {"metadata": {"uid": "rs-uid", "ownerReferences": [
+            {"kind": "Deployment", "apiVersion": "apps/v1", "name": "coder", "uid": "deploy-uid",
+             "controller": True}]}}
+        deployment = {"metadata": {"name": "coder", "uid": "deploy-uid", "annotations": {"private": "token"}},
+                      "spec": {"replicas": 2, "template": {"spec": {"containers": [
+                          {"name": "coder", "image": "coder:test", "env": [{"name": "TOKEN", "value": "private"}]}]}}}}
+        self.kube.call.side_effect = [(200, pod), (200, rs), (200, deployment)]
+        result = network.pod_controllers(self.query)["controllers"]
+        self.assertEqual([entry["kind"] for entry in result], ["ReplicaSet", "Deployment"])
+        self.assertEqual(result[1]["manifest"]["spec"]["replicas"], 2)
+        self.assertNotIn("private", str(result[1]["manifest"]))
+        self.kube.call.side_effect = [(200, pod), (200, {"metadata": {"uid": "replacement"}})]
+        self.assertIsNone(network.pod_controllers(self.query)["controllers"][0]["manifest"])
+
     def test_restart_uses_eviction_with_uid_precondition_and_audits_actor(self):
         self.kube.call.side_effect = [(200, self.pod), (201, {})]
         self.assertTrue(network.restart_pod(self.body, {"id": "admin-id"})["accepted"])
@@ -141,3 +171,77 @@ class NetworkActionsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class StorageInventoryTest(unittest.TestCase):
+    def test_inventory_preserves_bindings_and_pod_references_by_namespace(self):
+        kube = mock.Mock()
+        kube.call.side_effect = [
+            (200, {"items": [{"metadata": {"name": "local-path"}}]}),
+            (200, {"items": [{
+                "metadata": {"name": "db-pv", "annotations": {"platform.coder/username": "private"}},
+                "spec": {"storageClassName": "local-path", "claimRef": {"name": "data", "namespace": "database"}},
+                "status": {"phase": "Bound"},
+            }]}),
+            (200, {"items": []}),
+            (200, {"items": [{
+                "metadata": {"name": "data", "namespace": namespace},
+                "spec": {"storageClassName": "local-path", "volumeName": "db-pv" if namespace == "database" else None},
+                "status": {"phase": "Bound" if namespace == "database" else "Pending"},
+            } for namespace in ("database", "other")]}),
+        ]
+        pods = [{"metadata": {"name": "database-1", "namespace": "database"},
+                 "spec": {"volumes": [{"persistentVolumeClaim": {"claimName": "data"}}]}}]
+        with mock.patch.multiple(network, KUBE=kube, SAFE=None, QUANTITY=lambda _: 0):
+            report = network.storage_report(pods)
+        self.assertEqual(report["claimScope"], "all namespaces")
+        self.assertEqual(report["classes"][0]["pending"], ["other/data"])
+        self.assertEqual(report["volumes"][0]["claim"], "database/data")
+        self.assertNotIn("user", report["volumes"][0])
+        self.assertEqual(report["claims"][0]["usedBy"], ["database-1"])
+        self.assertEqual(report["claims"][1]["usedBy"], [])
+
+    def test_inventory_falls_back_to_visible_namespace(self):
+        kube = mock.Mock()
+        kube.call.side_effect = [(200, {"items": []})] * 3 + [(403, {}), (200, {"items": []})]
+        with mock.patch.multiple(network, KUBE=kube, SAFE=None, NAMESPACE="limited"):
+            report = network.storage_report([])
+        self.assertEqual(report["claimScope"], "limited")
+        self.assertEqual(report["claims"], [])
+        kube.call.assert_called_with("GET", "/api/v1/namespaces/limited/persistentvolumeclaims")
+
+
+class CloudDriveCleanupTest(unittest.TestCase):
+    def test_only_retained_account_volumes_without_live_references_are_candidates(self):
+        safe = mock.Mock(CLAIM_PREFIX="coder-safe-", CSI_DRIVER="s3", NAMESPACE="coder")
+        owner = "12345678-1234-1234-1234-123456789012"
+        name = safe.CLAIM_PREFIX + owner
+        labels = {"app.kubernetes.io/name": "coder-safe", "platform.coder/user-id": owner}
+        pv = {"metadata": {"uid": "pv", "labels": labels}, "spec": {
+            "csi": {"driver": "s3"}, "persistentVolumeReclaimPolicy": "Retain",
+            "claimRef": {"namespace": "coder", "name": name, "uid": "claim"},
+        }}
+        claim = {"metadata": {"uid": "claim", "labels": labels}, "spec": {"volumeName": name}}
+        with mock.patch.object(network, "SAFE", safe):
+            def candidate(mounted=(), owners=None):
+                return network._cleanup_objects(name, pv, claim, mounted, {owner: "removed"} if owners is None else owners)
+
+            self.assertEqual(candidate()["account"], "removed")
+            self.assertIsNone(candidate(mounted={name}))
+            self.assertIsNone(candidate(owners={}))
+            claim["metadata"]["uid"] = "replacement"
+            self.assertIsNone(candidate())
+            claim["metadata"]["uid"] = "claim"
+            pv["spec"]["persistentVolumeReclaimPolicy"] = "Delete"
+            self.assertIsNone(candidate())
+
+    def test_deletion_skips_a_volume_that_changed_after_review(self):
+        kube = mock.Mock()
+        candidate = {"name": "coder-safe-orphan", "pv": "reviewed-pv", "claim": "reviewed-claim"}
+        with mock.patch.object(network, "KUBE", kube), mock.patch.object(network, "DB", mock.Mock()), \
+                mock.patch.object(network, "_cleanup_candidates", return_value={
+                    candidate["name"]: {**candidate, "pv": "replacement-pv"},
+                }), mock.patch.object(network, "_cleanup_state", return_value={"id": "scan", "status": "deleting"}), \
+                mock.patch.object(network, "_cleanup_finish") as finish:
+            network._cleanup_delete("admin", {"id": "scan"}, [candidate])
+            kube.call.assert_not_called()
+            self.assertEqual(finish.call_args.args[2]["skipped"][0]["name"], candidate["name"])

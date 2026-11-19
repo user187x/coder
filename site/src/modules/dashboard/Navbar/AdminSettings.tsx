@@ -16,10 +16,12 @@ import {
 	updatePreferenceSettings,
 } from "#/api/queries/users";
 import type { UserPreferenceSettings } from "#/api/typesGenerated";
+import { canonicalAdminPageId } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { AdminQuickLinksMenu, type TopSection } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
 import { ProfileSections } from "./ProfileSections";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
+import type { UnreadGlow } from "./useUnreadGlow";
 
 /**
  * Permissions that determine which items appear in the Admin menu.
@@ -28,6 +30,7 @@ import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
  * both surfaces render the same set of items from a single source of truth.
  */
 type AdminSettingsItemsProps = {
+	unreadGlow?: UnreadGlow;
 	itemClassName?: string;
 	permissions: AdminSettingsPermissions;
 	/** The admin's quick links, in their order. None by default. */
@@ -88,7 +91,7 @@ export type HideableMenuItem = {
 	options?: React.ReactNode;
 };
 
-const hideableItems = (
+export const settingsUtilityPages = (
 	permissions: AdminSettingsPermissions,
 ): HideableMenuItem[] => [
 	{
@@ -140,6 +143,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	onChatToggle,
 	categories = [],
 	topSection,
+	unreadGlow,
 }) => {
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
@@ -153,12 +157,14 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 			(page) =>
 				page.id !== "chat" && !quickLinks.some((link) => link.id === page.id),
 		),
-		...hideableItems(permissions),
+		...settingsUtilityPages(permissions),
 	];
 	// The rows after the quick links in the admin's own order (their sidebar order), the rest after them.
 	const order = sidebar.data?.admin_sidebar_order ?? [];
 	const rank = (id: string) => {
-		const index = order.indexOf(id);
+		const index = order.findIndex(
+			(entry) => canonicalAdminPageId(entry) === id,
+		);
 		return index < 0 ? Number.POSITIVE_INFINITY : index;
 	};
 	const shown = items
@@ -182,6 +188,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	return (
 		<>
 			<AdminQuickLinksMenu
+				unreadGlow={unreadGlow}
 				itemClassName={itemClassName}
 				admin={permissions.canEditDeployment}
 				chatExpanded={chatExpanded}

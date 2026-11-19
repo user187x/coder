@@ -19,6 +19,10 @@ app.kubernetes.io/component: coderd
 Deployment to merge into the libcoder template
 */}}
 {{- define "coder.deployment" -}}
+{{- with .Values.coder.deploymentName }}
+metadata:
+  name: {{ . | quote }}
+{{- end }}
 spec:
   {{- with .Values.coder.deploymentStrategy }}
   strategy:

@@ -14,6 +14,7 @@ import {
 	PlatformAPI,
 	type UserUIPreferences,
 } from "#/api/platform";
+import { settingsChatSlot } from "#/modules/dashboard/Navbar/settingsMenuHost";
 import { MockNotification } from "#/testHelpers/entities";
 import { renderWithRouter } from "#/testHelpers/renderHelpers";
 import { ChatDock } from "./ChatDock";
@@ -159,6 +160,37 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 			"aria-expanded",
 			"false",
 		);
+	});
+
+	it("expands or drags into the Settings slot and returns to the bar when it closes", async () => {
+		const user = userEvent.setup();
+		const slot = document.createElement("div");
+		document.body.append(slot);
+		const unregister = settingsChatSlot(slot);
+		try {
+			renderDock();
+			await user.click(await screen.findByRole("button", { name: "Chats" }));
+			await within(slot).findByRole("region", { name: "Quick chat" });
+			await user.click(
+				within(slot).getByRole("button", { name: "Dismiss quick chat" }),
+			);
+			const bar = await screen.findByRole("button", { name: "Chats" });
+			vi.spyOn(slot, "getBoundingClientRect").mockReturnValue(
+				new DOMRect(10, 450, 240, 300),
+			);
+			const destination = { x: 150, y: 600 };
+			await user.pointer([
+				{ keys: "[MouseLeft>]", target: bar, coords: { x: 700, y: 650 } },
+				{ target: bar, coords: destination },
+				{ keys: "[/MouseLeft]", target: bar, coords: destination },
+			]);
+			await within(slot).findByRole("region", { name: "Quick chat" });
+			act(() => unregister?.());
+			await screen.findByRole("button", { name: "Chats" });
+		} finally {
+			act(() => unregister?.());
+			slot.remove();
+		}
 	});
 
 	it("keeps a resized window open when pinned, saves the option, and still minimizes manually", async () => {
@@ -573,9 +605,13 @@ it("clears the inbox through the Notifications tab context menu after confirmati
 	vi.restoreAllMocks();
 });
 
-it.each(["left", "top"])(
-	"keeps the %s edge stable after left-drag and can restore automatic placement",
-	async (edge) => {
+it.each([
+	["left", { x: 10, y: 200 }],
+	["top", { x: 400, y: 10 }],
+	["free", { x: 450, y: 390 }],
+])(
+	"keeps the %s position stable after left-drag and can restore automatic placement",
+	async (edge, destination) => {
 		const intervals = vi.spyOn(window, "setInterval");
 		const save = vi
 			.spyOn(PlatformAPI, "setUserUIPreferences")
@@ -584,6 +620,7 @@ it.each(["left", "top"])(
 		renderDock();
 		const bar = await screen.findByRole("button", { name: "Chats" });
 		const region = screen.getByRole("region", { name: "Chats" });
+		Object.assign(region.style, { left: "", top: "", right: "", bottom: "" });
 		vi.spyOn(region, "getBoundingClientRect").mockImplementation(() => {
 			const left = region.style.left
 				? Number.parseFloat(region.style.left)
@@ -596,7 +633,6 @@ it.each(["left", "top"])(
 					: 300;
 			return new DOMRect(left, top, width, 46);
 		});
-		const destination = edge === "left" ? { x: 10, y: 200 } : { x: 400, y: 10 };
 		vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(
 			1200,
 		);
@@ -685,7 +721,10 @@ it.each(["Acknowledge", "Reply"])(
 		await waitFor(() => expect(ack).toHaveBeenCalledWith(37));
 		if (action === "Reply") {
 			await waitFor(() =>
-				expect(save).toHaveBeenCalledWith({ chat_hidden: false }),
+				expect(save).toHaveBeenCalledWith({
+					chat_hidden: false,
+					chat_position: null,
+				}),
 			);
 		} else {
 			expect(save).not.toHaveBeenCalled();

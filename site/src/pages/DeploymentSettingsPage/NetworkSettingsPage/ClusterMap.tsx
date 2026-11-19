@@ -1,7 +1,8 @@
 import { cn } from "cn";
 import { TriangleAlertIcon } from "lucide-react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
+import { toast } from "sonner";
 import type {
 	ClusterNetworkReport,
 	ComponentKind,
@@ -11,14 +12,6 @@ import type { ClusterNode, NetworkWorkspace } from "#/api/platform";
 import { networkReport } from "#/api/queries/platform";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogTitle,
-	DialogTrigger,
-} from "#/components/Dialog/Dialog";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	Table,
@@ -45,14 +38,9 @@ import { EntityContextMenu } from "./EntityActions";
 import "./clusterMap.css";
 import { CoderReplicas } from "./CoderReplicas";
 import { CodeServerHACard } from "./CodeServerHACard";
+import { ComponentChip } from "./ComponentChip";
 import { cores, nodeBadgeStyle, nodeStatus } from "./clusterFormat";
-import {
-	componentIcon,
-	groupByKind,
-	KINDS,
-	KindLegend,
-	kindOf,
-} from "./componentKinds";
+import { groupByKind, KINDS, KindLegend, kindOf } from "./componentKinds";
 import { EntityProvider, useOpenEntity } from "./EntityDetails";
 import { MeshCard } from "./MeshCard";
 import { MigrationsTable } from "./MigrationsTable";
@@ -91,6 +79,46 @@ const agentLabel = (w: NetworkWorkspace) => {
  */
 export const ClusterMap: React.FC = () => {
 	const [paused, setPaused] = useState(false);
+	const map = useRef<HTMLElement>(null);
+	const [fullscreen, setFullscreen] = useState(false);
+	const drag = useRef<{
+		id: number;
+		x: number;
+		y: number;
+		left: number;
+		top: number;
+	} | null>(null);
+	const [panning, setPanning] = useState(false);
+	useEffect(() => {
+		const changed = () => {
+			const active = document.fullscreenElement === map.current;
+			setFullscreen(active);
+			if (!active) {
+				drag.current = null;
+				setPanning(false);
+			}
+		};
+		document.addEventListener("fullscreenchange", changed);
+		return () => document.removeEventListener("fullscreenchange", changed);
+	}, []);
+	const stopPanning = (event: React.PointerEvent<HTMLElement>) => {
+		if (drag.current?.id !== event.pointerId) return;
+		drag.current = null;
+		setPanning(false);
+	};
+	const toggleFullscreen = async () => {
+		const element = map.current;
+		if (!element) return;
+		try {
+			if (document.fullscreenElement === element)
+				await document.exitFullscreen();
+			else await element.requestFullscreen();
+		} catch {
+			toast.error(
+				"The browser could not toggle fullscreen for the cluster map.",
+			);
+		}
+	};
 	const { permissions } = useAuthenticated();
 	const query = useQuery(networkReport(paused));
 	// The service adds kinds, roles, requests and Services to the report (clusternet.py).
@@ -104,80 +132,127 @@ export const ClusterMap: React.FC = () => {
 					<Loader />
 				) : (
 					<div className="flex flex-col gap-6">
-						<section
-							aria-labelledby="cluster-map"
-							className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6 bg-surface-primary"
-							data-testid="cluster-map"
-						>
-							<div className="flex flex-wrap items-center justify-between gap-3">
-								<h2 id="cluster-map" className="m-0 text-base font-semibold">
-									Cluster map
-								</h2>
-								<div className="flex items-center gap-3">
-									<LiveStatus paused={paused} updatedAt={query.dataUpdatedAt} />
-									{permissions.editDeploymentConfig && <CreateNode />}
-									{report && (
-										<Dialog>
-											<DialogTrigger asChild>
-												<Button size="sm" variant="outline">
-													Focus view
-												</Button>
-											</DialogTrigger>
-											<DialogContent className="h-[calc(95vh/var(--app-zoom,1))] max-h-[calc(95vh/var(--app-zoom,1))] w-[calc(96vw/var(--app-zoom,1))] max-w-none content-start">
-												<div className="flex items-center justify-between gap-3">
-													<DialogTitle>Cluster network focus view</DialogTitle>
-													<DialogClose asChild>
-														<Button variant="outline">Close focus view</Button>
-													</DialogClose>
-												</div>
-												<DialogDescription>
-													Filter nodes to reduce clutter. Connections to hidden
-													nodes are omitted. Live refresh follows the map's
-													Pause setting.
-												</DialogDescription>
-												{query.error && (
-													<p role="alert" className="text-content-destructive">
-														Updates unavailable. Showing the last received
-														report.
-													</p>
-												)}
-												<EntityProvider>
-													<Topology report={report} focus />
-												</EntityProvider>
-											</DialogContent>
-										</Dialog>
-									)}
-									<Button
-										size="sm"
-										variant="outline"
-										aria-pressed={paused}
-										onClick={() => setPaused(!paused)}
-									>
-										{paused ? "Resume" : "Pause"}
-									</Button>
+						<div className="dashboard-panel">
+							<section
+								ref={map}
+								aria-labelledby="cluster-map"
+								className="cluster-map-viewport flex flex-col gap-5 rounded-lg border border-solid border-border p-6 bg-surface-primary data-[panning=true]:cursor-grabbing data-[panning=true]:select-none data-[panning=true]:[&_*]:cursor-grabbing!"
+								data-panning={panning || undefined}
+								onMouseDown={(event) => {
+									if (fullscreen && event.button === 1) event.preventDefault();
+								}}
+								onAuxClick={(event) => {
+									if (fullscreen && event.button === 1) event.preventDefault();
+								}}
+								onPointerDown={(event) => {
+									if (!fullscreen || event.button !== 1) return;
+									event.preventDefault();
+									const element = event.currentTarget;
+									element.setPointerCapture(event.pointerId);
+									drag.current = {
+										id: event.pointerId,
+										x: event.clientX,
+										y: event.clientY,
+										left: element.scrollLeft,
+										top: element.scrollTop,
+									};
+									setPanning(true);
+								}}
+								onPointerMove={(event) => {
+									const start = drag.current;
+									if (!fullscreen || start?.id !== event.pointerId) return;
+									event.currentTarget.scrollLeft =
+										start.left + start.x - event.clientX;
+									event.currentTarget.scrollTop =
+										start.top + start.y - event.clientY;
+								}}
+								onPointerUp={stopPanning}
+								onPointerCancel={stopPanning}
+								onLostPointerCapture={stopPanning}
+								data-testid="cluster-map"
+							>
+								<div className="flex flex-wrap items-center justify-between gap-3">
+									<h2 id="cluster-map" className="m-0 text-base font-semibold">
+										Cluster map
+									</h2>
+									<div className="flex items-center gap-3">
+										<LiveStatus
+											paused={paused}
+											updatedAt={query.dataUpdatedAt}
+										/>
+										{permissions.editDeploymentConfig && <CreateNode />}
+										{report && (
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={() => void toggleFullscreen()}
+											>
+												{fullscreen ? "Exit fullscreen" : "Fullscreen"}
+											</Button>
+										)}
+										<Button
+											size="sm"
+											variant="outline"
+											aria-pressed={paused}
+											onClick={() => setPaused(!paused)}
+										>
+											{paused ? "Resume" : "Pause"}
+										</Button>
+									</div>
 								</div>
+								{fullscreen && (
+									<p className="m-0 text-xs text-content-secondary">
+										Middle-click and drag to pan the map.
+									</p>
+								)}
+								{query.error ? (
+									<p
+										role="alert"
+										className="m-0 text-sm text-content-destructive"
+									>
+										The cluster could not be read:{" "}
+										{query.error instanceof Error
+											? query.error.message
+											: "unknown error"}
+									</p>
+								) : null}
+								{report && <Topology report={report} focus={fullscreen} />}
+							</section>
+						</div>
+						<div className="dashboard-panel">
+							<CoderReplicas />
+						</div>
+						<div className="dashboard-panel">
+							<CodeServerHACard paused={paused} />
+						</div>
+						<div className="dashboard-panel">
+							<MeshCard paused={paused} />
+						</div>
+						{report && (
+							<div className="dashboard-panel">
+								<NodesTopologyCard report={report} />
 							</div>
-							{query.error ? (
-								<p
-									role="alert"
-									className="m-0 text-sm text-content-destructive"
-								>
-									The cluster could not be read:{" "}
-									{query.error instanceof Error
-										? query.error.message
-										: "unknown error"}
-								</p>
-							) : null}
-							{report && <Topology report={report} />}
-						</section>
-						<CoderReplicas />
-						<CodeServerHACard paused={paused} />
-						<MeshCard paused={paused} />
-						{report && <NodesTopologyCard report={report} />}
-						{report && <WorkspacesTable report={report} />}
-						{report && <NodesTable report={report} />}
-						{permissions.editDeploymentConfig && <MigrationsTable />}
-						{report && <WorkspaceSkewCard report={report} />}
+						)}
+						{report && (
+							<div className="dashboard-panel">
+								<WorkspacesTable report={report} />
+							</div>
+						)}
+						{report && (
+							<div className="dashboard-panel">
+								<NodesTable report={report} />
+							</div>
+						)}
+						{permissions.editDeploymentConfig && (
+							<div className="dashboard-panel">
+								<MigrationsTable />
+							</div>
+						)}
+						{report && (
+							<div className="dashboard-panel">
+								<WorkspaceSkewCard report={report} />
+							</div>
+						)}
 					</div>
 				)}
 			</section>
@@ -380,11 +455,12 @@ const Topology: React.FC<{ report: ClusterNetworkReport; focus?: boolean }> = ({
 	const visibleReport = useMemo(
 		() => ({
 			...report,
-			nodes: report.nodes.filter((node) =>
-				node.name.toLowerCase().includes(nodeFilter.toLowerCase()),
+			nodes: report.nodes.filter(
+				(node) =>
+					!focus || node.name.toLowerCase().includes(nodeFilter.toLowerCase()),
 			),
 		}),
-		[report, nodeFilter],
+		[report, nodeFilter, focus],
 	);
 	const container = useRef<HTMLDivElement>(null);
 	const { paths, box } = useLinks(container, visibleReport);
@@ -570,72 +646,6 @@ const Topology: React.FC<{ report: ClusterNetworkReport; focus?: boolean }> = ({
 	);
 };
 
-type ChipProps = {
-	kind: ComponentKind;
-	name: string;
-	sub?: string | null;
-	title: string;
-	/** Not ok: a warning sign beside the name (the colour is the kind's, never the state's). */
-	status?: "ok" | "warn" | "error";
-	onOpen: () => void;
-} & Omit<React.ComponentProps<"button">, "title" | "onClick">;
-
-const Chip: React.FC<ChipProps> = ({
-	kind,
-	name,
-	sub,
-	title,
-	status = "ok",
-	onOpen,
-	className,
-	...attrs
-}) => {
-	const Icon = componentIcon(kind, name);
-	return (
-		<button
-			type="button"
-			title={title}
-			onClick={onOpen}
-			className={cn(
-				"relative inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-md border border-solid border-border bg-surface-secondary py-1.5 pr-2.5 pl-3 text-left text-xs leading-tight text-content-primary hover:bg-surface-tertiary",
-				"before:absolute before:top-1 before:bottom-1 before:left-0 before:w-[3px] before:rounded-sm before:bg-(--kind) before:content-['']",
-				KINDS[kind].color,
-				status !== "ok" &&
-					"border-dashed border-content-destructive shadow-[0_0_10px_var(--color-content-destructive)]",
-				className,
-			)}
-			data-kind={kind}
-			{...attrs}
-		>
-			{/* Platform: what it is at a glance, just right of its colour mark (componentIcon) */}
-			<Icon
-				aria-hidden
-				className="size-4 shrink-0 text-(--kind)"
-				data-testid="component-icon"
-				data-icon={Icon.displayName}
-			/>
-			<span className="flex min-w-0 flex-1 flex-col gap-px">
-				<b className="flex w-full min-w-0 max-w-full items-center gap-1 font-semibold">
-					<span className="truncate">{name}</span>
-					{status !== "ok" && (
-						<TriangleAlertIcon
-							aria-label={status === "error" ? "failing" : "not ready"}
-							className="size-3 shrink-0 text-content-destructive"
-						/>
-					)}
-				</b>
-				{sub && (
-					// Platform: as wide as the chip at most (a button's flex item keeps its text's width otherwise), so it
-					// truncates
-					<small className="w-full min-w-0 max-w-full truncate font-mono text-[11px] text-content-secondary">
-						{sub}
-					</small>
-				)}
-			</span>
-		</button>
-	);
-};
-
 const serviceStatus = (s: MapService): "ok" | "warn" | "error" =>
 	s.endpoints == null || s.ready == null
 		? "ok"
@@ -652,7 +662,7 @@ const ServiceChip: React.FC<
 		testId?: string;
 	} & Omit<React.ComponentProps<"button">, "onClick">
 > = ({ svc: s, onOpen, testId, ...attrs }) => (
-	<Chip
+	<ComponentChip
 		kind={s.kind}
 		name={s.name}
 		sub={[
@@ -819,7 +829,7 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 										}}
 										key={`${pod.namespace}/${pod.name}`}
 									>
-										<Chip
+										<ComponentChip
 											key={`${pod.namespace}/${pod.name}`}
 											kind={kind}
 											name={pod.name}
@@ -871,7 +881,7 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 									}}
 									key={w.id}
 								>
-									<Chip
+									<ComponentChip
 										key={w.id}
 										kind="workspace"
 										name={`${w.owner}/${w.name}`}

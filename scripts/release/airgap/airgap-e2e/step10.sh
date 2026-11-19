@@ -32,13 +32,13 @@ print(json.dumps({"login": s, "oidc": json.loads(am).get("oidc", {}).get("enable
 	kubectl -n default wait pod/step10 --for=jsonpath='{.status.phase}'=Succeeded --timeout=120s >/dev/null 2>&1
 	kubectl -n default logs step10 | tail -1
 }
-ready() { kubectl -n coder rollout status deploy/coder --timeout="${1:-300}s" >/dev/null 2>&1; }
+ready() { kubectl -n coder rollout status deploy/coder-server --timeout="${1:-300}s" >/dev/null 2>&1; }
 
 kubectl -n coder get secret keycloaking-coder-oidc keycloaking-coder-ca -o yaml >"$W/step10-secrets.yaml"
 echo "=== Keycloak stopped, Coder's Keycloak Secrets removed, Coder restarted"
 kubectl -n keycloak scale deploy/keycloak --replicas=0 >/dev/null && kubectl -n keycloak wait pod -l app=keycloak --for=delete --timeout=120s >/dev/null 2>&1
 kubectl -n coder delete secret keycloaking-coder-oidc keycloaking-coder-ca >/dev/null
-kubectl -n coder rollout restart deploy/coder >/dev/null
+kubectl -n coder rollout restart deploy/coder-server >/dev/null
 ready 420
 check "Coder starts without Keycloak and without its Secrets" $? "$(kubectl -n coder get pods -l app.kubernetes.io/name=coder -o jsonpath='{range .items[*]}{.status.phase}/{.status.containerStatuses[0].ready} {end}')"
 r=$(probe)
@@ -52,7 +52,7 @@ kubectl apply -f "$W/step10-secrets.yaml" >/dev/null 2>&1
 rm -f "$W/step10-secrets.yaml"
 kubectl -n keycloak scale deploy/keycloak --replicas=1 >/dev/null && kubectl -n keycloak rollout status deploy/keycloak --timeout=600s >/dev/null
 "$W/keycloak-setup.sh" >/dev/null # start-dev keeps the realm in memory: the test client and user again
-kubectl -n coder rollout restart deploy/coder >/dev/null
+kubectl -n coder rollout restart deploy/coder-server >/dev/null
 ready 420
 r=$(probe)
 echo "probe: $r"

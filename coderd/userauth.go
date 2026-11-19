@@ -2,6 +2,7 @@ package coderd
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -892,16 +893,18 @@ func (o *OIDCConfig) PKCESupported() []promoauth.Oauth2PKCEChallengeMethod {
 // @Router /api/v2/users/oidc/callback [get]
 func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 	var (
+		loginAudit = map[string]string{}
 		// userOIDC is a system function.
 		//nolint:gocritic
 		ctx               = dbauthz.AsSystemRestricted(r.Context())
 		state             = httpmw.OAuth2(r)
 		auditor           = api.Auditor.Load()
 		aReq, commitAudit = audit.InitRequest[database.APIKey](rw, &audit.RequestParams{
-			Audit:   *auditor,
-			Log:     api.Logger,
-			Request: r,
-			Action:  database.AuditActionLogin,
+			Audit:            *auditor,
+			Log:              api.Logger,
+			Request:          r,
+			Action:           database.AuditActionLogin,
+			AdditionalFields: loginAudit,
 		})
 	)
 	aReq.Old = database.APIKey{}
@@ -1231,6 +1234,13 @@ func (api *API) userOIDC(rw http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	if sid, ok := idtokenClaims["sid"].(string); ok && sid != "" {
+		loginAudit["coder_session_key_sha256"] = fmt.Sprintf("%x", sha256.Sum256([]byte(key.ID)))
+		loginAudit["oidc_session_sha256"] = fmt.Sprintf("%x", sha256.Sum256([]byte(sid)))
+		loginAudit["oidc_issuer"] = idToken.Issuer
+		loginAudit["oidc_subject"] = idToken.Subject
+	}
+
 	aReq.New = key
 	aReq.UserID = key.UserID
 

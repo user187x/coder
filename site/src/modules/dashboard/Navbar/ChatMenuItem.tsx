@@ -15,6 +15,7 @@ import {
 	unreadTotal,
 	useChatSnapshot,
 } from "#/modules/platform/chat/chatStore";
+import { CHAT_CONSOLE_PAGE } from "#/modules/platform/chat/consolePlaces";
 import { useChatEnabled } from "#/modules/platform/chat/useChatEnabled";
 
 /** The navbar's recovery control for a hidden chat dock. */
@@ -50,7 +51,7 @@ const ChatMenuItemBody = ({
 	});
 	const show = () => {
 		save.mutate(
-			{ chat_hidden: false },
+			{ chat_hidden: false, chat_position: null },
 			{ onSuccess: () => setDockMode("bar") },
 		);
 	};
@@ -72,7 +73,7 @@ const ChatMenuItemBody = ({
 		<>
 			<DropdownMenuItem
 				className={className}
-				aria-expanded={expanded}
+				aria-expanded={onToggle ? expanded : undefined}
 				aria-controls={optionsOpen ? optionsId : undefined}
 				title="Right-click for Chat options"
 				onContextMenu={toggleOptions}
@@ -88,8 +89,9 @@ const ChatMenuItemBody = ({
 					if (onToggle) {
 						event.preventDefault();
 						onToggle();
-					} else if (admin) navigate("/deployment/chat");
-					else show();
+					} else if (admin) {
+						navigate(CHAT_CONSOLE_PAGE);
+					} else show();
 				}}
 			>
 				<MessagesSquareIcon aria-hidden />
@@ -123,7 +125,7 @@ const ChatMenuItemBody = ({
 						{hidden ? "Show" : "Hide"}
 					</DropdownMenuItem>
 					{admin && (
-						<DropdownMenuItem onSelect={() => navigate("/deployment/chat")}>
+						<DropdownMenuItem onSelect={() => navigate(CHAT_CONSOLE_PAGE)}>
 							Console
 						</DropdownMenuItem>
 					)}

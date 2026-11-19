@@ -161,7 +161,7 @@ export const Toggle: React.FC<{
 			type="checkbox"
 			checked={checked}
 			onChange={(event) => onChange(event.target.checked)}
-			className="size-4 accent-[hsl(var(--content-link))]"
+			className="size-4"
 		/>
 		{label}
 	</label>

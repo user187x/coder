@@ -114,14 +114,14 @@ export const InstancesTable: React.FC<{ report: PersistenceReport }> = ({
 	);
 };
 
-const KIND_LABELS: Record<StorageClassInfo["kind"], string> = {
+export const KIND_LABELS: Record<StorageClassInfo["kind"], string> = {
 	cloud: "Cloud disk",
 	network: "Network storage",
 	local: "Node-local disk",
 	unknown: "Unknown",
 };
 
-const KIND_NOTES: Record<StorageClassInfo["kind"], string> = {
+export const KIND_NOTES: Record<StorageClassInfo["kind"], string> = {
 	cloud:
 		"Replicated by the cloud provider inside a zone; survives losing a node.",
 	network: "Replicated by the storage system; survives losing a node.",
@@ -135,11 +135,11 @@ export const StorageClassesTable: React.FC<{ report: PersistenceReport }> = ({
 	const { storageClasses, snapshotClasses, cluster } = report.facts;
 	return (
 		<section
-			aria-labelledby="persistence-storage"
+			aria-labelledby="storage-classes"
 			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6 bg-surface-primary"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<h2 id="persistence-storage" className="m-0 text-base font-semibold">
+				<h2 id="storage-classes" className="m-0 text-base font-semibold">
 					Storage classes
 				</h2>
 				<span className="text-xs text-content-secondary">

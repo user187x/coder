@@ -1,13 +1,16 @@
 import { cn } from "cn";
+import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
 	type CodeServerHA,
 	type CodeServerInstance,
+	cloudDriveCleanup,
 	clusterHA,
 	deleteCloudDriveVolumes,
 	type StorageReport,
 } from "#/api/clusterNetwork";
+import type { PersistenceReport } from "#/api/platform";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
@@ -22,6 +25,7 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
+import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import {
 	ago,
 	bytes,
@@ -30,23 +34,18 @@ import {
 	Tile,
 	useNow,
 } from "#/modules/platform/ClusterVisuals";
+import {
+	KIND_LABELS,
+	KIND_NOTES,
+} from "../PersistenceSettingsPage/PersistenceTables";
+import { CloudDriveCleanupControls } from "./CloudDriveCleanupControls";
 import { CodeServerHASwitches } from "./CodeServerHASwitches";
+import { ComponentChip } from "./ComponentChip";
 import { seconds } from "./clusterFormat";
 import { KindSwatch } from "./componentKinds";
 import { EntityContextMenu } from "./EntityActions";
 import { useOpenEntity } from "./EntityDetails";
 
-/**
- * Settings > Network, the Workspace HA and storage card: the pieces that
- * keep a workspace's code-server up and its files kept, as they are now -
- * the code-server-replicator (its replicas, which one holds this cluster's
- * operator lock), each workspace's active instance with its lease, the
- * instances being replaced and the relay in the workspace's pod, the recent
- * hand-offs; then the storage classes with the volumes on each, and the
- * Cloud Drive (its backend, its CSI driver and every account's volume).
- * Read from the platform service (csha.py's tables in Coder's database and
- * the Kubernetes API) every 10 seconds.
- */
 export const CodeServerHACard: React.FC<{ paused: boolean }> = ({ paused }) => {
 	const query = useQuery(clusterHA(paused));
 	const d = query.data;
@@ -58,7 +57,7 @@ export const CodeServerHACard: React.FC<{ paused: boolean }> = ({ paused }) => {
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<h2 id="cluster-ha" className="m-0 text-base font-semibold">
-					Workspace HA and storage
+					Workspace HA
 				</h2>
 				<LiveStatus paused={paused} updatedAt={query.dataUpdatedAt} />
 			</div>
@@ -70,16 +69,7 @@ export const CodeServerHACard: React.FC<{ paused: boolean }> = ({ paused }) => {
 					{query.error instanceof Error ? query.error.message : "unknown error"}
 				</p>
 			) : d ? (
-				<>
-					<HAPart ha={d.codeServerHA} />
-					{d.storage ? (
-						<StoragePart storage={d.storage} />
-					) : (
-						<p role="alert" className="m-0 text-sm text-content-destructive">
-							The storage could not be read: {d.storageError ?? "unknown error"}
-						</p>
-					)}
-				</>
+				<HAPart ha={d.codeServerHA} />
 			) : null}
 		</section>
 	);
@@ -143,6 +133,7 @@ const LOCK_TEXT = {
 } as const;
 
 const HAPart: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
+	const open = useOpenEntity();
 	const now = useNow();
 	if (!ha.installed) {
 		return (
@@ -258,10 +249,28 @@ const HAPart: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 										data-testid={`ha-replicator-${r.name}`}
 									>
 										<TableCell>
-											<span className="inline-flex items-center gap-1.5">
-												<KindSwatch kind="replicator" />
-												<PodLink namespace={r.namespace} name={r.name} />
-											</span>
+											<EntityContextMenu
+												target={{
+													type: "pod",
+													namespace: r.namespace,
+													name: r.name,
+												}}
+											>
+												<ComponentChip
+													kind="replicator"
+													name={r.name}
+													sub={r.podIP}
+													title={r.name}
+													status={r.ready ? "ok" : "warn"}
+													onOpen={() =>
+														open({
+															type: "pod",
+															namespace: r.namespace,
+															name: r.name,
+														})
+													}
+												/>
+											</EntityContextMenu>
 										</TableCell>
 										<TableCell>
 											<NodeLink name={r.node} />
@@ -541,6 +550,12 @@ const EVENT_STATUS: Record<string, "ok" | "warn" | "error"> = {
 
 const Events: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 	const now = useNow();
+	const [oldestFirst, setOldestFirst] = useState(false);
+	const events = ha.events.toSorted((a, b) =>
+		oldestFirst
+			? Date.parse(a.at) - Date.parse(b.at)
+			: Date.parse(b.at) - Date.parse(a.at),
+	);
 	const owners = Object.fromEntries(
 		ha.instances.map((i) => [
 			i.workspaceId,
@@ -549,12 +564,28 @@ const Events: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 	);
 	return (
 		<div className="flex flex-col gap-2" data-testid="ha-events">
-			<span className="text-xs font-medium text-content-secondary">
-				Recent hand-offs and starts
-			</span>
-			{ha.events.length ? (
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<span className="text-xs font-medium text-content-secondary">
+					Recent hand-offs and starts
+				</span>
+				{events.length > 1 && (
+					<Button
+						size="sm"
+						variant="subtle"
+						onClick={() => setOldestFirst((previous) => !previous)}
+					>
+						{oldestFirst ? (
+							<ArrowUpIcon aria-hidden />
+						) : (
+							<ArrowDownIcon aria-hidden />
+						)}
+						{oldestFirst ? "Oldest first" : "Newest first"}
+					</Button>
+				)}
+			</div>
+			{events.length ? (
 				<ul className="m-0 flex max-h-56 list-none flex-col gap-1 overflow-y-auto p-0 text-xs">
-					{ha.events.map((e, i) => (
+					{events.map((e, i) => (
 						<li key={i} className="flex flex-wrap items-baseline gap-x-2">
 							<span
 								className="w-16 shrink-0 tabular-nums text-content-secondary"
@@ -584,12 +615,20 @@ const Events: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 
 // ------------------------------------------------------------------ storage
 
-const StoragePart: React.FC<{ storage: StorageReport }> = ({ storage: s }) => {
-	const now = useNow();
-	const cd = s.cloudDrive;
+export const StoragePart: React.FC<{
+	storage: StorageReport;
+	facts?: PersistenceReport["facts"];
+}> = ({ storage: s, facts }) => {
 	return (
 		<div className="flex flex-col gap-4">
-			<Sub id="storage-classes">Storage classes</Sub>
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<Sub id="storage-classes">Storage classes</Sub>
+				{facts && (
+					<span className="text-xs text-content-secondary">
+						Snapshot classes: {facts.snapshotClasses.join(", ") || "none"}
+					</span>
+				)}
+			</div>
 			<div className="overflow-x-auto" data-testid="storage-classes">
 				<Table aria-label="Storage classes">
 					<TableHeader>
@@ -602,57 +641,85 @@ const StoragePart: React.FC<{ storage: StorageReport }> = ({ storage: s }) => {
 								"Expansion",
 								"Volumes",
 								"Bound capacity",
+								"Backing storage",
 							].map((h) => (
 								<TableHead key={h}>{h}</TableHead>
 							))}
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{s.classes.map((c) => (
-							<TableRow key={c.name} data-testid={`storage-class-${c.name}`}>
-								<TableCell>
-									<span className="inline-flex items-center gap-2">
-										{c.name}
-										{c.default && (
-											<Badge size="xs" variant="green">
-												default
-											</Badge>
+						{s.classes.map((c) => {
+							const details = facts?.storageClasses.find(
+								(entry) => entry.name === c.name,
+							);
+							const database =
+								facts?.cluster &&
+								(facts.cluster.storageClass ||
+									facts.storageClasses.find((entry) => entry.isDefault)
+										?.name) === c.name;
+							return (
+								<TableRow
+									key={c.name}
+									id={`storage-class-${c.name}`}
+									className="scroll-mt-6 target:bg-surface-secondary"
+									data-testid={`storage-class-${c.name}`}
+								>
+									<TableCell>
+										<span className="inline-flex items-center gap-2">
+											{c.name}
+											{database && <Badge size="xs">Coder’s database</Badge>}
+											{c.default && (
+												<Badge size="xs" variant="green">
+													default
+												</Badge>
+											)}
+										</span>
+									</TableCell>
+									<TableCell className="font-mono text-xs">
+										{c.provisioner}
+									</TableCell>
+									<TableCell>{c.reclaimPolicy}</TableCell>
+									<TableCell className="text-xs">{c.bindingMode}</TableCell>
+									<TableCell>{c.expansion ? "yes" : "no"}</TableCell>
+									<TableCell className="text-xs">
+										{c.claims.length ? (
+											<details>
+												<summary className="cursor-pointer">
+													{c.bound} bound
+													{c.volumes > c.bound ? ` of ${c.volumes}` : ""}
+												</summary>
+												<ul className="m-0 mt-1 list-none p-0 font-mono text-[11px]">
+													{c.claims.map((claim) => (
+														<li key={claim}>{claim}</li>
+													))}
+												</ul>
+											</details>
+										) : (
+											`${c.bound} bound${c.volumes > c.bound ? ` of ${c.volumes}` : ""}`
 										)}
-									</span>
-								</TableCell>
-								<TableCell className="font-mono text-xs">
-									{c.provisioner}
-								</TableCell>
-								<TableCell>{c.reclaimPolicy}</TableCell>
-								<TableCell className="text-xs">{c.bindingMode}</TableCell>
-								<TableCell>{c.expansion ? "yes" : "no"}</TableCell>
-								<TableCell className="text-xs">
-									{c.claims.length ? (
-										<details>
-											<summary className="cursor-pointer">
-												{c.bound} bound
-												{c.volumes > c.bound ? ` of ${c.volumes}` : ""}
-											</summary>
-											<ul className="m-0 mt-1 list-none p-0 font-mono text-[11px]">
-												{c.claims.map((claim) => (
-													<li key={claim}>{claim}</li>
-												))}
-											</ul>
-										</details>
-									) : (
-										`${c.bound} bound${c.volumes > c.bound ? ` of ${c.volumes}` : ""}`
-									)}
-									{c.pending.length > 0 && (
-										<div className="text-content-warning">
-											{c.pending.length} waiting: {c.pending.join(", ")}
-										</div>
-									)}
-								</TableCell>
-								<TableCell className="text-right tabular-nums">
-									{bytes(c.capacityBytes)}
-								</TableCell>
-							</TableRow>
-						))}
+										{c.pending.length > 0 && (
+											<div className="text-content-warning">
+												{c.pending.length} waiting: {c.pending.join(", ")}
+											</div>
+										)}
+									</TableCell>
+									<TableCell className="text-right tabular-nums">
+										{bytes(c.capacityBytes)}
+									</TableCell>
+									<TableCell className="text-xs text-content-secondary">
+										{details && (
+											<div>
+												{details.label} · {KIND_LABELS[details.kind]}.{" "}
+												{KIND_NOTES[details.kind]}
+											</div>
+										)}
+										{c.reclaimPolicy === "Delete" && (
+											<div>Deleting a volume deletes its data.</div>
+										)}
+									</TableCell>
+								</TableRow>
+							);
+						})}
 					</TableBody>
 				</Table>
 			</div>
@@ -664,12 +731,11 @@ const StoragePart: React.FC<{ storage: StorageReport }> = ({ storage: s }) => {
 					? ` CSI drivers: ${s.csiDrivers.map((d) => d.name).join(", ") || "none"}.`
 					: ""}
 			</p>
-			{cd && <CloudDrivePart cd={cd} now={now} />}
 		</div>
 	);
 };
 
-const CloudDrivePart: React.FC<{
+export const CloudDrivePart: React.FC<{
 	cd: NonNullable<StorageReport["cloudDrive"]>;
 	now: number;
 }> = ({ cd, now }) => {
@@ -680,9 +746,17 @@ const CloudDrivePart: React.FC<{
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const client = useQueryClient();
 	const remove = useMutation(deleteCloudDriveVolumes(client));
+	const cleanup = useQuery({ ...cloudDriveCleanup(), enabled: cd.enabled });
+	const scan = cleanup.data?.scan;
+	const review = useSearchParamsKey({ key: "volumeCleanup" });
+	const flagged = new Set(scan?.candidates?.map((candidate) => candidate.name));
+	const isCandidate = (name?: string | null) =>
+		Boolean(name && flagged.has(name));
 	const items = all
 		? cd.volumes.items
-		: cd.volumes.items.filter((v) => v.phase === "Bound" || v.usedBy.length);
+		: cd.volumes.items.filter(
+				(v) => v.phase === "Bound" || v.usedBy.length || isCandidate(v.name),
+			);
 	const unmounted = cd.volumes.items.filter((v) => !v.usedBy.length);
 	const selectable = items.flatMap((v) =>
 		v.name && !v.usedBy.length ? [v.name] : [],
@@ -698,7 +772,12 @@ const CloudDrivePart: React.FC<{
 	const b = cd.backend;
 	return (
 		<div className="flex flex-col gap-3" data-testid="cloud-drive">
-			<Sub id="cloud-drive">User storage (Cloud Drive)</Sub>
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<Sub id="cloud-drive">User storage (Cloud Drive)</Sub>
+				{cd.enabled && (
+					<CloudDriveCleanupControls scan={scan} review={review} />
+				)}
+			</div>
 			{!cd.enabled ? (
 				<p className="m-0 text-sm text-content-secondary">
 					Off in this installation (global.userStorage).
@@ -834,6 +913,11 @@ const CloudDrivePart: React.FC<{
 											<TableCell>{v.user ?? "N/A"}</TableCell>
 											<TableCell className="font-mono text-xs">
 												{v.name}
+												{isCandidate(v.name) && (
+													<Badge variant="warning" className="ml-2">
+														Eligible for cleanup
+													</Badge>
+												)}
 											</TableCell>
 											<TableCell>
 												<StatusDot

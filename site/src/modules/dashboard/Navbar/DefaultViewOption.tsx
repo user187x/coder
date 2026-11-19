@@ -1,5 +1,12 @@
+import { HouseIcon, XIcon } from "lucide-react";
+import {
+	ContextMenu,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
+import { BreadcrumbContextMenuContent } from "./BreadcrumbMenu";
 
 /** A page the Default View can be: a plain path, as the user's preferences accept (no fragment or query). */
 const settable = (path: string) => /^\/[a-z0-9][a-z0-9/_-]{0,127}$/.test(path);
@@ -8,19 +15,47 @@ const settable = (path: string) => /^\/[a-z0-9][a-z0-9/_-]{0,127}$/.test(path);
  * A quick link's right-click option: make its page the user's Default View (kept in their preferences), where the root
  * Settings crumb takes them; on the page that already is, it clears it.
  */
-export const DefaultViewOption: React.FC<{ path: string }> = ({ path }) => {
+export const DefaultViewOption: React.FC<{
+	path: string;
+	context?: boolean;
+}> = ({ path, context = false }) => {
 	const view = useSettingsDefaultView();
 	if (!settable(path)) return null;
 	const current = view.path === path;
+	const Item = context ? ContextMenuItem : DropdownMenuItem;
 	return (
-		<DropdownMenuItem
+		<Item
 			onSelect={(event) => {
-				event.preventDefault();
+				if (!context) event.preventDefault();
 				view.set(current ? null : path);
 			}}
 		>
-			{current ? "Clear Default View" : "Set Default View"}
-		</DropdownMenuItem>
+			{context && (current ? <XIcon aria-hidden /> : <HouseIcon aria-hidden />)}
+			{current ? "Clear Default" : "Set Default"}
+			{!context && " View"}
+		</Item>
+	);
+};
+
+export const CategoryDefaultMenu: React.FC<{
+	path?: string;
+	children: React.ReactElement;
+	actions?: React.ReactNode;
+}> = ({ path, children, actions }) => {
+	if (!path || !settable(path)) return children;
+	return (
+		<ContextMenu>
+			<ContextMenuTrigger
+				asChild
+				onContextMenu={(event) => event.stopPropagation()}
+			>
+				{children}
+			</ContextMenuTrigger>
+			<BreadcrumbContextMenuContent aria-label="Category options">
+				<DefaultViewOption path={path} context />
+				{actions}
+			</BreadcrumbContextMenuContent>
+		</ContextMenu>
 	);
 };
 

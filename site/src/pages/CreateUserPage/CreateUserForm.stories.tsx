@@ -15,6 +15,7 @@ import {
 	mockApiError,
 } from "#/testHelpers/entities";
 import { CreateUserForm } from "./CreateUserForm";
+import "#/dashboardPanel.css";
 
 const meta: Meta<typeof CreateUserForm> = {
 	title: "pages/CreateUserPage",

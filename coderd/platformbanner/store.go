@@ -111,7 +111,7 @@ func (s *Store) Reappear(ctx context.Context, user string) (State, error) {
 	})
 }
 
-// Reset drops what admins published: the defaults (no banner) show again.
+// Reset drops the published override and restores the bundled appearance.
 func (s *Store) Reset(ctx context.Context, user string) (State, error) {
 	return s.change(ctx, user, func(st *State) error {
 		st.Override = nil

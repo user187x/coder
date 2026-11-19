@@ -66,7 +66,10 @@ it("shows chat again before opening it when it was closed", async () => {
 		await screen.findByRole("menuitem", { name: "Show chat" }),
 	);
 	await waitFor(() => expect(setDockMode).toHaveBeenCalledWith("side"));
-	expect(save).toHaveBeenCalledWith({ chat_hidden: false });
+	expect(save).toHaveBeenCalledWith({
+		chat_hidden: false,
+		chat_position: null,
+	});
 });
 
 it("saves Chat as the handle's target from its context menu", async () => {

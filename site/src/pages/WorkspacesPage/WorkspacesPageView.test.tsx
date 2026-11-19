@@ -64,6 +64,27 @@ describe("WorkspacesPageView", () => {
 		).toBeInTheDocument();
 	});
 
+	it("opens the searchable template picker from Create Workspace and preserves filters on close", async () => {
+		const { router } = renderWithAuth(
+			<WorkspacesPageView {...defaultProps} />,
+			{
+				path: "/workspaces",
+				route: "/workspaces?filter=owner%3Ame&create-workspace=1",
+			},
+		);
+		const user = userEvent.setup();
+		const search = await screen.findByPlaceholderText(
+			"Type/select a workspace template",
+		);
+		await user.type(search, "no matching template");
+		expect(await screen.findByText("No templates found")).toBeVisible();
+		await user.keyboard("{Escape}");
+		await waitFor(() =>
+			expect(router.state.location.search).toBe("?filter=owner%3Ame"),
+		);
+		expect(search).not.toBeInTheDocument();
+	});
+
 	it("hides the New workspace button and explains the missing permission", async () => {
 		renderWithAuth(
 			<WorkspacesPageView {...defaultProps} canCreateWorkspace={false} />,

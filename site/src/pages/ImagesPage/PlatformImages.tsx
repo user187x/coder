@@ -555,7 +555,10 @@ export const PlatformImages: React.FC = () => {
 		return null;
 	}
 	return (
-		<section className="mt-10" aria-labelledby="platform-release-images">
+		<section
+			className="dashboard-panel min-w-0"
+			aria-labelledby="platform-release-images"
+		>
 			<h2
 				id="platform-release-images"
 				className="m-0 flex items-center gap-2 text-lg font-semibold"

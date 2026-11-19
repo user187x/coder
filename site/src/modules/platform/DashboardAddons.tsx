@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { useQuery } from "react-query";
 import { useNavigate } from "react-router";
-import { avatarDefaults } from "#/api/queries/platform";
+import { dashboardBackground } from "#/api/queries/backgrounds";
+import { avatarDefaults, myAvatar } from "#/api/queries/platform";
 import {
 	getPlatformSnapshot,
+	setBackground,
 	setDefaultAvatarUsers,
+	setUserAvatar,
 } from "#/contexts/platformBoot";
 import { PlatformBackground } from "./background/PlatformBackground";
 import { ChatDock } from "./chat/ChatDock";
@@ -20,6 +23,20 @@ import { ScreenShareController } from "./screenShare/ScreenShareController";
  */
 export const DashboardAddons: React.FC = () => {
 	const navigate = useNavigate();
+	const { data: background } = useQuery(dashboardBackground());
+	const { data: avatar } = useQuery({ ...myAvatar(), refetchInterval: 30_000 });
+
+	useEffect(() => {
+		if (background) {
+			setBackground("dashboard", background.dashboard);
+		}
+	}, [background]);
+
+	useEffect(() => {
+		if (avatar?.available) {
+			setUserAvatar(avatar.username, avatar.url);
+		}
+	}, [avatar]);
 	// Who gets the default avatar is only told to signed-in pages; boot.js
 	// starts each page with this browser's last answer.
 	const defaultsQuery = useQuery({

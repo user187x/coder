@@ -52,6 +52,22 @@ export const useRegisterSettingsMenu = (enabled: boolean) => {
 	}, [enabled]);
 };
 
+let chatSlot: HTMLDivElement | null = null;
+
+export const settingsChatSlot = (element: HTMLDivElement | null) => {
+	if (!element) return;
+	chatSlot = element;
+	emit();
+	return () => {
+		if (chatSlot !== element) return;
+		chatSlot = null;
+		emit();
+	};
+};
+
+export const useSettingsChatSlot = () =>
+	useSyncExternalStore(subscribe, () => chatSlot);
+
 let pageCrumbs = 0;
 
 /** Whether a page put its own settings breadcrumb (with the Settings chevron's slot) in the navbar. */
@@ -76,12 +92,3 @@ export const navbarSettingsSide = (
 	preferences: UserUIPreferences | undefined,
 ): "left" | "right" =>
 	preferences?.navbar_settings_side === "right" ? "right" : "left";
-
-/**
- * The Settings panel docked at the screen's side at its middle size (not the thin strip): the navbar's top left then
- * shows only the page's action button, the panel at the side being the Settings navigation.
- */
-export const settingsDockedMid = (preferences: UserUIPreferences | undefined) =>
-	Boolean(
-		preferences?.settings_sidebar && !preferences.settings_sidebar_compact,
-	);

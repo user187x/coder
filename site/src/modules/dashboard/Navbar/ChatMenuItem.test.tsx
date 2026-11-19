@@ -7,6 +7,7 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { CHAT_CONSOLE_PAGE } from "#/modules/platform/chat/consolePlaces";
 import { render, renderWithRouter } from "#/testHelpers/renderHelpers";
 import { ChatMenuItem } from "./ChatMenuItem";
 
@@ -50,35 +51,51 @@ it.each([
 			}),
 		);
 		await waitFor(() =>
-			expect(save).toHaveBeenCalledWith({ chat_hidden: !hidden }),
+			expect(save).toHaveBeenCalledWith(
+				hidden
+					? { chat_hidden: false, chat_position: null }
+					: { chat_hidden: true },
+			),
 		);
 	},
 );
 
-it("opens Chat administration from the admin context menu", async () => {
-	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
-	const router = createMemoryRouter([
-		{
-			path: "/",
-			element: (
-				<DropdownMenu defaultOpen>
-					<DropdownMenuTrigger>Settings</DropdownMenuTrigger>
-					<DropdownMenuContent>
-						<ChatMenuItem admin />
-					</DropdownMenuContent>
-				</DropdownMenu>
-			),
-		},
-		{ path: "/deployment/chat", element: <div>Chat settings</div> },
-	]);
-	renderWithRouter(router);
-	const user = userEvent.setup();
-	await user.pointer({
-		target: await screen.findByRole("menuitem", { name: "Chat" }),
-		keys: "[MouseRight]",
-	});
-	await user.click(await screen.findByRole("menuitem", { name: "Console" }));
-	await waitFor(() =>
-		expect(router.state.location.pathname).toBe("/deployment/chat"),
-	);
-});
+it.each(["left click", "context menu"])(
+	"opens the admin Chat console from %s",
+	async (action) => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		const toggleDock = vi.fn();
+		const router = createMemoryRouter([
+			{
+				path: "/",
+				element: (
+					<DropdownMenu defaultOpen>
+						<DropdownMenuTrigger>Settings</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<ChatMenuItem
+								admin
+								onToggle={action === "context menu" ? toggleDock : undefined}
+							/>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				),
+			},
+			{ path: CHAT_CONSOLE_PAGE, element: <div>Chat settings</div> },
+		]);
+		renderWithRouter(router);
+		const user = userEvent.setup();
+		const chat = await screen.findByRole("menuitem", { name: "Chat" });
+		if (action === "context menu") {
+			await user.pointer({ target: chat, keys: "[MouseRight]" });
+			await user.click(
+				await screen.findByRole("menuitem", { name: "Console" }),
+			);
+		} else {
+			await user.click(chat);
+		}
+		await waitFor(() =>
+			expect(router.state.location.pathname).toBe(CHAT_CONSOLE_PAGE),
+		);
+		expect(toggleDock).not.toHaveBeenCalled();
+	},
+);

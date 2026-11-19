@@ -97,6 +97,14 @@ class AdminNotesTest(unittest.TestCase):
         self.assertEqual(self.call(self.author, {'action': 'delete', 'id': private['id'], 'revision': private['revision']}).body['notes'], [])
         self.assertEqual(self.call(self.author).body['notes'], [])
 
+    def test_admin_can_delete_another_author_shared_note_in_same_organization(self):
+        note = self.call(self.author, {'action': 'create', 'text': 'Shared handover', 'shared': True}).body['notes'][0]
+        delete = {'action': 'delete', 'id': note['id'], 'revision': note['revision']}
+        self.assertEqual(self.call(self.other, delete, org=self.other_org).status, 404)
+        self.assertEqual(self.call(self.other, delete, roles=['member']).status, 403)
+        self.assertEqual(self.call(self.other, delete).status, 200)
+        self.assertEqual(self.call(self.author).body['notes'], [])
+
     def test_read_receipts_are_private_persistent_and_revision_specific(self):
         note = self.call(self.author, {'action': 'create', 'text': 'Shared handover', 'shared': True}).body['notes'][0]
         self.assertFalse(note['unread'])

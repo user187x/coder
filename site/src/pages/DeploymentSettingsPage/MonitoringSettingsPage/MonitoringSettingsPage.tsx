@@ -75,55 +75,69 @@ const MonitoringSettingsPage: React.FC = () => {
 			<title>{pageTitle("Monitoring")}</title>
 			<h1 className="sr-only">Monitoring</h1>
 
-			{permissions.editDeploymentConfig && (
-				<>
-					<ScreenShareCard
-						overview={overviewQuery.data}
-						error={overviewQuery.error}
-						onRetry={() => void overviewQuery.refetch()}
-					/>
-					<SecurityPostureSection />
-
-					<div className="mb-4 flex flex-wrap items-center gap-4">
-						<SearchField
-							value={filter}
-							onChange={setFilter}
-							placeholder="Filter users or workspaces"
-							aria-label="Filter users or workspaces"
-						/>
-						<div className="flex items-center gap-2">
-							<Switch
-								id="monitoring-only-running"
-								checked={onlyRunning}
-								onCheckedChange={setOnlyRunning}
+			<div className="flex min-w-0 flex-col gap-6">
+				{permissions.editDeploymentConfig && (
+					<>
+						<div className="dashboard-panel [&>*]:my-0">
+							<ScreenShareCard
+								overview={overviewQuery.data}
+								error={overviewQuery.error}
+								onRetry={() => void overviewQuery.refetch()}
 							/>
-							<Label htmlFor="monitoring-only-running">
-								Only users with running workspaces
-							</Label>
 						</div>
-					</div>
+						<div className="dashboard-panel [&>*]:my-0">
+							<SecurityPostureSection />
+						</div>
 
-					{overviewQuery.isLoading ? (
-						<Loader />
-					) : !overviewQuery.data ? (
-						<ErrorAlert error={overviewQuery.error} />
-					) : (
-						<UserList
-							overview={overviewQuery.data}
-							filter={filter.trim().toLowerCase()}
-							onlyRunning={onlyRunning}
+						<div className="dashboard-panel">
+							<div className="mb-4 flex flex-wrap items-center gap-4">
+								<SearchField
+									value={filter}
+									onChange={setFilter}
+									placeholder="Filter users or workspaces"
+									aria-label="Filter users or workspaces"
+								/>
+								<div className="flex items-center gap-2">
+									<Switch
+										id="monitoring-only-running"
+										checked={onlyRunning}
+										onCheckedChange={setOnlyRunning}
+									/>
+									<Label htmlFor="monitoring-only-running">
+										Only users with running workspaces
+									</Label>
+								</div>
+							</div>
+
+							{overviewQuery.isLoading ? (
+								<Loader />
+							) : !overviewQuery.data ? (
+								<ErrorAlert error={overviewQuery.error} />
+							) : (
+								<UserList
+									overview={overviewQuery.data}
+									filter={filter.trim().toLowerCase()}
+									onlyRunning={onlyRunning}
+								/>
+							)}
+						</div>
+					</>
+				)}
+				{permissions.editDeploymentConfig && (
+					<div className="dashboard-panel [&>*]:my-0">
+						<MetricsCard />
+					</div>
+				)}
+				{permissions.viewDeploymentConfig && (
+					<div className="dashboard-panel [&>*]:my-0">
+						<ObservabilityCard
+							scrollReady={
+								!permissions.editDeploymentConfig || !overviewQuery.isLoading
+							}
 						/>
-					)}
-				</>
-			)}
-			{permissions.editDeploymentConfig && <MetricsCard />}
-			{permissions.viewDeploymentConfig && (
-				<ObservabilityCard
-					scrollReady={
-						!permissions.editDeploymentConfig || !overviewQuery.isLoading
-					}
-				/>
-			)}
+					</div>
+				)}
+			</div>
 		</>
 	);
 };

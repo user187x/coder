@@ -364,9 +364,9 @@ const TrafficControlPage: React.FC = () => {
 	};
 
 	return (
-		<div className="min-h-full bg-surface-secondary">
+		<div className="dashboard-panel min-w-0">
 			<title>{pageTitle("Traffic Control")}</title>
-			<div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-5 md:px-6">
+			<div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
 				<header className="flex flex-wrap items-center justify-between gap-3">
 					<h1 className="m-0 text-sm font-bold uppercase tracking-wide text-content-primary">
 						Traffic Control

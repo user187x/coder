@@ -2,7 +2,7 @@
 metrics-server: live CPU and memory of pods and nodes (the HUD, Health, quotas). Most clusters lack it (EKS too,
 unless its add-on is installed). metricsServer.enabled: "auto" installs it only when the cluster has no metrics API
 yet, or when this release installed the one it has (so an existing metrics-server, such as the EKS add-on, stays in
-charge); true always, false never. As upstream components.yaml v0.8.1, in the release namespace.
+charge); true always, false never. As upstream components.yaml v0.8.1, in the Coder system namespace.
 */ -}}
 {{- include "ca.values" . -}}
 {{- $ms := .Values.metricsServer }}
@@ -18,13 +18,14 @@ charge); true always, false never. As upstream components.yaml v0.8.1, in the re
 {{- end }}
 {{- end }}
 {{- if and $install (include "platform.hasLayer" .) }}
-{{- $ns := .Release.Namespace }}
+{{- $ns := "coder-system" }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   # Argo CD wave 5: after the bootstrap (wave 3), so an unready metrics API never holds up the first admin
   annotations: {argocd.argoproj.io/sync-wave: "5"}
   name: metrics-server
+  namespace: {{ $ns }}
   labels: {app.kubernetes.io/name: metrics-server}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -101,6 +102,7 @@ kind: Service
 metadata:
   annotations: {argocd.argoproj.io/sync-wave: "5"}
   name: metrics-server
+  namespace: {{ $ns }}
   labels: {app.kubernetes.io/name: metrics-server}
 spec:
   selector: {app.kubernetes.io/name: metrics-server}
@@ -111,7 +113,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations: {argocd.argoproj.io/sync-wave: "5"}
-  name: metrics-server
+  name: coder-metrics-server
+  namespace: {{ $ns }}
   labels: {app.kubernetes.io/name: metrics-server}
 spec:
   replicas: {{ $ms.replicas | default 1 }}

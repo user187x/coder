@@ -419,7 +419,7 @@ const GridBody: React.FC<GridBodyProps> = ({
 							step={1}
 							value={level}
 							disabled={sizes.length === 1}
-							className="w-16 cursor-pointer accent-content-link disabled:cursor-default md:w-24"
+							className="w-16 cursor-pointer disabled:cursor-default md:w-24"
 							onChange={(event) => {
 								const next = event.currentTarget.valueAsNumber;
 								setDensity((current) => ({ ...current, [layout]: next }));

@@ -10,11 +10,6 @@ import type {
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { Margins } from "#/components/Margins/Margins";
-import {
-	PageHeader,
-	PageHeaderSubtitle,
-	PageHeaderTitle,
-} from "#/components/PageHeader/PageHeader";
 
 import { BaseInfraSelectStep } from "./BaseInfraSelectStep";
 import {
@@ -289,85 +284,83 @@ export const TemplateBuilderPageView: React.FC<
 	}
 
 	return (
-		<Margins className="pb-12">
-			<PageHeader>
-				<PageHeaderTitle>Create new template</PageHeaderTitle>
-				<PageHeaderSubtitle>
-					A Terraform blueprint for reproducible workspaces.
-				</PageHeaderSubtitle>
-			</PageHeader>
+		<Margins className="flex flex-1 flex-col py-6">
+			<h1 className="sr-only">Create new template</h1>
+			<div className="my-auto flex flex-col gap-4">
+				{error != null && <ErrorAlert error={error} />}
 
-			{error != null && <ErrorAlert error={error} />}
-
-			<div className="flex gap-8">
-				{/* Main content area */}
-				<div className="flex-1 min-w-0">
-					<div className="p-6 border border-solid rounded-lg overflow-x-auto bg-surface-primary">
-						<StepContent
-							stepId={currentStep.id}
-							state={state}
-							dispatch={dispatch}
-							moduleVarMap={moduleVarMap}
-							createError={createError}
-							onProvisionerStatusChange={handleProvisionerStatusChange}
-							onRemoveModule={handleDeselectModule}
-							registerModuleRef={registerModuleRef}
-							onCreate={handleCreate}
-							showValidationErrors={showContinueError}
-							canRenameBase={canRenameBase}
-						/>
+				<div className="flex flex-col gap-8 md:flex-row">
+					{/* Main content area */}
+					<div className="dashboard-panel flex min-w-0 flex-1 flex-col">
+						<div className="grow overflow-x-auto rounded-lg border border-solid bg-surface-primary p-6">
+							<StepContent
+								stepId={currentStep.id}
+								state={state}
+								dispatch={dispatch}
+								moduleVarMap={moduleVarMap}
+								createError={createError}
+								onProvisionerStatusChange={handleProvisionerStatusChange}
+								onRemoveModule={handleDeselectModule}
+								registerModuleRef={registerModuleRef}
+								onCreate={handleCreate}
+								showValidationErrors={showContinueError}
+								canRenameBase={canRenameBase}
+							/>
+						</div>
 					</div>
 
-					{/* Navigation controls */}
-					<div className="flex justify-end mt-6 gap-2">
-						{isFirstStep ? (
-							<div />
-						) : (
-							<Button variant="outline" onClick={handleBack}>
-								Back
-							</Button>
-						)}
-						{isLastStep ? (
-							<Button
-								type="submit"
-								form={TEMPLATE_CUSTOMIZATIONS_FORM_ID}
-								disabled={state.hasProvisioners === false}
-							>
-								Create Template
-							</Button>
-						) : (
-							<Button onClick={handleNext}>Continue</Button>
-						)}
-					</div>
+					<aside
+						aria-label="Template selection"
+						className="dashboard-panel flex min-w-0 flex-col md:w-64 md:shrink-0"
+					>
+						<div className="flex grow flex-col rounded-lg border border-solid bg-surface-primary p-6">
+							<SelectionSummary
+								currentStep={currentStep.group}
+								maxReachedStep={maxReachedGroup}
+								onNavigateStep={navigateToStepId}
+								onNavigateModule={navigateToModule}
+								selectedTemplate={
+									state.selectedBase
+										? {
+												name: state.selectedBase.name,
+												iconUrl: state.selectedBase.iconUrl,
+											}
+										: undefined
+								}
+								selectedModules={
+									state.selectedModules.length > 0
+										? state.selectedModules
+										: undefined
+								}
+							/>
+							<div className="mt-auto pt-6">
+								<div className="flex flex-wrap gap-2">
+									{!isFirstStep && (
+										<Button variant="outline" onClick={handleBack}>
+											Back
+										</Button>
+									)}
+									{isLastStep ? (
+										<Button
+											type="submit"
+											form={TEMPLATE_CUSTOMIZATIONS_FORM_ID}
+											disabled={state.hasProvisioners === false}
+										>
+											Create Template
+										</Button>
+									) : (
+										<Button onClick={handleNext}>Continue</Button>
+									)}
+								</div>
 
-					{showContinueError && !canContinue && (
-						<p className="flex justify-end mt-2 mb-0 text-xs text-content-destructive">
-							{getContinueErrorMessage(currentStep.id)}
-						</p>
-					)}
-				</div>
-
-				{/* Sidebar (top position is 72px so that it can sit below nav) */}
-				<div className="w-64 shrink-0 hidden md:block sticky top-[72px] self-start">
-					<SelectionSummary
-						currentStep={currentStep.group}
-						maxReachedStep={maxReachedGroup}
-						onNavigateStep={navigateToStepId}
-						onNavigateModule={navigateToModule}
-						selectedTemplate={
-							state.selectedBase
-								? {
-										name: state.selectedBase.name,
-										iconUrl: state.selectedBase.iconUrl,
-									}
-								: undefined
-						}
-						selectedModules={
-							state.selectedModules.length > 0
-								? state.selectedModules
-								: undefined
-						}
-					/>
+								{showContinueError && !canContinue && (
+									<p className="mt-2 mb-0 text-xs text-content-destructive">
+										{getContinueErrorMessage(currentStep.id)}
+									</p>
+								)}
+							</div>
+						</div>
+					</aside>
 				</div>
 			</div>
 		</Margins>

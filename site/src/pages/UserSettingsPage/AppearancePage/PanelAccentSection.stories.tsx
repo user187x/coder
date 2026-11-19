@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { userEvent, within } from "storybook/test";
 import { panelAccentGlobal, userUIPreferences } from "#/api/queries/platform";
 import { MockUserOwner } from "#/testHelpers/entities";
 import { withAuthProvider } from "#/testHelpers/storybook";
@@ -50,5 +51,15 @@ export const CustomTextColour: Story = {
 			},
 			{ key: panelAccentGlobal().queryKey, data: { global: null } },
 		],
+	},
+};
+
+export const EditCardFromPreview: Story = {
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Edit card panel colour",
+			}),
+		);
 	},
 };

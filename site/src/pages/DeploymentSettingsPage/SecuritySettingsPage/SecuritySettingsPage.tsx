@@ -27,21 +27,28 @@ const SecuritySettingsPage: React.FC = () => {
 				}
 				lockdown={
 					user.roles.some((role) => role.name === "owner") ? (
-						<div className="flex flex-col gap-6">
-							{/* Global Command & Control always stays open */}
-							<GlobalLockdownCard />
-							<CollapsibleSecurityCard
-								id="quarantine"
-								title="Workspace quarantine"
-							>
-								<WorkspaceQuarantineCard />
-							</CollapsibleSecurityCard>
-						</div>
+						<>
+							<div className="dashboard-panel">
+								<GlobalLockdownCard />
+							</div>
+							<div className="dashboard-panel">
+								<CollapsibleSecurityCard
+									id="quarantine"
+									title="Workspace quarantine"
+								>
+									<WorkspaceQuarantineCard />
+								</CollapsibleSecurityCard>
+							</div>
+						</>
 					) : undefined
 				}
 				certificates={
 					permissions.editDeploymentConfig ? (
-						<CollapsibleSecurityCard id="certificates" title="Certificates">
+						<CollapsibleSecurityCard
+							id="certificates"
+							title="Certificates"
+							defaultOpen={false}
+						>
 							<CertificateOverview />
 						</CollapsibleSecurityCard>
 					) : undefined

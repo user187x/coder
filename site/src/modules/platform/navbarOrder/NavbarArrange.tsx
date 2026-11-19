@@ -39,6 +39,14 @@ import {
 	useNavbarOrder,
 } from "./navbarOrder";
 
+const SETTINGS_CHEVRONS = "settings-chevrons";
+const arrangeLabel = (id: string | number) =>
+	id === SETTINGS_CHEVRONS
+		? "Settings chevrons"
+		: isNavbarItem(id)
+			? NAVBAR_LABELS[id]
+			: String(id);
+
 // The banner placeholder is wide: the item under the pointer is the target.
 const itemUnderPointer: CollisionDetection = (args) => {
 	const under = pointerWithin(args);
@@ -86,6 +94,8 @@ type NavbarArrangeProps = {
 	className?: string;
 	defaultLayout?: NavbarLayout;
 	canSetDefault?: boolean;
+	showSettingsChevrons?: boolean;
+	settingsDocked?: boolean;
 };
 
 /** Customizable toolbar with a palette for removed tiles. */
@@ -94,9 +104,25 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 	className,
 	defaultLayout,
 	canSetDefault = false,
+	showSettingsChevrons = false,
+	settingsDocked = false,
 }) => {
-	const { order, hidden, save, reset, publish, commit, saving } =
-		useNavbarOrder(defaultLayout);
+	const {
+		order,
+		hidden,
+		save,
+		reset,
+		publish,
+		commit,
+		saving,
+		settingsSide,
+		setSettingsSide,
+	} = useNavbarOrder(defaultLayout, settingsDocked ? "right" : "left");
+	const settingsLabel = settingsDocked
+		? "Settings sidebar"
+		: "Settings chevrons";
+	const labelFor = (id: string | number) =>
+		id === SETTINGS_CHEVRONS ? settingsLabel : arrangeLabel(id);
 	const done = () => commit(() => setArranging(false));
 	const escapeDone = useEffectEvent(done);
 	const [arranging, setArranging] = useState(false);
@@ -212,7 +238,22 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 			items[id]
 		);
 
-	const onDragEnd = ({ active, over }: DragEndEvent) => {
+	const moveSettings = (side: "left" | "right") => {
+		setSettingsSide(side);
+		setAnnouncement(`${settingsLabel} moved to the ${side} side.`);
+	};
+
+	const onDragEnd = ({ active, over, delta }: DragEndEvent) => {
+		if (active.id === SETTINGS_CHEVRONS) {
+			const element = toolbar.current;
+			const item = active.rect.current.initial;
+			if (element && item) {
+				const row = element.getBoundingClientRect();
+				const center = item.left + item.width / 2 + delta.x * readZoom(element);
+				moveSettings(center < row.left + row.width / 2 ? "left" : "right");
+			}
+			return;
+		}
 		if (
 			over &&
 			isNavbarItem(active.id) &&
@@ -229,6 +270,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 			className={cn(className)}
 			data-testid="navbar-arrange"
 			data-arranging={arranging || undefined}
+			data-arranging-settings={(arranging && showSettingsChevrons) || undefined}
 		>
 			<DndContext
 				sensors={sensors}
@@ -241,21 +283,34 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 							"Drag to move this button left or right, or use the left and right arrow keys.",
 					},
 					announcements: {
-						onDragStart: ({ active }) =>
-							`Picked up ${NAVBAR_LABELS[active.id as NavbarItem]}.`,
+						onDragStart: ({ active }) => `Picked up ${labelFor(active.id)}.`,
 						onDragOver: ({ active, over }) =>
 							over
-								? `${NAVBAR_LABELS[active.id as NavbarItem]} is over ${NAVBAR_LABELS[over.id as NavbarItem]}.`
-								: `${NAVBAR_LABELS[active.id as NavbarItem]} is not over a place.`,
+								? `${labelFor(active.id)} is over ${labelFor(over.id)}.`
+								: `${labelFor(active.id)} is not over a place.`,
 						onDragEnd: ({ active, over }) =>
 							over
-								? `${NAVBAR_LABELS[active.id as NavbarItem]} dropped in place of ${NAVBAR_LABELS[over.id as NavbarItem]}.`
-								: `${NAVBAR_LABELS[active.id as NavbarItem]} dropped.`,
+								? `${labelFor(active.id)} dropped in place of ${labelFor(over.id)}.`
+								: `${labelFor(active.id)} dropped.`,
 						onDragCancel: ({ active }) =>
-							`Moving ${NAVBAR_LABELS[active.id as NavbarItem]} was cancelled.`,
+							`Moving ${labelFor(active.id)} was cancelled.`,
 					},
 				}}
 			>
+				{arranging && showSettingsChevrons && (
+					<ArrangeItem
+						id={SETTINGS_CHEVRONS}
+						label={settingsLabel}
+						position={settingsSide === "left" ? -1 : visible.length}
+						arranging
+						onMove={(by) => moveSettings(by < 0 ? "left" : "right")}
+						onDone={done}
+					>
+						<span className="flex h-10 items-center rounded-md bg-surface-secondary px-3 text-xs text-content-secondary">
+							{settingsLabel}
+						</span>
+					</ArrangeItem>
+				)}
 				<SortableContext
 					items={visible}
 					strategy={horizontalListSortingStrategy}
@@ -276,6 +331,11 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 							onDone={done}
 							onRemove={() => save(order, [...hidden, id])}
 						>
+							{arranging && id === "action" && (
+								<span className="flex h-10 items-center rounded-md bg-surface-secondary px-3 text-xs text-content-secondary">
+									{NAVBAR_LABELS.action}
+								</span>
+							)}
 							{itemContent(id)}
 						</ArrangeItem>
 					))}
@@ -340,7 +400,9 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 														className="pointer-events-none flex items-center"
 														style={{ zoom: previewZoom }}
 													>
-														{itemContent(id)}
+														{id === "action"
+															? NAVBAR_LABELS.action
+															: itemContent(id)}
 													</div>
 												</button>
 											))}
@@ -369,7 +431,10 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 									<Button
 										size="sm"
 										variant="outline"
-										onClick={reset}
+										onClick={() => {
+											reset();
+											setSettingsSide(undefined);
+										}}
 										title="Use the deployment default"
 									>
 										<RotateCcwIcon aria-hidden />
@@ -398,17 +463,19 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 };
 
 type ArrangeItemProps = {
-	id: NavbarItem;
+	label?: string;
+	id: NavbarItem | typeof SETTINGS_CHEVRONS;
 	position: number;
 	arranging: boolean;
 	onMove: (by: number) => void;
 	onDone: () => void;
-	onRemove: () => void;
+	onRemove?: () => void;
 	children: React.ReactNode;
 };
 
 const ArrangeItem: React.FC<ArrangeItemProps> = ({
 	id,
+	label = arrangeLabel(id),
 	position,
 	arranging,
 	onMove,
@@ -427,7 +494,10 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 	} = useSortable({
 		id,
 		// The banner is not dragged: the buttons move around it.
-		disabled: { draggable: isBanner || !arranging, droppable: !arranging },
+		disabled: {
+			draggable: isBanner || !arranging,
+			droppable: !arranging || id === SETTINGS_CHEVRONS,
+		},
 	});
 
 	return (
@@ -471,7 +541,8 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 						type="button"
 						{...attributes}
 						{...listeners}
-						aria-label={`Move ${NAVBAR_LABELS[id]}`}
+						data-navbar-arrange-control
+						aria-label={`Move ${label}`}
 						title="Drag left or right"
 						className={cn(
 							"absolute -inset-1 z-10 touch-none rounded-lg border-0 bg-transparent p-0",
@@ -490,10 +561,11 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 							}
 						}}
 					/>
-					{id !== "action" && (
+					{onRemove && (
 						<button
 							type="button"
-							aria-label={`Remove ${NAVBAR_LABELS[id]}`}
+							data-navbar-arrange-control
+							aria-label={`Remove ${arrangeLabel(id)}`}
 							onClick={onRemove}
 							className="absolute -right-2 -top-2 z-20 flex size-6 cursor-pointer items-center justify-center rounded-[0.5rem] border-2 border-solid border-red-400 bg-red-700 p-0 text-white shadow-md hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-primary"
 						>

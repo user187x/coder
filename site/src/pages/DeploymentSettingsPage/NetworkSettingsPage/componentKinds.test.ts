@@ -33,6 +33,9 @@ describe("kindOf", () => {
 		expect(
 			kindOf({ role: "add-on", name: "coder-code-server-replicator-5d-a" }),
 		).toBe("replicator");
+		expect(
+			kindOf({ role: "add-on", name: "coder-server-replicator-5d-a" }),
+		).toBe("replicator");
 		expect(kindOf({ role: "add-on", name: "coder-cs-111111112222-g3" })).toBe(
 			"code-server",
 		);

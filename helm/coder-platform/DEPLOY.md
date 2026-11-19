@@ -12,9 +12,9 @@ Everything lands in namespace `coder-platform`:
 
 | Component               | Kubernetes objects                                                     | Purpose                                                                                                                         |
 |-------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| Coder                   | Deployment `coder`, Service `coder`, ConfigMap `coder-platform-config` | This repository's Coder, image `docker.io/mrshll187/coder-platform-agpl`                                                        |
+| Coder                   | Deployment `coder-server`, Service `coder`, ConfigMap `coder-platform-config` | This repository's Coder, image `docker.io/mrshll187/coder-platform-agpl`                                                        |
 | PostgreSQL              | StatefulSet `coder-db`, Service, 10Gi volume                           | Coder's database, including uploaded logos, avatars, template icons and admin quick links                                       |
-| Platform service        | Deployment `coder-ui-updates`, Service, 1Gi volume                     | Logo, avatars, template icons, classification, announcements, chat, and the Keycloak, Network, Monitoring and Persistence pages |
+| Platform service        | Deployment `coder-ui`, Service, 1Gi volume                     | Logo, avatars, template icons, classification, announcements, chat, and the Keycloak, Network, Monitoring and Persistence pages |
 | Monitoring log database | Deployment `coder-ui-logs-db`                                          | Buffers workspace logs for the Monitoring page                                                                                  |
 | Setup Jobs              | PreSync and PostSync hook Jobs                                         | Generate passwords, then create the first admin                                                                                 |
 
@@ -209,12 +209,12 @@ To stay on a version instead of following `main`, set the Application's
 |-----------------------|-----------------------------------------------------------------------------------------------------|
 | Admin password        | `kubectl -n coder-platform get secret coder-first-user -o jsonpath='{.data.password}' \| base64 -d` |
 | Open Coder locally    | `kubectl -n coder-platform port-forward svc/coder 8080:80`                                          |
-| Coder logs            | `kubectl -n coder-platform logs deploy/coder`                                                       |
-| Platform service logs | `kubectl -n coder-platform logs deploy/coder-ui-updates`                                            |
+| Coder logs            | `kubectl -n coder-platform logs deploy/coder-server`                                                       |
+| Platform service logs | `kubectl -n coder-platform logs deploy/coder-ui`                                            |
 | Setup Job logs        | `kubectl -n coder-platform logs job/coder-platform-first-user`                                      |
 | Database shell        | `kubectl -n coder-platform exec -it coder-db-0 -- psql -U coder coder`                              |
 | Database backup       | `kubectl -n coder-platform exec coder-db-0 -- pg_dump -U coder -Fc coder > coder.dump`              |
-| Restart Coder         | `kubectl -n coder-platform rollout restart deploy/coder`                                            |
+| Restart Coder         | `kubectl -n coder-platform rollout restart deploy/coder-server`                                            |
 
 ### Where data lives
 

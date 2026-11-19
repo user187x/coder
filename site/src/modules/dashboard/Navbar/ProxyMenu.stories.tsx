@@ -314,11 +314,13 @@ export const HiddenChatMenu: Story = {
 			within(canvasElement).getByRole("button", { name: /^Settings/ }),
 		);
 		await userEvent.click(
-			within(canvasElement.ownerDocument.body).getByRole("menuitem", {
-				name: "Controls",
-			}),
+			within(
+				await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
+					name: "Controls",
+				}),
+			).getByTitle("Controls"),
 		);
-		const chat = within(canvasElement.ownerDocument.body).getByRole(
+		const chat = await within(canvasElement.ownerDocument.body).findByRole(
 			"menuitem",
 			{ name: "Chat" },
 		);
@@ -580,6 +582,20 @@ export const UnreadAdminNotesOpened: Story = {
 export const CombinedNotifications: Story = {
 	...UnreadAdminNotes,
 	play: async () => {},
+};
+export const UnreadDestinationsOpened: Story = {
+	...CentralAdminMenu,
+	args: {
+		...CentralAdminMenu.args,
+		controls: {
+			...CentralAdminMenu.args?.controls,
+			permissions: { canEditDeployment: true, canViewHealth: true },
+			quickLinks: adminPagesFor({
+				permissions: MockPermissions,
+				oauth2Provider: true,
+			}).filter(({ id }) => id === "chat" || id === "notifications"),
+		},
+	},
 };
 export const NotificationsUnavailable: Story = {
 	...CentralAdminMenu,

@@ -5,6 +5,7 @@ import type {
 	TemplateBuilderBasesResponse,
 } from "#/api/typesGenerated";
 import { TemplateBuilderPageView } from "./TemplateBuilderPageView";
+import "#/dashboardPanel.css";
 
 const bases: TemplateBuilderBase[] = [
 	{

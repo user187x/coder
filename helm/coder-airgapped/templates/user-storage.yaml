@@ -234,17 +234,20 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: coder-user-storage-csi
-  namespace: {{ $ns }}
+  namespace: coder-system
   labels:
     {{- include "ca.labels" . | nindent 4 }}
     app.kubernetes.io/name: coder-user-storage-csi
 automountServiceAccountToken: false
 ---
+{{- if and .Release.IsUpgrade (ne $ns "coder-system") (lookup "apps/v1" "DaemonSet" $ns "coder-user-storage-csi") }}
+{{- fail "retire the old coder-user-storage-csi DaemonSet before moving it to coder-system (see DEPLOY.md, Moving node add-ons)" }}
+{{- end }}
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: coder-user-storage-csi
-  namespace: {{ $ns }}
+  namespace: coder-system
   labels:
     {{- include "ca.labels" . | nindent 4 }}
     app.kubernetes.io/name: coder-user-storage-csi

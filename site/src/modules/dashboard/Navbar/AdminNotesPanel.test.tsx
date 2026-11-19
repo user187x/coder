@@ -65,7 +65,7 @@ it("creates a private note, shares an edit, and deletes with its revision", asyn
 		}),
 	);
 	await user.click(await screen.findByRole("button", { name: "Delete note" }));
-	await user.click(screen.getAllByRole("button", { name: "Delete note" })[0]);
+	await user.click(screen.getByRole("button", { name: "Confirm delete" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenLastCalledWith(MockOrganization.id, {
 			action: "delete",
@@ -117,7 +117,7 @@ it("marks only the clicked shared revision read and preserves unread state after
 		.spyOn(AdminNotesAPI, "change")
 		.mockRejectedValueOnce(new Error("Unavailable"));
 	const client = renderNotes();
-	const note = await screen.findByRole("button", { name: /^Read note:/ });
+	const note = await screen.findByRole("button", { name: "Expand note" });
 	expect(change).not.toHaveBeenCalled();
 	await user.click(note);
 	await screen.findByRole("alert");
@@ -127,6 +127,8 @@ it("marks only the clicked shared revision read and preserves unread state after
 	const readNote = { ...MockUnreadAdminNote, unread: false };
 	vi.mocked(AdminNotesAPI.list).mockResolvedValue({ notes: [readNote] });
 	change.mockResolvedValue({ notes: [readNote] });
+	await user.click(screen.getByRole("button", { name: "Collapse note" }));
+	expect(change).toHaveBeenCalledTimes(1);
 	await user.click(note);
 	await waitFor(() =>
 		expect(client.getQueryData(adminNotesKey(MockOrganization.id))).toEqual({
@@ -138,4 +140,25 @@ it("marks only the clicked shared revision read and preserves unread state after
 		id: MockUnreadAdminNote.id,
 		revision: 1,
 	});
+});
+
+it("allows confirming deletion of a shared note from another author", async () => {
+	const user = userEvent.setup();
+	vi.mocked(AdminNotesAPI.list).mockResolvedValue({
+		notes: [{ ...MockUnreadAdminNote, can_edit: false }],
+	});
+	const change = vi
+		.spyOn(AdminNotesAPI, "change")
+		.mockResolvedValue({ notes: [] });
+	renderNotes();
+	await user.click(await screen.findByRole("button", { name: "Delete note" }));
+	expect(change).not.toHaveBeenCalled();
+	await user.click(screen.getByRole("button", { name: "Confirm delete" }));
+	await waitFor(() =>
+		expect(change).toHaveBeenCalledWith(MockOrganization.id, {
+			action: "delete",
+			id: MockUnreadAdminNote.id,
+			revision: MockUnreadAdminNote.revision,
+		}),
+	);
 });

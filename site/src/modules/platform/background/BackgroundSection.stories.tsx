@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
 import { backgroundsKey } from "#/api/queries/backgrounds";
-import { MockBackgrounds } from "#/testHelpers/appearance";
+import { MockBackgrounds, MockCustomTheme } from "#/testHelpers/appearance";
+import { customThemeStyle } from "#/theme/customTheme";
 import { BackgroundSection } from "./BackgroundSection";
 
 const meta: Meta<typeof BackgroundSection> = {
@@ -19,9 +20,24 @@ export const Gradient: Story = {
 		await userEvent.click(
 			within(document.body).getByRole("option", { name: "Color or gradient" }),
 		);
-		await userEvent.click(canvas.getByRole("combobox", { name: "Fill style" }));
+		await userEvent.click(
+			await canvas.findByRole("combobox", { name: "Fill style" }),
+		);
 		await userEvent.click(
 			within(document.body).getByRole("option", { name: "Linear gradient" }),
 		);
 	},
+};
+
+export const CustomTheme: Story = {
+	decorators: [
+		(Story) => (
+			<div
+				className="dark bg-surface-primary text-content-primary"
+				style={customThemeStyle(MockCustomTheme)}
+			>
+				<Story />
+			</div>
+		),
+	],
 };

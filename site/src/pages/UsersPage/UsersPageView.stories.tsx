@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn, spyOn, userEvent, within } from "storybook/test";
+import { spyOn, userEvent, within } from "storybook/test";
 import { PlatformAPI } from "#/api/platform";
 import { quotaReport, schedulerReport } from "#/api/queries/platform";
 import {
@@ -55,7 +55,7 @@ type Story = StoryObj<typeof UsersPageView>;
 export const Admin: Story = {
 	args: {
 		canCreateUser: true,
-		onCreateLease: fn(),
+		canCreateLease: true,
 	},
 	play: async ({ canvasElement }) => {
 		await userEvent.click(

@@ -114,7 +114,7 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 	const headingId = `library-${kind}`;
 
 	return (
-		<section className="mt-10" aria-labelledby={headingId}>
+		<section className="dashboard-panel min-w-0" aria-labelledby={headingId}>
 			<div className="flex flex-wrap items-end justify-between gap-3">
 				<div>
 					<h2

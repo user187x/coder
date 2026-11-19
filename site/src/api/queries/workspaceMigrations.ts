@@ -1,3 +1,4 @@
+import type { QueryClient } from "react-query";
 import { WorkspaceMigrationsAPI } from "../workspaceMigrations";
 export const workspaceMigrationKey = (id: string) =>
 	["platform", "workspace-migrations", id] as const;
@@ -27,4 +28,10 @@ export const workspaceMigrations = () => ({
 		q.state.data?.migrations.some((m) => m.status === "running")
 			? 3_000
 			: 15_000,
+});
+
+export const hideWorkspaceMigrationHistory = (client: QueryClient) => ({
+	mutationFn: WorkspaceMigrationsAPI.hideHistory,
+	onSuccess: () =>
+		client.invalidateQueries({ queryKey: workspaceMigrationsKey }),
 });

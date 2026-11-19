@@ -24,6 +24,7 @@ import {
 } from "./ChatConsolePanels";
 import { ChatPeople } from "./ChatPeople";
 import { selectInConsole } from "./chatStore";
+import { chatConsoleViews } from "./consolePlaces";
 
 /** One console for conversations, presence, connections and administration. */
 export const ChatConsoleWorkspace = ({
@@ -31,21 +32,23 @@ export const ChatConsoleWorkspace = ({
 	actions,
 	...props
 }: React.ComponentProps<typeof ChatConsole>) => {
-	const { hash } = useLocation();
-	const [tab, setTab] = useState(
-		hash === "#online-users" ? "people" : "conversations",
-	);
+	const { hash, key } = useLocation();
+	const linkedTab =
+		hash === "#online-users"
+			? "people"
+			: chatConsoleViews.find(({ id }) => hash === `#${id}`)?.id;
+	const [tab, setTab] = useState<string>(linkedTab ?? "conversations");
 	const [visited, setVisited] = useState(() => new Set(["conversations", tab]));
 	const select = (next: string) => {
 		setTab(next);
 		setVisited((previous) => new Set([...previous, next]));
 	};
 	useEffect(() => {
-		if (hash === "#online-users") {
-			setTab("people");
-			setVisited((previous) => new Set([...previous, "people"]));
+		if (linkedTab) {
+			setTab(linkedTab);
+			setVisited((previous) => new Set([...previous, linkedTab]));
 		}
-	}, [hash]);
+	}, [key, linkedTab]);
 	const open = (peer: ChatPeer) => {
 		selectInConsole(peer, true);
 		select("conversations");
@@ -64,10 +67,11 @@ export const ChatConsoleWorkspace = ({
 					aria-label="Chat console views"
 					className="min-w-0 flex-1 flex-wrap gap-x-4 gap-y-0 border-0"
 				>
-					<TabsTrigger value="conversations">Conversations</TabsTrigger>
-					<TabsTrigger value="people">People</TabsTrigger>
-					<TabsTrigger value="connections">Connections</TabsTrigger>
-					<TabsTrigger value="settings">Settings</TabsTrigger>
+					{chatConsoleViews.map(({ id, label }) => (
+						<TabsTrigger key={id} value={id}>
+							{label}
+						</TabsTrigger>
+					))}
 				</TabsList>
 				{actions}
 			</div>

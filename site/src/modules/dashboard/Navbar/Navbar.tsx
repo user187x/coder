@@ -12,6 +12,7 @@ import type { LinkConfig, UserPreferenceSettings } from "#/api/typesGenerated";
 import { useProxy } from "#/contexts/ProxyContext";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
+import { canonicalAdminPageId } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { canSeeTemplates } from "#/modules/permissions/templates";
 import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
@@ -132,7 +133,7 @@ const sortedCategories = (
 	order: readonly string[],
 ): AdminPage[] => {
 	const rank = (page: AdminPage) => {
-		const index = order.indexOf(page.id);
+		const index = order.findIndex((id) => canonicalAdminPageId(id) === page.id);
 		return index < 0 ? Number.POSITIVE_INFINITY : index;
 	};
 	return pages.sort(

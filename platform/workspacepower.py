@@ -130,6 +130,8 @@ def public(operation):
     if operation.get("finished_at") is not None:
         result["finished_at"] = operation["finished_at"]
     result["exclude_admins"] = operation.get("exclude_admins", False)
+    if "terminate_audit" in operation:
+        result["terminate_audit"] = operation["terminate_audit"]
     return result
 
 
@@ -190,9 +192,20 @@ def start(token, user, oid, body, global_scope=False):
         if sum(op["status"] == "running" for op in data.values()) >= 4:
             raise Conflict("Four workspace operations are already running. Try again after they finish.")
         data[operation["id"]] = operation
-    store(insert)
+    if action == "terminate" and global_scope:
+        round_id = body.get("round_id")
+        with terminatesignoff.authorized_start(round_id) as signoffs:
+            operation["created_at"] = time.time()
+            operation["terminate_audit"] = {
+                "round_id": round_id, "signoffs": signoffs,
+                "invoked_by": user["username"],
+            }
+            store(insert)
+    else:
+        store(insert)
     LOG(event="workspace-power-started", operation=operation["id"], organization=oid, action=action,
-        workspaces=len(targets), by=user["id"])
+        workspaces=len(targets), by=user["id"],
+        round=(operation.get("terminate_audit") or {}).get("round_id"))
     threading.Thread(target=run, args=(token, operation), daemon=True, name="workspace-power").start()
     return public(operation)
 

@@ -101,6 +101,7 @@ const isKind = (k: unknown): k is ComponentKind =>
 const kindFromName = (name: string): ComponentKind => {
 	const prefixes: [string, ComponentKind][] = [
 		["coder-cs-", "code-server"],
+		["coder-server-replicator", "replicator"],
 		["coder-code-server-replicator", "replicator"],
 		["coder-db", "database"],
 		["coder-ui-", "platform"],

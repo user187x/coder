@@ -91,6 +91,7 @@ CODER_URL = os.environ.get("CODER_URL", "http://coder").rstrip("/")            #
 CODER_ACCESS_URL = os.environ.get("CODER_ACCESS_URL", "").rstrip("/")           # what browsers use
 CODER_NAMESPACE = os.environ.get("CODER_NAMESPACE", "coder")
 CODER_DEPLOYMENT = os.environ.get("CODER_DEPLOYMENT", "coder")
+CODER_RELEASE = os.environ.get("CODER_RELEASE", CODER_DEPLOYMENT)
 BANNER_URL = os.environ.get("BANNER_URL", "http://coder").rstrip("/")
 ADMIN_ROLES = {r.strip() for r in os.environ.get("ADMIN_ROLES", "owner").split(",") if r.strip()}
 CA_FILE = os.environ.get("CA_FILE", "")                                          # extra trusted CA (local PKI)
@@ -1948,7 +1949,7 @@ def coder_role(pod):
         return "workspace"
     if labels.get("cnpg.io/cluster"):
         return "database"
-    if labels.get("app.kubernetes.io/instance") == CODER_DEPLOYMENT and labels.get("app.kubernetes.io/name") in ("coder", None):
+    if labels.get("app.kubernetes.io/instance") == CODER_RELEASE and labels.get("app.kubernetes.io/name") in ("coder", None):
         return "coder"
     return "add-on"
 

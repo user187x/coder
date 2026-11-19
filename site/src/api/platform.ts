@@ -312,6 +312,7 @@ export type AnnouncementReceiptStatus =
 			/** When this user first saw the announcement (on record for the admins), if they have. */
 			viewedAt?: string | null;
 			ackedAt?: string | null;
+			certificateFingerprint?: string | null;
 	  };
 
 export type PlatformUser = {
@@ -329,6 +330,7 @@ type AnnouncementReceipt = {
 	email: string;
 	viewedAt: string;
 	ackedAt: string | null;
+	certificateFingerprint?: string | null;
 };
 
 export type AnnouncementEvent = {
@@ -1162,6 +1164,19 @@ type BackupState = {
 	count: number;
 };
 
+type DatabaseConfigurationResource = {
+	kind: string;
+	name: string;
+	namespace: string | null;
+	managedBy: string | null;
+	values: Record<string, string | number | boolean>;
+};
+
+export type DatabaseConfiguration = {
+	resources: DatabaseConfigurationResource[];
+	unavailable: { resource: string; status: number | null }[];
+};
+
 export type PersistenceReport = {
 	generatedAt: string;
 	/** "external": a database outside this Kubernetes cluster or not run by CloudNativePG. */
@@ -1170,6 +1185,7 @@ export type PersistenceReport = {
 	facts: {
 		/** "CloudNativePG", a cloud service such as "Amazon RDS", or "PostgreSQL". */
 		provider: string | null;
+		configuration?: DatabaseConfiguration;
 		coderDatabase: CoderDatabaseConnection;
 		operator: CnpgOperator;
 		cluster: DatabaseCluster | null;
@@ -1455,10 +1471,10 @@ export type WorkspaceResourceHistory = {
 };
 export type UserUIPreferences = {
 	navbar_layout?: NavbarLayout | null;
-	chat_position?: {
-		edge: "top" | "right" | "bottom" | "left";
-		offset: number;
-	} | null;
+	chat_position?:
+		| { edge: "top" | "right" | "bottom" | "left"; offset: number }
+		| { edge: "free"; x: number; y: number }
+		| null;
 	settings_sidebar?: boolean;
 	settings_sidebar_compact?: boolean;
 	resource_shortcuts?: string[];
@@ -1501,6 +1517,7 @@ export type UserUIPreferences = {
 	settings_top_pinned?: boolean | null;
 	/** The Settings menu's bottom panel (Metrics, Chat, Cloud Drive) hidden by the handles beside its arrows. */
 	settings_face_hidden?: boolean | null;
+	settings_face_collapse_direction?: "up" | "down" | null;
 	/** Appearance: the background of the parent panels that hold the cards everywhere (#rrggbb); null: the theme's. */
 	panel_card_color?: string | null;
 	/** The Settings menu's fixed items hidden into its Controls list: organizations, audit-logs, connection-logs. */
@@ -2293,6 +2310,9 @@ export type TerminateSignoff = {
 
 /** The open round of sign-offs on Global Terminate: it runs once `required` administrators signed. */
 export type TerminateSignoffs = {
+	deadline_ms?: number | null;
+	paused_ms?: number | null;
+	server_now_ms?: number;
 	round_id: string | null;
 	required: number;
 	round_seconds: number;
@@ -2301,6 +2321,11 @@ export type TerminateSignoffs = {
 };
 
 export type WorkspacePowerOperation = {
+	terminate_audit?: {
+		round_id: string;
+		signoffs: Omit<TerminateSignoff, "fingerprint">[];
+		invoked_by: string;
+	};
 	exclude_admins?: boolean;
 	id: string;
 	organization_id: string;
@@ -2444,9 +2469,26 @@ export const PlatformAPI = {
 			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs`,
 			{},
 		),
-	cancelTerminate: () =>
-		deleteJSON<TerminateSignoffs>(
-			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs`,
+	cancelTerminate: (round_id: string) =>
+		post<TerminateSignoffs>(
+			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs/cancel`,
+			{ round_id },
+		),
+	setTerminatePaused: ({
+		round_id,
+		paused,
+	}: {
+		round_id: string;
+		paused: boolean;
+	}) =>
+		post<TerminateSignoffs>(
+			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs/${paused ? "pause" : "resume"}`,
+			{ round_id },
+		),
+	revokeTerminateSignoff: (round_id: string) =>
+		post<TerminateSignoffs>(
+			`${PLATFORM_BASE}/api/workspace-power/terminate-signoffs/revoke`,
+			{ round_id },
 		),
 	completeTerminate: (round_id: string) =>
 		post<TerminateSignoffs>(
@@ -2797,6 +2839,10 @@ export const PlatformAPI = {
 	resetLogo: () =>
 		post<{ ok: true; set: false }>(`${PLATFORM_BASE}/api/logo/reset`, {}),
 
+	getDashboardBackground: () =>
+		get<{ dashboard: BackgroundImage | null }>(
+			`${PLATFORM_BASE}/api/dashboard-background`,
+		),
 	getMyAvatar: () => get<MyAvatar>(`${PLATFORM_BASE}/api/avatar`),
 	getAvatarDefaults: () =>
 		get<AvatarDefaults>(`${PLATFORM_BASE}/api/avatar/defaults`),
@@ -3009,8 +3055,10 @@ export const PlatformAPI = {
 			name,
 		}),
 
-	getPersistenceReport: () =>
-		get<PersistenceReport>(`${PLATFORM_BASE}/api/persistence`),
+	getPersistenceReport: (includeInventory = false) =>
+		get<PersistenceReport>(
+			`${PLATFORM_BASE}/api/persistence${includeInventory ? "?inventory=1" : ""}`,
+		),
 	applyPersistenceFixes: (
 		fixes: readonly PersistenceFix[],
 		settings: PersistenceSettings,

@@ -55,7 +55,7 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: coder-support-relay
+  name: coder-relay
   namespace: {{ .Release.Namespace }}
 spec:
   replicas: 1
