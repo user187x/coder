@@ -505,7 +505,7 @@ export const UserQuotaSection: React.FC<{
 								</div>
 							</section>
 						</div>
-						<div className="min-w-0 rounded-lg border border-border p-3 bg-surface-primary">
+						<div className="flex min-w-0 flex-col rounded-lg border border-border p-3 bg-surface-primary">
 							<QuotaClusterLoad report={report} />
 						</div>
 					</div>

@@ -55,7 +55,7 @@ export const QuotaClusterLoad: React.FC<{ report: QuotaReport }> = ({
 	];
 
 	return (
-		<section className="flex flex-col gap-3">
+		<section className="flex flex-1 flex-col gap-3">
 			<div>
 				<h3 className="m-0 text-base font-medium">Cluster load</h3>
 				<p className="m-0 mt-1 text-xs text-content-secondary">
@@ -68,111 +68,117 @@ export const QuotaClusterLoad: React.FC<{ report: QuotaReport }> = ({
 						: " Metrics unavailable: CPU and memory show reservations."}
 				</p>
 			</div>
-			{rows.map((r) => {
-				const provisioned = users.reduce((sum, u) => sum + u.usage[r.kind], 0);
-				const scale = Math.max(r.total, provisioned, r.requested, 1e-9);
-				const pct = (v: number) => `${Math.min((v / scale) * 100, 100)}%`;
-				const share = r.total ? provisioned / r.total : 0;
-				return (
-					<div key={r.kind} className="flex flex-col gap-1.5">
-						<div className="flex flex-wrap items-baseline justify-between gap-x-2 text-xs">
-							<span className="font-medium">{r.label}</span>
-							<span className="text-content-secondary">
-								{formatQuotaNumber(provisioned)} of {formatQuotaNumber(r.total)}{" "}
-								{r.unit} provisioned (
-								<span
-									className={cn(
-										share >= 1
-											? "text-content-destructive"
-											: share >= 0.75
-												? "text-content-warning"
-												: "text-content-success",
-									)}
-								>
-									{Math.round(share * 100)}%
+			<div className="my-auto flex flex-col gap-3">
+				{rows.map((r) => {
+					const provisioned = users.reduce(
+						(sum, u) => sum + u.usage[r.kind],
+						0,
+					);
+					const scale = Math.max(r.total, provisioned, r.requested, 1e-9);
+					const pct = (v: number) => `${Math.min((v / scale) * 100, 100)}%`;
+					const share = r.total ? provisioned / r.total : 0;
+					return (
+						<div key={r.kind} className="flex flex-col gap-1.5">
+							<div className="flex flex-wrap items-baseline justify-between gap-x-2 text-xs">
+								<span className="font-medium">{r.label}</span>
+								<span className="text-content-secondary">
+									{formatQuotaNumber(provisioned)} of{" "}
+									{formatQuotaNumber(r.total)} {r.unit} provisioned (
+									<span
+										className={cn(
+											share >= 1
+												? "text-content-destructive"
+												: share >= 0.75
+													? "text-content-warning"
+													: "text-content-success",
+										)}
+									>
+										{Math.round(share * 100)}%
+									</span>
+									) · {formatQuotaNumber(r.used)} in use ·{" "}
+									{formatQuotaNumber(r.requested)} reserved
 								</span>
-								) · {formatQuotaNumber(r.used)} in use ·{" "}
-								{formatQuotaNumber(r.requested)} reserved
-							</span>
-						</div>
-						<div
-							role="img"
-							aria-label={`${r.label}: ${formatQuotaNumber(r.used)} of ${formatQuotaNumber(r.total)} ${r.unit} in use`}
-							className="relative h-3 overflow-hidden rounded bg-surface-tertiary"
-						>
+							</div>
 							<div
-								className="absolute inset-y-0 left-0"
+								role="img"
+								aria-label={`${r.label}: ${formatQuotaNumber(r.used)} of ${formatQuotaNumber(r.total)} ${r.unit} in use`}
+								className="relative h-3 overflow-hidden rounded bg-surface-tertiary"
+							>
+								<div
+									className="absolute inset-y-0 left-0"
+									style={{
+										width: pct(r.used),
+										background: consumptionColor(r.used, r.total),
+									}}
+								/>
+								{r.total < scale && (
+									<div
+										title="The cluster's capacity: beyond this line it is overcommitted"
+										className="absolute inset-y-0 w-0.5 bg-content-destructive"
+										style={{ left: pct(r.total) }}
+									/>
+								)}
+								<div
+									title={`Reserved by all pods: ${formatQuotaNumber(r.requested)} ${r.unit}`}
+									className="absolute inset-y-0 w-0 border-0 border-l-2 border-dashed border-content-primary"
+									style={{ left: pct(r.requested) }}
+								/>
+								<div
+									title={`In use: ${formatQuotaNumber(r.used)} ${r.unit}`}
+									className="absolute inset-y-0 w-0.5 bg-content-primary"
+									style={{ left: pct(r.used) }}
+								/>
+							</div>
+						</div>
+					);
+				})}
+				<div className="flex flex-col gap-1.5">
+					<div className="flex flex-wrap items-baseline justify-between gap-x-2 text-xs">
+						<span className="font-medium">Disk</span>
+						<span className="text-content-secondary">
+							{formatQuotaNumber(allocatedDisk)}
+							{diskTotal !== null
+								? ` of ${formatQuotaNumber(diskTotal)} GB allocated (${formatQuotaNumber((allocatedDisk / diskTotal) * 100)}%)`
+								: " GB allocated · capacity unavailable"}
+							{diskFree !== null && ` · ${formatQuotaNumber(diskFree)} GB free`}
+							{diskUsed !== null &&
+								` · ${formatQuotaNumber(diskUsed)} GB in use`}
+						</span>
+					</div>
+					<div
+						role="img"
+						aria-label={
+							diskTotal !== null && diskUsed !== null
+								? `Disk: ${formatQuotaNumber(diskUsed)} of ${formatQuotaNumber(diskTotal)} GB in use`
+								: "Disk usage unavailable"
+						}
+						className="relative flex h-3 overflow-hidden rounded bg-surface-tertiary"
+					>
+						{diskUsed !== null && diskTotal !== null && (
+							<div
+								className="h-full"
 								style={{
-									width: pct(r.used),
-									background: consumptionColor(r.used, r.total),
+									width: `${Math.min((diskUsed / diskTotal) * 100, 100)}%`,
+									background: consumptionColor(diskUsed, diskTotal),
 								}}
 							/>
-							{r.total < scale && (
-								<div
-									title="The cluster's capacity: beyond this line it is overcommitted"
-									className="absolute inset-y-0 w-0.5 bg-content-destructive"
-									style={{ left: pct(r.total) }}
-								/>
-							)}
+						)}
+						{diskUsed !== null && (
 							<div
-								title={`Reserved by all pods: ${formatQuotaNumber(r.requested)} ${r.unit}`}
-								className="absolute inset-y-0 w-0 border-0 border-l-2 border-dashed border-content-primary"
-								style={{ left: pct(r.requested) }}
-							/>
-							<div
-								title={`In use: ${formatQuotaNumber(r.used)} ${r.unit}`}
+								title={`Physical disk used: ${formatQuotaNumber(diskUsed)} GB`}
 								className="absolute inset-y-0 w-0.5 bg-content-primary"
-								style={{ left: pct(r.used) }}
+								style={{
+									left: `${Math.min((diskUsed / diskScale) * 100, 100)}%`,
+								}}
 							/>
-						</div>
+						)}
 					</div>
-				);
-			})}
-			<div className="flex flex-col gap-1.5">
-				<div className="flex flex-wrap items-baseline justify-between gap-x-2 text-xs">
-					<span className="font-medium">Disk</span>
-					<span className="text-content-secondary">
-						{formatQuotaNumber(allocatedDisk)}
-						{diskTotal !== null
-							? ` of ${formatQuotaNumber(diskTotal)} GB allocated (${formatQuotaNumber((allocatedDisk / diskTotal) * 100)}%)`
-							: " GB allocated · capacity unavailable"}
-						{diskFree !== null && ` · ${formatQuotaNumber(diskFree)} GB free`}
-						{diskUsed !== null && ` · ${formatQuotaNumber(diskUsed)} GB in use`}
+					<span className="text-xs text-content-secondary">
+						Home allocations include stopped workspaces. The fill shows physical
+						disk usage. Node storage excludes remote volumes and additional
+						devices.
 					</span>
 				</div>
-				<div
-					role="img"
-					aria-label={
-						diskTotal !== null && diskUsed !== null
-							? `Disk: ${formatQuotaNumber(diskUsed)} of ${formatQuotaNumber(diskTotal)} GB in use`
-							: "Disk usage unavailable"
-					}
-					className="relative flex h-3 overflow-hidden rounded bg-surface-tertiary"
-				>
-					{diskUsed !== null && diskTotal !== null && (
-						<div
-							className="h-full"
-							style={{
-								width: `${Math.min((diskUsed / diskTotal) * 100, 100)}%`,
-								background: consumptionColor(diskUsed, diskTotal),
-							}}
-						/>
-					)}
-					{diskUsed !== null && (
-						<div
-							title={`Physical disk used: ${formatQuotaNumber(diskUsed)} GB`}
-							className="absolute inset-y-0 w-0.5 bg-content-primary"
-							style={{
-								left: `${Math.min((diskUsed / diskScale) * 100, 100)}%`,
-							}}
-						/>
-					)}
-				</div>
-				<span className="text-xs text-content-secondary">
-					Home allocations include stopped workspaces. The fill shows physical
-					disk usage. Node storage excludes remote volumes and additional
-					devices.
-				</span>
 			</div>
 		</section>
 	);
