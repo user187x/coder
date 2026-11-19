@@ -18,14 +18,17 @@ import {
 	useLinks,
 } from "#/modules/navigation";
 import type { AdminPage } from "./adminQuickLinks";
+import { MenuLabel } from "./InlineMenu";
 
 export function SettingsDestinationMenu({
 	link,
 	className,
 	options,
+	labelBadge,
 }: {
 	link: AdminPage;
 	className?: string;
+	labelBadge?: React.ReactNode;
 	/** More right-click options, after its destinations. */
 	options?: React.ReactNode;
 }) {
@@ -57,7 +60,7 @@ export function SettingsDestinationMenu({
 			>
 				<Link to={link.path}>
 					<link.icon aria-hidden />
-					<span className="truncate">{link.label}</span>
+					<MenuLabel badge={labelBadge}>{link.label}</MenuLabel>
 				</Link>
 			</DropdownMenuItem>
 			{open && (

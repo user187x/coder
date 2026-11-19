@@ -44,15 +44,16 @@ export const HideableRow: React.FC<{
 			data-testid="admin-quick-link"
 			style={{ transform: CSS.Translate.toString(transform), transition }}
 			className={cn(
-				"group/quick relative flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
+				"group/quick flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
 				"hover:bg-surface-secondary/60 hover:ring-1 hover:ring-border focus-within:ring-1 focus-within:ring-border",
-				isDragging && "z-10 bg-surface-secondary shadow-md",
+				isDragging && "relative z-10 bg-surface-secondary shadow-md",
 			)}
 		>
 			<PageMenuItem
 				to={item.path}
 				icon={item.icon}
 				label={item.label}
+				labelBadge={<DefaultViewOrb path={item.path} />}
 				className={cn("min-w-0 flex-1", itemClassName)}
 				panelClassName="order-last"
 				options={
@@ -62,7 +63,6 @@ export const HideableRow: React.FC<{
 					</>
 				}
 			/>
-			<DefaultViewOrb path={item.path} />
 			<DropdownMenuItem
 				aria-label={`Hide ${item.label} under Controls`}
 				title="Hide under Controls"

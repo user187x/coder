@@ -2,6 +2,7 @@ import { PaletteIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import { MenuLabel } from "./InlineMenu";
 import { AnimationsToggleItem } from "./UserDropdown/AnimationsToggleItem";
 import { ThemeToggleItem } from "./UserDropdown/ThemeToggleItem";
 
@@ -9,9 +10,11 @@ export const AppearanceMenuItem = ({
 	to,
 	className,
 	options,
+	labelBadge,
 }: {
 	to: string;
 	className?: string;
+	labelBadge?: React.ReactNode;
 	/** More right-click options, after its own. */
 	options?: React.ReactNode;
 }) => {
@@ -43,7 +46,11 @@ export const AppearanceMenuItem = ({
 			>
 				<Link to={to}>
 					<PaletteIcon aria-hidden />
-					Appearance
+					{labelBadge ? (
+						<MenuLabel badge={labelBadge}>Appearance</MenuLabel>
+					) : (
+						"Appearance"
+					)}
 				</Link>
 			</DropdownMenuItem>
 			{expanded && (

@@ -760,3 +760,19 @@ html:has(.chat-floating-dock[data-dragging]) .settings-chat-dock-slot:empty {
 	padding-left: calc(var(--banner-cut-inner) + 2px);
 	padding-right: 6px;
 }
+
+/* The tip narrows to a point, so it only contributes half its width to the glyph's visual center. */
+.navbar-soft
+	.navbar-start
+	.settings-breadcrumb-root:first-child:has(~ li:not(:empty))
+	> :is(a, button)
+	> svg {
+	translate: calc(var(--crumb-edge) / 4) 0;
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.settings-breadcrumb-root:first-child:has(~ li:not(:empty))
+	> :is(a, button)
+	> svg {
+	translate: calc(var(--crumb-edge) / -4) 0;
+}

@@ -9,9 +9,16 @@ import { Button } from "#/components/Button/Button";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { Label } from "#/components/Label/Label";
 import { Textarea } from "#/components/Textarea/Textarea";
+import { MenuLabel } from "./InlineMenu";
 
 /** Right-click or Shift+F10 opens a quick editor without leaving the dropdown. */
-export const AnnouncementMenuItem = ({ className }: { className?: string }) => {
+export const AnnouncementMenuItem = ({
+	className,
+	labelBadge,
+}: {
+	className?: string;
+	labelBadge?: React.ReactNode;
+}) => {
 	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState<string | null>(null);
 	const id = useId();
@@ -49,7 +56,11 @@ export const AnnouncementMenuItem = ({ className }: { className?: string }) => {
 					title="Right-click to quickly update the announcement"
 				>
 					<MegaphoneIcon aria-hidden />
-					Announcement
+					{labelBadge ? (
+						<MenuLabel badge={labelBadge}>Announcement</MenuLabel>
+					) : (
+						"Announcement"
+					)}
 				</Link>
 			</DropdownMenuItem>
 			{editing && (

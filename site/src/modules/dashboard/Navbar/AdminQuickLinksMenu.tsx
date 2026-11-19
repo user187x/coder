@@ -603,8 +603,10 @@ function DestinationLink({
 	link,
 	className,
 	options,
+	labelBadge,
 }: {
 	link: AdminPage;
+	labelBadge?: React.ReactNode;
 	className?: string;
 	/** Options after "Open" in its right-click menu. */
 	options?: React.ReactNode;
@@ -615,6 +617,7 @@ function DestinationLink({
 				link={link}
 				className={className}
 				options={options}
+				labelBadge={labelBadge}
 			/>
 		);
 	return (
@@ -622,6 +625,7 @@ function DestinationLink({
 			to={link.path}
 			icon={link.icon}
 			label={link.label}
+			labelBadge={labelBadge}
 			className={cn("min-w-0 flex-1", className)}
 			options={
 				<>
@@ -692,10 +696,10 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 			// Pointed at (or holding the keyboard's focus): an oval round the row, and only then its remove and move
 			// controls, so a link is removed or moved only from the row in hand.
 			className={cn(
-				"group/quick relative flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
+				"group/quick flex flex-wrap items-center rounded-full transition-[box-shadow,background-color]",
 				editable &&
 					"hover:bg-surface-secondary/60 hover:ring-1 hover:ring-border focus-within:ring-1 focus-within:ring-border",
-				isDragging && "z-10 bg-surface-secondary shadow-md",
+				isDragging && "relative z-10 bg-surface-secondary shadow-md",
 			)}
 		>
 			{link.id === "chat" ? (
@@ -706,16 +710,21 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					className={cn("min-w-0 flex-1", itemClassName)}
 				/>
 			) : link.id === "announcement" ? (
-				<AnnouncementMenuItem className={cn("min-w-0 flex-1", itemClassName)} />
+				<AnnouncementMenuItem
+					className={cn("min-w-0 flex-1", itemClassName)}
+					labelBadge={<DefaultViewOrb path={link.path} />}
+				/>
 			) : link.id === "customize" ? (
 				<AppearanceMenuItem
 					to={link.path}
 					className={cn("min-w-0 flex-1", itemClassName)}
+					labelBadge={<DefaultViewOrb path={link.path} />}
 					options={<DefaultViewOption path={link.path} />}
 				/>
 			) : (
 				<DestinationLink
 					link={link}
+					labelBadge={<DefaultViewOrb path={link.path} />}
 					className={itemClassName}
 					options={
 						<>
@@ -734,7 +743,6 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					}
 				/>
 			)}
-			{link.id !== "chat" && <DefaultViewOrb path={link.path} />}
 			{editable && (
 				<>
 					<DropdownMenuItem

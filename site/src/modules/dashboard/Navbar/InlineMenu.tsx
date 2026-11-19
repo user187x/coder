@@ -77,23 +77,49 @@ export const OpenMenuItem: React.FC<
 	);
 
 /** An entry that opens a page, with "Open" (and any other options) on a right-click. */
+export function MenuLabel({
+	children,
+	badge,
+}: {
+	children: string;
+	badge?: React.ReactNode;
+}) {
+	return badge ? (
+		<span className="relative min-w-0">
+			<span className="block truncate">{children}</span>
+			{badge}
+		</span>
+	) : (
+		<span className="truncate">{children}</span>
+	);
+}
+
 export const PageMenuItem: React.FC<{
 	to: string;
 	icon: React.ComponentType<{ "aria-hidden"?: boolean }>;
 	label: string;
+	labelBadge?: React.ReactNode;
 	className?: string;
 	/** Options after "Open". */
 	options?: React.ReactNode;
 	/** Where the options go in a row that wraps (order-last puts them under the whole row). */
 	panelClassName?: string;
-}> = ({ to, icon: Icon, label, className, options, panelClassName }) => {
+}> = ({
+	to,
+	icon: Icon,
+	label,
+	labelBadge,
+	className,
+	options,
+	panelClassName,
+}) => {
 	const menu = useInlineMenu();
 	return (
 		<>
 			<DropdownMenuItem asChild className={className} {...menu.trigger}>
 				<Link to={to}>
 					<Icon aria-hidden />
-					<span className="truncate">{label}</span>
+					<MenuLabel badge={labelBadge}>{label}</MenuLabel>
 				</Link>
 			</DropdownMenuItem>
 			{menu.open && (
