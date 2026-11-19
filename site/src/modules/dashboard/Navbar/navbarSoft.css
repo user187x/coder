@@ -21,7 +21,7 @@
 	.navbar-split-menu,
 	.breadcrumb-connected *
 ) {
-	border-radius: 10px;
+	border-radius: var(--navbar-joined-radius, 10px);
 }
 .navbar-soft {
 	padding-inline: var(--navbar-inline-padding);
@@ -180,7 +180,7 @@
 }
 .navbar-soft .navbar-split-menu {
 	padding-right: 0.625rem;
-	border-radius: 9px;
+	border-radius: var(--navbar-joined-radius, 9px);
 }
 .navbar-split-menu:hover,
 .navbar-split-menu[data-state="open"] {
