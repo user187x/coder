@@ -19,7 +19,18 @@ export const NAVBAR_ITEMS = [
 	"account",
 	"action",
 ] as const;
-export type NavbarItem = (typeof NAVBAR_ITEMS)[number];
+export const NAVBAR_DIVIDERS = [
+	"divider-1",
+	"divider-2",
+	"divider-3",
+	"divider-4",
+] as const;
+export const isNavbarDivider = (
+	value: unknown,
+): value is (typeof NAVBAR_DIVIDERS)[number] =>
+	NAVBAR_DIVIDERS.some((divider) => divider === value);
+export type NavbarControl = (typeof NAVBAR_ITEMS)[number];
+export type NavbarItem = NavbarControl | (typeof NAVBAR_DIVIDERS)[number];
 
 /** Each item's name, as the arrange bar and Appearance's Navigation bar card show it. */
 export const NAVBAR_LABELS: Record<NavbarItem, string> = {
@@ -32,11 +43,15 @@ export const NAVBAR_LABELS: Record<NavbarItem, string> = {
 	// admins': the HUD joined to it (one split button)
 	latency: "Latency and HUD",
 	hud: "HUD",
+	"divider-1": "Divider 1",
+	"divider-2": "Divider 2",
+	"divider-3": "Divider 3",
+	"divider-4": "Divider 4",
 };
 const KEY = "coder-ui-navbar-order";
 const START = "coder-ui-navbar-arrange";
 export const isNavbarItem = (value: unknown): value is NavbarItem =>
-	typeof value === "string" && NAVBAR_ITEMS.some((item) => item === value);
+	isNavbarDivider(value) || NAVBAR_ITEMS.some((item) => item === value);
 
 /** Keep existing positions while placing newly customizable tiles at their original edges. */
 export const normalizeOrder = (value: unknown): NavbarItem[] => {
@@ -75,7 +90,7 @@ export const useNavbarOrder = (
 			: readNavbarOrder();
 	const hidden: NavbarItem[] = (layout?.hidden ?? [])
 		.filter(isNavbarItem)
-		.filter((item) => item !== "banner");
+		.filter((item) => item !== "banner" && !isNavbarDivider(item));
 	const deploymentDefault = useMutation({
 		...updateNavbarLayoutDefault(client),
 		onError: (error) =>

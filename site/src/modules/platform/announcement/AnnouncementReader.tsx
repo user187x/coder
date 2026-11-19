@@ -13,6 +13,7 @@ import {
 	DialogContent,
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
+import { NavbarMoveOption } from "#/modules/dashboard/Navbar/NavbarMoveMenu";
 import { AnnouncementImage } from "./AnnouncementImage";
 import { BannerCountdown } from "./BannerCountdown";
 import { BannerBlocks } from "./BannerText";
@@ -29,7 +30,8 @@ import { usePulldownAllowed } from "./usePulldownAllowed";
 export const AnnouncementReader: React.FC<{
 	banner: BannerFields;
 	children: React.ReactElement;
-}> = ({ banner, children }) => {
+	navbarMove?: boolean;
+}> = ({ banner, children, navbarMove }) => {
 	const [open, setOpen] = useState(false);
 	const pulldown = usePulldownAllowed(banner);
 	if (!pulldown) {
@@ -51,6 +53,7 @@ export const AnnouncementReader: React.FC<{
 					<ContextMenuItem onSelect={() => setOpen(true)}>
 						Open announcement in modal
 					</ContextMenuItem>
+					{navbarMove && <NavbarMoveOption divided />}
 				</ContextMenuContent>
 			</ContextMenu>
 			<Dialog open={open} onOpenChange={setOpen}>

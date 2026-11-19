@@ -112,18 +112,47 @@ describe("NavbarView", () => {
 	);
 
 	it.each(["Settings", "Resources", "User menu"])(
-		"keeps right-click on the top-level %s button out of rearrange mode",
+		"offers Move on the top-level %s button",
 		async (name) => {
 			renderNavbar({ canViewHud: true });
 			await userEvent.pointer({
 				target: screen.getByRole("button", { name: new RegExp(`^${name}`) }),
 				keys: "[MouseRight]",
 			});
-			expect(
-				screen.queryByRole("button", { name: "Move Page action" }),
-			).not.toBeInTheDocument();
+			await screen.findByRole("menuitem", { name: "Move" });
 		},
 	);
+
+	it("adds and moves a divider from the context menu and saves on outside click", async () => {
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (settings) => settings);
+		renderNavbar({ canViewHud: true });
+		const user = userEvent.setup();
+		await user.pointer({
+			target: screen.getByRole("button", { name: "Resources" }),
+			keys: "[MouseRight]",
+		});
+		await user.click(await screen.findByRole("menuitem", { name: "Move" }));
+		await user.click(screen.getByRole("button", { name: "Add divider" }));
+		const divider = screen.getByRole("button", { name: "Move Divider 1" });
+		divider.focus();
+		await user.keyboard("{ArrowLeft}");
+		expect(save).not.toHaveBeenCalled();
+
+		await user.click(document.body);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({
+				navbar_layout: {
+					order: expect.arrayContaining(["divider-1", "action"]),
+					hidden: [],
+				},
+			}),
+		);
+		const layout = save.mock.calls[0]?.[0].navbar_layout;
+		expect(layout?.order.at(-2)).toBe("divider-1");
+		expect(layout?.order.at(-1)).toBe("action");
+	});
 
 	it.each([false, true])(
 		"starts arranging on the backstrip (floating: %s)",

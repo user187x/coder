@@ -329,7 +329,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const opening = motion.effects && open.opening && !close.closing;
 
 	return (
-		<AnnouncementReader banner={banner}>
+		<AnnouncementReader banner={banner} navbarMove={inNavbar}>
 			{/* biome-ignore lint/a11y/useKeyWithClickEvents: a pointer shortcut to the Default View, which the keyboard reaches from the Settings menu's quick links */}
 			<div
 				ref={card}

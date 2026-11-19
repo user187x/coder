@@ -26,15 +26,16 @@ READINGS = """SELECT w.organization_id::text, w.id::text, a.id::text, m.key, m.v
 
 def navbar_layout(value):
     items = {'logo', 'workspaces', 'banner', 'latency', 'hud', 'notifications', 'account', 'action'}
+    dividers = {'divider-1', 'divider-2', 'divider-3', 'divider-4'}
     if not isinstance(value, dict) or set(value) != {'order', 'hidden'}:
         raise ValueError('Invalid navbar layout.')
     for entries in value.values():
-        if not isinstance(entries, list) or not all(isinstance(item, str) and item in items for item in entries) or len(set(entries)) != len(entries):
+        if not isinstance(entries, list) or not all(isinstance(item, str) and item in (items | dividers) for item in entries) or len(set(entries)) != len(entries):
             raise ValueError('Invalid navbar layout.')
     order = value['order']
-    if set(order) == items - {'action'}:
+    if set(order) - dividers == items - {'action'}:
         order = [*order, 'action']
-    if set(order) != items or 'banner' in value['hidden']:
+    if set(order) - dividers != items or set(value['hidden']) & (dividers | {'banner'}):
         raise ValueError('The navbar must include all items and keep the banner visible.')
     return {'order': order, 'hidden': value['hidden']}
 

@@ -37,6 +37,7 @@ import { BreadcrumbViewMenu } from "./BreadcrumbMenu";
 import { CategoryDefaultMenu } from "./DefaultViewOption";
 import { MobileMenu } from "./MobileMenu";
 import { NavbarLogo } from "./NavbarLogo";
+import { NavbarMoveMenu, NavbarMoveScope } from "./NavbarMoveMenu";
 import { NavbarResizableGroup } from "./NavbarResizableGroup";
 import { navbarInk, navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
@@ -144,8 +145,10 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				}
 			}
 			for (const item of items) {
-				if (item === before) item.dataset.bannerEdge = "right";
-				else if (item === after) item.dataset.bannerEdge = "left";
+				if (item === before && !item.hasAttribute("data-navbar-divider"))
+					item.dataset.bannerEdge = "right";
+				else if (item === after && !item.hasAttribute("data-navbar-divider"))
+					item.dataset.bannerEdge = "left";
 				else item.removeAttribute("data-banner-edge");
 			}
 		};
@@ -271,9 +274,11 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			className="navbar-soft sticky top-0 z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"
 		>
 			{/* Platform: the logo in a tile like the user's avatar. */}
-			<div className="@[48rem]/dashboard:hidden">
-				<NavbarLogo />
-			</div>
+			<NavbarMoveMenu label="Logo">
+				<div className="@[48rem]/dashboard:hidden">
+					<NavbarLogo />
+				</div>
+			</NavbarMoveMenu>
 			{/* Resizable: the Settings chevron group and the bar's items in one pill */}
 			<NavbarResizableGroup resizable={floating}>
 				{/* A page's own navigation, when its user moved it up here (the admin settings' breadcrumb and categories) */}
@@ -286,34 +291,40 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					{settingsInNavbar &&
 						(settingsMenuPresent || preferences.data?.settings_sidebar) &&
 						!pageCrumb && (
-							<Breadcrumb
-								variant="connected"
-								data-inline=""
-								className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
-							>
-								<BreadcrumbList>
-									<SettingsBreadcrumbRoot />
-									{pageLabel && (
-										<CategoryDefaultMenu path={adminCategory(pathname)?.path}>
-											<BreadcrumbItem>
-												{pageLabel === "Template" ||
-												pageLabel === "Templates" ? (
-													<BreadcrumbViewMenu label={pageLabel}>
-														<TemplateDestinations />
-													</BreadcrumbViewMenu>
-												) : pageLabel === "Workspace" ||
-													pageLabel === "Workspaces" ? (
-													<BreadcrumbViewMenu label={pageLabel}>
-														<WorkspaceDestinations />
-													</BreadcrumbViewMenu>
-												) : (
-													<BreadcrumbPage>{pageLabel}</BreadcrumbPage>
-												)}
-											</BreadcrumbItem>
-										</CategoryDefaultMenu>
-									)}
-								</BreadcrumbList>
-							</Breadcrumb>
+							<NavbarMoveScope.Provider value>
+								<NavbarMoveMenu label="Breadcrumb options">
+									<Breadcrumb
+										variant="connected"
+										data-inline=""
+										className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
+									>
+										<BreadcrumbList>
+											<SettingsBreadcrumbRoot />
+											{pageLabel && (
+												<CategoryDefaultMenu
+													path={adminCategory(pathname)?.path}
+												>
+													<BreadcrumbItem>
+														{pageLabel === "Template" ||
+														pageLabel === "Templates" ? (
+															<BreadcrumbViewMenu label={pageLabel}>
+																<TemplateDestinations />
+															</BreadcrumbViewMenu>
+														) : pageLabel === "Workspace" ||
+															pageLabel === "Workspaces" ? (
+															<BreadcrumbViewMenu label={pageLabel}>
+																<WorkspaceDestinations />
+															</BreadcrumbViewMenu>
+														) : (
+															<BreadcrumbPage>{pageLabel}</BreadcrumbPage>
+														)}
+													</BreadcrumbItem>
+												</CategoryDefaultMenu>
+											)}
+										</BreadcrumbList>
+									</Breadcrumb>
+								</NavbarMoveMenu>
+							</NavbarMoveScope.Provider>
 						)}
 				</div>
 
@@ -389,43 +400,47 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "@[48rem]/dashboard:ml-3" : "@[48rem]/dashboard:hidden"}`}
 			>
 				{supportLinks.filter(isNavbarLink).map((link) => (
-					<div key={link.name} className="hidden @[48rem]/dashboard:block">
-						<SupportButton
-							name={link.name}
-							target={link.target}
-							icon={link.icon}
-						/>
-					</div>
+					<NavbarMoveMenu key={link.name} label={link.name}>
+						<div className="hidden @[48rem]/dashboard:block">
+							<SupportButton
+								name={link.name}
+								target={link.target}
+								icon={link.icon}
+							/>
+						</div>
+					</NavbarMoveMenu>
 				))}
 
-				<div className="@[48rem]/dashboard:hidden">
-					<div className="flex items-center gap-3">
-						<div className="relative">
-							<NotificationsInbox
-								fetchNotifications={API.getInboxNotifications}
-								markAllAsRead={API.markAllInboxNotificationsAsRead}
-								clearAll={PlatformAPI.clearInbox}
-								markNotificationAsRead={(notificationId) =>
-									API.updateInboxNotificationReadStatus(notificationId, {
-										is_read: true,
-									})
-								}
+				<NavbarMoveMenu label="Navigation options">
+					<div className="@[48rem]/dashboard:hidden">
+						<div className="flex items-center gap-3">
+							<div className="relative">
+								<NotificationsInbox
+									fetchNotifications={API.getInboxNotifications}
+									markAllAsRead={API.markAllInboxNotificationsAsRead}
+									clearAll={PlatformAPI.clearInbox}
+									markNotificationAsRead={(notificationId) =>
+										API.updateInboxNotificationReadStatus(notificationId, {
+											is_read: true,
+										})
+									}
+								/>
+								<ChatGate>
+									<ChatInboxIndicator />
+								</ChatGate>
+							</div>
+							<MobileMenu
+								proxyContextValue={proxyContextValue}
+								adminPermissions={adminPermissions}
+								adminQuickLinks={adminQuickLinks?.links}
+								quickLinksEditor={quickLinksEditor}
+								user={user}
+								supportLinks={supportLinks}
+								onSignOut={onSignOut}
 							/>
-							<ChatGate>
-								<ChatInboxIndicator />
-							</ChatGate>
 						</div>
-						<MobileMenu
-							proxyContextValue={proxyContextValue}
-							adminPermissions={adminPermissions}
-							adminQuickLinks={adminQuickLinks?.links}
-							quickLinksEditor={quickLinksEditor}
-							user={user}
-							supportLinks={supportLinks}
-							onSignOut={onSignOut}
-						/>
 					</div>
-				</div>
+				</NavbarMoveMenu>
 			</div>
 		</div>
 	);

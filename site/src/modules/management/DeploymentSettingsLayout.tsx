@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import {
+	ChevronsRightIcon,
 	PanelLeftIcon,
 	PanelRightDashedIcon,
 	PanelRightIcon,
@@ -42,6 +43,10 @@ import {
 } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { CategoryDefaultMenu } from "#/modules/dashboard/Navbar/DefaultViewOption";
 import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
+import {
+	NavbarMoveOption,
+	NavbarMoveScope,
+} from "#/modules/dashboard/Navbar/NavbarMoveMenu";
 import {
 	TemplateDestinations,
 	WorkspaceDestinations,
@@ -154,20 +159,23 @@ const DeploymentSettingsLayout: React.FC = () => {
 			<ContextMenuSeparator />
 			{(
 				[
-					["Side Panel", false, PanelRightIcon],
-					["Side Strip", true, PanelRightDashedIcon],
+					["Side Panel", true, false, PanelRightIcon],
+					["Side Strip", true, true, PanelRightDashedIcon],
+					["Breadcrumb", false, false, ChevronsRightIcon],
 				] as const
-			).map(([label, compact, Icon]) => (
+			).map(([label, docked, compact, Icon]) => (
 				<ContextMenuItem
 					key={label}
 					disabled={
 						placement.isPending ||
-						(preferences.data?.settings_sidebar === true &&
-							Boolean(preferences.data.settings_sidebar_compact) === compact)
+						(Boolean(preferences.data?.settings_sidebar) === docked &&
+							(!docked ||
+								Boolean(preferences.data?.settings_sidebar_compact) ===
+									compact))
 					}
 					onSelect={() =>
 						placement.mutate({
-							settings_sidebar: true,
+							settings_sidebar: docked,
 							settings_sidebar_compact: compact,
 						})
 					}
@@ -185,6 +193,9 @@ const DeploymentSettingsLayout: React.FC = () => {
 			<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
 			<BreadcrumbContextMenuContent aria-label="Settings navigation placement">
 				{placementOptions}
+				<NavbarMoveScope.Consumer>
+					{(navbarMove) => navbarMove && <NavbarMoveOption divided />}
+				</NavbarMoveScope.Consumer>
 			</BreadcrumbContextMenuContent>
 		</ContextMenu>
 	);

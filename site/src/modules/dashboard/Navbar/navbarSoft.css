@@ -726,3 +726,37 @@ html:has(.chat-floating-dock[data-dragging]) .settings-chat-dock-slot:empty {
 	clip-path: none;
 	border-radius: var(--breadcrumb-banner-well);
 }
+
+/* Category glyphs sit between the inner chevron notch and the outer edge of the visible face. */
+.navbar-soft
+	.navbar-start
+	.category-breadcrumb-anchor
+	> .category-breadcrumb-button
+	> svg {
+	translate: calc(var(--crumb-edge) / 4) 0;
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start
+	.category-breadcrumb-anchor
+	> .category-breadcrumb-button
+	> svg {
+	translate: calc(var(--crumb-edge) / -4) 0;
+}
+.navbar-soft
+	.navbar-start[data-banner-edge="right"]
+	.admin-navbar-breadcrumb
+	> ol
+	> li:nth-last-child(1 of li:not(:empty))
+	> .category-breadcrumb-anchor {
+	padding-left: 6px;
+	padding-right: calc(var(--banner-cut-inner) + 2px);
+}
+.navbar-soft[data-navbar-settings-side="right"]
+	.navbar-start[data-banner-edge="left"]
+	.admin-navbar-breadcrumb
+	> ol
+	> li:nth-last-child(1 of li:not(:empty))
+	> .category-breadcrumb-anchor {
+	padding-left: calc(var(--banner-cut-inner) + 2px);
+	padding-right: 6px;
+}

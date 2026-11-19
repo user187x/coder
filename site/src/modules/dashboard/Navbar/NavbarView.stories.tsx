@@ -7,6 +7,7 @@ import { PlatformAPI } from "#/api/platform";
 import { bannerKey, userUIPreferences } from "#/api/queries/platform";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
+import DeploymentSettingsLayout from "#/modules/management/DeploymentSettingsLayout";
 import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
 import {
 	MockBuildInfo,
@@ -21,7 +22,11 @@ import {
 	withDashboardProvider,
 } from "#/testHelpers/storybook";
 import { adminPagesFor, resolveAdminQuickLinks } from "./adminQuickLinks";
-import { NavbarAction, NavbarActionTarget } from "./NavbarAction";
+import {
+	NavbarAction,
+	NavbarActionTarget,
+	NavbarStartTarget,
+} from "./NavbarAction";
 import { NavbarView } from "./NavbarView";
 
 const adminPages = adminPagesFor({
@@ -168,6 +173,28 @@ export const MirroredBreadcrumbFacingAnnouncement: Story = {
 			},
 			{ key: bannerKey, data: { ...MockBanner, receipts: false } },
 		],
+	},
+};
+
+export const SecurityChevronFacingAnnouncement: Story = {
+	...BreadcrumbFacingAnnouncement,
+	parameters: {
+		...BreadcrumbFacingAnnouncement.parameters,
+		reactRouter: reactRouterParameters({
+			location: { path: "/deployment/security" },
+			routing: { path: "/deployment/security" },
+		}),
+	},
+	render: function Render(args) {
+		const [target, setTarget] = useState<HTMLDivElement | null>(null);
+		return (
+			<NavbarStartTarget.Provider value={target}>
+				<div className="@container/dashboard dashboard-frame">
+					<NavbarView {...args} startRef={setTarget} />
+					<DeploymentSettingsLayout />
+				</div>
+			</NavbarStartTarget.Provider>
+		);
 	},
 };
 
@@ -555,8 +582,8 @@ export const CustomizeToolbar: Story = {
 	play: async ({ canvasElement }) => {
 		startNavbarArrange();
 		await userEvent.click(
-			await within(canvasElement).findByRole("button", {
-				name: "Remove Account",
+			await within(canvasElement.ownerDocument.body).findByRole("button", {
+				name: "Add divider",
 			}),
 		);
 	},

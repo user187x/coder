@@ -1,4 +1,5 @@
 import { HouseIcon, XIcon } from "lucide-react";
+import { useContext } from "react";
 import {
 	ContextMenu,
 	ContextMenuItem,
@@ -7,6 +8,7 @@ import {
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
 import { BreadcrumbContextMenuContent } from "./BreadcrumbMenu";
+import { NavbarMoveOption, NavbarMoveScope } from "./NavbarMoveMenu";
 
 /** A page the Default View can be: a plain path, as the user's preferences accept (no fragment or query). */
 const settable = (path: string) => /^\/[a-z0-9][a-z0-9/_-]{0,127}$/.test(path);
@@ -42,6 +44,7 @@ export const CategoryDefaultMenu: React.FC<{
 	children: React.ReactElement;
 	actions?: React.ReactNode;
 }> = ({ path, children, actions }) => {
+	const navbarMove = useContext(NavbarMoveScope);
 	if (!path || !settable(path)) return children;
 	return (
 		<ContextMenu>
@@ -54,6 +57,7 @@ export const CategoryDefaultMenu: React.FC<{
 			<BreadcrumbContextMenuContent aria-label="Category options">
 				<DefaultViewOption path={path} context />
 				{actions}
+				{navbarMove && <NavbarMoveOption divided />}
 			</BreadcrumbContextMenuContent>
 		</ContextMenu>
 	);

@@ -35,17 +35,16 @@ import {
 import { createPortal } from "react-dom";
 import type { NavbarLayout } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
-import {
-	ContextMenu,
-	ContextMenuItem,
-	ContextMenuTrigger,
-} from "#/components/ContextMenu/ContextMenu";
-import { BreadcrumbContextMenuContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
+import { ContextMenuItem } from "#/components/ContextMenu/ContextMenu";
+import { NavbarMoveMenu } from "#/modules/dashboard/Navbar/NavbarMoveMenu";
 import { toCssPx } from "#/utils/appZoom";
 import {
+	isNavbarDivider,
 	isNavbarItem,
+	NAVBAR_DIVIDERS,
 	NAVBAR_ITEMS,
 	NAVBAR_LABELS,
+	type NavbarControl,
 	type NavbarItem,
 	onNavbarArrange,
 	useNavbarOrder,
@@ -102,7 +101,7 @@ export const restrictToRow =
 
 type NavbarArrangeProps = {
 	/** Each item's content; null for one this user does not have (it is left out). */
-	items: Record<NavbarItem, React.ReactNode | null>;
+	items: Record<NavbarControl, React.ReactNode | null>;
 	className?: string;
 	defaultLayout?: NavbarLayout;
 	canSetDefault?: boolean;
@@ -136,11 +135,14 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		: "Settings chevrons";
 	const labelFor = (id: string | number) =>
 		id === SETTINGS_CHEVRONS ? settingsLabel : arrangeLabel(id);
-	const done = () => commit(() => setArranging(false));
-	const escapeDone = useEffectEvent(done);
+	const done = () => {
+		if (!saving) commit(() => setArranging(false));
+	};
+	const finishArranging = useEffectEvent(done);
 	const [arranging, setArranging] = useState(false);
 	const toolbar = useRef<HTMLDivElement>(null);
 	const controls = useRef<HTMLDivElement>(null);
+	const dialog = useRef<HTMLDivElement>(null);
 	const headingId = useId();
 	const doneButton = useRef<HTMLButtonElement>(null);
 	const [navbarBottom, setNavbarBottom] = useState(0);
@@ -150,8 +152,10 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 	});
 	const [announcement, setAnnouncement] = useState("");
 	const available = order.filter(
-		(id) => items[id] !== null || (arranging && id === "logo"),
+		(id) =>
+			isNavbarDivider(id) || items[id] !== null || (arranging && id === "logo"),
 	);
+	const freeDivider = NAVBAR_DIVIDERS.find((id) => !order.includes(id));
 	const visible = available.filter((id) => !hidden.includes(id));
 	const removed = hidden.filter((id) => available.includes(id));
 	const sensors = useSensors(
@@ -216,11 +220,28 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		const onKey = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
 				event.preventDefault();
-				escapeDone();
+				finishArranging();
 			}
 		};
+		const onClickOutside = (event: MouseEvent) => {
+			const target = event.target;
+			if (
+				!(target instanceof Node) ||
+				dialog.current?.contains(target) ||
+				toolbar.current?.closest(".navbar-soft")?.contains(target) ||
+				toolbar.current?.contains(target)
+			)
+				return;
+			event.preventDefault();
+			event.stopPropagation();
+			finishArranging();
+		};
 		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		window.addEventListener("click", onClickOutside, true);
+		return () => {
+			window.removeEventListener("keydown", onKey);
+			window.removeEventListener("click", onClickOutside, true);
+		};
 	}, [arranging]);
 
 	// Moves among the visible items; items this user does not have keep their place.
@@ -242,7 +263,12 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 
 	// What an item shows, in the navbar and in the restore previews alike.
 	const itemContent = (id: NavbarItem) =>
-		id === "logo" && items.logo === null ? (
+		isNavbarDivider(id) ? (
+			<span
+				className="h-8 w-0.5 rounded-full bg-content-secondary/60"
+				aria-hidden
+			/>
+		) : id === "logo" && items.logo === null ? (
 			<span className="inline-flex h-10 items-center gap-2 rounded-md border border-dashed border-border px-2 text-xs text-content-secondary">
 				<ImageIcon className="size-4" aria-hidden />
 				Logo
@@ -329,35 +355,43 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 					strategy={horizontalListSortingStrategy}
 				>
 					{/* A fixed order in the page (CSS order places them), so a moved button keeps the keyboard focus. */}
-					{NAVBAR_ITEMS.filter((id) => visible.includes(id)).map((id) => (
-						<ArrangeItem
-							key={id}
-							id={id}
-							position={visible.indexOf(id)}
-							arranging={arranging}
-							onMove={(by) => {
-								const over = visible[visible.indexOf(id) + by];
-								if (over) {
-									moveTo(id, over);
+					{[...NAVBAR_ITEMS, ...NAVBAR_DIVIDERS]
+						.filter((id) => visible.includes(id))
+						.map((id) => (
+							<ArrangeItem
+								key={id}
+								id={id}
+								position={visible.indexOf(id)}
+								arranging={arranging}
+								onMove={(by) => {
+									const over = visible[visible.indexOf(id) + by];
+									if (over) {
+										moveTo(id, over);
+									}
+								}}
+								onDone={done}
+								onRemove={() =>
+									isNavbarDivider(id)
+										? save(order.filter((item) => item !== id))
+										: save(order, [...hidden, id])
 								}
-							}}
-							onDone={done}
-							onRemove={() => save(order, [...hidden, id])}
-							onHide={
-								!arranging && visible.indexOf(id) > visible.indexOf("banner")
-									? () => hide(id)
-									: undefined
-							}
-							hideDisabled={saving}
-						>
-							{arranging && id === "action" && (
-								<span className="flex h-10 items-center rounded-md bg-surface-secondary px-3 text-xs text-content-secondary">
-									{NAVBAR_LABELS.action}
-								</span>
-							)}
-							{itemContent(id)}
-						</ArrangeItem>
-					))}
+								onHide={
+									!arranging &&
+									!isNavbarDivider(id) &&
+									visible.indexOf(id) > visible.indexOf("banner")
+										? () => hide(id)
+										: undefined
+								}
+								hideDisabled={saving}
+							>
+								{arranging && id === "action" && (
+									<span className="flex h-10 items-center rounded-md bg-surface-secondary px-3 text-xs text-content-secondary">
+										{NAVBAR_LABELS.action}
+									</span>
+								)}
+								{itemContent(id)}
+							</ArrangeItem>
+						))}
 				</SortableContext>
 			</DndContext>
 			{arranging &&
@@ -372,6 +406,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 						}}
 					>
 						<div
+							ref={dialog}
 							role="dialog"
 							aria-labelledby={headingId}
 							className="flex w-full max-w-5xl max-h-full flex-col overflow-y-auto rounded-xl border border-solid border-border bg-surface-primary text-sm text-content-secondary shadow-xl"
@@ -390,6 +425,17 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 										Settings › Appearance to display it.
 									</p>
 								)}
+								<Button
+									size="sm"
+									variant="outline"
+									className="mt-4"
+									disabled={!freeDivider || saving}
+									onClick={() => {
+										if (freeDivider) save([...order, freeDivider]);
+									}}
+								>
+									Add divider
+								</Button>
 								<div
 									className="mt-4 flex flex-wrap items-center gap-2"
 									role="group"
@@ -537,7 +583,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 
 	const tile = (
 		<div
-			ref={id === "action" && onHide ? forwardActionContextMenu : undefined}
+			ref={id === "action" && !arranging ? forwardActionContextMenu : undefined}
 			className={cn(
 				"flex min-w-0 flex-1",
 				arranging && "pointer-events-none opacity-90",
@@ -553,6 +599,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 		<div
 			ref={setNodeRef}
 			data-navbar-item={id}
+			data-navbar-divider={isNavbarDivider(id) || undefined}
 			style={{
 				order: position,
 				transform: CSS.Translate.toString(transform),
@@ -561,6 +608,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 			className={cn(
 				"relative",
 				isBanner ? "flex min-w-0 flex-1" : "shrink-0",
+				isNavbarDivider(id) && "px-1",
 				isDragging && "z-20",
 			)}
 		>
@@ -572,16 +620,20 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 				>
 					Announcement banner
 				</div>
-			) : onHide ? (
-				<ContextMenu>
-					<ContextMenuTrigger asChild>{tile}</ContextMenuTrigger>
-					<BreadcrumbContextMenuContent aria-label={label}>
-						<ContextMenuItem disabled={hideDisabled} onSelect={onHide}>
-							<EyeOffIcon aria-hidden />
-							Hide
-						</ContextMenuItem>
-					</BreadcrumbContextMenuContent>
-				</ContextMenu>
+			) : !arranging ? (
+				<NavbarMoveMenu
+					label={label}
+					actions={
+						onHide && (
+							<ContextMenuItem disabled={hideDisabled} onSelect={onHide}>
+								<EyeOffIcon aria-hidden />
+								Hide
+							</ContextMenuItem>
+						)
+					}
+				>
+					{tile}
+				</NavbarMoveMenu>
 			) : (
 				tile
 			)}

@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import { createPortal } from "react-dom";
+import { NavbarMoveMenu, NavbarMoveScope } from "./NavbarMoveMenu";
 
 export const NavbarActionTarget = createContext<HTMLElement | null | undefined>(
 	undefined,
@@ -26,5 +27,14 @@ export function NavbarStart({
 }) {
 	const target = useContext(NavbarStartTarget);
 	if (target === undefined && inlineWithoutNavbar) return children;
-	return target ? createPortal(children, target) : null;
+	return target
+		? createPortal(
+				<NavbarMoveScope.Provider value>
+					<NavbarMoveMenu label="Breadcrumb options">
+						<div className="contents">{children}</div>
+					</NavbarMoveMenu>
+				</NavbarMoveScope.Provider>,
+				target,
+			)
+		: null;
 }

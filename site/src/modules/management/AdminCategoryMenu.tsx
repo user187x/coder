@@ -1,5 +1,6 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { GaugeIcon, MenuIcon } from "lucide-react";
+import { useContext } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link } from "react-router";
 import { toast } from "sonner";
@@ -23,6 +24,10 @@ import {
 	settingsPagesFor,
 } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { BreadcrumbContextMenuContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
+import {
+	NavbarMoveOption,
+	NavbarMoveScope,
+} from "#/modules/dashboard/Navbar/NavbarMoveMenu";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { orderCategories, SortableCategories } from "./SortableCategories";
@@ -34,6 +39,7 @@ export const AdminCategoryMenu = ({
 }: {
 	fallbackPath?: string;
 }) => {
+	const navbarMove = useContext(NavbarMoveScope);
 	const { permissions } = useAuthenticated();
 	const { buildInfo, canViewOrganizationSettings } = useDashboard();
 	const features = useFeatureVisibility();
@@ -138,6 +144,7 @@ export const AdminCategoryMenu = ({
 						),
 					}))}
 				/>
+				{navbarMove && <NavbarMoveOption divided />}
 			</BreadcrumbContextMenuContent>
 		</ContextMenu>
 	);

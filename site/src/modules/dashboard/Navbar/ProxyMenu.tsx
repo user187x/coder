@@ -48,6 +48,7 @@ import type { AdminPage } from "./adminQuickLinks";
 import { CompactQuickLinks } from "./CompactQuickLinkMenu";
 import { HudHeartbeat } from "./HudHeartbeat";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
+import { NavbarMoveMenu } from "./NavbarMoveMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
 import "./settingsMenuSkeuo.css";
@@ -385,23 +386,27 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				</div>
 				{breadcrumbHost &&
 					createPortal(
-						<DropdownMenuTrigger asChild>
-							<button
-								ref={trigger}
-								type="button"
-								className="settings-breadcrumb-trigger"
-								aria-label="Settings"
-								title="Open Settings"
-								data-testid="navbar-latency-controls"
-								data-unread-glow={glow || undefined}
-								// One click opens it, and another closes it (the menu's own outside-click is told to leave
-								// this button to it).
-								onPointerDown={(event) => event.preventDefault()}
-								onClick={() => changeOpen(!open)}
-							>
-								<MenuIcon aria-hidden className="size-4 shrink-0" />
-							</button>
-						</DropdownMenuTrigger>,
+						<NavbarBreadcrumbTrigger
+							inNavbar={Boolean(breadcrumbHost.closest(".navbar-start"))}
+						>
+							<DropdownMenuTrigger asChild>
+								<button
+									ref={trigger}
+									type="button"
+									className="settings-breadcrumb-trigger"
+									aria-label="Settings"
+									title="Open Settings"
+									data-testid="navbar-latency-controls"
+									data-unread-glow={glow || undefined}
+									// One click opens it, and another closes it (the menu's own outside-click is told to leave
+									// this button to it).
+									onPointerDown={(event) => event.preventDefault()}
+									onClick={() => changeOpen(!open)}
+								>
+									<MenuIcon aria-hidden className="size-4 shrink-0" />
+								</button>
+							</DropdownMenuTrigger>
+						</NavbarBreadcrumbTrigger>,
 						breadcrumbHost,
 					)}
 				<DropdownMenuContent
@@ -796,3 +801,17 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		</>
 	);
 };
+
+function NavbarBreadcrumbTrigger({
+	inNavbar,
+	children,
+}: {
+	inNavbar: boolean;
+	children: React.ReactElement;
+}) {
+	return inNavbar ? (
+		<NavbarMoveMenu label="Settings">{children}</NavbarMoveMenu>
+	) : (
+		children
+	);
+}

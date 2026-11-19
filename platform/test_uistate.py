@@ -80,6 +80,15 @@ class PreferencesTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             navbar_layout({'order': order, 'hidden': ['banner']})
 
+    def test_optional_navbar_dividers(self):
+        order = ['logo', 'workspaces', 'banner', 'latency', 'hud', 'notifications', 'account', 'action']
+        layout = {'order': [*order[:2], 'divider-1', *order[2:], 'divider-4'], 'hidden': []}
+        self.assertEqual(navbar_layout(layout), layout)
+        with self.assertRaises(ValueError):
+            navbar_layout({'order': [*order, 'divider-5'], 'hidden': []})
+        with self.assertRaises(ValueError):
+            navbar_layout({'order': [*order, 'divider-1'], 'hidden': ['divider-1']})
+
     def test_settings_menu_hidden(self):
         self.state.preferences('user-id', {'settings_menu_hidden': ['audit-logs', 'organizations']})
         self.state.preferences('user-id', {'settings_menu_hidden': None})
