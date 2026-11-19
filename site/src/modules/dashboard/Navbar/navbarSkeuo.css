@@ -134,17 +134,22 @@
 	border-radius: var(--navbar-pill-radius);
 }
 
-/* A full-height cutout meets the horizontal edges without leaving a lip. */
+/* With the vertical radius equal to the well height, 1 / (1 - sqrt(3) / 2) makes the arc meet both tips. */
 .navbar-soft [data-banner-edge] {
 	--banner-cutout-depth: 0.5625rem;
+	--banner-cutout-radius: calc(var(--banner-cutout-depth) * 7.4641);
+	--banner-cutout-offset: calc(
+		var(--banner-cutout-radius) -
+		var(--banner-cutout-depth)
+	);
 	--banner-join-rim: 2px;
 	--banner-join-gap: calc(var(--navbar-control-gap) * 0.58);
 }
 .navbar-soft [data-banner-edge="left"] {
-	--banner-cutout-origin: 0%;
+	--banner-cutout-origin: calc(0% - var(--banner-cutout-offset));
 }
 .navbar-soft [data-banner-edge="right"] {
-	--banner-cutout-origin: 100%;
+	--banner-cutout-origin: calc(100% + var(--banner-cutout-offset));
 }
 .navbar-soft
 	:is(.navbar-start, [data-navbar-item])[data-banner-edge]:not(
@@ -152,9 +157,10 @@
 	),
 .navbar-soft [data-navbar-item][data-banner-edge] > :first-child {
 	mask-image: radial-gradient(
-		ellipse var(--banner-cutout-depth) 50% at var(--banner-cutout-origin) center,
-		transparent calc(100% - 0.5px),
-		black 100%
+		ellipse var(--banner-cutout-radius) 100% at var(--banner-cutout-origin)
+			center,
+		transparent 100%,
+		black calc(100% + 0.25px)
 	);
 }
 .navbar-soft [data-navbar-item][data-banner-edge]:not(.navbar-resize-handle) {
