@@ -608,7 +608,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 			className={cn(
 				"relative",
 				isBanner ? "flex min-w-0 flex-1" : "shrink-0",
-				isNavbarDivider(id) && "px-1",
+				isNavbarDivider(id) && "flex items-center px-1",
 				isDragging && "z-20",
 			)}
 		>
