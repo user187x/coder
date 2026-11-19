@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import {
 	GaugeIcon,
+	MenuIcon,
 	MonitorIcon,
 	PanelRightCloseIcon,
 	PanelRightDashedIcon,
@@ -34,7 +35,6 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
-import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
 import { WorkspaceGrid } from "#/modules/platform/workspaceGrid/WorkspaceGrid";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
@@ -44,7 +44,7 @@ import {
 	type AdminSettingsPermissions,
 	canViewAdminSettings,
 } from "./AdminSettings";
-import { type AdminPage, defaultHomePresentation } from "./adminQuickLinks";
+import type { AdminPage } from "./adminQuickLinks";
 import { CompactQuickLinks } from "./CompactQuickLinkMenu";
 import { HudHeartbeat } from "./HudHeartbeat";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
@@ -260,10 +260,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		</DropdownMenuItem>
 	);
 
-	const defaultHome = useSettingsDefaultView();
-	const { label: homeLabel, icon: HomeIcon } = defaultHomePresentation(
-		defaultHome.path,
-	);
 	const reading = (
 		<>
 			<span className="inline-flex items-center gap-1.5">
@@ -396,11 +392,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								ref={trigger}
 								type="button"
 								className="settings-breadcrumb-trigger"
-								title={
-									homeLabel === "Settings"
-										? "Settings"
-										: `${homeLabel}: open Settings`
-								}
+								aria-label="Settings"
+								title="Open Settings"
 								data-testid="navbar-latency-controls"
 								data-unread-glow={glow || undefined}
 								// One click opens it, and another closes it (the menu's own outside-click is told to leave
@@ -408,8 +401,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								onPointerDown={(event) => event.preventDefault()}
 								onClick={() => changeOpen(!open)}
 							>
-								<HomeIcon aria-hidden className="size-4 shrink-0" />
-								{homeLabel}
+								<MenuIcon aria-hidden className="size-4 shrink-0" />
 							</button>
 						</DropdownMenuTrigger>,
 						breadcrumbHost,

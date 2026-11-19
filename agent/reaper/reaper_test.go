@@ -187,9 +187,11 @@ func TestReapInterrupt(t *testing.T) {
 	defer signal.Stop(usrSig)
 
 	go func() {
+		var reapLock sync.RWMutex
 		opts := append([]reaper.Option{
 			reaper.WithPIDCallback(pids),
 			reaper.WithCatchSignals(os.Interrupt),
+			reaper.WithReapLock(&reapLock),
 			// Signal propagation does not extend to children of children, so
 			// we create a little bash script to ensure sleep is interrupted.
 			reaper.WithExecArgs("/bin/sh", "-c", fmt.Sprintf(
@@ -197,10 +199,9 @@ func TestReapInterrupt(t *testing.T) {
 				os.Getpid(), os.Getpid(),
 			)),
 		}, withDone(t)...)
-		exitCode, err := reaper.ForkReap(opts...)
-		// The child exits with 128 + SIGTERM (15) = 143, but the trap catches
-		// SIGINT and sends SIGTERM to the sleep process, so exit code varies.
-		_ = exitCode
+		reapLock.RLock()
+		_, err := reaper.ForkReap(opts...)
+		reapLock.RUnlock()
 		errC <- err
 	}()
 

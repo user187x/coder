@@ -18,7 +18,6 @@ import {
 	MonitorIcon,
 	NetworkIcon,
 	PaletteIcon,
-	SettingsIcon,
 	TagIcon,
 	UsersIcon,
 	WaypointsIcon,
@@ -308,11 +307,9 @@ export const adminCategory = (pathname: string): AdminPage | null => {
 	return category;
 };
 
-/** The home destination's appearance on the root chevron. */
-export const defaultHomePresentation = (path: string | null) => {
-	const page = path ? adminCategory(path) : null;
-	return { label: page?.label ?? "Settings", icon: page?.icon ?? SettingsIcon };
-};
+/** Accessible name for a root link that opens the saved home. */
+export const defaultHomeLabel = (path: string | null) =>
+	(path ? adminCategory(path)?.label : null) ?? "Settings";
 
 /** The category's label, e.g. "Health" for /health/derp/regions/1. */
 export const adminCategoryLabel = (pathname: string): string | null =>

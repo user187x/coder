@@ -23,7 +23,7 @@ it("navigates from the right-click category menu", async () => {
 	expect(router.state.location.pathname).toBe("/deployment/customize");
 });
 
-it("labels the root chevron with the saved home and opens it", async () => {
+it("opens the saved home from the root chevron", async () => {
 	const read = vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 		settings_default_view: "/deployment/storage",
 	});

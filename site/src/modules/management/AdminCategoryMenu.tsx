@@ -1,5 +1,5 @@
 import { arrayMove } from "@dnd-kit/sortable";
-import { GaugeIcon } from "lucide-react";
+import { GaugeIcon, MenuIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link } from "react-router";
 import { toast } from "sonner";
@@ -19,7 +19,7 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { settingsUtilityPages } from "#/modules/dashboard/Navbar/AdminSettings";
 import {
 	canonicalAdminPageId,
-	defaultHomePresentation,
+	defaultHomeLabel,
 	settingsPagesFor,
 } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { BreadcrumbContextMenuContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
@@ -41,7 +41,6 @@ export const AdminCategoryMenu = ({
 	const preferences = useQuery(preferenceSettings());
 	const save = useMutation(updatePreferenceSettings(client));
 	const defaultView = useSettingsDefaultView();
-	const { label, icon: HomeIcon } = defaultHomePresentation(defaultView.path);
 	const order = preferences.data?.admin_sidebar_order ?? [];
 	const pages = [
 		...(permissions.viewDeploymentConfig
@@ -94,10 +93,10 @@ export const AdminCategoryMenu = ({
 				<BreadcrumbLink
 					to={defaultView.path ?? fallbackPath}
 					end
+					aria-label={defaultHomeLabel(defaultView.path)}
 					title="Right-click for admin categories"
 				>
-					<HomeIcon aria-hidden className="size-4 shrink-0" />
-					<span className="min-w-0 truncate">{label}</span>
+					<MenuIcon aria-hidden className="size-4 shrink-0" />
 				</BreadcrumbLink>
 			</ContextMenuTrigger>
 			<BreadcrumbContextMenuContent aria-label="Admin categories">

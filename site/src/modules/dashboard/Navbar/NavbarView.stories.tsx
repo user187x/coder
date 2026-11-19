@@ -15,7 +15,10 @@ import {
 } from "#/testHelpers/entities";
 import { pixelWithDesktop, pixelWithTablet } from "#/testHelpers/pixel";
 import { MockBanner } from "#/testHelpers/platform";
-import { withDashboardProvider } from "#/testHelpers/storybook";
+import {
+	withAuthProvider,
+	withDashboardProvider,
+} from "#/testHelpers/storybook";
 import { adminPagesFor, resolveAdminQuickLinks } from "./adminQuickLinks";
 import { NavbarAction, NavbarActionTarget } from "./NavbarAction";
 import { NavbarView } from "./NavbarView";
@@ -67,7 +70,10 @@ export const ResourcesMenu: Story = {
 };
 
 export const AccountActionAlignment: Story = {
+	decorators: [withAuthProvider],
 	parameters: {
+		user: MockUserOwner,
+		permissions: MockPermissions,
 		pixel: { matrix: pixelWithDesktop },
 		queries: [
 			{
@@ -113,7 +119,11 @@ export const RightAccountActionAlignment: Story = {
 		queries: [
 			{
 				key: userUIPreferences().queryKey,
-				data: { admin_nav_in_navbar: true, navbar_settings_side: "right" },
+				data: {
+					admin_nav_in_navbar: true,
+					navbar_settings_side: "right",
+					settings_default_view: "/dashboard",
+				},
 			},
 			{
 				key: bannerKey,

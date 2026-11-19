@@ -19,25 +19,14 @@ func IsInitProcess() bool {
 	return os.Getpid() == 1
 }
 
-// startSignalForwarding registers signal handlers synchronously
-// then forwards caught signals to the child in a background
-// goroutine. Registering before the goroutine starts ensures no
-// signal is lost between ForkExec and the handler being ready.
-func startSignalForwarding(logger slog.Logger, pid int, sigs []os.Signal) {
-	if len(sigs) == 0 {
-		return
-	}
-
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, sigs...)
-
+// startSignalForwarding forwards signals buffered before and after the child starts.
+func startSignalForwarding(logger slog.Logger, pid int, sigs []os.Signal, sc <-chan os.Signal) {
 	logger.Info(context.Background(), "reaper catching signals",
 		slog.F("signals", sigs),
 		slog.F("child_pid", pid),
 	)
 
 	go func() {
-		defer signal.Stop(sc)
 		for s := range sc {
 			sig, ok := s.(syscall.Signal)
 			if ok {
@@ -94,13 +83,26 @@ func ForkReap(opt ...Option) (int, error) {
 		},
 	}
 
+	var signals chan os.Signal
+	if len(opts.CatchSignals) > 0 {
+		// The child can signal readiness as soon as ForkExec starts it.
+		signals = make(chan os.Signal, 1)
+		signal.Notify(signals, opts.CatchSignals...)
+		defer func() {
+			signal.Stop(signals)
+			close(signals)
+		}()
+	}
+
 	//#nosec G204
 	pid, err := syscall.ForkExec(opts.ExecArgs[0], opts.ExecArgs, pattrs)
 	if err != nil {
 		return 1, xerrors.Errorf("fork exec: %w", err)
 	}
 
-	startSignalForwarding(opts.Logger, pid, opts.CatchSignals)
+	if signals != nil {
+		startSignalForwarding(opts.Logger, pid, opts.CatchSignals, signals)
+	}
 
 	var wstatus syscall.WaitStatus
 	_, err = syscall.Wait4(pid, &wstatus, 0, nil)

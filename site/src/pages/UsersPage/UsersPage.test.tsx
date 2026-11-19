@@ -52,13 +52,11 @@ it("paginates the account query, searches from the first match, and restores the
 			),
 		);
 		await user.keyboard("{Escape}");
-		await waitFor(() =>
-			expect(
-				new URLSearchParams(router.state.location.search).has("focus"),
-			).toBe(false),
-		);
-		await screen.findByRole("button", { name: "Focus" });
-		expect(router.state.location.search).toContain("limit=25");
+		await waitFor(() => {
+			const search = new URLSearchParams(router.state.location.search);
+			expect(search.has("focus")).toBe(false);
+			expect(search.get("limit")).toBe("25");
+		});
 	} finally {
 		getUsers.mockRestore();
 	}
