@@ -151,7 +151,10 @@
 	--banner-cutout-origin: 100%;
 	--banner-cutout-direction: -1;
 }
-.navbar-soft [data-banner-edge],
+.navbar-soft
+	:is(.navbar-start, [data-navbar-item])[data-banner-edge]:not(
+		.navbar-resize-handle
+	),
 .navbar-soft [data-navbar-item][data-banner-edge] > :first-child {
 	mask-image: radial-gradient(
 		circle calc(var(--banner-end-radius) + var(--banner-cutout-inset)) at

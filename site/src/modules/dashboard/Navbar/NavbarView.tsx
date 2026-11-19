@@ -102,11 +102,12 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 		const observed = new Set<HTMLElement>();
 		const updateNeighbors = () => {
 			const items = navbar.querySelectorAll<HTMLElement>(
-				".navbar-start, .navbar-arrange > [data-navbar-item]",
+				".navbar-start:not(.navbar-resize-handle), .navbar-arrange > [data-navbar-item]:not(.navbar-resize-handle)",
 			);
 			const currentItems = new Set(items);
 			for (const item of observed) {
 				if (!currentItems.has(item)) {
+					item.removeAttribute("data-banner-edge");
 					resize.unobserve(item);
 					observed.delete(item);
 				}
