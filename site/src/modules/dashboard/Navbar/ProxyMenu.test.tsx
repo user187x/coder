@@ -436,7 +436,10 @@ describe("ProxyMenu", () => {
 			});
 			const user = userEvent.setup();
 			const slot = document.createElement("li");
-			document.body.append(slot);
+			const navbarStart = document.createElement("ul");
+			navbarStart.className = "navbar-start";
+			navbarStart.append(slot);
+			document.body.append(navbarStart);
 			renderWithAuth(
 				<ProxyMenu
 					proxyContextValue={value}
@@ -467,8 +470,22 @@ describe("ProxyMenu", () => {
 			await waitFor(() =>
 				expect(screen.queryByTestId("navbar-latency-controls-menu")).toBeNull(),
 			);
+			const save = vi
+				.spyOn(PlatformAPI, "setUserUIPreferences")
+				.mockResolvedValue({
+					settings_sidebar: true,
+					settings_sidebar_compact: true,
+				});
+			await user.pointer({ target: trigger, keys: "[MouseRight]" });
+			await user.click(
+				await screen.findByRole("menuitem", { name: "Side Strip" }),
+			);
+			expect(save).toHaveBeenCalledWith({
+				settings_sidebar: true,
+				settings_sidebar_compact: true,
+			});
 			act(() => leave?.());
-			slot.remove();
+			navbarStart.remove();
 		},
 	);
 });

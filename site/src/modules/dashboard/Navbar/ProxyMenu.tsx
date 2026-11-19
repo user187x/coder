@@ -51,6 +51,7 @@ import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { NavbarMoveMenu } from "./NavbarMoveMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { type SettingsFace, SettingsFacePanel } from "./SettingsFacePanel";
+import { SettingsRootMenu } from "./SettingsRootMenu";
 import "./settingsMenuSkeuo.css";
 import { toScreenPx } from "#/utils/appZoom";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
@@ -388,6 +389,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					createPortal(
 						<NavbarBreadcrumbTrigger
 							inNavbar={Boolean(breadcrumbHost.closest(".navbar-start"))}
+							undocked={!docked}
 						>
 							<DropdownMenuTrigger asChild>
 								<button
@@ -804,11 +806,15 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 function NavbarBreadcrumbTrigger({
 	inNavbar,
+	undocked,
 	children,
 }: {
 	inNavbar: boolean;
+	undocked: boolean;
 	children: React.ReactElement;
 }) {
+	if (inNavbar && undocked)
+		return <SettingsRootMenu>{children}</SettingsRootMenu>;
 	return inNavbar ? (
 		<NavbarMoveMenu label="Settings">{children}</NavbarMoveMenu>
 	) : (

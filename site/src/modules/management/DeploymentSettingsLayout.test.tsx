@@ -344,13 +344,14 @@ it("keeps the page action and categories in the navbar with an old Beside Page p
 			read.mockResolvedValue(prefs);
 			return prefs;
 		});
-	await user.pointer({ target: category, keys: "[MouseRight]" });
+	const root = within(breadcrumb).getByRole("link", { name: "Settings" });
+	await user.pointer({ target: root, keys: "[MouseRight]" });
 	await user.click(await screen.findByRole("menuitem", { name: "Right Side" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({ navbar_settings_side: "right" }),
 	);
 
-	await user.pointer({ target: category, keys: "[MouseRight]" });
+	await user.pointer({ target: root, keys: "[MouseRight]" });
 	const left = await screen.findByRole("menuitem", { name: "Left Side" });
 	await waitFor(() =>
 		expect(left).not.toHaveAttribute("aria-disabled", "true"),
@@ -360,12 +361,12 @@ it("keeps the page action and categories in the navbar with an old Beside Page p
 		expect(save).toHaveBeenCalledWith({ navbar_settings_side: "left" }),
 	);
 
-	for (const [label, docked, compact] of [
-		["Side Strip", true, true],
-		["Side Panel", true, false],
-		["Breadcrumb", false, false],
+	for (const [label, docked, compact, target] of [
+		["Side Strip", true, true, root],
+		["Side Panel", true, false, category],
+		["Breadcrumb", false, false, category],
 	] as const) {
-		await user.pointer({ target: category, keys: "[MouseRight]" });
+		await user.pointer({ target, keys: "[MouseRight]" });
 		await user.click(await screen.findByRole("menuitem", { name: label }));
 		await waitFor(() =>
 			expect(save).toHaveBeenCalledWith({

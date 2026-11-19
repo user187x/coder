@@ -1,30 +1,18 @@
 import { cn } from "cn";
-import {
-	ChevronsRightIcon,
-	PanelLeftIcon,
-	PanelRightDashedIcon,
-	PanelRightIcon,
-	SettingsIcon,
-} from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 import { Suspense, useId, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 import { Link, Navigate, Outlet, useLocation } from "react-router";
 import { INTRO_DURATION } from "#/api/platform";
 import {
 	banner as bannerQuery,
-	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
 import {
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "#/components/Breadcrumb/Breadcrumb";
-import {
-	ContextMenu,
-	ContextMenuItem,
-	ContextMenuSeparator,
-	ContextMenuTrigger,
-} from "#/components/ContextMenu/ContextMenu";
+import { ContextMenuSeparator } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { PageLoader } from "#/components/Loader/Loader";
 import {
@@ -36,26 +24,21 @@ import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import {
-	BreadcrumbContextMenuContent,
 	BreadcrumbMenuPanel,
 	BreadcrumbViewMenu,
 	breadcrumbMenuClass,
 } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { CategoryDefaultMenu } from "#/modules/dashboard/Navbar/DefaultViewOption";
 import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
-import {
-	NavbarMoveOption,
-	NavbarMoveScope,
-} from "#/modules/dashboard/Navbar/NavbarMoveMenu";
+import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
 import {
 	TemplateDestinations,
 	WorkspaceDestinations,
 } from "#/modules/dashboard/Navbar/SettingsDestinationMenu";
+import { SettingsPlacementOptions } from "#/modules/dashboard/Navbar/SettingsRootMenu";
 import {
 	navbarSettingsSide,
-	settingsMenuSlot,
 	useRegisterPageSettingsBreadcrumb,
-	useSettingsMenuPresent,
 } from "#/modules/dashboard/Navbar/settingsMenuHost";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
@@ -67,7 +50,6 @@ import {
 import { AccountCreationMenuItems } from "#/modules/users/AccountCreationMenuItems";
 import { HEALTH_SECTIONS } from "#/pages/HealthPage/healthSections";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
-import { AdminCategoryMenu } from "./AdminCategoryMenu";
 import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 import { DeploymentSidebar } from "./DeploymentSidebar";
 import { useSettingsDefaultView } from "./settingsDefaultView";
@@ -79,14 +61,11 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const location = useLocation();
 	const sidebarId = useId();
 	const defaultView = useSettingsDefaultView();
-	const queryClient = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
-	const placement = useMutation(updateUserUIPreferences(queryClient));
 	// The navbar's end it sits at; on the right its popover hangs to the left.
 	const side = navbarSettingsSide(preferences.data);
 	const [categoriesOpen, setCategoriesOpen] = useState(false);
 	// In the navbar, the Settings chevron opens the navbar's Settings menu, where there is one.
-	const settingsMenu = useSettingsMenuPresent();
 	// The navbar shows its own Settings chevron on every other page; here this breadcrumb holds it.
 	useRegisterPageSettingsBreadcrumb(true);
 	const { data: introduction } = useQuery({
@@ -137,69 +116,6 @@ const DeploymentSettingsLayout: React.FC = () => {
 
 	const CategoryIcon = category?.icon ?? SettingsIcon;
 
-	const sideOptions = (
-		[
-			["left", "Left Side", PanelLeftIcon],
-			["right", "Right Side", PanelRightIcon],
-		] as const
-	).map(([position, label, Icon]) => (
-		<ContextMenuItem
-			key={position}
-			disabled={placement.isPending || position === side}
-			onSelect={() => placement.mutate({ navbar_settings_side: position })}
-		>
-			<Icon aria-hidden />
-			{label}
-		</ContextMenuItem>
-	));
-
-	const placementOptions = (
-		<>
-			{sideOptions}
-			<ContextMenuSeparator />
-			{(
-				[
-					["Side Panel", true, false, PanelRightIcon],
-					["Side Strip", true, true, PanelRightDashedIcon],
-					["Breadcrumb", false, false, ChevronsRightIcon],
-				] as const
-			).map(([label, docked, compact, Icon]) => (
-				<ContextMenuItem
-					key={label}
-					disabled={
-						placement.isPending ||
-						(Boolean(preferences.data?.settings_sidebar) === docked &&
-							(!docked ||
-								Boolean(preferences.data?.settings_sidebar_compact) ===
-									compact))
-					}
-					onSelect={() =>
-						placement.mutate({
-							settings_sidebar: docked,
-							settings_sidebar_compact: compact,
-						})
-					}
-				>
-					<Icon aria-hidden />
-					{label}
-				</ContextMenuItem>
-			))}
-		</>
-	);
-
-	// Right-click outside the category segment to move the navigation.
-	const placementMenu = (children: React.ReactElement) => (
-		<ContextMenu>
-			<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-			<BreadcrumbContextMenuContent aria-label="Settings navigation placement">
-				{placementOptions}
-				<NavbarMoveScope.Consumer>
-					{(navbarMove) => navbarMove && <NavbarMoveOption divided />}
-				</NavbarMoveScope.Consumer>
-			</BreadcrumbContextMenuContent>
-		</ContextMenu>
-	);
-
 	const chatDestinations = chatConsoleViews.map(({ id, label }) => (
 		<DropdownMenuItem key={id} asChild>
 			<Link to={`${CHAT_CONSOLE_PAGE}#${id}`} preventScrollReset>
@@ -233,86 +149,75 @@ const DeploymentSettingsLayout: React.FC = () => {
 
 	const navbarBreadcrumb = (
 		<NavbarStart inlineWithoutNavbar>
-			{placementMenu(
-				<AdminBreadcrumb
-					variant="connected"
-					inline
-					className="deployment-breadcrumb admin-navbar-breadcrumb"
-				>
-					<BreadcrumbList>
-						{settingsMenu ? (
-							<BreadcrumbItem
-								ref={settingsMenuSlot}
-								className="settings-breadcrumb-root"
-							/>
-						) : (
-							<BreadcrumbItem className="settings-breadcrumb-root">
-								<AdminCategoryMenu />
-							</BreadcrumbItem>
-						)}
-						<CategoryDefaultMenu
-							path={category?.path}
-							actions={
+			<AdminBreadcrumb
+				variant="connected"
+				inline
+				className="deployment-breadcrumb admin-navbar-breadcrumb"
+			>
+				<BreadcrumbList>
+					<SettingsBreadcrumbRoot fallbackPath="/deployment/users" />
+					<CategoryDefaultMenu
+						path={category?.path}
+						actions={
+							preferences.data?.settings_sidebar && (
 								<>
 									<ContextMenuSeparator />
-									{placementOptions}
+									<SettingsPlacementOptions />
 								</>
-							}
-						>
-							<BreadcrumbItem>
-								{categoryDestinations ? (
-									<BreadcrumbViewMenu
-										label={category?.label ?? "General"}
-										trigger={<CategoryIcon aria-hidden />}
+							)
+						}
+					>
+						<BreadcrumbItem>
+							{categoryDestinations ? (
+								<BreadcrumbViewMenu
+									label={category?.label ?? "General"}
+									trigger={<CategoryIcon aria-hidden />}
+								>
+									{categoryDestinations}
+								</BreadcrumbViewMenu>
+							) : (
+								<Popover open={categoriesOpen} onOpenChange={setCategoriesOpen}>
+									<PopoverAnchor asChild>
+										<span className="category-breadcrumb-anchor">
+											<CategoryBreadcrumbButton
+												label={category?.label ?? "General"}
+												icon={CategoryIcon}
+												controls={sidebarId}
+												sidebarOpen={categoriesOpen}
+												onToggle={() => setCategoriesOpen((open) => !open)}
+											/>
+										</span>
+									</PopoverAnchor>
+									<PopoverContent
+										id={sidebarId}
+										align={side === "right" ? "end" : "start"}
+										sideOffset={8}
+										collisionPadding={8}
+										className={cn(
+											breadcrumbMenuClass,
+											"settings-menu-category-links",
+										)}
+										// A category picked from it closes it.
+										onClick={(event) => {
+											if (
+												event.target instanceof Element &&
+												event.target.closest("a")
+											) {
+												setCategoriesOpen(false);
+											}
+										}}
 									>
-										{categoryDestinations}
-									</BreadcrumbViewMenu>
-								) : (
-									<Popover
-										open={categoriesOpen}
-										onOpenChange={setCategoriesOpen}
-									>
-										<PopoverAnchor asChild>
-											<span className="category-breadcrumb-anchor">
-												<CategoryBreadcrumbButton
-													label={category?.label ?? "General"}
-													icon={CategoryIcon}
-													controls={sidebarId}
-													sidebarOpen={categoriesOpen}
-													onToggle={() => setCategoriesOpen((open) => !open)}
-												/>
-											</span>
-										</PopoverAnchor>
-										<PopoverContent
-											id={sidebarId}
-											align={side === "right" ? "end" : "start"}
-											sideOffset={8}
-											collisionPadding={8}
-											className={cn(
-												breadcrumbMenuClass,
-												"settings-menu-category-links",
-											)}
-											// A category picked from it closes it.
-											onClick={(event) => {
-												if (
-													event.target instanceof Element &&
-													event.target.closest("a")
-												) {
-													setCategoriesOpen(false);
-												}
-											}}
-										>
-											<BreadcrumbMenuPanel>
-												<DeploymentSidebar />
-											</BreadcrumbMenuPanel>
-										</PopoverContent>
-									</Popover>
-								)}
-							</BreadcrumbItem>
-						</CategoryDefaultMenu>
-					</BreadcrumbList>
-				</AdminBreadcrumb>,
-			)}
+										<BreadcrumbMenuPanel>
+											<DeploymentSidebar />
+										</BreadcrumbMenuPanel>
+									</PopoverContent>
+								</Popover>
+							)}
+						</BreadcrumbItem>
+					</CategoryDefaultMenu>
+				</BreadcrumbList>
+			</AdminBreadcrumb>
+			,
 		</NavbarStart>
 	);
 

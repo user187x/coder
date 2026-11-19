@@ -4,34 +4,39 @@ import {
 	BreadcrumbLink,
 } from "#/components/Breadcrumb/Breadcrumb";
 import { useOptionalAuthContext } from "#/contexts/auth/AuthProvider";
-import { AdminCategoryMenu } from "#/modules/management/AdminCategoryMenu";
 import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
 import { defaultHomeLabel } from "./adminQuickLinks";
+import { SettingsRootMenu } from "./SettingsRootMenu";
 import { settingsMenuSlot, useSettingsMenuPresent } from "./settingsMenuHost";
 
-export const SettingsBreadcrumbRoot = () => {
+export const SettingsBreadcrumbRoot = ({
+	fallbackPath = "/deployment",
+}: {
+	fallbackPath?: string;
+}) => {
 	const settingsMenu = useSettingsMenuPresent();
 	const authenticated = Boolean(useOptionalAuthContext()?.permissions);
 	const { path } = useSettingsDefaultView(!authenticated);
 
-	return settingsMenu ? (
-		<BreadcrumbItem
-			ref={settingsMenuSlot}
-			className="settings-breadcrumb-root"
-		/>
-	) : (
+	if (settingsMenu) {
+		return (
+			<BreadcrumbItem
+				ref={settingsMenuSlot}
+				className="settings-breadcrumb-root"
+			/>
+		);
+	}
+
+	const root = (
 		<BreadcrumbItem className="settings-breadcrumb-root">
-			{authenticated ? (
-				<AdminCategoryMenu fallbackPath="/deployment" />
-			) : (
-				<BreadcrumbLink
-					to={path ?? "/deployment"}
-					end
-					aria-label={defaultHomeLabel(path)}
-				>
-					<MenuIcon aria-hidden className="size-4 shrink-0" />
-				</BreadcrumbLink>
-			)}
+			<BreadcrumbLink
+				to={path ?? fallbackPath}
+				end
+				aria-label={defaultHomeLabel(path)}
+			>
+				<MenuIcon aria-hidden className="size-4 shrink-0" />
+			</BreadcrumbLink>
 		</BreadcrumbItem>
 	);
+	return authenticated ? <SettingsRootMenu>{root}</SettingsRootMenu> : root;
 };
