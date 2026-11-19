@@ -56,7 +56,7 @@ class FakeKube:
         if method == "DELETE":
             return (200, store.pop(parts[5], None)) if len(parts) > 5 else (405, {})
         if method == "GET" and len(parts) > 5:
-            return (200, store[parts[5]]) if parts[5] in store else (404, {})
+            return (200, store[parts[5]]) if parts[5] in store else (404, {"kind": "Status", "status": "Failure", "reason": "NotFound", "code": 404})
         if method == "GET":
             q = path.split("labelSelector=")[-1] if "labelSelector=" in path else ""
             from urllib.parse import unquote
@@ -170,8 +170,8 @@ class CodeServerHATest(unittest.TestCase):
         op_a.reconcile()
         r = self.register(ws, agent_token)
         self.assertEqual((r[0], r[5], int(r[4])), ("primary", "running", 1))
-        # it fails: a new generation, in the same cluster
-        a.fail(first)
+        # Kubernetes reports a vanished pod as a Status response.
+        del a.pods[first]
         op_a.reconcile()
         self.assertEqual(sorted(a.pods), [first.replace("-g1", "-g2")])
         a.ready(first.replace("-g1", "-g2"))

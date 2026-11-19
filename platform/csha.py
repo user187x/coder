@@ -550,13 +550,18 @@ class Operator:
         ws = inst["workspace_id"]
         name = pod_name(ws, inst["generation"])
         status, pod = self.kube.call("GET", "/api/v1/namespaces/%s/pods/%s" % (self.ns, name))
-        st = (pod or {}).get("status") or {} if isinstance(pod, dict) else {}
-        failed = status == 404 or st.get("phase") in ("Failed", "Succeeded") or (
-            isinstance(pod, dict) and pod["metadata"].get("deletionTimestamp"))
+        # A Kubernetes error response has a string status, not a pod status object.
+        if status == 404:
+            self.event(ws, "failed", "%s: gone" % name)
+            self.take_over(inst, home)
+            return
+        if status != 200 or not isinstance(pod, dict):
+            raise RuntimeError("could not read the instance pod: HTTP %s" % status)
+        st = pod.get("status") or {}
+        failed = st.get("phase") in ("Failed", "Succeeded") or pod["metadata"].get("deletionTimestamp")
         restarts = sum(c.get("restartCount", 0) for c in st.get("containerStatuses") or [])
         if failed or restarts >= 3:
-            self.event(ws, "failed", "%s: %s" % (name, "gone" if status == 404 else st.get("phase") or
-                                                 "%d restarts" % restarts))
+            self.event(ws, "failed", "%s: %s" % (name, st.get("phase") or "%d restarts" % restarts))
             # a new generation here: give the lease up and take it again at once (the same compare-and-set)
             self.take_over(inst, home)
             return
