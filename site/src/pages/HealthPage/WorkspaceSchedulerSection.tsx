@@ -277,7 +277,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 						</p>
 					</div>
 
-					<div className="flex flex-col gap-1.5 text-sm">
+					<div className="flex flex-col gap-1.5 text-sm lg:col-span-2">
 						<span className="font-medium">Excluded users</span>
 						<MultiSelectCombobox
 							commandProps={{ label: "Excluded users" }}
