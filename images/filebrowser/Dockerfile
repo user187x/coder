@@ -6,7 +6,7 @@ RUN npm ci --no-audit --no-fund
 COPY source/frontend/ ./
 RUN npm test && npm run build
 
-FROM docker.io/library/golang:1.27.3-alpine@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb AS backend
+FROM docker.io/library/golang:1.27.4-alpine@sha256:ea30e25680a5470bac02b08bb0e0a735fb75bd0ab7d431b9b95ee0abef362586 AS backend
 RUN apk add --no-cache gcc=15.2.0-r5 musl-dev=1.2.6-r3
 WORKDIR /src/backend
 ENV GOTOOLCHAIN=local GOFLAGS=-mod=readonly CGO_ENABLED=1 GOOS=linux GOARCH=amd64

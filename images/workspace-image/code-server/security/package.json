@@ -1,0 +1,10 @@
+{
+  "name": "coder-code-server-security-overlay",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "body-parser": "2.4.0",
+    "follow-redirects": "1.16.2",
+    "undici": "7.30.2"
+  }
+}

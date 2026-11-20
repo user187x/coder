@@ -8,8 +8,8 @@
 # when its input is absent (or FILEBROWSER_QUANTUM=<file>); the Dockerfile checks its SHA-256 and version. Since
 # 1.9.2 it is the workspace's own build of 2.1.2 (version 2.1.2-coder.1, a FileBrowser update for symlinked folders:
 # gtsteffaniak/filebrowser v2.1.2 with its patches, built as its release is - static, frontend embedded, not packed);
-# since 1.9.4 built with Go 1.27.3 and golang.org/x/net 0.60.0 (same source, version and flags; the Dockerfile checks
-# both in the binary). code-server's katex is replaced by the fixed 0.18.2, as basic-ftp and shell-quote are.
+# the Dockerfile checks the pinned compiler and library versions in the binary. Code-server modules are patched
+# at build time using verified package versions and a lockfile.
 # Then update its [workspaces] line (tag, digest) in helm-chart/images.txt and
 # coder-workspace.workspaceImage in helm-chart/coder-airgapped/values.yaml.
 #   ./build-workspace-image.sh [TAG]       default: the release version (RELEASE_VERSION at the repository's root)

@@ -44,16 +44,15 @@
 # Build from the repository root with scripts/release/airgap/assemble.py --tool build-workspace-image.sh.
 ARG BASE=codercom/enterprise-base:ubuntu
 ARG FILEBROWSER_QUANTUM_VERSION=2.1.2-coder.1
-ARG FILEBROWSER_QUANTUM_SHA256=ebbcd406bc4f966c2fc47823402100fff2045b55bc4cc6c4c03e4bce3ba07df8
+ARG FILEBROWSER_QUANTUM_SHA256=96676eeebba50dc94d786570586ad07a6a6da1ebffa0431c6c7de692354ed21b
 
 # FileBrowser Quantum: its binary (the build context "quantum", from build-workspace-image.sh), checked, and unpacked
 # from UPX when it is packed (the same program; a scanner cannot read a packed one). Since 1.9.2 the workspace's own
 # build of 2.1.2 (version 2.1.2-coder.1), with a FileBrowser update for symlinked folders: a source may follow links
 # into folders it is told (symlinkTargets, opt-in), and a symlinked folder is listed as a folder - the Cloud Drives'
-# links open in place (scripts/filebrowser.sh in the template sets it). Since 1.9.4 the same source, version and
-# build flags built with Go 1.27.3 and golang.org/x/net 0.60.0 (0.59.0 had five HTTP/2 denial-of-service findings,
-# CVE-2026-78669 and others); the check below reads both from the binary's Go build information.
-FROM docker.io/library/golang:1.27.3-trixie@sha256:1896654cfc5c2b5ad74c07f29cb36f5d2d1cbed42e3054070fbfe444e521e83c AS filebrowser
+# links open in place (scripts/filebrowser.sh in the template sets it). Check the compiler and security
+# dependency versions in the binary's Go build information.
+FROM docker.io/library/golang:1.27.4-trixie@sha256:2cd7e1ebf475c6208122d2b9cefc638d98fcc8dfd8554c8872c9dd0c21f4ac61 AS filebrowser
 ARG FILEBROWSER_QUANTUM_VERSION
 ARG FILEBROWSER_QUANTUM_SHA256
 COPY --from=quantum filebrowser-quantum /tmp/filebrowser-quantum
@@ -64,8 +63,14 @@ RUN echo "${FILEBROWSER_QUANTUM_SHA256}  /tmp/filebrowser-quantum" | sha256sum -
 		else cp /tmp/filebrowser-quantum /out/filebrowser; fi \
 	&& /out/filebrowser version | grep -q "v${FILEBROWSER_QUANTUM_VERSION}" \
 	&& go version -m /out/filebrowser >/tmp/buildinfo \
-	&& grep -q '^/out/filebrowser: go1\.27\.3$' /tmp/buildinfo \
-	&& grep -Eq '^[[:space:]]dep[[:space:]]golang\.org/x/net[[:space:]]v0\.60\.0[[:space:]]' /tmp/buildinfo
+	&& grep -q '^/out/filebrowser: go1\.27\.4$' /tmp/buildinfo \
+	&& grep -Eq '^[[:space:]]dep[[:space:]]golang\.org/x/net[[:space:]]v0\.62\.0[[:space:]]' /tmp/buildinfo \
+	&& grep -Eq '^[[:space:]]dep[[:space:]]github\.com/go-jose/go-jose/v4[[:space:]]v4\.1\.9[[:space:]]' /tmp/buildinfo
+
+FROM docker.io/library/node:24.21.0-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS code-server-security
+WORKDIR /patches
+COPY code-server/security/package.json code-server/security/package-lock.json ./
+RUN npm ci --ignore-scripts --omit=dev --no-audit --no-fund
 
 # picom with animations (Serenade): fdev31's animation-pr fork at its pinned commit, checked, built on the same Ubuntu.
 FROM docker.io/library/ubuntu:26.04@sha256:c098726dd9b9733f3e885f8de0ef375206a311b0a317eadc40d347b1115fb944 AS picom
@@ -172,8 +177,12 @@ RUN install -d /usr/share/coder-workspace \
 # update back from an upgrade, and then leaves out what needs it - in October 2026 systemd 259.9's phasing made apt
 # drop xfce4-power-manager, udev and upower from the desktop's install.
 RUN echo 'APT::Get::Always-Include-Phased-Updates "true";' >/etc/apt/apt.conf.d/99-coder-workspace-build \
+	&& sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources \
 	&& apt-get update \
-	&& apt-get -y full-upgrade \
+	&& apt-get -o Acquire::Retries=0 -y full-upgrade \
+	&& dpkg --compare-versions "$(dpkg-query -W -f='${Version}' apt)" ge 3.2.1ubuntu0.1 \
+	&& dpkg --compare-versions "$(dpkg-query -W -f='${Version}' libapt-pkg7.0)" ge 3.2.1ubuntu0.1 \
+	&& dpkg --compare-versions "$(dpkg-query -W -f='${Version}' docker-ce-cli)" ge 5:29.10.0-1~ubuntu.26.04~resolute \
 	&& apt-mark manual iptables >/dev/null \
 	&& apt-get purge -y docker-ce docker-ce-rootless-extras containerd.io docker-buildx-plugin docker-compose-plugin \
 	&& apt-get autoremove -y --purge \
@@ -368,6 +377,25 @@ RUN curl -fsSL -o /tmp/katex.tgz "https://registry.npmjs.org/katex/-/katex-${KAT
 	&& rm -f /tmp/katex.tgz \
 	&& test -f "$d/dist/katex.min.js" && test -f "$d/dist/katex.min.css" \
 	&& /usr/lib/code-server/lib/node -e 'const k = require(process.argv[1]); if (require(process.argv[1] + "/package.json").version !== process.argv[2] || !k.renderToString("x^2", {throwOnError: true}).includes("katex")) process.exit(1)' "$d" "${KATEX_VERSION}"
+# Replace vulnerable code-server modules with the locked versions. Keep body-parser's upgraded
+# dependencies under its own directory so the rest of code-server uses its original dependency tree.
+RUN --mount=type=bind,from=code-server-security,source=/patches/node_modules,target=/tmp/patched-node-modules \
+	set -eux; \
+	code_server=/usr/lib/code-server; \
+	for spec in node_modules/body-parser node_modules/follow-redirects lib/vscode/node_modules/undici; do \
+		package="${spec##*/}"; \
+		test -f "$code_server/$spec/package.json"; \
+		rm -rf "$code_server/$spec"; \
+		cp -a "/tmp/patched-node-modules/$package" "$code_server/$spec"; \
+	done; \
+	body_parser_modules="$code_server/node_modules/body-parser/node_modules"; \
+	mkdir -p "$body_parser_modules"; \
+	for dep in /tmp/patched-node-modules/*; do \
+		case "${dep##*/}" in body-parser|follow-redirects|undici) continue ;; esac; \
+		cp -a "$dep" "$body_parser_modules/"; \
+	done; \
+	"$code_server/lib/node" -e 'const assert=require("node:assert/strict"); for(const [p,v] of [["node_modules/body-parser","2.4.0"],["node_modules/follow-redirects","1.16.2"],["lib/vscode/node_modules/undici","7.30.2"]]){const root="/usr/lib/code-server/"+p; assert.equal(require(root+"/package.json").version,v); require(root)}'
+
 # code-server's terminal in the Nerd Font: the browser draws it, so code-server serves the font itself (its /_static
 # route: code-server/nerd-font.css and the font) and its page loads it; a built-in extension makes it the terminal's
 # default font (code-server/coder-workspace-defaults: only defaults, a user's own setting wins).

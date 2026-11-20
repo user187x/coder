@@ -2,7 +2,7 @@
   "name": "FileBrowser Quantum",
   "version": "2.1.2-coder.1",
   "platform": "linux/amd64",
-  "sha256": "ebbcd406bc4f966c2fc47823402100fff2045b55bc4cc6c4c03e4bce3ba07df8",
+  "sha256": "96676eeebba50dc94d786570586ad07a6a6da1ebffa0431c6c7de692354ed21b",
   "container_path": "/usr/local/bin/filebrowser",
   "source": {
     "repository": "https://github.com/user187x/filebrowser-quantum",
@@ -16,6 +16,10 @@
       {
         "path": "patches/coder-workspace.patch",
         "sha256": "011fa9c68625b1215c4d1c013955252266ece5488d4b29af47818072e3b2721a"
+      },
+      {
+        "path": "patches/security-dependencies.patch",
+        "sha256": "b9cadce2b45e0b50a510637d57a38e9f32db681c92f7477b3008241cef437832"
       }
     ]
   }

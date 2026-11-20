@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Assemble the installer layout from canonical repository sources."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -40,9 +41,14 @@ def assemble(destination, cache, archives):
                 os.link(source, target)
             except OSError:
                 shutil.copyfile(source, target)
-    payload = ROOT / "images/filebrowser/bin/filebrowser-quantum"
+    filebrowser = ROOT / "images/filebrowser"
+    payload = filebrowser / "bin/filebrowser-quantum"
     if payload.is_file():
-        shutil.copy2(payload, destination / "airgap-dist/filebrowser-quantum")
+        expected = json.loads((filebrowser / "manifest.json").read_text())["sha256"]
+        with payload.open("rb") as stream:
+            actual = hashlib.file_digest(stream, "sha256").hexdigest()
+        if actual == expected:
+            shutil.copy2(payload, destination / "airgap-dist/filebrowser-quantum")
 
 
 def main():

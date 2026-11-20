@@ -202,11 +202,11 @@ export const PitStopPanel: React.FC<{
 				{start.isPending ? <Spinner loading size="sm" /> : <CarGlyph />}
 				{!image.canEdit
 					? "Only admins and template admins patch images"
-					: running
-						? "In the pit…"
+					: running || start.isPending
+						? "Patching image…"
 						: n === 0
-							? "Select findings Copa can fix"
-							: `Box, box - pit stop for ${n} finding${n === 1 ? "" : "s"}`}
+							? "Select findings to patch"
+							: `${copyOf ? "Create patched copy" : "Patch image"} (${n} finding${n === 1 ? "" : "s"})`}
 			</button>
 			<p className="m-0 text-xs text-(--ws-muted)">
 				Copa updates packages from the distribution's repositories (and PyPI for

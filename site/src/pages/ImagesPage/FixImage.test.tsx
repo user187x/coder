@@ -421,9 +421,6 @@ describe("the pit stop", () => {
 			await screen.findByRole("tab", { name: "Pit stop" }),
 		).toHaveAttribute("aria-selected", "true");
 		expect(screen.getByText("2 findings selected")).toBeInTheDocument();
-		expect(screen.getByTestId("pit-start")).toHaveTextContent(
-			"Box, box - pit stop for 2 findings",
-		);
 		await user.click(screen.getByTestId("pit-libraries"));
 		// requests (pip) joins; lodash (npm) does not: Copa's Node.js patching is left out
 		expect(screen.getByText("3 findings selected")).toBeInTheDocument();
@@ -431,7 +428,9 @@ describe("the pit stop", () => {
 		await user.click(screen.getByRole("radio", { name: "3" }));
 		// the page's refetch held: what shows comes from the start's answer
 		vi.spyOn(ImagesAPI, "get").mockImplementation(() => new Promise(() => {}));
-		await user.click(screen.getByTestId("pit-start"));
+		await user.click(
+			screen.getByRole("button", { name: "Patch image (3 findings)" }),
+		);
 		await waitFor(() =>
 			expect(start).toHaveBeenCalledWith("tool", {
 				keys: [
@@ -481,7 +480,9 @@ describe("the pit stop", () => {
 		expect(laps[0]).toHaveTextContent("Lap 1patchgrade D1/2 fixed");
 		expect(laps[1]).toHaveTextContent("patching…");
 		expect(screen.getByTestId("pit-log")).toHaveTextContent("#12 DONE");
-		expect(screen.getByTestId("pit-start")).toBeDisabled();
+		expect(
+			screen.getByRole("button", { name: "Patching image…" }),
+		).toBeDisabled();
 		expect(screen.getByTestId("pit-cancel")).toBeInTheDocument();
 	});
 
