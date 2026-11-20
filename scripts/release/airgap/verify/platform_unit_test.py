@@ -120,7 +120,8 @@ class NodeScanTest(unittest.TestCase):
         self.assertNotEqual(a, ib.scanned_id("other.io/user187x/coder-workspace-dataflow:1.1.0"))
 
     def test_the_node_job_copies_the_files_as_root_and_runs_nothing_privileged(self):
-        _, job = ib.scan_job("scan-x", 7, 1, "tok", ref="ghcr.io/x/ws:1", node="n1")
+        _, job = ib.scan_job("scan-x", 7, 1, "tok", ref="ghcr.io/x/ws:1", node="n1",
+                             trivy_version=ib.TRIVY_DEFAULT_VERSION)
         spec = job["spec"]["template"]["spec"]
         self.assertEqual(spec["nodeName"], "n1")
         names = [c["name"] for c in spec["initContainers"]]
@@ -1473,6 +1474,7 @@ class TrackedWorkspaceImageTest(unittest.TestCase):
             mock.patch.object(ib, "ENABLED", True),
             mock.patch.object(ib, "WORKSPACE_TEMPLATE", "DEFAULT"),
             mock.patch.object(ib, "LOG", None),
+            mock.patch.object(ib, "scanner_version", return_value=ib.TRIVY_DEFAULT_VERSION),
             mock.patch.object(ib, "start_rescan", side_effect=lambda image_id, user: self.rescans.append(image_id)),
             mock.patch.object(ib, "manifest", side_effect=lambda repo, ref: ({}, self.digest)),
             mock.patch.object(ib, "image_size", return_value=1234),
@@ -2046,6 +2048,7 @@ class PitStopTest(unittest.TestCase):
         self.dir = tempfile.TemporaryDirectory()
         self.patches = [mock.patch.object(ib, "FILES", self.dir.name),
                         mock.patch.object(ib, "STORE", ib.DB(os.path.join(self.dir.name, "images.sqlite"))),
+                        mock.patch.object(ib, "scanner_version", return_value=ib.TRIVY_DEFAULT_VERSION),
                         mock.patch.object(ib.PitStop, "start"),  # nothing runs
                         mock.patch.object(ib, "registry_copy", lambda ref: None)]
         for p in self.patches:
@@ -2175,6 +2178,7 @@ class PitStopTest(unittest.TestCase):
                 "target": "%s/coder-images/dataflow-patched:1" % ib.REGISTRY, "libraries": True, "pairs": [],
                 "report": None}
         runs = []
+        scanner = "/tmp/test-trivy"
 
         def run(cmd, **kw):
             runs.append(cmd)
@@ -2183,11 +2187,13 @@ class PitStopTest(unittest.TestCase):
         with mock.patch.object(ib, "_forward"), mock.patch.object(ib.subprocess, "run", run), \
                 mock.patch.object(ib.securitydata, "job_stamp", lambda d: {"cacheDir": "/data"}), \
                 mock.patch.object(ib, "open_service", lambda *a, **k: io.BytesIO(json.dumps(plan).encode())), \
-                mock.patch.dict(os.environ, {"BUILDER_REGISTRY": ib.REGISTRY}), \
+                mock.patch.object(ib, "load_job_trivy") as load_trivy, \
+                mock.patch.dict(os.environ, {"BUILDER_REGISTRY": ib.REGISTRY, "TRIVY_PLUGIN_BINARY": scanner}), \
                 self.assertRaises(SystemExit), mock.patch("builtins.print"):
             ib.copa("https://svc/copa/1")
+        load_trivy.assert_called_once_with()
         cmd = runs[0]
-        self.assertEqual(cmd[:2], ["trivy", "image"])
+        self.assertEqual(cmd[:2], [scanner, "image"])
         self.assertEqual([cmd[i + 1] for i, a in enumerate(cmd) if a == "--skip-files"], ["**/*.jar", "**/*.war", "**/*.ear"])
         self.assertEqual((cmd[cmd.index("--pkg-types") + 1], cmd[-1]), ("os,library", "localhost:5000/coder-images/base/dataflow:2"))
 
