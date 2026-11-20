@@ -14,7 +14,7 @@ const UserAuthSettingsPage: React.FC = () => {
 		<>
 			<title>{pageTitle("Authentication Settings")}</title>
 
-			<div className="flex flex-col gap-12">
+			<div className="dashboard-panel flex flex-col gap-6">
 				<KeycloakSection />
 				<UserAuthSettingsPageView options={deploymentConfig.options} />
 			</div>

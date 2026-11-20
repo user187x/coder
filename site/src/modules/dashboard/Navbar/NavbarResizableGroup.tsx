@@ -5,6 +5,11 @@ import {
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "#/components/Tooltip/Tooltip";
 
 const MIN_WIDTH = 20;
 const MAX_WIDTH = 100;
@@ -109,25 +114,38 @@ export const NavbarResizableGroup: React.FC<{
 		};
 
 	const handle = (side: -1 | 1) => (
-		<div
-			role="separator"
-			aria-orientation="vertical"
-			aria-label={`Resize the navigation bar from its ${side === -1 ? "left" : "right"} end`}
-			aria-valuemin={MIN_WIDTH}
-			aria-valuemax={MAX_WIDTH}
-			aria-valuenow={width ?? undefined}
-			tabIndex={0}
-			title="Drag to resize; double-click to expand to maximum width"
-			className={cn(
-				"navbar-resize-handle",
-				side === -1
-					? "navbar-resize-handle-left"
-					: "navbar-resize-handle-right",
-			)}
-			onPointerDown={onPointerDown(side)}
-			onKeyDown={onKeyDown(side)}
-			onDoubleClick={() => save.mutate({ navbar_resizable_width: MAX_WIDTH })}
-		/>
+		<Tooltip disableHoverableContent>
+			<TooltipTrigger asChild>
+				<div
+					role="separator"
+					aria-orientation="vertical"
+					aria-label={`Resize the navigation bar from its ${side === -1 ? "left" : "right"} end`}
+					aria-valuemin={MIN_WIDTH}
+					aria-valuemax={MAX_WIDTH}
+					aria-valuenow={width ?? undefined}
+					tabIndex={0}
+					className={cn(
+						"navbar-resize-handle",
+						side === -1
+							? "navbar-resize-handle-left"
+							: "navbar-resize-handle-right",
+					)}
+					onPointerDown={onPointerDown(side)}
+					onKeyDown={onKeyDown(side)}
+					onDoubleClick={() =>
+						save.mutate({ navbar_resizable_width: MAX_WIDTH })
+					}
+				/>
+			</TooltipTrigger>
+			<TooltipContent
+				side="bottom"
+				align={side === -1 ? "start" : "end"}
+				collisionPadding={8}
+				className="w-max max-w-[calc(100vw-1rem)]"
+			>
+				Drag to resize; double-click to expand to maximum width
+			</TooltipContent>
+		</Tooltip>
 	);
 
 	return (

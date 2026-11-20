@@ -59,7 +59,7 @@ import "./navbarSoft.css";
 
 type NavbarViewProps = {
 	actionRef?: React.Ref<HTMLDivElement>;
-	/** The top-left slot after the logo, for a page's navigation moved into the navbar (NavbarStart). */
+	/** The Settings breadcrumb slot for a page that provides its own navigation. */
 	startRef?: React.Ref<HTMLDivElement>;
 	defaultLayout?: NavbarLayout;
 	transparency?: number;
@@ -144,12 +144,23 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					}
 				}
 			}
+			const settingsRootEdge =
+				navbar.dataset.navbarSettingsSide === "right" ? "right" : "left";
 			for (const item of items) {
-				if (item === before && !item.hasAttribute("data-navbar-divider"))
-					item.dataset.bannerEdge = "right";
-				else if (item === after && !item.hasAttribute("data-navbar-divider"))
-					item.dataset.bannerEdge = "left";
-				else item.removeAttribute("data-banner-edge");
+				const join = item === before ? "right" : item === after ? "left" : null;
+				// The cutout fits the category end of Settings. Leave room for the
+				// hamburger when the root sits next to the banner.
+				const clipsSettingsRoot =
+					item.classList.contains("navbar-start") && join === settingsRootEdge;
+				if (
+					join &&
+					!clipsSettingsRoot &&
+					!item.hasAttribute("data-navbar-divider")
+				) {
+					item.dataset.bannerEdge = join;
+				} else {
+					item.removeAttribute("data-banner-edge");
+				}
 			}
 		};
 
@@ -245,6 +256,40 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 		/>
 	);
 
+	const settingsBreadcrumb = settingsInNavbar &&
+		(settingsMenuPresent || preferences.data?.settings_sidebar) &&
+		!pageCrumb && (
+			<NavbarMoveScope.Provider value>
+				<NavbarMoveMenu label="Breadcrumb options">
+					<Breadcrumb
+						variant="connected"
+						data-inline=""
+						className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
+					>
+						<BreadcrumbList>
+							<SettingsBreadcrumbRoot />
+							{pageLabel && (
+								<CategoryDefaultMenu path={adminCategory(pathname)?.path}>
+									<BreadcrumbItem>
+										{pageLabel === "Template" || pageLabel === "Templates" ? (
+											<BreadcrumbViewMenu label={pageLabel}>
+												<TemplateDestinations />
+											</BreadcrumbViewMenu>
+										) : pageLabel === "Workspace" ||
+											pageLabel === "Workspaces" ? (
+											<WorkspacePicker label={pageLabel} />
+										) : (
+											<BreadcrumbPage>{pageLabel}</BreadcrumbPage>
+										)}
+									</BreadcrumbItem>
+								</CategoryDefaultMenu>
+							)}
+						</BreadcrumbList>
+					</Breadcrumb>
+				</NavbarMoveMenu>
+			</NavbarMoveScope.Provider>
+		);
+
 	return (
 		<div
 			ref={navbarRef}
@@ -267,7 +312,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			}
 			data-navbar-strip={stripOff ? "off" : undefined}
 			data-navbar-floating={floating || undefined}
-			// The Settings chevron group at the bar's right end, its breadcrumb mirrored (navbarSoft.css)
+			// Mirror the Settings breadcrumb when its menu is aligned to the right.
 			data-navbar-settings-side={
 				navbarSettingsSide(preferences.data) === "right" ? "right" : undefined
 			}
@@ -281,56 +326,11 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			</NavbarMoveMenu>
 			{/* Resizable: the Settings chevron group and the bar's items in one pill */}
 			<NavbarResizableGroup resizable={floating}>
-				{/* A page's own navigation, when its user moved it up here (the admin settings' breadcrumb and categories) */}
-				<div
-					ref={startRef}
-					data-testid="navbar-start"
-					className="navbar-start flex shrink-0 items-center empty:hidden"
-				>
-					{/* Pages without a breadcrumb of their own use the navbar’s section label. */}
-					{settingsInNavbar &&
-						(settingsMenuPresent || preferences.data?.settings_sidebar) &&
-						!pageCrumb && (
-							<NavbarMoveScope.Provider value>
-								<NavbarMoveMenu label="Breadcrumb options">
-									<Breadcrumb
-										variant="connected"
-										data-inline=""
-										className="deployment-breadcrumb admin-navbar-breadcrumb navbar-settings-crumb"
-									>
-										<BreadcrumbList>
-											<SettingsBreadcrumbRoot />
-											{pageLabel && (
-												<CategoryDefaultMenu
-													path={adminCategory(pathname)?.path}
-												>
-													<BreadcrumbItem>
-														{pageLabel === "Template" ||
-														pageLabel === "Templates" ? (
-															<BreadcrumbViewMenu label={pageLabel}>
-																<TemplateDestinations />
-															</BreadcrumbViewMenu>
-														) : pageLabel === "Workspace" ||
-															pageLabel === "Workspaces" ? (
-															<WorkspacePicker label={pageLabel} />
-														) : (
-															<BreadcrumbPage>{pageLabel}</BreadcrumbPage>
-														)}
-													</BreadcrumbItem>
-												</CategoryDefaultMenu>
-											)}
-										</BreadcrumbList>
-									</Breadcrumb>
-								</NavbarMoveMenu>
-							</NavbarMoveScope.Provider>
-						)}
-				</div>
-
 				{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
 				<NavbarArrange
 					defaultLayout={defaultLayout}
-					showSettingsChevrons
-					settingsDocked={Boolean(preferences.data?.settings_sidebar)}
+					settingsRef={startRef}
+					settings={settingsBreadcrumb || null}
 					canSetDefault={adminPermissions.canEditDeployment}
 					className="navbar-arrange relative flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
 					items={{

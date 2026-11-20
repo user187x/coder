@@ -2,6 +2,7 @@ import { ArrowLeftRightIcon, RotateCcwIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
+	navbarAppearance,
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
@@ -12,6 +13,7 @@ import { Slider } from "#/components/Slider/Slider";
 import { Switch } from "#/components/Switch/Switch";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import {
+	moveSavedSettingsToEdge,
 	NAVBAR_LABELS,
 	startNavbarArrange,
 	useNavbarOrder,
@@ -30,7 +32,8 @@ export const NavbarLayoutSection: React.FC<{
 }> = ({ embedded = false }) => {
 	const id = useId();
 	const client = useQueryClient();
-	const { order, hidden } = useNavbarOrder();
+	const appearance = useQuery(navbarAppearance());
+	const { order, hidden } = useNavbarOrder(appearance.data?.defaultLayout);
 	const reset = useMutation(updateUserUIPreferences(client));
 	const save = useMutation(updateUserUIPreferences(client));
 	const preferences = useQuery(userUIPreferences());
@@ -111,7 +114,13 @@ export const NavbarLayoutSection: React.FC<{
 							checked={settingsRight}
 							disabled={save.isPending || !preferences.isSuccess}
 							onCheckedChange={(on) =>
-								save.mutate({ navbar_settings_side: on ? "right" : null })
+								save.mutate({
+									navbar_settings_side: on ? "right" : null,
+									...moveSavedSettingsToEdge(
+										{ order, hidden },
+										on ? "right" : "left",
+									),
+								})
 							}
 						/>
 						<span className="flex flex-col">

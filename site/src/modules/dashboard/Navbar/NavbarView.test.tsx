@@ -112,14 +112,14 @@ describe("NavbarView", () => {
 	);
 
 	it.each(["Settings", "Resources", "User menu"])(
-		"offers Move on the top-level %s button",
+		"offers Configure on the top-level %s button",
 		async (name) => {
 			renderNavbar({ canViewHud: true });
 			await userEvent.pointer({
 				target: screen.getByRole("button", { name: new RegExp(`^${name}`) }),
 				keys: "[MouseRight]",
 			});
-			await screen.findByRole("menuitem", { name: "Move" });
+			await screen.findByRole("menuitem", { name: "Configure" });
 		},
 	);
 
@@ -133,7 +133,9 @@ describe("NavbarView", () => {
 			target: screen.getByRole("button", { name: "Resources" }),
 			keys: "[MouseRight]",
 		});
-		await user.click(await screen.findByRole("menuitem", { name: "Move" }));
+		await user.click(
+			await screen.findByRole("menuitem", { name: "Configure" }),
+		);
 		await user.click(screen.getByRole("button", { name: "Add divider" }));
 		const divider = screen.getByRole("button", { name: "Move Divider 1" });
 		divider.focus();
@@ -171,7 +173,7 @@ describe("NavbarView", () => {
 				),
 				keys: "[MouseRight]",
 			});
-			screen.getByRole("button", { name: "Move Action Button" }).focus();
+			screen.getByRole("button", { name: "Move Action" }).focus();
 			await user.keyboard("{ArrowLeft}");
 			await user.click(screen.getByRole("button", { name: "Done" }));
 			await waitFor(() => expect(save).toHaveBeenCalledOnce());
@@ -227,7 +229,7 @@ describe("NavbarView", () => {
 			keys: "[MouseRight]",
 		});
 		expect(
-			screen.queryByRole("button", { name: "Move Action Button" }),
+			screen.queryByRole("button", { name: "Move Action" }),
 		).not.toBeInTheDocument();
 		await user.click(await screen.findByRole("menuitem", { name: "Hide" }));
 		await waitFor(() =>

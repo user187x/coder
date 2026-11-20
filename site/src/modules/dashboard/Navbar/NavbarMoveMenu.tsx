@@ -14,10 +14,12 @@ export const NavbarMoveScope = createContext(false);
 export function NavbarMoveOption({ divided = false }: { divided?: boolean }) {
 	return (
 		<>
-			{divided && <ContextMenuSeparator />}
+			{divided && (
+				<ContextMenuSeparator className="mx-2 my-0.5 shrink-0 bg-content-secondary/30" />
+			)}
 			<ContextMenuItem onSelect={startNavbarArrange}>
 				<MoveIcon aria-hidden />
-				Move
+				Configure
 			</ContextMenuItem>
 		</>
 	);

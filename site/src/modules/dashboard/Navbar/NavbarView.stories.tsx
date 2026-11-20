@@ -111,7 +111,7 @@ export const ResizableWithoutBackstrip: Story = {
 				data: {
 					navbar_floating: true,
 					navbar_strip_off: true,
-					navbar_resizable_width: 85,
+					navbar_resizable_width: 100,
 				},
 			},
 		],
@@ -152,6 +152,27 @@ export const BreadcrumbFacingAnnouncement: Story = {
 		],
 	},
 };
+export const SettingsBetweenAnnouncementAndLogo: Story = {
+	...BreadcrumbFacingAnnouncement,
+	parameters: {
+		...BreadcrumbFacingAnnouncement.parameters,
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					settings_sidebar: true,
+					navbar_settings_side: "left",
+					navbar_layout: {
+						order: ["banner", "settings-chevrons", "logo"],
+						hidden: ["workspaces", "notifications", "account"],
+					},
+				},
+			},
+			{ key: bannerKey, data: { ...MockBanner, receipts: false } },
+		],
+	},
+};
+
 export const MirroredBreadcrumbFacingAnnouncement: Story = {
 	decorators: [withAuthProvider],
 	parameters: {
@@ -256,7 +277,7 @@ export const AccountActionMovedAcrossAnnouncement: Story = {
 		startNavbarArrange();
 		const canvas = within(canvasElement);
 		const action = await canvas.findByRole("button", {
-			name: "Move Action Button",
+			name: "Move Action",
 		});
 		action.focus();
 		await userEvent.keyboard("{ArrowRight}{Enter}");

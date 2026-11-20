@@ -30,12 +30,17 @@ export const isNavbarDivider = (
 ): value is (typeof NAVBAR_DIVIDERS)[number] =>
 	NAVBAR_DIVIDERS.some((divider) => divider === value);
 export type NavbarControl = (typeof NAVBAR_ITEMS)[number];
-export type NavbarItem = NavbarControl | (typeof NAVBAR_DIVIDERS)[number];
+export const SETTINGS_ITEM = "settings-chevrons";
+export type NavbarItem =
+	| NavbarControl
+	| typeof SETTINGS_ITEM
+	| (typeof NAVBAR_DIVIDERS)[number];
 
 /** Each item's name, as the arrange bar and Appearance's Navigation bar card show it. */
 export const NAVBAR_LABELS: Record<NavbarItem, string> = {
 	logo: "Logo",
-	action: "Action Button",
+	[SETTINGS_ITEM]: "Settings",
+	action: "Action",
 	notifications: "Notifications",
 	account: "Account",
 	workspaces: "Workspaces",
@@ -51,7 +56,9 @@ export const NAVBAR_LABELS: Record<NavbarItem, string> = {
 const KEY = "coder-ui-navbar-order";
 const START = "coder-ui-navbar-arrange";
 export const isNavbarItem = (value: unknown): value is NavbarItem =>
-	isNavbarDivider(value) || NAVBAR_ITEMS.some((item) => item === value);
+	value === SETTINGS_ITEM ||
+	isNavbarDivider(value) ||
+	NAVBAR_ITEMS.some((item) => item === value);
 
 /** Keep existing positions while placing newly customizable tiles at their original edges. */
 export const normalizeOrder = (value: unknown): NavbarItem[] => {
@@ -63,6 +70,30 @@ export const normalizeOrder = (value: unknown): NavbarItem[] => {
 	if (!known.includes("logo")) known.unshift("logo");
 	return [...known, ...NAVBAR_ITEMS.filter((item) => !known.includes(item))];
 };
+/** Preserve legacy edge placement until Settings has a saved slot in the order. */
+export const withSettingsAtEdge = (
+	order: NavbarItem[],
+	side: "left" | "right",
+): NavbarItem[] => {
+	const items = order.filter((item) => item !== SETTINGS_ITEM);
+	return side === "left"
+		? [SETTINGS_ITEM, ...items]
+		: [...items, SETTINGS_ITEM];
+};
+
+export const moveSavedSettingsToEdge = (
+	layout: NavbarLayout | null | undefined,
+	side: "left" | "right",
+): { navbar_layout?: NavbarLayout } =>
+	layout?.order.includes(SETTINGS_ITEM)
+		? {
+				navbar_layout: {
+					...layout,
+					order: withSettingsAtEdge(normalizeOrder(layout.order), side),
+				},
+			}
+		: {};
+
 const readNavbarOrder = (): NavbarItem[] => {
 	try {
 		return normalizeOrder(JSON.parse(localStorage.getItem(KEY) ?? "null"));
@@ -70,16 +101,10 @@ const readNavbarOrder = (): NavbarItem[] => {
 		return [...NAVBAR_ITEMS];
 	}
 };
-export const useNavbarOrder = (
-	defaultLayout?: NavbarLayout,
-	settingsDefaultSide: "left" | "right" = "left",
-) => {
+export const useNavbarOrder = (defaultLayout?: NavbarLayout) => {
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
 	const [draft, setDraft] = useState<NavbarLayout | null>();
-	const [sideDraft, setSideDraft] = useState<"left" | "right">();
-	const savedSide =
-		preferences.data?.navbar_settings_side ?? settingsDefaultSide;
 	const personal =
 		draft === undefined ? preferences.data?.navbar_layout : draft;
 	const layout = personal ?? defaultLayout;
@@ -90,7 +115,10 @@ export const useNavbarOrder = (
 			: readNavbarOrder();
 	const hidden: NavbarItem[] = (layout?.hidden ?? [])
 		.filter(isNavbarItem)
-		.filter((item) => item !== "banner" && !isNavbarDivider(item));
+		.filter(
+			(item) =>
+				item !== "banner" && item !== SETTINGS_ITEM && !isNavbarDivider(item),
+		);
 	const deploymentDefault = useMutation({
 		...updateNavbarLayoutDefault(client),
 		onError: (error) =>
@@ -106,8 +134,7 @@ export const useNavbarOrder = (
 	return {
 		order,
 		hidden,
-		settingsSide: sideDraft ?? savedSide,
-		setSettingsSide: setSideDraft,
+		settingsSide: preferences.data?.navbar_settings_side ?? "left",
 		save: (next: NavbarItem[], removed: NavbarItem[] = hidden) =>
 			setDraft({ order: next, hidden: removed }),
 		hide: (item: NavbarItem) =>
@@ -121,23 +148,15 @@ export const useNavbarOrder = (
 				},
 			),
 		commit: (onSuccess: () => void) => {
-			const sideChanged = sideDraft !== undefined && sideDraft !== savedSide;
-			if (draft === undefined && !sideChanged) {
-				setSideDraft(undefined);
+			if (draft === undefined) {
 				onSuccess();
 				return;
 			}
 			mutation.mutate(
-				{
-					...(draft !== undefined && {
-						navbar_layout: draft === null ? null : { order, hidden },
-					}),
-					...(sideChanged && { navbar_settings_side: sideDraft }),
-				},
+				{ navbar_layout: draft === null ? null : { order, hidden } },
 				{
 					onSuccess: () => {
 						setDraft(undefined);
-						setSideDraft(undefined);
 						onSuccess();
 					},
 				},

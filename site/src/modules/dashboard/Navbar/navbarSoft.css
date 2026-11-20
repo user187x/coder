@@ -385,16 +385,13 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	margin-right: var(--dashboard-dock-inset);
 }
 
-.navbar-soft [data-navbar-item="action"]:has(.navbar-action:empty) {
+.navbar-soft
+	[data-navbar-item="action"]:not([data-arranging] *):has(
+		.navbar-action:empty
+	) {
 	display: none;
 }
-.navbar-soft
-	[data-arranging]
-	[data-navbar-item="action"]:has(.navbar-action:empty) {
-	display: block;
-}
-.navbar-soft [data-arranging] .navbar-action,
-.navbar-soft .navbar-start:has(+ [data-arranging-settings]) {
+.navbar-soft [data-arranging] .navbar-action {
 	display: none;
 }
 @container dashboard (width < 48rem) {
@@ -440,11 +437,6 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	display: block;
 }
 
-/* Keep the breadcrumb group spaced from the other navbar controls. */
-.navbar-start:not(:empty, [data-banner-edge], .navbar-resizable-group > *) {
-	margin-right: var(--navbar-control-gap);
-}
-
 /* The navbar's own Settings chevron (pages without a settings breadcrumb): shaped as the breadcrumb's first chevron,
    not as a lone rounded crumb. */
 .navbar-settings-crumb.breadcrumb-connected
@@ -462,16 +454,7 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	);
 }
 
-/* Appearance > Navigation bar, Settings on the right: the Settings chevron group at the bar's far end, its breadcrumb
-   running right to left (the root at the right) and every chevron pointing left, a mirror of the left side's shapes. */
-.navbar-soft[data-navbar-settings-side="right"] .navbar-start {
-	order: 99;
-}
-.navbar-soft[data-navbar-settings-side="right"]
-	.navbar-start:not(:empty, [data-banner-edge], .navbar-resizable-group > *) {
-	margin-right: 0;
-	margin-left: var(--navbar-control-gap);
-}
+/* Mirror the breadcrumb chevrons when Settings opens toward the left. */
 .navbar-soft[data-navbar-settings-side="right"]
 	.navbar-start
 	.breadcrumb-connected.admin-navbar-breadcrumb

@@ -7,6 +7,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useLocation } from "react-router";
 import {
+	navbarAppearance,
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
@@ -14,6 +15,10 @@ import {
 	ContextMenuItem,
 	ContextMenuSeparator,
 } from "#/components/ContextMenu/ContextMenu";
+import {
+	moveSavedSettingsToEdge,
+	SETTINGS_ITEM,
+} from "#/modules/platform/navbarOrder/navbarOrder";
 import { adminCategory } from "./adminQuickLinks";
 import { DefaultViewOption } from "./DefaultViewOption";
 import { NavbarMoveMenu } from "./NavbarMoveMenu";
@@ -22,7 +27,13 @@ import { navbarSettingsSide } from "./settingsMenuHost";
 export function SettingsPlacementOptions() {
 	const preferences = useQuery(userUIPreferences());
 	const placement = useMutation(updateUserUIPreferences(useQueryClient()));
+	const appearance = useQuery(navbarAppearance());
+	const layout =
+		preferences.data?.navbar_layout ?? appearance.data?.defaultLayout;
 	const side = navbarSettingsSide(preferences.data);
+	const edgeSlot = layout?.order.at(side === "left" ? 0 : -1);
+	const atSavedSide =
+		!layout?.order.includes(SETTINGS_ITEM) || edgeSlot === SETTINGS_ITEM;
 	const sideOptions = (
 		[
 			["left", "Left Side", PanelLeftIcon],
@@ -31,8 +42,13 @@ export function SettingsPlacementOptions() {
 	).map(([position, label, Icon]) => (
 		<ContextMenuItem
 			key={position}
-			disabled={placement.isPending || position === side}
-			onSelect={() => placement.mutate({ navbar_settings_side: position })}
+			disabled={placement.isPending || (position === side && atSavedSide)}
+			onSelect={() =>
+				placement.mutate({
+					navbar_settings_side: position,
+					...moveSavedSettingsToEdge(layout, position),
+				})
+			}
 		>
 			<Icon aria-hidden />
 			{label}

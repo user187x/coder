@@ -79,6 +79,16 @@
 	> [data-navbar-item]:not([data-navbar-item="banner"]) {
 	height: var(--navbar-well-height);
 }
+.navbar-soft
+	[data-arranging]
+	> :is(
+		[data-navbar-item="action"],
+		[data-navbar-item="workspaces"],
+		[data-navbar-item="settings-chevrons"]
+	)
+	button:not([data-navbar-arrange-control]) {
+	inline-size: var(--navbar-action-width);
+}
 .navbar-soft [data-navbar-item="banner"]:has(#coder-system-banner) {
 	border-radius: var(--navbar-pill-radius);
 }

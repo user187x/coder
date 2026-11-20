@@ -144,7 +144,7 @@ export const AdminCategoryMenu = ({
 						),
 					}))}
 				/>
-				{navbarMove && <NavbarMoveOption divided />}
+				{navbarMove && <NavbarMoveOption divided={pages.length > 0} />}
 			</BreadcrumbContextMenuContent>
 		</ContextMenu>
 	);

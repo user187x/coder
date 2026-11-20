@@ -228,7 +228,7 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 	renderComponent(
 		<QueryClientProvider client={client}>
 			<NavbarArrange
-				showSettingsChevrons
+				settings={<button type="button">Settings</button>}
 				items={{
 					logo: null,
 					workspaces: <span>Resources</span>,
@@ -255,31 +255,27 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 	await user.click(
 		screen.getByRole("button", { name: "Restore Notifications" }),
 	);
-	screen.getByRole("button", { name: "Move Action Button" }).focus();
+	screen.getByRole("button", { name: "Move Action" }).focus();
 	await user.keyboard("{ArrowLeft}");
-	await user.click(
-		screen.getByRole("button", { name: "Remove Action Button" }),
-	);
+	await user.click(screen.getByRole("button", { name: "Remove Action" }));
 	const restoreAction = screen.getByRole("button", {
-		name: "Restore Action Button",
+		name: "Restore Action",
 	});
-	expect(restoreAction).toHaveTextContent("Action Button");
+	expect(restoreAction).toHaveTextContent("Action");
 	await user.click(restoreAction);
-	await user.click(
-		screen.getByRole("button", { name: "Remove Action Button" }),
-	);
+	await user.click(screen.getByRole("button", { name: "Remove Action" }));
 	const chevrons = screen.getByRole("button", {
-		name: "Move Settings chevrons",
+		name: "Move Settings",
 	});
 	chevrons.focus();
 	await user.keyboard("{ArrowRight}");
 	await user.click(screen.getByRole("button", { name: "Done" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({
-			navbar_settings_side: "right",
 			navbar_layout: {
 				order: [
 					"workspaces",
+					"settings-chevrons",
 					"logo",
 					"banner",
 					"latency",
@@ -301,53 +297,33 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 			navbar_layout: null,
 		}),
 	);
-
-	act(() => startNavbarArrange());
-	const savedChevrons = screen.getByRole("button", {
-		name: "Move Settings chevrons",
-	});
-	const toolbar = screen.getByTestId("navbar-arrange");
-	const chevronTile = savedChevrons.closest(
-		'[data-navbar-item="settings-chevrons"]',
-	);
-	if (!chevronTile) throw new Error("Missing Settings chevrons tile");
-	vi.spyOn(toolbar, "getBoundingClientRect").mockReturnValue(
-		new DOMRect(0, 0, 600, 50),
-	);
-	vi.spyOn(chevronTile, "getBoundingClientRect").mockReturnValue(
-		new DOMRect(480, 0, 120, 50),
-	);
-	await user.pointer([
-		{ keys: "[MouseLeft>]", target: savedChevrons, coords: { x: 540, y: 25 } },
-		{ coords: { x: 525, y: 25 } },
-		{ coords: { x: 70, y: 25 } },
-		{ keys: "[/MouseLeft]" },
-	]);
-	savedChevrons.focus();
-	await user.keyboard("{Enter}");
-	await waitFor(() =>
-		expect(save).toHaveBeenLastCalledWith({ navbar_settings_side: "left" }),
-	);
 });
 
-it("moves the docked Settings sidebar to either edge with the arrow keys", async () => {
+it("moves Settings between the announcement banner and Logo, then moves the banner", async () => {
+	const order = [
+		"banner",
+		"logo",
+		...NAVBAR_ITEMS.filter((id) => id !== "banner" && id !== "logo"),
+	];
+	const preferences = {
+		settings_sidebar: true,
+		navbar_layout: { order, hidden: [] },
+	};
 	const save = vi
 		.spyOn(PlatformAPI, "setUserUIPreferences")
 		.mockImplementation(async (changes) => ({
-			settings_sidebar: true,
-			...changes,
+			...Object.assign(preferences, changes),
 		}));
 	const client = new QueryClient({
 		defaultOptions: { queries: { staleTime: Number.POSITIVE_INFINITY } },
 	});
-	client.setQueryData(userUIPreferences().queryKey, { settings_sidebar: true });
+	client.setQueryData(userUIPreferences().queryKey, preferences);
 	renderComponent(
 		<QueryClientProvider client={client}>
 			<NavbarArrange
-				showSettingsChevrons
-				settingsDocked
+				settings={<button type="button">Settings</button>}
 				items={{
-					logo: null,
+					logo: <button type="button">Logo</button>,
 					workspaces: null,
 					banner: <span>Announcement</span>,
 					latency: null,
@@ -360,15 +336,29 @@ it("moves the docked Settings sidebar to either edge with the arrow keys", async
 		</QueryClientProvider>,
 	);
 	const user = userEvent.setup();
-	for (const side of ["Left", "Right"]) {
-		act(() => startNavbarArrange());
-		screen.getByRole("button", { name: "Move Settings sidebar" }).focus();
-		await user.keyboard(`{Arrow${side}}`);
-		await user.click(screen.getByRole("button", { name: "Done" }));
-		await waitFor(() =>
-			expect(save).toHaveBeenLastCalledWith({
-				navbar_settings_side: side.toLowerCase(),
-			}),
-		);
-	}
+	act(() => startNavbarArrange());
+	screen.getByRole("button", { name: "Move Settings" }).focus();
+	await user.keyboard("{ArrowRight}");
+	await user.click(screen.getByRole("button", { name: "Done" }));
+	const [, , ...rest] = order;
+	await waitFor(() =>
+		expect(save).toHaveBeenLastCalledWith({
+			navbar_layout: {
+				order: ["banner", "settings-chevrons", "logo", ...rest],
+				hidden: [],
+			},
+		}),
+	);
+
+	act(() => startNavbarArrange());
+	screen.getByRole("button", { name: "Move Announcement banner" }).focus();
+	await user.keyboard("{ArrowRight}{ArrowRight}{Enter}");
+	await waitFor(() =>
+		expect(save).toHaveBeenLastCalledWith({
+			navbar_layout: {
+				order: ["settings-chevrons", "logo", "banner", ...rest],
+				hidden: [],
+			},
+		}),
+	);
 });

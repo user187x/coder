@@ -1,11 +1,9 @@
 import {
 	type CollisionDetection,
-	closestCenter,
 	DndContext,
 	type DragEndEvent,
 	type Modifier,
 	PointerSensor,
-	pointerWithin,
 	useSensor,
 	useSensors,
 } from "@dnd-kit/core";
@@ -47,22 +45,18 @@ import {
 	type NavbarControl,
 	type NavbarItem,
 	onNavbarArrange,
+	SETTINGS_ITEM,
 	useNavbarOrder,
+	withSettingsAtEdge,
 } from "./navbarOrder";
 
-const SETTINGS_CHEVRONS = "settings-chevrons";
+const sortableItems: readonly NavbarItem[] = [
+	SETTINGS_ITEM,
+	...NAVBAR_ITEMS,
+	...NAVBAR_DIVIDERS,
+];
 const arrangeLabel = (id: string | number) =>
-	id === SETTINGS_CHEVRONS
-		? "Settings chevrons"
-		: isNavbarItem(id)
-			? NAVBAR_LABELS[id]
-			: String(id);
-
-// The banner placeholder is wide: the item under the pointer is the target.
-const itemUnderPointer: CollisionDetection = (args) => {
-	const under = pointerWithin(args);
-	return under.length > 0 ? under : closestCenter(args);
-};
+	isNavbarItem(id) ? NAVBAR_LABELS[id] : String(id);
 
 /** The navbar's zoom factor; pointer deltas are screen pixels, transforms are zoomed. */
 const readZoom = (element: Element): number => {
@@ -105,8 +99,8 @@ type NavbarArrangeProps = {
 	className?: string;
 	defaultLayout?: NavbarLayout;
 	canSetDefault?: boolean;
-	showSettingsChevrons?: boolean;
-	settingsDocked?: boolean;
+	settings?: React.ReactNode;
+	settingsRef?: React.Ref<HTMLDivElement>;
 };
 
 /** Customizable toolbar with a palette for removed tiles. */
@@ -115,8 +109,8 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 	className,
 	defaultLayout,
 	canSetDefault = false,
-	showSettingsChevrons = false,
-	settingsDocked = false,
+	settings,
+	settingsRef,
 }) => {
 	const {
 		order,
@@ -128,13 +122,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		commit,
 		saving,
 		settingsSide,
-		setSettingsSide,
-	} = useNavbarOrder(defaultLayout, settingsDocked ? "right" : "left");
-	const settingsLabel = settingsDocked
-		? "Settings sidebar"
-		: "Settings chevrons";
-	const labelFor = (id: string | number) =>
-		id === SETTINGS_CHEVRONS ? settingsLabel : arrangeLabel(id);
+	} = useNavbarOrder(defaultLayout);
 	const done = () => {
 		if (!saving) commit(() => setArranging(false));
 	};
@@ -151,9 +139,17 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		else setArranging(true);
 	});
 	const [announcement, setAnnouncement] = useState("");
-	const available = order.filter(
-		(id) =>
-			isNavbarDivider(id) || items[id] !== null || (arranging && id === "logo"),
+	const hasSettings = settings !== undefined;
+	const ordered =
+		hasSettings && !order.includes(SETTINGS_ITEM)
+			? withSettingsAtEdge(order, settingsSide)
+			: order;
+	const available = ordered.filter((id) =>
+		id === SETTINGS_ITEM
+			? hasSettings
+			: isNavbarDivider(id) ||
+				items[id] !== null ||
+				(arranging && id === "logo"),
 	);
 	const freeDivider = NAVBAR_DIVIDERS.find((id) => !order.includes(id));
 	const visible = available.filter((id) => !hidden.includes(id));
@@ -252,9 +248,15 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 			return;
 		}
 		const nextVisible = arrayMove(visible, from, to);
-		let i = 0;
+		let index = 0;
+		const next = ordered.map((item) =>
+			visible.includes(item) ? nextVisible[index++] : item,
+		);
+		const keepSettingsSlot =
+			order.includes(SETTINGS_ITEM) ||
+			next.indexOf(SETTINGS_ITEM) !== ordered.indexOf(SETTINGS_ITEM);
 		save(
-			order.map((item) => (!visible.includes(item) ? item : nextVisible[i++])),
+			keepSettingsSlot ? next : next.filter((item) => item !== SETTINGS_ITEM),
 		);
 		setAnnouncement(
 			`${NAVBAR_LABELS[id]} moved to position ${to + 1} of ${visible.length}.`,
@@ -268,6 +270,10 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 				className="h-8 w-0.5 rounded-full bg-content-secondary/60"
 				aria-hidden
 			/>
+		) : id === SETTINGS_ITEM ? (
+			<Button variant="outline" size="lg">
+				{NAVBAR_LABELS[id]}
+			</Button>
 		) : id === "logo" && items.logo === null ? (
 			<span className="inline-flex h-10 items-center gap-2 rounded-md border border-dashed border-border px-2 text-xs text-content-secondary">
 				<ImageIcon className="size-4" aria-hidden />
@@ -277,22 +283,27 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 			items[id]
 		);
 
-	const moveSettings = (side: "left" | "right") => {
-		setSettingsSide(side);
-		setAnnouncement(`${settingsLabel} moved to the ${side} side.`);
+	// Each tile's center divides the slots on either side. The pointer is the
+	// reference even when dragging the wide banner or crossing a narrow gap.
+	const slotUnderPointer: CollisionDetection = ({
+		active,
+		droppableRects,
+		pointerCoordinates,
+	}) => {
+		if (!pointerCoordinates) return [];
+		const position = visible.filter((id) => {
+			const rect = droppableRects.get(id);
+			return (
+				id !== active.id &&
+				rect &&
+				pointerCoordinates.x > rect.left + rect.width / 2
+			);
+		}).length;
+		const id = visible[position];
+		return id ? [{ id }] : [];
 	};
 
-	const onDragEnd = ({ active, over, delta }: DragEndEvent) => {
-		if (active.id === SETTINGS_CHEVRONS) {
-			const element = toolbar.current;
-			const item = active.rect.current.initial;
-			if (element && item) {
-				const row = element.getBoundingClientRect();
-				const center = item.left + item.width / 2 + delta.x * readZoom(element);
-				moveSettings(center < row.left + row.width / 2 ? "left" : "right");
-			}
-			return;
-		}
+	const onDragEnd = ({ active, over }: DragEndEvent) => {
 		if (
 			over &&
 			isNavbarItem(active.id) &&
@@ -309,11 +320,23 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 			className={cn(className)}
 			data-testid="navbar-arrange"
 			data-arranging={arranging || undefined}
-			data-arranging-settings={(arranging && showSettingsChevrons) || undefined}
 		>
+			{hasSettings && (
+				<div
+					ref={settingsRef}
+					data-testid="navbar-start"
+					className="navbar-start flex shrink-0 items-center empty:hidden"
+					style={{
+						order: visible.indexOf(SETTINGS_ITEM),
+						display: arranging ? "none" : undefined,
+					}}
+				>
+					{settings}
+				</div>
+			)}
 			<DndContext
 				sensors={sensors}
-				collisionDetection={itemUnderPointer}
+				collisionDetection={slotUnderPointer}
 				modifiers={[restrictToRow()]}
 				onDragEnd={onDragEnd}
 				accessibility={{
@@ -322,41 +345,31 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 							"Drag to move this button left or right, or use the left and right arrow keys.",
 					},
 					announcements: {
-						onDragStart: ({ active }) => `Picked up ${labelFor(active.id)}.`,
+						onDragStart: ({ active }) =>
+							`Picked up ${arrangeLabel(active.id)}.`,
 						onDragOver: ({ active, over }) =>
 							over
-								? `${labelFor(active.id)} is over ${labelFor(over.id)}.`
-								: `${labelFor(active.id)} is not over a place.`,
+								? `${arrangeLabel(active.id)} is over ${arrangeLabel(over.id)}.`
+								: `${arrangeLabel(active.id)} is not over a place.`,
 						onDragEnd: ({ active, over }) =>
 							over
-								? `${labelFor(active.id)} dropped in place of ${labelFor(over.id)}.`
-								: `${labelFor(active.id)} dropped.`,
+								? `${arrangeLabel(active.id)} dropped in place of ${arrangeLabel(over.id)}.`
+								: `${arrangeLabel(active.id)} dropped.`,
 						onDragCancel: ({ active }) =>
-							`Moving ${labelFor(active.id)} was cancelled.`,
+							`Moving ${arrangeLabel(active.id)} was cancelled.`,
 					},
 				}}
 			>
-				{arranging && showSettingsChevrons && (
-					<ArrangeItem
-						id={SETTINGS_CHEVRONS}
-						label={settingsLabel}
-						position={settingsSide === "left" ? -1 : visible.length}
-						arranging
-						onMove={(by) => moveSettings(by < 0 ? "left" : "right")}
-						onDone={done}
-					>
-						<span className="flex h-10 items-center rounded-md bg-surface-secondary px-3 text-xs text-content-secondary">
-							{settingsLabel}
-						</span>
-					</ArrangeItem>
-				)}
 				<SortableContext
 					items={visible}
 					strategy={horizontalListSortingStrategy}
 				>
 					{/* A fixed order in the page (CSS order places them), so a moved button keeps the keyboard focus. */}
-					{[...NAVBAR_ITEMS, ...NAVBAR_DIVIDERS]
-						.filter((id) => visible.includes(id))
+					{sortableItems
+						.filter(
+							(id) =>
+								visible.includes(id) && (id !== SETTINGS_ITEM || arranging),
+						)
 						.map((id) => (
 							<ArrangeItem
 								key={id}
@@ -370,10 +383,13 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 									}
 								}}
 								onDone={done}
-								onRemove={() =>
-									isNavbarDivider(id)
-										? save(order.filter((item) => item !== id))
-										: save(order, [...hidden, id])
+								onRemove={
+									id === SETTINGS_ITEM || id === "banner"
+										? undefined
+										: () =>
+												isNavbarDivider(id)
+													? save(order.filter((item) => item !== id))
+													: save(order, [...hidden, id])
 								}
 								onHide={
 									!arranging &&
@@ -385,9 +401,9 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 								hideDisabled={saving}
 							>
 								{arranging && id === "action" && (
-									<span className="flex h-10 items-center rounded-md bg-surface-secondary px-3 text-xs text-content-secondary">
+									<Button variant="outline" size="lg">
 										{NAVBAR_LABELS.action}
-									</span>
+									</Button>
 								)}
 								{itemContent(id)}
 							</ArrangeItem>
@@ -496,10 +512,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 									<Button
 										size="sm"
 										variant="outline"
-										onClick={() => {
-											reset();
-											setSettingsSide(undefined);
-										}}
+										onClick={reset}
 										title="Use the deployment default"
 									>
 										<RotateCcwIcon aria-hidden />
@@ -540,8 +553,7 @@ const forwardActionContextMenu = (tile: HTMLDivElement | null) => {
 };
 
 type ArrangeItemProps = {
-	label?: string;
-	id: NavbarItem | typeof SETTINGS_CHEVRONS;
+	id: NavbarItem;
 	position: number;
 	arranging: boolean;
 	onMove: (by: number) => void;
@@ -554,7 +566,6 @@ type ArrangeItemProps = {
 
 const ArrangeItem: React.FC<ArrangeItemProps> = ({
 	id,
-	label = arrangeLabel(id),
 	position,
 	arranging,
 	onMove,
@@ -565,6 +576,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 	children,
 }) => {
 	const isBanner = id === "banner";
+	const label = NAVBAR_LABELS[id];
 	const {
 		attributes,
 		listeners,
@@ -574,11 +586,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 		isDragging,
 	} = useSortable({
 		id,
-		// The banner is not dragged: the buttons move around it.
-		disabled: {
-			draggable: isBanner || !arranging,
-			droppable: !arranging || id === SETTINGS_CHEVRONS,
-		},
+		disabled: !arranging,
 	});
 
 	const tile = (
@@ -637,7 +645,7 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 			) : (
 				tile
 			)}
-			{arranging && !isBanner && (
+			{arranging && (
 				<>
 					<button
 						type="button"
