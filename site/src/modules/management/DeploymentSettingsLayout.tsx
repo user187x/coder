@@ -220,7 +220,6 @@ const DeploymentSettingsLayout: React.FC = () => {
 					</CategoryDefaultMenu>
 				</BreadcrumbList>
 			</AdminBreadcrumb>
-			,
 		</NavbarStart>
 	);
 

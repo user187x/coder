@@ -573,8 +573,6 @@ const SettingsCard: React.FC<SettingsCardProps> = ({
 		(report.facts.envDiffs ?? []).map((diff) => [diff.name, diff]),
 	);
 	const discoveredUrl = report.facts.discoveredKeycloakUrl;
-	const tokenHours =
-		Math.round(((settings.tokenLifespan || 36000) / 3600) * 10) / 10;
 
 	return (
 		<section
@@ -641,18 +639,19 @@ const SettingsCard: React.FC<SettingsCardProps> = ({
 						);
 					})}
 					<div className="flex flex-col gap-1.5">
-						<Label htmlFor={`${id}-hours`}>Session length (hours)</Label>
+						<Label htmlFor={`${id}-token-lifetime`}>
+							Access token lifetime override (seconds)
+						</Label>
 						<Input
-							id={`${id}-hours`}
+							id={`${id}-token-lifetime`}
 							type="number"
-							min={0.1}
-							max={168}
-							step={0.5}
-							value={tokenHours}
+							min={300}
+							max={7 * 86_400}
+							value={settings.tokenLifespan}
 							onChange={(event) => {
-								const hours = Number(event.target.value);
-								if (Number.isFinite(hours) && hours > 0) {
-									onChange({ tokenLifespan: Math.round(hours * 3600) });
+								const seconds = event.target.valueAsNumber;
+								if (Number.isFinite(seconds)) {
+									onChange({ tokenLifespan: seconds });
 								}
 							}}
 						/>

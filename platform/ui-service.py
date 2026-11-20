@@ -1638,22 +1638,51 @@ def kc_settings(declared_env):
     m = re.match(r"^(https?://[^/]+(?:/auth)?)/realms/([^/]+)/?$", issuer)
     discovered_url = keycloak_url_from_cluster()
     s["keycloakUrl"] = (
-        s.get("keycloakUrl") or discovered_url or (m.group(1) if m else "")
+        m.group(1) if m else s.get("keycloakUrl") or discovered_url or ""
     )
     if m:
         s["realm"] = m.group(2)
     for env, key in (
         ("CODER_OIDC_CLIENT_ID", "clientId"),
+        ("CODER_OIDC_SCOPES", "scopes"),
+        ("CODER_OIDC_USERNAME_FIELD", "usernameField"),
+        ("CODER_OIDC_EMAIL_FIELD", "emailField"),
         ("CODER_OIDC_SIGN_IN_TEXT", "signInText"),
         ("CODER_OIDC_ICON_URL", "iconUrl"),
     ):
-        v = (declared_env.get(env) or {}).get("value")
-        if v:
+        v = env_value(declared_env, env) if m else (declared_env.get(env) or {}).get("value")
+        if v is not None:
             s[key] = v
-    v = (declared_env.get("CODER_OIDC_ALLOW_SIGNUPS") or {}).get("value")
-    if v is not None:
-        s["allowSignups"] = str(v).lower() == "true"
+    for env, key in (
+        ("CODER_OIDC_ALLOW_SIGNUPS", "allowSignups"),
+        ("CODER_OIDC_IGNORE_EMAIL_VERIFIED", "ignoreEmailVerified"),
+    ):
+        v = (
+            env_value(declared_env, env)
+            if m else (declared_env.get(env) or {}).get("value")
+        )
+        if v is not None:
+            s[key] = str(v).lower() == "true"
     return s, discovered_url
+
+
+def has_certificate_authenticator(executions):
+    """Check the effective flow without counting steps inside disabled subflows."""
+    disabled_level = None
+    for step in executions:
+        level = step.get("level", 0)
+        if disabled_level is not None and level > disabled_level:
+            continue
+        disabled_level = None
+        requirement = step.get("requirement")
+        if requirement == "DISABLED":
+            disabled_level = level
+        elif (
+            step.get("providerId") == "auth-x509-client-username-form"
+            and requirement in ("REQUIRED", "ALTERNATIVE")
+        ):
+            return True
+    return False
 
 
 def desired_client(s, access_url, flow_id):
@@ -1961,6 +1990,36 @@ def group_report(checks, facts, env, kc, settings, client):
             )
 
 
+def certificate_flow_report(checks, kc, realm_path, realm, client, settings):
+    """Report the browser flow actually used by this client."""
+    title = "Certificate sign-in flow"
+    try:
+        flows_path = realm_path + "/authentication/flows"
+        flows = kc.api("GET", flows_path) or []
+        override = (client.get("authenticationFlowBindingOverrides") or {}).get("browser")
+        field, selected = ("id", override) if override else ("alias", realm.get("browserFlow"))
+        active = next((flow for flow in flows if selected and flow.get(field) == selected), None)
+        if not active:
+            check(checks, "kc.flow", "Keycloak", title, "unknown",
+                  current="Could not identify the active browser flow")
+            return
+        alias = active["alias"]
+        path = flows_path + "/" + urllib.parse.quote(alias, safe="") + "/executions"
+        enabled = has_certificate_authenticator(kc.api("GET", path) or [])
+        if enabled:
+            settings["flowAlias"] = alias
+        check(
+            checks, "kc.flow", "Keycloak", title, "ok" if enabled else "info",
+            current=alias,
+            detail=(
+                "Certificate authentication is enabled in the active browser flow."
+                if enabled else "The active browser flow has no enabled certificate authenticator."
+            ),
+        )
+    except Exception as e:  # noqa: BLE001 - access to executions varies by admin role
+        check(checks, "kc.flow", "Keycloak", title, "unknown", current=str(e)[:160])
+
+
 def keycloak_report(token):
     checks, facts = [], {}
     access_url = CODER_ACCESS_URL
@@ -2018,6 +2077,17 @@ def keycloak_report(token):
             detail="Coder's own settings come from the installation's values: change them in install.conf (or "
             "values-local.yaml) and run ./install deploy. Keycloak's side and the Secrets can be fixed here.",
         )
+    elif app is None and not ARGOCD_APP and dep_status == 200:
+        declared = running
+        check(
+            checks,
+            "coder.source",
+            "Coder",
+            "Where Coder's settings live",
+            "info",
+            current="the Coder deployment",
+            detail="This view reads Coder's deployed settings. Change them through the deployment's configuration.",
+        )
     elif app is None:
         declared = running
         check(
@@ -2072,6 +2142,13 @@ def keycloak_report(token):
             detail="No Keycloak resource was found and Coder has no issuer URL. Enter Keycloak's address.",
         )
         return {"checks": checks, "facts": facts}
+    issuer = "%s/realms/%s" % (kc_url, settings["realm"])
+    if issuer == (env_value(declared, "CODER_OIDC_ISSUER_URL") or "").rstrip("/"):
+        url_source = "Taken from Coder's configured issuer URL."
+    elif kc_url == discovered_url:
+        url_source = "Found from the Keycloak resource in namespace %s." % KEYCLOAK_NAMESPACE
+    else:
+        url_source = "Taken from the saved Keycloak settings."
     check(
         checks,
         "kc.url",
@@ -2079,14 +2156,9 @@ def keycloak_report(token):
         "Keycloak address",
         "ok",
         current=kc_url,
-        detail=(
-            "Found from the Keycloak resource in namespace %s." % KEYCLOAK_NAMESPACE
-            if discovered_url
-            else "Taken from Coder's issuer URL."
-        ),
+        detail=url_source,
     )
 
-    issuer = "%s/realms/%s" % (kc_url, settings["realm"])
     try:
         status, disc = http_json(
             issuer + "/.well-known/openid-configuration", context=TLS, timeout=6
@@ -2131,7 +2203,7 @@ def keycloak_report(token):
         )
 
     kc = Keycloak(kc_url)
-    client, flow_id, kc_ok = None, None, kc.login()
+    client, kc_ok = None, kc.login()
     check(
         checks,
         "kc.admin",
@@ -2154,7 +2226,8 @@ def keycloak_report(token):
     kc_secret = None
     if kc_ok:
         try:
-            kc.api("GET", "/%s" % settings["realm"])
+            realm_path = "/" + urllib.parse.quote(settings["realm"], safe="")
+            realm = kc.api("GET", realm_path)
             check(
                 checks,
                 "kc.realm",
@@ -2162,18 +2235,13 @@ def keycloak_report(token):
                 "Realm '%s' exists" % settings["realm"],
                 "ok",
             )
-            flows = kc.api("GET", "/%s/authentication/flows" % settings["realm"]) or []
-            flow = next(
-                (f for f in flows if f.get("alias") == settings["flowAlias"]), None
-            )
-            flow_id = flow and flow.get("id")
             clients = kc.api(
                 "GET",
                 "/%s/clients?clientId=%s"
                 % (settings["realm"], urllib.parse.quote(settings["clientId"])),
             )
             client = clients[0] if clients else None
-            want = desired_client(settings, access_url, flow_id)
+            want = desired_client(settings, access_url, None)
             if not client:
                 check(
                     checks,
@@ -2188,6 +2256,17 @@ def keycloak_report(token):
                     detail="Coder signs people in through this client. It will be created with Coder's callback URL.",
                 )
             else:
+                token_override = (client.get("attributes") or {}).get("access.token.lifespan")
+                token_lifespan = str(token_override or realm.get("accessTokenLifespan", "")).strip()
+                if re.fullmatch(r"-1|[0-9]+", token_lifespan):
+                    seconds = int(token_lifespan)
+                    if 300 <= seconds <= 7 * 86400:
+                        settings["tokenLifespan"] = seconds
+                    check(
+                        checks, "kc.access_token", "Keycloak", "Access token lifetime", "info",
+                        current="Until the Keycloak session expires" if seconds == -1 else "%d seconds" % seconds,
+                        detail="From the client override." if token_override else "Inherited from the realm.",
+                    )
                 problems = []
                 if not client.get("enabled"):
                     problems.append("disabled")
@@ -2210,23 +2289,13 @@ def keycloak_report(token):
                     client.get("webOrigins") or []
                 ):
                     problems.append("web origin %s missing" % access_url)
-                if (
-                    flow_id
-                    and (client.get("authenticationFlowBindingOverrides") or {}).get(
-                        "browser"
-                    )
-                    != flow_id
-                ):
-                    problems.append("browser flow is not '%s'" % settings["flowAlias"])
                 check(
                     checks,
                     "kc.client",
                     "Keycloak",
                     "OIDC client '%s'" % settings["clientId"],
                     "warn" if problems else "ok",
-                    current="; ".join(problems)
-                    or "confidential, callback and origin allowed"
-                    + (", certificate flow" if flow_id else ""),
+                    current="; ".join(problems) or "confidential, callback and origin allowed",
                     expected=(
                         None
                         if not problems
@@ -2269,19 +2338,7 @@ def keycloak_report(token):
                     fix="kc.scopes" if missing else None,
                     detail="Coder reads preferred_username (profile) and email (email) from the ID token.",
                 )
-            check(
-                checks,
-                "kc.flow",
-                "Keycloak",
-                "Certificate sign-in flow '%s'" % settings["flowAlias"],
-                "ok" if flow_id else "info",
-                current="present" if flow_id else "not in this realm",
-                detail=(
-                    ""
-                    if flow_id
-                    else "Coder will use the realm's normal browser login. ../keycloak/keycloak-x509-sso sets up certificate sign-in."
-                ),
-            )
+                certificate_flow_report(checks, kc, realm_path, realm, client, settings)
         except Exception as e:  # noqa: BLE001
             check(
                 checks,
