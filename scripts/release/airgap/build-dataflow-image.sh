@@ -6,7 +6,7 @@
 # pinned with Airflow's own constraints for the image's Python (but for ../workspace-image-dataflow/airflow-overrides.txt),
 # and NiFi's libraries with fixed vulnerabilities replaced (../workspace-image-dataflow/patch-nifi-jars.py).
 #   ./build-dataflow-image.sh [--no-store] [TAG]   default: the release version (RELEASE_VERSION); --no-store: build and check only, the bundle untouched
-#   BASE=<image> ./build-dataflow-image.sh ...      another base than the Dockerfile's (ARG BASE)
+#   BASE=<image> ./build-dataflow-image.sh ...      override the workspace image for RELEASE_VERSION
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 dev="$(dirname "$here")"
@@ -21,7 +21,7 @@ tag="${1:-$release}"
 img="docker.io/mrshll187/coder-workspace-dataflow:${tag}"
 nifi="$(sed -n 's/^ARG NIFI_VERSION=//p' "${ctx}/Dockerfile")"
 airflow="$(sed -n 's/^ARG AIRFLOW_VERSION=//p' "${ctx}/Dockerfile")"
-base="${BASE:-$(sed -n 's/^ARG BASE=//p' "${ctx}/Dockerfile")}"
+base="${BASE:-docker.io/mrshll187/coder-workspace:${release}}"
 py="$(docker run --rm --entrypoint python3 "$base" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
 
 zip="${ctx}/nifi-${nifi}-bin.zip"

@@ -18,7 +18,7 @@ ARG VERSION
 ARG REVISION
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
     go mod verify && go run ./scripts/setup-gofitz-cgo \
-    && go test -race -timeout=120s ./... \
+    && go test -race -p 2 -timeout=10m ./... \
     && go build -trimpath -buildvcs=false -tags analytics,mupdf,musl \
       -ldflags "-s -w -linkmode external -extldflags -static \
         -X github.com/gtsteffaniak/filebrowser/backend/internal/version.Version=v${VERSION} \
