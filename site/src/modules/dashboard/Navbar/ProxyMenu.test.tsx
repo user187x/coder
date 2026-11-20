@@ -269,9 +269,11 @@ describe("ProxyMenu", () => {
 				coords: { clientX: 12, clientY: 575 },
 				keys: "[MouseLeft]",
 			});
-			expect(
-				screen.getByRole("status", { name: "Current route" }),
-			).toHaveTextContent(`/hud?metric=${metric}&sample=${start + 15}`);
+			await waitFor(() =>
+				expect(
+					screen.getByRole("status", { name: "Current route" }),
+				).toHaveTextContent(`/hud?metric=${metric}&sample=${start + 15}`),
+			);
 		});
 
 		it("opens the dragged time range in a dialog", async () => {
