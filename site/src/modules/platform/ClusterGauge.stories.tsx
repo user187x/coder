@@ -109,6 +109,18 @@ const historyPoints = Array.from({ length: 60 }, (_, i) => ({
 }));
 
 export const WithHistory: Story = {
+	args: {
+		data: {
+			...MockClusterUsage,
+			history: { points: historyPoints, every: 15 },
+			network: {
+				rx: networkPoints[27].rx,
+				tx: networkPoints[59].tx,
+				points: networkPoints,
+				every: 15,
+			},
+		},
+	},
 	parameters: {
 		queries: [
 			{
@@ -118,19 +130,6 @@ export const WithHistory: Story = {
 					range: "15m",
 					start: MockHudHistory.end - 900,
 					points: MockHudHistory.points.slice(-30),
-				},
-			},
-			{
-				key: clusterUsageKey,
-				data: {
-					...MockClusterUsage,
-					history: { points: historyPoints, every: 15 },
-					network: {
-						rx: networkPoints[59].rx,
-						tx: networkPoints[59].tx,
-						points: networkPoints,
-						every: 15,
-					},
 				},
 			},
 		],

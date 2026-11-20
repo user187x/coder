@@ -360,6 +360,49 @@ export const CompactDockWithoutPageAction: Story = {
 	),
 };
 
+export const CompactSettingsDockOptions: Story = {
+	...CompactDockWithoutPageAction,
+	beforeEach: () => {
+		spyOn(PlatformAPI, "setUserUIPreferences").mockImplementation(
+			async (changes) => ({
+				settings_sidebar: true,
+				settings_sidebar_compact: true,
+				...changes,
+			}),
+		);
+	},
+	play: async ({ canvasElement }) => {
+		const body = within(canvasElement.ownerDocument.body);
+		const key = await body.findByRole("menuitem", {
+			name: "Expand Settings sidebar",
+		});
+		await userEvent.pointer({ target: key, keys: "[MouseRight]" });
+	},
+};
+
+export const CompactNetworkRange: Story = {
+	...CompactDockWithoutPageAction,
+	play: async ({ canvasElement }) => {
+		const body = within(canvasElement.ownerDocument.body);
+		const graph = await body.findByRole("menuitem", {
+			name: "Cluster network",
+		});
+		const { x, y, width, height } = graph.getBoundingClientRect();
+		await userEvent.pointer([
+			{
+				target: graph,
+				coords: { clientX: x + width / 2, clientY: y + height / 4 },
+				keys: "[MouseLeft>]",
+			},
+			{
+				target: graph,
+				coords: { clientX: x + width / 2, clientY: y + (3 * height) / 4 },
+			},
+			{ keys: "[/MouseLeft]" },
+		]);
+	},
+};
+
 export const ForAdminWithoutQuickLinks: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: {

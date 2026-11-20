@@ -132,10 +132,13 @@
 		background 0.08s ease,
 		box-shadow 0.08s ease;
 }
-.settings-menu .settings-pill > [role="menuitem"] {
+.settings-menu .settings-pill > :is([role="menuitem"], button) {
 	background: transparent;
 }
-.settings-menu .settings-pill > [role="menuitem"] + [role="menuitem"] {
+.settings-menu
+	.settings-pill
+	> :is([role="menuitem"], button)
+	+ :is([role="menuitem"], button) {
 	border-left-color: var(--skeuo-face-edge);
 	box-shadow: inset 1px 0 0 var(--skeuo-highlight);
 }
@@ -145,7 +148,7 @@
 .settings-menu
 	:is(
 		a.settings-pill:hover,
-		.settings-pill > [role="menuitem"]:hover,
+		.settings-pill > :is([role="menuitem"], button):hover,
 		[role="menuitem"]:hover > .workspaces-pill
 	) {
 	background: var(--skeuo-face-hover);
@@ -154,7 +157,7 @@
 	:is(
 		a.settings-pill:active,
 		a.settings-pill[aria-current="page"],
-		.settings-pill > [role="menuitem"]:active,
+		.settings-pill > :is([role="menuitem"], button):active,
 		[role="menuitem"]:active > .workspaces-pill,
 		[data-workspaces-expanded="true"] .workspaces-pill
 	) {
@@ -312,6 +315,9 @@
 /* The thin strip (docked, collapsed to icons): its buttons as the panel's matte keys, the quick links set in one
    recessed well like Controls, the page you are on pressed in. */
 .settings-menu .settings-strip-well {
+	min-height: 0;
+	overflow-y: auto;
+	scrollbar-width: none;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -341,6 +347,30 @@
 	transition:
 		background 0.08s ease,
 		box-shadow 0.08s ease;
+}
+.settings-menu.settings-strip-dock-options {
+	--strip-dock-slide: -0.75rem;
+	width: 6rem;
+}
+.settings-strip-dock-options[data-side="left"] {
+	--strip-dock-slide: 0.75rem;
+}
+.settings-strip-dock-options[data-state="open"] {
+	animation: settings-strip-dock-reveal 180ms ease-out;
+}
+@keyframes settings-strip-dock-reveal {
+	from {
+		opacity: 0;
+		transform: translateX(var(--strip-dock-slide)) scaleX(0.7);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.settings-strip-dock-options[data-state="open"] {
+		animation: none;
+	}
+}
+html[data-animations="off"] .settings-strip-dock-options {
+	animation: none;
 }
 .settings-menu .settings-strip-key.rounded-full {
 	border-radius: 9999px;

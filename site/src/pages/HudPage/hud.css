@@ -13,3 +13,20 @@
 		background-color: hsl(var(--surface-primary));
 	}
 }
+
+.hud-focused-sample {
+	animation: hud-focused-sample 0.65s ease-in-out 3;
+}
+@keyframes hud-focused-sample {
+	50% {
+		opacity: 0.18;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.hud-focused-sample {
+		animation: none;
+	}
+}
+html[data-animations="off"] .hud-focused-sample {
+	animation: none;
+}

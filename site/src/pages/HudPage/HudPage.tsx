@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
-import { Link as RouterLink } from "react-router";
+import { Link as RouterLink, useSearchParams } from "react-router";
 import type { HudMetric } from "#/api/platform";
 import { hud } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
@@ -28,6 +28,7 @@ import "./hud.css";
 import { useFitText } from "#/hooks/useFitText";
 import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { readHudSample } from "#/modules/platform/clusterMetricHistory";
 import { HudGraphs } from "./HudGraphs";
 import { HudNodeStrip } from "./HudNodeStrip";
 import { HudSortableGrid } from "./HudSortableGrid";
@@ -68,6 +69,14 @@ const formatValue = (m: HudMetric) => {
 const HudPage: React.FC = () => {
 	const { permissions } = useAuthenticated();
 	const { buildInfo } = useDashboard();
+	const [search, setSearch] = useSearchParams();
+	const focus = readHudSample(search);
+	const clearFocus = () => {
+		const next = new URLSearchParams(search);
+		next.delete("metric");
+		next.delete("sample");
+		setSearch(next, { replace: true });
+	};
 	const allowed = Boolean(permissions.viewDeploymentConfig);
 	const { data, error } = useQuery({ ...hud(), enabled: allowed });
 	const [order, setOrder] = useState(readHudOrder);
@@ -205,6 +214,8 @@ const HudPage: React.FC = () => {
 
 						{/* The Sort menu sits with the graphs' controls, not over the totals (which grow). */}
 						<HudGraphs
+							focus={focus}
+							onClearFocus={clearFocus}
 							leading={
 								<SortMenu
 									metrics={metrics}

@@ -1,5 +1,6 @@
 import { getErrorMessage } from "#/api/errors";
 import type { HudHistory, HudHistoryPoint } from "#/api/platform";
+import { MetricMeter } from "./MetricMeter";
 import { MetricSample } from "./MetricSample";
 import { MetricYAxis } from "./MetricYAxis";
 
@@ -51,6 +52,7 @@ export const ClusterDiskGraph: React.FC<{
 	const points = history?.points ?? [];
 	const latest = points.at(-1);
 	const current = diskAmounts(latest);
+	const { used, total } = current;
 	const scale = Math.max(
 		1,
 		...points.flatMap((point) => {
@@ -79,6 +81,16 @@ export const ClusterDiskGraph: React.FC<{
 				<span className="font-semibold text-content-primary">Disk</span>
 				{latest && <span>Measured {timeLabel(latest.t)}</span>}
 			</div>
+			{used !== null && total !== null && total > 0 && (
+				<MetricMeter
+					label="Disk in use"
+					value={used}
+					max={total}
+					valueText={`${formatDisk(used)} of ${formatDisk(total)} (${Math.min(100, Math.round((100 * used) / total))}%)`}
+					className="mb-1"
+					fillClassName="bg-content-link"
+				/>
+			)}
 			{loading && !history ? (
 				<p className="m-0 py-3" role="status">
 					Loading disk history...

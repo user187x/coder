@@ -8,10 +8,10 @@ import {
 import userEvent from "@testing-library/user-event";
 import { MonitorIcon } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { API } from "#/api/api";
-import { PlatformAPI } from "#/api/platform";
-import { coderHeartbeat } from "#/api/queries/platform";
+import { type HudHistory, PlatformAPI } from "#/api/platform";
+import { coderHeartbeat, hudHistory } from "#/api/queries/platform";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
 import * as animations from "#/hooks/useAnimationSettings";
 import {
@@ -64,6 +64,11 @@ const controls = {
 	quickLinks: pages.slice(0, 2),
 };
 
+const CurrentLocation = () => {
+	const { pathname, search } = useLocation();
+	return <output aria-label="Current route">{pathname + search}</output>;
+};
+
 const renderMenu = (
 	props: Omit<React.ComponentProps<typeof ProxyMenu>, "user" | "onSignOut">,
 	client = new QueryClient(),
@@ -72,6 +77,7 @@ const renderMenu = (
 		<QueryClientProvider client={client}>
 			<MemoryRouter>
 				<ProxyMenu {...props} user={MockUserOwner} onSignOut={vi.fn()} />
+				<CurrentLocation />
 			</MemoryRouter>
 		</QueryClientProvider>,
 	);
@@ -162,6 +168,137 @@ describe("ProxyMenu", () => {
 			expect(animate).toHaveBeenCalledWith(false);
 		},
 	);
+
+	it.each([
+		["Side Panel", true],
+		["Breadcrumb", false],
+	] as const)(
+		"chooses %s from the compact Settings key",
+		async (label, docked) => {
+			const prefs = { settings_sidebar: true, settings_sidebar_compact: true };
+			vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue(prefs);
+			const save = vi
+				.spyOn(PlatformAPI, "setUserUIPreferences")
+				.mockImplementation(async (changes) => ({ ...prefs, ...changes }));
+			const user = userEvent.setup();
+			renderMenu({ proxyContextValue: value, hud: true, controls });
+			const key = await screen.findByRole("menuitem", {
+				name: "Expand Settings sidebar",
+			});
+			await user.pointer({ target: key, keys: "[MouseRight]" });
+			const choices = await screen.findByRole("dialog", {
+				name: "Settings layout",
+			});
+			expect(save).not.toHaveBeenCalled();
+			await user.click(within(choices).getByRole("button", { name: label }));
+			await waitFor(() =>
+				expect(save).toHaveBeenCalledWith({
+					settings_sidebar: docked,
+					settings_sidebar_compact: false,
+				}),
+			);
+		},
+	);
+
+	describe("compact metric history", () => {
+		const start = 1_780_000_000;
+		const timestamps = [start, start + 15, start + 30, start + 45];
+
+		beforeEach(() => {
+			vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+				settings_sidebar: true,
+				settings_sidebar_compact: true,
+			});
+			vi.mocked(PlatformAPI.getClusterUsage).mockResolvedValue({
+				...MockClusterUsage,
+				history: {
+					every: 15,
+					points: timestamps.map((t, index) => ({
+						t,
+						cpu: index + 1,
+						cpuTotal: 16,
+						memory: (index + 12) * 1024 ** 3,
+						memoryTotal: 64 * 1024 ** 3,
+					})),
+				},
+				network: {
+					every: 15,
+					rx: 2000,
+					tx: 1500,
+					points: timestamps.map((t, index) => ({
+						t,
+						rx: 2000 + index * 500,
+						tx: 1500 + index * 750,
+					})),
+				},
+			});
+		});
+
+		const openGraph = async (name: string) => {
+			const client = new QueryClient();
+			const history: HudHistory = {
+				...MockHudHistory,
+				range: "15m",
+				step: 15,
+				points: timestamps.map((t, index) => ({
+					...MockHudHistory.points[index],
+					t,
+				})),
+			};
+			vi.mocked(PlatformAPI.getHudHistory).mockResolvedValue(history);
+			client.setQueryData(hudHistory("15m").queryKey, history);
+			renderMenu({ proxyContextValue: value, hud: true, controls }, client);
+			const graph = await screen.findByRole("menuitem", { name });
+			await waitFor(() => expect(graph).not.toHaveAttribute("aria-disabled"));
+			vi.spyOn(graph, "getBoundingClientRect").mockReturnValue(
+				new DOMRect(0, 0, 36, 600),
+			);
+			return graph;
+		};
+
+		it.each([
+			["Total CPU used", "cpu"],
+			["Total memory used", "memory"],
+			["Cluster network", "net"],
+			["Total disk used", "disk"],
+		])("opens the HUD at the clicked %s sample", async (name, metric) => {
+			const graph = await openGraph(name);
+			const user = userEvent.setup();
+			await user.pointer({
+				target: graph,
+				coords: { clientX: 12, clientY: 575 },
+				keys: "[MouseLeft]",
+			});
+			expect(
+				screen.getByRole("status", { name: "Current route" }),
+			).toHaveTextContent(`/hud?metric=${metric}&sample=${start + 15}`);
+		});
+
+		it("opens the dragged time range in a dialog", async () => {
+			const graph = await openGraph("Cluster network");
+			const user = userEvent.setup();
+			await user.pointer([
+				{
+					target: graph,
+					coords: { clientX: 12, clientY: 595 },
+					keys: "[MouseLeft>]",
+				},
+				{ target: graph, coords: { clientX: 12, clientY: 575 } },
+				{ keys: "[/MouseLeft]" },
+			]);
+			const dialog = await screen.findByRole("dialog", {
+				name: "Cluster network",
+			});
+			const time = (t: number) => new Date(t * 1000).toLocaleString("en-US");
+			expect(dialog).toHaveAccessibleDescription(
+				`${time(start + 15)} to ${time(start + 45)}`,
+			);
+			await user.click(within(dialog).getByRole("button", { name: "Close" }));
+			expect(
+				screen.getByRole("status", { name: "Current route" }),
+			).toHaveTextContent(/^\/$/);
+		});
+	});
 
 	it("toggles live metric graphs without expanding the shortcut rail", async () => {
 		const prefs = { settings_sidebar: true, settings_sidebar_compact: true };

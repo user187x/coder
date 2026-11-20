@@ -10,6 +10,7 @@ import type {
 import { hudHistory } from "#/api/queries/platform";
 
 import { ClusterDiskGraph } from "./ClusterDiskGraph";
+import { MetricMeter } from "./MetricMeter";
 import { MetricSample } from "./MetricSample";
 import { MetricYAxis } from "./MetricYAxis";
 
@@ -198,7 +199,9 @@ export function networkTrace(
  */
 const NetworkGraph: React.FC<{ network: ClusterNetwork }> = ({ network }) => {
 	const points = network.points.slice(-HISTORY_SLOTS);
-	const peak = Math.max(1, ...points.flatMap((p) => [p.rx, p.tx]));
+	const peakRx = Math.max(1, network.rx, ...points.map((p) => p.rx));
+	const peakTx = Math.max(1, network.tx, ...points.map((p) => p.tx));
+	const peak = Math.max(peakRx, peakTx);
 	const slot = 100 / HISTORY_SLOTS;
 	const half = 20;
 	const barWidth = slot * 0.7;
@@ -233,6 +236,30 @@ const NetworkGraph: React.FC<{ network: ClusterNetwork }> = ({ network }) => {
 						↓ {formatRate(network.rx)}
 					</span>
 				</span>
+			</div>
+			<div className="relative mb-1 flex overflow-hidden rounded">
+				<MetricMeter
+					label="Network received"
+					value={network.rx}
+					max={peakRx}
+					valueText={`${formatRate(network.rx)} RX · recent peak ${formatRate(peakRx)}`}
+					className="w-1/2 rounded-none"
+					fillClassName="bg-content-link"
+					reverse
+				/>
+				<MetricMeter
+					label="Network sent"
+					value={network.tx}
+					max={peakTx}
+					valueText={`${formatRate(network.tx)} TX · recent peak ${formatRate(peakTx)}`}
+					className="w-1/2 rounded-none"
+					fillClassName="bg-content-success"
+					useMetricColor={false}
+				/>
+				<span
+					aria-hidden
+					className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-content-secondary/70"
+				/>
 			</div>
 			<svg
 				data-panel-graph-track
@@ -436,33 +463,20 @@ const UsageBar: React.FC<UsageBarProps> = ({ kind, label, usage, history }) => {
 				<span>{label}</span>
 				<span>{Math.round(used)}%</span>
 			</div>
-			<div
-				data-panel-graph-track
-				role="meter"
-				aria-label={`${label} in use`}
-				aria-valuemin={0}
-				aria-valuemax={usage.total}
-				aria-valuenow={usage.used}
-				aria-valuetext={`${formatAmount(kind, usage.used)} of ${formatAmount(kind, usage.total)}`}
-				className="relative h-2 rounded overflow-hidden bg-surface-tertiary"
-			>
-				<div
-					className="absolute inset-y-0 left-0 rounded bg-content-secondary/25 transition-[width] duration-500 motion-reduce:transition-none"
-					style={{ width: `${percentOf(usage.requested)}%` }}
-				/>
-				<div
-					data-panel-graph-fill
-					className={cn(
-						"absolute inset-y-0 left-0 rounded transition-[width] duration-500 motion-reduce:transition-none",
-						level === "high"
-							? "bg-content-destructive"
-							: level === "mid"
-								? "bg-content-warning"
-								: "bg-content-success",
-					)}
-					style={{ width: `${used}%` }}
-				/>
-			</div>
+			<MetricMeter
+				label={`${label} in use`}
+				value={usage.used}
+				max={usage.total}
+				reserved={usage.requested}
+				valueText={`${formatAmount(kind, usage.used)} of ${formatAmount(kind, usage.total)}`}
+				fillClassName={
+					level === "high"
+						? "bg-content-destructive"
+						: level === "mid"
+							? "bg-content-warning"
+							: "bg-content-success"
+				}
+			/>
 			<div className="mt-1 tabular-nums text-content-primary truncate">
 				{amount(kind, usage.used)} / {amount(kind, usage.total)}{" "}
 				{unit(kind, usage.total)}

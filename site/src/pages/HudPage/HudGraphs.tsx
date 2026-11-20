@@ -2,8 +2,13 @@ import { cn } from "cn";
 import { useState } from "react";
 import { useQuery } from "react-query";
 import type { HudRange } from "#/api/platform";
-import { hudHistory } from "#/api/queries/platform";
-import { fmt, Graph, peakScale, Swatch } from "./HudGraph";
+import { clusterUsage, hudHistory } from "#/api/queries/platform";
+import { ClusterMetricHistoryChart } from "#/modules/platform/ClusterMetricHistoryChart";
+import {
+	type ClusterMetric,
+	networkMetricSamples,
+} from "#/modules/platform/clusterMetricHistory";
+import { fmt, Graph, peakScale, Swatch, useHudSampleScroll } from "./HudGraph";
 import { type HudPanel, HudSortableGrid } from "./HudSortableGrid";
 import { applyOrder, readHudGraphOrder, writeHudGraphOrder } from "./hudOrder";
 import { RANGES } from "./hudRanges";
@@ -27,12 +32,20 @@ const readRange = (): HudRange => {
 type HudGraphsProps = {
 	/** Shown before the graphs' note, at the left of their controls (the HUD's Sort menu). */
 	leading?: React.ReactNode;
+	focus?: { metric: ClusterMetric; time: number };
+	onClearFocus?: () => void;
 };
 
-export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
+export const HudGraphs: React.FC<HudGraphsProps> = ({
+	leading,
+	focus,
+	onClearFocus,
+}) => {
 	const [order, setOrder] = useState(readHudGraphOrder);
-	const [range, setRangeState] = useState<HudRange>(readRange);
+	const [savedRange, setRangeState] = useState<HudRange>(readRange);
+	const range = focus ? "15m" : savedRange;
 	const setRange = (r: HudRange) => {
+		if (focus) onClearFocus?.();
 		setRangeState(r);
 		try {
 			localStorage.setItem(RANGE_KEY, r);
@@ -41,6 +54,10 @@ export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
 		}
 	};
 	const { data, error } = useQuery(hudHistory(range));
+	const focusedTime = (metric: ClusterMetric) =>
+		focus?.metric === metric && (metric === "net" || data?.range === range)
+			? focus.time
+			: undefined;
 
 	return (
 		<div className="flex flex-col gap-3" data-testid="hud-graphs">
@@ -124,6 +141,7 @@ export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
 									<Graph
 										handle={handle}
 										testId="hud-graph-cpu"
+										focusedTime={focusedTime("cpu")}
 										title="Total CPU used"
 										unit="cores"
 										history={data}
@@ -165,6 +183,7 @@ export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
 									<Graph
 										handle={handle}
 										testId="hud-graph-memory"
+										focusedTime={focusedTime("memory")}
 										title="Total memory used"
 										unit="GiB"
 										history={data}
@@ -203,12 +222,23 @@ export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
 								),
 							},
 							{
+								id: "network",
+								label: "Cluster network",
+								render: (handle) => (
+									<HudNetworkGraph
+										handle={handle}
+										focusedTime={focusedTime("net")}
+									/>
+								),
+							},
+							{
 								id: "disk-used",
 								label: "Total disk used",
 								render: (handle) => (
 									<Graph
 										handle={handle}
 										testId="hud-graph-disk-used"
+										focusedTime={focusedTime("disk")}
 										title="Total disk used"
 										unit="GiB"
 										history={data}
@@ -321,5 +351,44 @@ export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
 				/>
 			)}
 		</div>
+	);
+};
+
+const HudNetworkGraph = ({
+	handle,
+	focusedTime,
+}: {
+	handle?: React.ReactNode;
+	focusedTime?: number;
+}) => {
+	const section = useHudSampleScroll(focusedTime);
+	const { data, error } = useQuery(clusterUsage());
+	const network = data?.network;
+	return (
+		<section
+			ref={section}
+			aria-label="Cluster network"
+			className="flex min-w-0 flex-col gap-2 rounded-lg border border-solid border-border bg-surface-primary p-4"
+		>
+			<header className="flex items-baseline gap-2">
+				{handle}
+				<h2 className="m-0 flex-1 text-xs font-normal uppercase tracking-wide text-content-secondary">
+					Cluster network
+				</h2>
+				<span className="text-xs text-content-secondary">Last 15 min</span>
+			</header>
+			{error && !data ? (
+				<p className="text-sm text-content-destructive">
+					Network history could not be read.
+				</p>
+			) : (
+				<ClusterMetricHistoryChart
+					metric="net"
+					samples={networkMetricSamples(network)}
+					every={network?.every ?? 15}
+					focusedTime={focusedTime}
+				/>
+			)}
+		</section>
 	);
 };

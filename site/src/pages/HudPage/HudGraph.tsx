@@ -1,6 +1,7 @@
 import { cn } from "cn";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { HudHistory, HudHistoryPoint, HudRange } from "#/api/platform";
+import { nearestSample } from "#/modules/platform/clusterMetricHistory";
 import { RANGES } from "./hudRanges";
 
 export const fmt = (v: number | null | undefined, digits = 1) =>
@@ -29,6 +30,17 @@ export const peakScale = (
 	return all ? Math.min(all, top * 1.25 || all) : top * 1.25;
 };
 
+/** Scroll to a deep-linked graph when it mounts or the selection changes. */
+export function useHudSampleScroll(focusedTime?: number) {
+	const section = useRef<HTMLElement>(null);
+	useEffect(() => {
+		if (focusedTime !== undefined) {
+			section.current?.scrollIntoView?.({ block: "center" });
+		}
+	}, [focusedTime]);
+	return section;
+}
+
 type Bar = {
 	/** The bar (cluster in use, the median latency). */
 	value: number | null;
@@ -51,6 +63,7 @@ type GraphProps = {
 	legend: React.ReactNode;
 	empty: string;
 	testId: string;
+	focusedTime?: number;
 };
 
 /**
@@ -69,31 +82,44 @@ export const Graph: React.FC<GraphProps> = ({
 	legend,
 	empty,
 	testId,
+	focusedTime,
 }) => {
+	const section = useHudSampleScroll(focusedTime);
 	const [hover, setHover] = useState<number | null>(null);
 	const slots = Math.max(
 		1,
 		Math.ceil((history.end - history.start) / history.step),
 	);
-	const bySlot = new Map<number, HudHistoryPoint>();
-	for (const p of history.points) {
-		bySlot.set(
-			Math.min(slots - 1, Math.floor((p.t - history.start) / history.step)),
-			p,
+	const slotOf = (time: number) =>
+		Math.max(
+			0,
+			Math.min(slots - 1, Math.floor((time - history.start) / history.step)),
 		);
-	}
+	const bySlot = new Map<number, HudHistoryPoint>();
+	for (const p of history.points) bySlot.set(slotOf(p.t), p);
 	const measured = history.points.filter((p) => bars(p).value !== null);
 	const max = Math.max(top(history.points), 1e-6);
 	const latest = [...history.points]
 		.reverse()
 		.find((p) => bars(p).value !== null);
-	const shown = hover !== null ? bySlot.get(hover) : latest;
+	const nearest =
+		focusedTime === undefined
+			? undefined
+			: nearestSample(measured, focusedTime);
+	const focused =
+		nearest &&
+		focusedTime !== undefined &&
+		Math.abs(nearest.t - focusedTime) <= history.step
+			? nearest
+			: undefined;
+	const shown = hover !== null ? bySlot.get(hover) : (focused ?? latest);
 	const W = 100 / slots;
 	const H = 100;
 	const y = (v: number) => H - Math.min(1, v / max) * H;
 
 	return (
 		<section
+			ref={section}
 			className="flex min-w-0 flex-col gap-2 rounded-lg border border-solid border-border bg-surface-primary p-4"
 			data-testid={testId}
 			aria-label={title}
@@ -184,6 +210,17 @@ export const Graph: React.FC<GraphProps> = ({
 								</g>
 							);
 						})}
+						{focused && (
+							<rect
+								key={focusedTime}
+								x={slotOf(focused.t) * W + W * 0.12}
+								y={0}
+								width={Math.max(W * 0.76, 0.6)}
+								height={H}
+								className="hud-focused-sample pointer-events-none fill-content-link/25 stroke-content-primary"
+								vectorEffect="non-scaling-stroke"
+							/>
+						)}
 					</svg>
 				)}
 			</div>

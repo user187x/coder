@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { ChartNoAxesCombinedIcon, GaugeIcon } from "lucide-react";
 import { useId } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -74,7 +75,12 @@ export const SettingsMetricGraphs: React.FC<{
 			</DropdownMenuItem>
 		);
 		return (
-			<div className="flex min-h-0 flex-1 flex-col gap-1">
+			<div
+				className={cn(
+					"flex flex-1 flex-col gap-1",
+					expanded ? "min-h-60" : "min-h-0",
+				)}
+			>
 				{canViewHud ? (
 					<ContextMenu>
 						<ContextMenuTrigger asChild>{toggle}</ContextMenuTrigger>
@@ -91,7 +97,9 @@ export const SettingsMetricGraphs: React.FC<{
 					toggle
 				)}
 				<div id={id} hidden={!expanded} className="min-h-0 flex-1">
-					{expanded && <CompactClusterGraphs data={cluster.data} />}
+					{expanded && (
+						<CompactClusterGraphs data={cluster.data} canViewHud={canViewHud} />
+					)}
 				</div>
 			</div>
 		);

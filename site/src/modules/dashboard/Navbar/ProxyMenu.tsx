@@ -63,6 +63,10 @@ import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
 import {
+	SettingsStripDockControl,
+	settingsDockPillClassName,
+} from "./SettingsStripDockControl";
+import {
 	settingsChatSlot,
 	useRegisterSettingsMenu,
 	useSettingsMenuHost,
@@ -309,11 +313,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 	const dockLabel = docked ? "Return to dropdown" : "Dock Settings";
 
-	const compactLabel = !docked
-		? "Dock Settings as shortcut icons"
-		: compact
-			? "Expand Settings sidebar"
-			: "Collapse Settings to shortcut icons";
+	const compactLabel = docked
+		? "Collapse Settings to shortcut icons"
+		: "Dock Settings as shortcut icons";
 	const toggleCompact = () => {
 		if (!docked) setOpen(true);
 		docking.mutate({
@@ -321,8 +323,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			settings_sidebar_compact: !compact,
 		});
 	};
-	const toggleDock = () => {
-		setOpen(true);
+	const toggleDock = (showMenu = true) => {
+		setOpen(showMenu);
 		docking.mutate({
 			settings_sidebar: !docked,
 			settings_sidebar_compact: false,
@@ -334,12 +336,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			aria-label={compactLabel}
 			title={compactLabel}
 			disabled={docking.isPending || !prefs.data}
-			className={cn(
-				"min-h-8 justify-center px-1",
-				compact
-					? "settings-strip-key mx-auto shrink-0 rounded-full"
-					: "flex-1 rounded-none border-0 border-l border-solid border-border",
-			)}
+			className="min-h-8 flex-1 justify-center rounded-none border-0 border-l border-solid border-border px-1"
 			onSelect={(event) => {
 				event.preventDefault();
 				toggleCompact();
@@ -562,7 +559,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									<div
 										role="group"
 										aria-label="Docking"
-										className="settings-pill flex min-h-8 flex-1 items-stretch overflow-hidden rounded-full border border-solid border-border"
+										className={cn(settingsDockPillClassName, "flex-1")}
 									>
 										<DropdownMenuItem
 											{...dockMenu.trigger}
@@ -612,8 +609,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						)}
 						{compact ? (
 							<>
-								{compactToggle}
-								{compactOptions}
+								<SettingsStripDockControl
+									edge={dockEdge}
+									disabled={docking.isPending || !prefs.data}
+									onSidePanel={toggleCompact}
+									onBreadcrumb={() => toggleDock(false)}
+								/>
 								{/* The account as in the dropdown, between thin dividers */}
 								<DropdownMenuSeparator className="mx-auto my-1 w-6 shrink-0" />
 								<span className="flex justify-center">
