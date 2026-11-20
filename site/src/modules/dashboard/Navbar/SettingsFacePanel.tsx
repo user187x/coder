@@ -44,6 +44,7 @@ export const SettingsFacePanel: React.FC<{
 	face: SettingsFace;
 	onFaceChange: (face: SettingsFace) => void;
 	layout: SettingsPanelLayout;
+	fitContent?: boolean;
 	onLayoutChange: (layout: SettingsPanelLayout) => void;
 	/** The Metrics face (null: the user may not see the cluster's metrics). */
 	metrics: React.ReactNode;
@@ -54,6 +55,7 @@ export const SettingsFacePanel: React.FC<{
 	face,
 	onFaceChange,
 	layout,
+	fitContent = false,
 	onLayoutChange,
 	metrics,
 	chatFull = false,
@@ -74,7 +76,8 @@ export const SettingsFacePanel: React.FC<{
 	const hidden = layout === "links";
 	const direction =
 		preferences.data?.settings_face_collapse_direction ?? "down";
-	const fillsPanel = full || (layout === "face" && direction === "down");
+	const fillsPanel =
+		full || (layout === "face" && direction === "down" && !fitContent);
 	const renderHandle = (target: "links" | "face") => {
 		const selected = layout === target;
 		const label = selected

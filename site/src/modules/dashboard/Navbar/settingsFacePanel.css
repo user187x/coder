@@ -261,11 +261,7 @@
 	padding-bottom: 0;
 }
 
-.settings-menu-surface[data-quick-links-collapsed] .settings-menu-well {
-	flex: 0 0 auto;
-}
-
-/* Keep the Controls bar and the face slits in separate rows, even when the links drawer closes. */
+/* Keep the Controls bar and the face slits in separate rows. */
 .settings-menu
 	.settings-menu-surface[data-slit-layout="both"]
 	.settings-menu-well {

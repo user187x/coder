@@ -281,7 +281,7 @@ html[data-settings-dock-edge="left"]
 	border-radius: var(--dock-radius);
 }
 .settings-menu[data-settings-docked]
-	> .settings-menu-surface[data-slit-direction="up"][data-slit-layout="face"] {
+	> .settings-menu-surface[data-quick-links-collapsed] {
 	height: auto;
 }
 

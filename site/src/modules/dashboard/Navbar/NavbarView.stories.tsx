@@ -7,6 +7,7 @@ import { PlatformAPI } from "#/api/platform";
 import {
 	bannerKey,
 	clusterUsage,
+	hudHistory,
 	userUIPreferences,
 } from "#/api/queries/platform";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
@@ -19,6 +20,7 @@ import {
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
+import { MockHudHistory } from "#/testHelpers/hud";
 import { pixelWithDesktop, pixelWithTablet } from "#/testHelpers/pixel";
 import { MockBanner, MockClusterUsage } from "#/testHelpers/platform";
 import {
@@ -315,6 +317,14 @@ export const ScaledAccountActionAlignment: Story = {
 	args: { scale: 120 },
 };
 
+const compactHistoryStart = 1_780_000_000;
+const compactHudPoints = MockHudHistory.points
+	.slice(-60)
+	.map((point, index) => ({
+		...point,
+		t: compactHistoryStart + index * 15,
+	}));
+
 export const CompactDockWithoutPageAction: Story = {
 	parameters: {
 		pixel: { matrix: pixelWithDesktop },
@@ -323,16 +333,37 @@ export const CompactDockWithoutPageAction: Story = {
 				key: clusterUsage().queryKey,
 				data: {
 					...MockClusterUsage,
+					history: {
+						every: 15,
+						points: compactHudPoints.map((point, index) => ({
+							t: point.t,
+							cpu: MockClusterUsage.cpu.used + (index % 7) / 10,
+							cpuTotal: MockClusterUsage.cpu.total,
+							memory: MockClusterUsage.memory.used,
+							memoryTotal: MockClusterUsage.memory.total,
+						})),
+					},
 					network: {
 						rx: 4200,
 						tx: 1500,
 						every: 15,
 						points: Array.from({ length: 60 }, (_, index) => ({
-							t: 1_780_000_000 + index * 15,
+							t: compactHistoryStart + index * 15,
 							rx: 4200 - (index % 7) * 400,
 							tx: 1500 + (index % 3) * 350,
 						})),
 					},
+				},
+			},
+			{
+				key: hudHistory("15m").queryKey,
+				data: {
+					...MockHudHistory,
+					range: "15m",
+					start: compactHistoryStart,
+					end: compactHistoryStart + 900,
+					step: 15,
+					points: compactHudPoints,
 				},
 			},
 			{
@@ -429,6 +460,31 @@ export const ForAdminWithQuickLinks: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: /^Settings/ }));
+	},
+};
+
+export const DockedWithControlsCollapsed: Story = {
+	args: ForAdminWithQuickLinks.args,
+	parameters: {
+		pixel: { matrix: pixelWithDesktop },
+		queries: [
+			{ key: clusterUsage().queryKey, data: MockClusterUsage },
+			{ key: hudHistory("15m").queryKey, data: MockHudHistory },
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					settings_sidebar: true,
+					navbar_settings_side: "left",
+					settings_face_collapse_direction: "up",
+				},
+			},
+		],
+	},
+	play: async ({ canvasElement }) => {
+		const body = within(canvasElement.ownerDocument.body);
+		await userEvent.click(
+			await body.findByRole("menuitem", { name: "Collapse quick links" }),
+		);
 	},
 };
 

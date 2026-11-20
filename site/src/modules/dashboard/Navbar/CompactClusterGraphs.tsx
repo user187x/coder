@@ -125,6 +125,7 @@ function RailPlot({
 			<DropdownMenuItem
 				asChild
 				disabled={!samples.length}
+				className="min-h-0 w-full flex-1 cursor-pointer touch-none overflow-hidden rounded-(--dock-radius) p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link"
 				onSelect={(event) => event.preventDefault()}
 			>
 				<button
@@ -132,7 +133,6 @@ function RailPlot({
 					aria-label={title}
 					aria-describedby={instructions}
 					title={summary}
-					className="min-h-0 w-full flex-1 touch-none overflow-hidden rounded-(--dock-radius) p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link"
 					onPointerDown={(event) => {
 						if (event.button !== 0) return;
 						const sample = sampleAt(
@@ -205,49 +205,51 @@ function RailPlot({
 							onSample(metric, sample, every, event.currentTarget);
 					}}
 				>
-					<svg
-						data-panel-graph-track
-						role="img"
-						aria-label={summary}
-						viewBox="0 0 100 100"
-						preserveAspectRatio="none"
-						className="h-full w-full bg-surface-tertiary"
-					>
-						{latest !== undefined &&
-							shown.map(({ t, bar, measurement }) => {
-								const y = historyX(t, latest, every);
-								return (
-									<MetricSample
-										key={t}
-										x={0}
-										y={y}
-										width={100}
-										height={100 / HISTORY_SLOTS}
-										time={t}
-										measurement={measurement}
-									>
-										<rect
-											data-panel-graph-fill
-											x="0"
+					<span className="absolute inset-0">
+						<svg
+							data-panel-graph-track
+							role="img"
+							aria-label={summary}
+							viewBox="0 0 100 100"
+							preserveAspectRatio="none"
+							className="block size-full bg-surface-tertiary"
+						>
+							{latest !== undefined &&
+								shown.map(({ t, bar, measurement }) => {
+									const y = historyX(t, latest, every);
+									return (
+										<MetricSample
+											key={t}
+											x={0}
 											y={y}
-											height={1.4}
-											width={Math.min(100, (100 * bar) / scale)}
-											className="fill-content-link"
-										/>
-									</MetricSample>
-								);
-							})}
-						{selection && (
-							<rect
-								x={0}
-								y={top}
-								width={100}
-								height={bottom - top}
-								className="pointer-events-none fill-content-primary/20 stroke-content-primary"
-								vectorEffect="non-scaling-stroke"
-							/>
-						)}
-					</svg>
+											width={100}
+											height={100 / HISTORY_SLOTS}
+											time={t}
+											measurement={measurement}
+										>
+											<rect
+												data-panel-graph-fill
+												x="0"
+												y={y}
+												height={1.4}
+												width={Math.min(100, (100 * bar) / scale)}
+												className="fill-content-link"
+											/>
+										</MetricSample>
+									);
+								})}
+							{selection && (
+								<rect
+									x={0}
+									y={top}
+									width={100}
+									height={bottom - top}
+									className="pointer-events-none fill-content-primary/20 stroke-content-primary"
+									vectorEffect="non-scaling-stroke"
+								/>
+							)}
+						</svg>
+					</span>
 				</button>
 			</DropdownMenuItem>
 		</div>

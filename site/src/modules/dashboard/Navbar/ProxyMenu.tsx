@@ -506,7 +506,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					<div
 						ref={setMenuSurface}
 						data-quick-links-collapsed={
-							drawerCollapsed || (faceOnly && direction === "up") || undefined
+							(!compact &&
+								!chatFull &&
+								(drawerCollapsed || (faceOnly && direction === "up"))) ||
+							undefined
 						}
 						data-slit-layout={layout}
 						data-slit-direction={direction}
@@ -792,7 +795,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									<nav
 										aria-label="Settings"
 										data-testid="controls-group"
-										className="settings-menu-well mx-1 mt-2 mb-1 flex min-h-0 flex-auto flex-col rounded-lg border border-solid border-border p-1 bg-surface-primary"
+										hidden={drawerCollapsed}
+										className={cn(
+											"settings-menu-well mx-1 mt-2 mb-1 flex min-h-0 flex-auto flex-col rounded-lg border border-solid border-border p-1 bg-surface-primary",
+											drawerCollapsed && "hidden",
+										)}
 									>
 										<AdminSettingsItems
 											unreadGlow={unreadGlow}
@@ -834,7 +841,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									!topFull ||
 									chatExpanded) && (
 									<SettingsFacePanel
-										layout={layout}
+										layout={drawerCollapsed ? "face" : layout}
+										fitContent={drawerCollapsed}
 										onLayoutChange={(next) => {
 											setChatFull(false);
 											setDrawerCollapsed(false);
