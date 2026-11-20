@@ -348,11 +348,10 @@ RUN curl -fsSL -o /tmp/shell-quote.tgz "https://registry.npmjs.org/shell-quote/-
 	&& tar -xzf /tmp/shell-quote.tgz -C "$d" --strip-components=1 --no-same-owner \
 	&& rm -f /tmp/shell-quote.tgz \
 	&& /usr/lib/code-server/lib/node -e 'const q = require(process.argv[1]); if (require(process.argv[1] + "/package.json").version !== process.argv[2] || q.quote(["a b"]) !== "'"'"'a b'"'"'") process.exit(1)' "$d" "${SHELL_QUOTE_VERSION}"
-# GHSA-c475-qrg2-pj4r and others (high: excessive CPU, an uncaught exception): code-server ships basic-ftp 5.3.1 (for
-# get-uri, its proxy agent's ftp:// support). Replaced by 6.2.3, the newest, checked by its npm SHA-512. 6.0's one
-# breaking change refuses separate FTP transfer hosts by default (bounce attacks), which get-uri does not use.
-ARG BASIC_FTP_VERSION=6.2.3
-ARG BASIC_FTP_SHA512=4fb198b50d9e28950de583911bb03cbb659f07d24c3746b8ff0977308eb8aaadaa4d17dadc55f3a0dab40c3a23643903c92b5c2fe4e47cab33e091c4671e6419
+# get-uri uses basic-ftp for FTP proxy support. Version 6 requires the same host for FTP control and data
+# connections by default, which get-uri supports.
+ARG BASIC_FTP_VERSION=6.2.4
+ARG BASIC_FTP_SHA512=e8008a390c5296fe7191ae22d37ba37e770dafdaa9e7264d2b7bb4fb25054c05381df1b901eced082f7e47523d766f28abed6fb78459edc2114c1add1ea2f69b
 RUN curl -fsSL -o /tmp/basic-ftp.tgz "https://registry.npmjs.org/basic-ftp/-/basic-ftp-${BASIC_FTP_VERSION}.tgz" \
 	&& echo "${BASIC_FTP_SHA512}  /tmp/basic-ftp.tgz" | sha512sum -c - \
 	&& d=/usr/lib/code-server/node_modules/basic-ftp \
@@ -379,22 +378,41 @@ RUN curl -fsSL -o /tmp/katex.tgz "https://registry.npmjs.org/katex/-/katex-${KAT
 	&& /usr/lib/code-server/lib/node -e 'const k = require(process.argv[1]); if (require(process.argv[1] + "/package.json").version !== process.argv[2] || !k.renderToString("x^2", {throwOnError: true}).includes("katex")) process.exit(1)' "$d" "${KATEX_VERSION}"
 # Replace vulnerable code-server modules with the locked versions. Keep body-parser's upgraded
 # dependencies under its own directory so the rest of code-server uses its original dependency tree.
-RUN --mount=type=bind,from=code-server-security,source=/patches/node_modules,target=/tmp/patched-node-modules \
-	set -eux; \
-	code_server=/usr/lib/code-server; \
-	for spec in node_modules/body-parser node_modules/follow-redirects lib/vscode/node_modules/undici; do \
-		package="${spec##*/}"; \
-		test -f "$code_server/$spec/package.json"; \
-		rm -rf "$code_server/$spec"; \
-		cp -a "/tmp/patched-node-modules/$package" "$code_server/$spec"; \
-	done; \
-	body_parser_modules="$code_server/node_modules/body-parser/node_modules"; \
-	mkdir -p "$body_parser_modules"; \
-	for dep in /tmp/patched-node-modules/*; do \
-		case "${dep##*/}" in body-parser|follow-redirects|undici) continue ;; esac; \
-		cp -a "$dep" "$body_parser_modules/"; \
-	done; \
-	"$code_server/lib/node" -e 'const assert=require("node:assert/strict"); for(const [p,v] of [["node_modules/body-parser","2.4.0"],["node_modules/follow-redirects","1.16.2"],["lib/vscode/node_modules/undici","7.30.2"]]){const root="/usr/lib/code-server/"+p; assert.equal(require(root+"/package.json").version,v); require(root)}'
+RUN --mount=type=bind,from=code-server-security,source=/patches/node_modules,target=/tmp/patched-node-modules <<'SH'
+set -eu
+code_server=/usr/lib/code-server
+for spec in node_modules/body-parser node_modules/follow-redirects node_modules/ip-address node_modules/qs \
+	lib/vscode/node_modules/ip-address lib/vscode/node_modules/undici; do
+	package="${spec##*/}"
+	test -f "$code_server/$spec/package.json"
+	rm -rf "$code_server/$spec"
+	cp -a "/tmp/patched-node-modules/$package" "$code_server/$spec"
+done
+body_parser_modules="$code_server/node_modules/body-parser/node_modules"
+mkdir -p "$body_parser_modules"
+for dep in /tmp/patched-node-modules/*; do
+	case "${dep##*/}" in body-parser|follow-redirects|ip-address|undici) continue ;; esac
+	cp -a "$dep" "$body_parser_modules/"
+done
+"$code_server/lib/node" - "$code_server" <<'JS'
+const assert = require("node:assert/strict");
+const codeServer = process.argv[2];
+const versions = {
+	"node_modules/body-parser": "2.4.0",
+	"node_modules/body-parser/node_modules/qs": "6.17.1",
+	"node_modules/follow-redirects": "1.16.2",
+	"node_modules/ip-address": "10.7.4",
+	"node_modules/qs": "6.17.1",
+	"lib/vscode/node_modules/ip-address": "10.7.4",
+	"lib/vscode/node_modules/undici": "7.30.2",
+};
+for (const [modulePath, version] of Object.entries(versions)) {
+	const root = `${codeServer}/${modulePath}`;
+	assert.equal(require(`${root}/package.json`).version, version);
+	require(root);
+}
+JS
+SH
 
 # code-server's terminal in the Nerd Font: the browser draws it, so code-server serves the font itself (its /_static
 # route: code-server/nerd-font.css and the font) and its page loads it; a built-in extension makes it the terminal's
@@ -432,6 +450,18 @@ RUN apt-get update \
 		libc6-dev linux-libc-dev; do dpkg -s "$p" >/dev/null 2>&1 || { echo "removed: $p"; exit 1; }; done \
 	&& gcc --version >/dev/null && g++ --version >/dev/null && make --version >/dev/null \
 	&& iptables --version && ip6tables --version && getent hosts localhost >/dev/null
+
+# Refresh installed Ubuntu libraries with available security fixes after installing the desktop.
+RUN apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=- update \
+	&& apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=- \
+		install -y --only-upgrade --no-remove \
+		libc6 libc-bin libc6-dev libc-dev-bin libc-gconv-modules-extra locales libpcre2-8-0 \
+		gvfs gvfs-common gvfs-daemons gvfs-libs \
+		gstreamer1.0-plugins-base libgstreamer1.0-0 libgstreamer-gl1.0-0 libgstreamer-plugins-base1.0-0 \
+		libgphoto2-6t64 libgphoto2-l10n libgphoto2-port12t64 \
+		libheif1 libheif-plugin-aomdec libheif-plugin-aomenc \
+		perl perl-base perl-modules-5.40 libperl5.40 libsnmp-base libsnmp40t64 python3-jwt \
+	&& rm -rf /var/lib/apt/lists/*
 
 # What it adds over the base, every version as the installed programs say it: /usr/share/coder-workspace/addons.json.
 COPY --from=crypto-policy cryptopolicy.py fips-rules.json /tmp/coder-crypto/

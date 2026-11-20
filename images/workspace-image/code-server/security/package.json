@@ -5,6 +5,8 @@
   "dependencies": {
     "body-parser": "2.4.0",
     "follow-redirects": "1.16.2",
+    "ip-address": "10.7.4",
+    "qs": "6.17.1",
     "undici": "7.30.2"
   }
 }
