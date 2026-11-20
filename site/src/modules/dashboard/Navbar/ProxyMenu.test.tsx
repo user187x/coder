@@ -1,6 +1,7 @@
 import {
 	act,
 	fireEvent,
+	renderHook,
 	screen,
 	waitFor,
 	within,
@@ -28,7 +29,7 @@ import { MockClusterUsage } from "#/testHelpers/platform";
 import { renderComponent, renderWithAuth } from "#/testHelpers/renderHelpers";
 import { adminPagesFor } from "./adminQuickLinks";
 import { ProxyMenu } from "./ProxyMenu";
-import { settingsMenuSlot } from "./settingsMenuHost";
+import { settingsMenuSlot, useSettingsChatSlot } from "./settingsMenuHost";
 
 const value = {
 	latenciesLoaded: true,
@@ -170,6 +171,7 @@ describe("ProxyMenu", () => {
 	);
 
 	it.each([
+		["Thin Settings sidebar", null],
 		["Side Panel", true],
 		["Breadcrumb", false],
 	] as const)(
@@ -191,12 +193,17 @@ describe("ProxyMenu", () => {
 			});
 			expect(save).not.toHaveBeenCalled();
 			await user.click(within(choices).getByRole("button", { name: label }));
-			await waitFor(() =>
-				expect(save).toHaveBeenCalledWith({
-					settings_sidebar: docked,
-					settings_sidebar_compact: false,
-				}),
-			);
+			if (docked === null) {
+				await waitFor(() => expect(key).toHaveFocus());
+				expect(save).not.toHaveBeenCalled();
+			} else {
+				await waitFor(() =>
+					expect(save).toHaveBeenCalledWith({
+						settings_sidebar: docked,
+						settings_sidebar_compact: false,
+					}),
+				);
+			}
 		},
 	);
 
@@ -467,6 +474,31 @@ describe("ProxyMenu", () => {
 			within(menu).getByRole("menuitem", { name: "Collapse quick links" }),
 		).toBeTruthy();
 	});
+
+	it.each([
+		["up", "Show only quick links", true],
+		["up", "Show only the bottom panel", true],
+		["down", "Show only quick links", false],
+		["down", "Show only the bottom panel", false],
+	] as const)(
+		"registers the chat dock in %s mode after %s when space is available",
+		async (direction, label, canDock) => {
+			vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+				settings_sidebar: true,
+				settings_face_collapse_direction: direction,
+			});
+			const user = userEvent.setup();
+			const { result } = renderHook(useSettingsChatSlot);
+			renderMenu({ proxyContextValue: value, hud: true, controls });
+			expect(result.current).toBeNull();
+			await user.click(await screen.findByRole("button", { name: label }));
+			await waitFor(() => expect(Boolean(result.current)).toBe(canDock));
+			await user.click(
+				await screen.findByRole("button", { name: "Show both panels" }),
+			);
+			await waitFor(() => expect(result.current).toBeNull());
+		},
+	);
 
 	it.each(["up", "down"] as const)(
 		"switches between links, the selected face, and both in %s mode",

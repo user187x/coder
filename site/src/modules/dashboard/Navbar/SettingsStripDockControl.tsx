@@ -1,5 +1,10 @@
 import { cn } from "cn";
-import { PanelRightCloseIcon, PanelRightDashedIcon } from "lucide-react";
+import {
+	PanelLeftIcon,
+	PanelRightCloseIcon,
+	PanelRightDashedIcon,
+	PanelRightIcon,
+} from "lucide-react";
 import { useRef } from "react";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import {
@@ -7,13 +12,18 @@ import {
 	PopoverAnchor,
 	PopoverContent,
 } from "#/components/Popover/Popover";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "#/components/Tooltip/Tooltip";
 import { useInlineMenu } from "./InlineMenu";
 
 export const settingsDockPillClassName =
 	"settings-pill flex min-h-8 items-stretch overflow-hidden rounded-full border border-solid border-border";
 
 const optionClassName =
-	"flex min-h-8 flex-1 cursor-pointer items-center justify-center border-0 p-1 text-inherit focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link disabled:opacity-50";
+	"flex min-w-0 flex-1 cursor-pointer items-center justify-center border-0 p-1 text-inherit focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link disabled:opacity-50";
 
 type SettingsStripDockControlProps = {
 	edge: "left" | "right";
@@ -22,7 +32,6 @@ type SettingsStripDockControlProps = {
 	onBreadcrumb: () => void;
 };
 
-/** The strip's layout choices open beside its key, outside the scrolling rail. */
 export const SettingsStripDockControl = ({
 	edge,
 	disabled,
@@ -35,6 +44,32 @@ export const SettingsStripDockControl = ({
 		menu.close();
 		onSidePanel();
 	};
+	const options = [
+		{
+			label: "Thin Settings sidebar",
+			description: "Keep Settings in the thin sidebar",
+			icon: PanelRightDashedIcon,
+			current: true,
+			select: menu.close,
+		},
+		{
+			label: "Side Panel",
+			description: "Expand Settings to the sidebar panel",
+			icon: edge === "left" ? PanelLeftIcon : PanelRightIcon,
+			select: openSidePanel,
+		},
+		{
+			label: "Breadcrumb",
+			description: "Move Settings into the navbar breadcrumb",
+			icon: PanelRightCloseIcon,
+			iconClassName: "-rotate-90",
+			select: () => {
+				menu.close();
+				onBreadcrumb();
+			},
+		},
+	];
+	if (edge === "right") options.reverse();
 
 	return (
 		<Popover open={menu.open} onOpenChange={(open) => !open && menu.close()}>
@@ -46,7 +81,10 @@ export const SettingsStripDockControl = ({
 					title="Expand Settings sidebar"
 					aria-haspopup="dialog"
 					disabled={disabled}
-					className="settings-strip-key mx-auto shrink-0 rounded-full"
+					className={cn(
+						"settings-strip-key mx-auto shrink-0 rounded-full",
+						menu.open && "invisible",
+					)}
 					onPointerLeave={(event) => {
 						// Keep the menu from reclaiming focus as the pointer enters the pill.
 						if (menu.open) event.preventDefault();
@@ -63,48 +101,52 @@ export const SettingsStripDockControl = ({
 				id={menu.id}
 				aria-label="Settings layout"
 				side={edge === "left" ? "right" : "left"}
+				sideOffset={0}
+				avoidCollisions={false}
 				className="settings-menu settings-strip-dock-options overflow-visible border-0 bg-transparent shadow-none"
-				onInteractOutside={(event) => {
-					if (
-						event.target instanceof Node &&
-						key.current?.contains(event.target)
-					) {
-						event.preventDefault();
-					}
-				}}
-				onEscapeKeyDown={(event) => {
+				onContextMenu={menu.trigger.onContextMenu}
+				onOpenAutoFocus={(event) => {
 					event.preventDefault();
-					menu.close();
-					key.current?.focus();
+					if (event.target instanceof HTMLElement) event.target.focus();
+				}}
+				onCloseAutoFocus={(event) => {
+					event.preventDefault();
+					if (document.activeElement === document.body) key.current?.focus();
 				}}
 			>
-				<div className={settingsDockPillClassName}>
-					<button
-						type="button"
-						aria-label="Breadcrumb"
-						title="Breadcrumb"
-						className={optionClassName}
-						disabled={disabled}
-						onClick={() => {
-							menu.close();
-							onBreadcrumb();
-						}}
-					>
-						<PanelRightCloseIcon aria-hidden className="size-4 -rotate-90" />
-					</button>
-					<button
-						type="button"
-						aria-label="Side Panel"
-						title="Side Panel"
-						className={cn(
-							optionClassName,
-							"border-l border-solid border-border",
-						)}
-						disabled={disabled}
-						onClick={openSidePanel}
-					>
-						<PanelRightDashedIcon aria-hidden className="size-4" />
-					</button>
+				<div className={cn(settingsDockPillClassName, "h-full min-h-0")}>
+					{options.map(
+						(
+							{
+								label,
+								description,
+								icon: Icon,
+								iconClassName,
+								current,
+								select,
+							},
+							index,
+						) => (
+							<Tooltip key={label}>
+								<TooltipTrigger asChild>
+									<button
+										type="button"
+										aria-label={label}
+										aria-current={current}
+										className={cn(
+											optionClassName,
+											index > 0 && "border-l border-solid border-border",
+										)}
+										disabled={disabled}
+										onClick={select}
+									>
+										<Icon aria-hidden className={cn("size-4", iconClassName)} />
+									</button>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">{description}</TooltipContent>
+							</Tooltip>
+						),
+					)}
 				</div>
 			</PopoverContent>
 		</Popover>

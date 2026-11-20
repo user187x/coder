@@ -137,7 +137,10 @@ const HudPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("HUD")}</title>
-			<div className="flex w-full min-w-0 flex-col gap-6 px-6 pb-12 pt-8">
+			<div
+				data-dashboard-background=""
+				className="flex w-full min-w-0 flex-col gap-6 px-6 pb-12 pt-8"
+			>
 				<header className="flex flex-col gap-1">
 					<h1 className="m-0 flex items-center gap-2 text-2xl font-semibold">
 						<GaugeIcon aria-hidden className="size-6" />
@@ -227,6 +230,7 @@ const HudPage: React.FC = () => {
 						/>
 
 						<HudSortableGrid
+							data-dashboard-background=""
 							className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3"
 							onReorder={reorder}
 							panels={applyOrder(

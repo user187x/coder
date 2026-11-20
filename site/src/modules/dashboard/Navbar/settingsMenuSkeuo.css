@@ -348,20 +348,45 @@
 		background 0.08s ease,
 		box-shadow 0.08s ease;
 }
-.settings-menu.settings-strip-dock-options {
-	--strip-dock-slide: -0.75rem;
-	width: 6rem;
+/* Keep the shadow outside the animated clip. */
+[data-radix-popper-content-wrapper]:has(
+	> .settings-strip-dock-options[data-state="open"]
+) {
+	filter: drop-shadow(0 3px 3px rgb(0 0 0 / 0.36));
 }
-.settings-strip-dock-options[data-side="left"] {
-	--strip-dock-slide: 0.75rem;
+.settings-menu.settings-strip-dock-options {
+	/* Radix measures the key in screen pixels. The pill uses the app's zoom. */
+	--strip-dock-key-width: calc(
+		var(--radix-popover-trigger-width) /
+		var(--app-zoom, 1)
+	);
+	--strip-dock-reveal: inset(
+		0 calc(100% - var(--strip-dock-key-width)) 0 0 round 999px
+	);
+	position: relative;
+	left: calc(-1 * var(--strip-dock-key-width));
+	width: calc(3 * var(--strip-dock-key-width));
+	height: calc(var(--radix-popover-trigger-height) / var(--app-zoom, 1));
+	padding: 0;
+}
+.settings-menu.settings-strip-dock-options[data-side="left"] {
+	--strip-dock-reveal: inset(
+		0 0 0 calc(100% - var(--strip-dock-key-width)) round 999px
+	);
+	left: var(--strip-dock-key-width);
 }
 .settings-strip-dock-options[data-state="open"] {
 	animation: settings-strip-dock-reveal 180ms ease-out;
 }
+.settings-strip-dock-options[data-state="closed"] {
+	animation: none;
+}
 @keyframes settings-strip-dock-reveal {
 	from {
-		opacity: 0;
-		transform: translateX(var(--strip-dock-slide)) scaleX(0.7);
+		clip-path: var(--strip-dock-reveal);
+	}
+	to {
+		clip-path: inset(0 round 999px);
 	}
 }
 @media (prefers-reduced-motion: reduce) {

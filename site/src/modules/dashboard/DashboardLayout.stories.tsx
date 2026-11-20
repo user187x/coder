@@ -4,10 +4,12 @@ import {
 	reactRouterOutlet,
 	reactRouterParameters,
 } from "storybook-addon-remix-react-router";
+import { backgroundsKey } from "#/api/queries/backgrounds";
 import { buildInfoKey } from "#/api/queries/buildInfo";
 import { deploymentStatsQueryKey } from "#/api/queries/deployment";
 import { updateCheckQueryKey } from "#/api/queries/updateCheck";
 import type { UpdateCheckResponse } from "#/api/typesGenerated";
+import { MockBackgrounds } from "#/testHelpers/appearance";
 import {
 	MockBuildInfo,
 	MockDeploymentStats,
@@ -124,5 +126,34 @@ export const SkipToMainContent: Story = {
 
 		await userEvent.click(skipLink);
 		await expect(main).toHaveFocus();
+	},
+};
+
+export const BackgroundContextMenu: Story = {
+	play: async ({ canvasElement }) => {
+		const main = within(canvasElement).getByRole("main");
+		const { left, top } = main.getBoundingClientRect();
+		await userEvent.pointer({
+			target: main,
+			coords: { clientX: left + 32, clientY: top + 124 },
+			keys: "[MouseRight]",
+		});
+	},
+};
+
+export const BackgroundEditor: Story = {
+	parameters: {
+		queries: [
+			{ key: buildInfoKey, data: MockBuildInfo },
+			{ key: updateCheckQueryKey, data: MockUpdateCheck },
+			{ key: deploymentStatsQueryKey, data: MockDeploymentStats },
+			{ key: backgroundsKey, data: MockBackgrounds },
+		],
+	},
+	play: async (context) => {
+		await BackgroundContextMenu.play?.(context);
+		await userEvent.click(
+			await screen.findByRole("menuitem", { name: "Change background image" }),
+		);
 	},
 };

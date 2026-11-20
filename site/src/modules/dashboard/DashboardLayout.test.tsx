@@ -1,8 +1,10 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http, type PathParams } from "msw";
 import type { RouteObject } from "react-router";
+import { PlatformAPI } from "#/api/platform";
 import type { AuthorizationRequest, Entitlements } from "#/api/typesGenerated";
+import { MockBackgrounds } from "#/testHelpers/appearance";
 import {
 	MockDefaultOrganization,
 	MockEntitlements,
@@ -160,4 +162,90 @@ test("moves focus to main content when skip link is clicked", async () => {
 	expect(mainContent).not.toBeNull();
 	await user.click(skipToContentLink);
 	expect(mainContent).toHaveFocus();
+});
+
+test("opens the shared background editor from exposed dashboard space", async () => {
+	const getBackgrounds = vi
+		.spyOn(PlatformAPI, "getBackgrounds")
+		.mockResolvedValue(MockBackgrounds);
+	const save = vi
+		.spyOn(PlatformAPI, "saveBackground")
+		.mockResolvedValue({ ok: true, set: true });
+	const componentMenu = vi.fn();
+	const user = userEvent.setup();
+	await renderDashboardLayout({
+		children: [
+			{
+				index: true,
+				element: (
+					<section aria-label="Workspace card" onContextMenu={componentMenu}>
+						<div
+							data-dashboard-background=""
+							role="group"
+							aria-label="Card body"
+						/>
+					</section>
+				),
+			},
+		],
+	});
+	const cardBody = await screen.findByRole("group", { name: "Card body" });
+	const nativeMenu = vi.fn((event: MouseEvent) => event.defaultPrevented);
+	window.addEventListener("contextmenu", nativeMenu, { once: true });
+	await user.pointer({
+		target: cardBody,
+		keys: "[MouseRight]",
+	});
+	expect(componentMenu).toHaveBeenCalledOnce();
+	expect(nativeMenu).toHaveReturnedWith(false);
+	expect(getBackgrounds).not.toHaveBeenCalled();
+
+	await user.pointer({
+		target: screen.getByRole("main"),
+		keys: "[MouseRight]",
+	});
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Change background image" }),
+	);
+	const editor = within(
+		await screen.findByRole("dialog", { name: "Change background image" }),
+	);
+	await user.selectOptions(
+		await editor.findByRole("combobox", { name: "Fit" }),
+		"span",
+	);
+	await user.click(editor.getByRole("button", { name: "Save" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledExactlyOnceWith(
+			"dashboard",
+			expect.objectContaining({ fit: "span" }),
+		),
+	);
+});
+
+test("keeps the browser context menu for members without deployment edit access", async () => {
+	const user = userEvent.setup();
+	await renderDashboardLayout({ permissions: MockNoPermissions });
+	const nativeMenu = vi.fn((event: MouseEvent) => event.defaultPrevented);
+	window.addEventListener("contextmenu", nativeMenu, { once: true });
+	await user.pointer({
+		target: screen.getByRole("main"),
+		keys: "[MouseRight]",
+	});
+	expect(nativeMenu).toHaveReturnedWith(false);
+});
+
+test("opens the background menu from main content with Shift+F10", async () => {
+	const user = userEvent.setup();
+	await renderDashboardLayout({});
+	const main = screen.getByRole("main");
+	await user.click(screen.getByRole("link", { name: "Skip to main content" }));
+	await user.keyboard("{Shift>}{F10}{/Shift}");
+	await user.keyboard("{ArrowDown}");
+	const change = await screen.findByRole("menuitem", {
+		name: "Change background image",
+	});
+	expect(change).toHaveFocus();
+	await user.keyboard("{Escape}");
+	await waitFor(() => expect(main).toHaveFocus());
 });

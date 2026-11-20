@@ -293,6 +293,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	return (
 		<div
 			ref={navbarRef}
+			data-dashboard-background={floating || stripOff ? "" : undefined}
 			onContextMenu={arrangeFromBackstrip}
 			style={
 				{

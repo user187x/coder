@@ -27,6 +27,7 @@ export const Margins: React.FC<MarginsProps> = ({
 	const maxWidth = widthBySize[size];
 	return (
 		<div
+			data-dashboard-background=""
 			{...divProps}
 			style={{
 				maxWidth: maxWidth,

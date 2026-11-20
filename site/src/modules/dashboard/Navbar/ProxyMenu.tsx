@@ -156,6 +156,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const direction = prefs.data?.settings_face_collapse_direction ?? "down";
 	const faceOnly = layout === "face";
 	const quickLinksCollapsed = drawerCollapsed || faceOnly;
+	const fitBottomPanel = drawerCollapsed || (faceOnly && direction === "up");
 
 	const docked = Boolean(controls && prefs.data?.settings_sidebar);
 	const dockEdge = prefs.data?.navbar_settings_side ?? "right";
@@ -180,6 +181,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const topPinned = Boolean(prefs.data?.settings_top_pinned);
 	const [topOpen, setTopOpen] = useState(false);
 	const topFull = topOpen || topPinned;
+	const showChatDock =
+		docked &&
+		!compact &&
+		!chatFull &&
+		((fitBottomPanel && !chatExpanded) ||
+			(layout === "links" && direction === "up" && (!topFull || chatExpanded)));
 	const topSection = {
 		full: topFull,
 		pinned: topPinned,
@@ -506,10 +513,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					<div
 						ref={setMenuSurface}
 						data-quick-links-collapsed={
-							(!compact &&
-								!chatFull &&
-								(drawerCollapsed || (faceOnly && direction === "up"))) ||
-							undefined
+							(!compact && !chatFull && fitBottomPanel) || undefined
 						}
 						data-slit-layout={layout}
 						data-slit-direction={direction}
@@ -869,16 +873,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							</>
 						)}
 					</div>
-					{docked &&
-						!quickLinksCollapsed &&
-						!compact &&
-						!chatFull &&
-						(!topFull || chatExpanded) &&
-						!slitLayout &&
-						layout === "links" &&
-						direction === "up" && (
-							<div ref={settingsChatSlot} className="settings-chat-dock-slot" />
-						)}
+					{showChatDock && (
+						<div ref={settingsChatSlot} className="settings-chat-dock-slot" />
+					)}
 				</DropdownMenuContent>
 			</DropdownMenu>
 			<WorkspaceGrid

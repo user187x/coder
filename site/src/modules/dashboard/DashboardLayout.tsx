@@ -15,6 +15,7 @@ import { DashboardAddons } from "#/modules/platform/DashboardAddons";
 import { GlobalLockdownGate } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { useTerminateFlash } from "#/modules/platform/globalLockdown/TerminateSignoff";
 import { WorkspaceScheduleGate } from "#/modules/platform/scheduler/WorkspaceScheduleGate";
+import { DashboardBackgroundMenu } from "./DashboardBackgroundMenu";
 import { Navbar } from "./Navbar/Navbar";
 import { NavbarActionTarget, NavbarStartTarget } from "./Navbar/NavbarAction";
 import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
@@ -30,13 +31,13 @@ export const DashboardLayout: React.FC = () => {
 	// Platform: a page in another dashboard page's frame (the workspace grid) is that page alone - the page round it
 	// has the navigation bar, the banners and the deployment's bar.
 	const embedded = isEmbeddedFrame();
-	const observeTerminate =
+	const canEditDeployment =
 		!embedded && Boolean(permissions.editDeploymentConfig);
 	const { data: terminateRound } = useQuery({
 		...terminateSignoffs(),
-		enabled: observeTerminate,
+		enabled: canEditDeployment,
 	});
-	useTerminateFlash(observeTerminate ? terminateRound : undefined);
+	useTerminateFlash(canEditDeployment ? terminateRound : undefined);
 
 	return (
 		<NavbarActionTarget.Provider value={embedded ? undefined : actionTarget}>
@@ -46,7 +47,10 @@ export const DashboardLayout: React.FC = () => {
 				{!embedded && <AnnouncementExpiry />}
 				{(!lockdown?.enabled || lockdown.admin) && <WorkspaceScheduleGate />}
 
-				<div className="dashboard-frame @container/dashboard flex min-h-screen min-w-0 flex-col justify-between">
+				<DashboardBackgroundMenu
+					enabled={canEditDeployment}
+					className="dashboard-frame @container/dashboard flex min-h-screen min-w-0 flex-col justify-between"
+				>
 					{/* biome-ignore lint/a11y/useValidAnchor: Skip links use fragment anchors by design. */}
 					<a
 						href="#main-content"
@@ -80,6 +84,7 @@ export const DashboardLayout: React.FC = () => {
 				    (their root grows to fill main) do not. */}
 					<main
 						id="main-content"
+						data-dashboard-background=""
 						tabIndex={-1}
 						className={cn(
 							"relative flex flex-col flex-1 min-h-0",
@@ -101,7 +106,7 @@ export const DashboardLayout: React.FC = () => {
 							onDismiss={updateCheck.dismiss}
 						/>
 					)}
-				</div>
+				</DashboardBackgroundMenu>
 
 				<DashboardAddons />
 			</NavbarStartTarget.Provider>
@@ -114,7 +119,11 @@ export const DashboardFullPage: React.FC<React.ComponentProps<"div">> = ({
 	...attrs
 }) => {
 	return (
-		<div {...attrs} className="flex-1 flex flex-col basis-0 min-h-full">
+		<div
+			{...attrs}
+			data-dashboard-background=""
+			className="flex-1 flex flex-col basis-0 min-h-full"
+		>
 			{children}
 		</div>
 	);
