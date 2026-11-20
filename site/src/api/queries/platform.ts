@@ -92,11 +92,22 @@ export const panelAccentGlobal = () => ({
 	refetchInterval: 60_000,
 	retry: false,
 });
+type PanelAppearance = Awaited<
+	ReturnType<typeof PlatformAPI.getPanelAccentGlobal>
+>;
 export const updatePanelAccentGlobal = (client: QueryClient) => ({
 	mutationFn: PlatformAPI.setPanelAccentGlobal,
-	onSuccess: (
-		value: Awaited<ReturnType<typeof PlatformAPI.getPanelAccentGlobal>>,
-	) => client.setQueryData(panelAccentGlobalKey, value),
+	onSuccess: (value: PanelAppearance) =>
+		client.setQueryData<PanelAppearance>(panelAccentGlobalKey, (current) =>
+			current ? { ...current, global: value.global } : value,
+		),
+});
+export const updatePanelColors = (client: QueryClient) => ({
+	mutationFn: PlatformAPI.setPanelColors,
+	onSuccess: (value: PanelAppearance) =>
+		client.setQueryData<PanelAppearance>(panelAccentGlobalKey, (current) =>
+			current ? { ...current, colors: value.colors } : value,
+		),
 });
 export const updateNavbarLayoutDefault = (client: QueryClient) => ({
 	...updateNavbarAppearance(client),

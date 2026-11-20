@@ -1285,7 +1285,7 @@ class Store:
             ).fetchone()
             return json.loads(row["value"]) if row else default
 
-    def put_setting(self, key, value):
+    def put_setting(self, key, value, *, merge=False):
         if key == "workspace_scheduler" and self.settings_backing is not None:
             # UpsertRuntimeConfig in coderd/database/queries/siteconfig.sql.
             self.settings_backing.database().query("""INSERT INTO site_configs (key, value) VALUES ($1, $2)
@@ -1293,9 +1293,12 @@ class Store:
             return
         if self.settings_backing is not None:
             with self.settings_backing.state('platform-settings', {}, write=True, legacy=self.legacy_settings) as settings:
-                settings[key] = value
+                settings[key] = {**settings.get(key, {}), **value} if merge else value
             return
         with self.lock, self.connect() as db:
+            if merge:
+                row = db.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+                value = {**(json.loads(row["value"]) if row else {}), **value}
             db.execute(
                 "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
                 (key, json.dumps(value)),
@@ -8692,6 +8695,11 @@ def panel_accent_global():
     return STORE.get_setting("panel_accent_global", {"mode": "custom", "color": "#ffffff"})
 
 
+def panel_appearance():
+    colors = STORE.get_setting("panel_colors_global", {})
+    return {"global": panel_accent_global(), "colors": colors}
+
+
 def clean_panel_accent(value):
     if value is None:
         return None
@@ -9420,7 +9428,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == BASE + "/api/navbar-appearance":
             return self.send_json(200, navbar_appearance())
         if path == BASE + "/api/panel-accent":
-            return self.send_json(200, {"global": panel_accent_global()})
+            return self.send_json(200, panel_appearance())
         if path == BASE + "/api/animations":
             return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
@@ -10252,6 +10260,7 @@ class Handler(BaseHTTPRequestHandler):
             BASE + "/api/navbar-appearance",
             BASE + "/api/navbar-layout-default",
             BASE + "/api/panel-accent",
+            BASE + "/api/panel-colors",
             BASE + "/api/animations",
             BASE + "/api/quick-menu",
             BASE + "/api/quick-menu/reset",
@@ -10355,7 +10364,14 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self.send_json(400, {"error": str(e)})
             STORE.put_setting("panel_accent_global", accent)
-            return self.send_json(200, {"global": panel_accent_global()})
+            return self.send_json(200, panel_appearance())
+        if path == BASE + "/api/panel-colors":
+            try:
+                colors = uistate.panel_colors(payload.get("colors"))
+            except ValueError as e:
+                return self.send_json(400, {"error": str(e)})
+            STORE.put_setting("panel_colors_global", colors, merge=True)
+            return self.send_json(200, panel_appearance())
         if path == BASE + "/api/navbar-appearance":
             value = payload.get("transparency")
             if type(value) is not int or not 0 <= value <= 100:

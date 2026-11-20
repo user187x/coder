@@ -1531,6 +1531,24 @@ export type UserUIPreferences = {
 
 export type PanelAccent = { mode: "theme" } | { mode: "custom"; color: string };
 
+export type PanelColorPart =
+	| "backdrop"
+	| "surface"
+	| "button"
+	| "container"
+	| "border"
+	| "text"
+	| "icon"
+	| "track"
+	| "cpu"
+	| "memory"
+	| "net"
+	| "disk";
+
+export type PanelColors = Partial<Record<PanelColorPart, string | null>>;
+
+type PanelAppearance = { global: PanelAccent | null; colors?: PanelColors };
+
 type WorkspaceNetwork = {
 	windowSeconds: number;
 	agents: Record<
@@ -3168,11 +3186,13 @@ export const PlatformAPI = {
 		get<UserUIPreferences>(`${PLATFORM_BASE}/api/preferences`),
 	/** Appearance > Panel accents set for everyone by an admin (Global); null: each user's own. */
 	getPanelAccentGlobal: () =>
-		get<{ global: PanelAccent | null }>(`${PLATFORM_BASE}/api/panel-accent`),
+		get<PanelAppearance>(`${PLATFORM_BASE}/api/panel-accent`),
 	setPanelAccentGlobal: (global: PanelAccent | null) =>
-		post<{ global: PanelAccent | null }>(`${PLATFORM_BASE}/api/panel-accent`, {
+		post<PanelAppearance>(`${PLATFORM_BASE}/api/panel-accent`, {
 			global,
 		}),
+	setPanelColors: (colors: PanelColors) =>
+		post<PanelAppearance>(`${PLATFORM_BASE}/api/panel-colors`, { colors }),
 	setUserUIPreferences: (settings: UserUIPreferences) =>
 		post<UserUIPreferences>(`${PLATFORM_BASE}/api/preferences`, settings),
 	getWorkspaceNetwork: (workspaceId: string) =>

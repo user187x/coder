@@ -1,4 +1,11 @@
-import { formatRate, graphTop, historyX, usageShares } from "./ClusterGauge";
+import {
+	formatRate,
+	graphTop,
+	historyX,
+	networkTrace,
+	usageShares,
+} from "./ClusterGauge";
+import { metricTicks } from "./MetricYAxis";
 
 describe("formatRate", () => {
 	it("shows bytes per second from B/s to GB/s", () => {
@@ -48,5 +55,47 @@ describe("historyX", () => {
 		expect(historyX(15, 900, 15)).toBeCloseTo(0);
 		expect(historyX(450, 900, 15)).toBeCloseTo(48.333333);
 		expect(historyX(900, 900, 15)).toBeCloseTo(98.333333);
+	});
+});
+
+describe("networkTrace", () => {
+	const samples = [
+		{ t: 15, x: 1, txY: 6, rxY: 24 },
+		{ t: 30, x: 4, txY: 12, rxY: 35 },
+		{ t: 60, x: 10, txY: 4, rxY: 28 },
+		{ t: 75, x: 13, txY: 8, rxY: 20 },
+	];
+
+	it("joins TX and RX tips independently and breaks across missing rounds", () => {
+		expect(networkTrace(samples, "txY", 15)).toBe(
+			"M1,6 C2,6 3,12 4,12 M10,4 C11,4 12,8 13,8",
+		);
+		expect(networkTrace(samples, "rxY", 15)).toBe(
+			"M1,24 C2,24 3,35 4,35 M10,28 C11,28 12,20 13,20",
+		);
+	});
+});
+
+describe("metricTicks", () => {
+	it("reevaluates major and minor intervals for the current scale", () => {
+		expect(metricTicks(0, 10).map(({ value }) => value)).toEqual([
+			0, 1.25, 2.5, 3.75, 5, 6.25, 7.5, 8.75, 10,
+		]);
+		expect(metricTicks(0, 100).filter(({ major }) => major)).toEqual([
+			{ value: 0, major: true },
+			{ value: 25, major: true },
+			{ value: 50, major: true },
+			{ value: 75, major: true },
+			{ value: 100, major: true },
+		]);
+	});
+
+	it("keeps a major tick at the center of a signed Network scale", () => {
+		const ticks = metricTicks(-2300, 2300);
+		expect(ticks.find(({ value }) => value === 0)).toEqual({
+			value: 0,
+			major: true,
+		});
+		expect(ticks[0]?.value).toBe(-(ticks.at(-1)?.value ?? 0));
 	});
 });

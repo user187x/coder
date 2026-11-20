@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { LockIcon } from "lucide-react";
 import type { CloudDriveSettings, SafeSummary } from "#/api/platform";
 import {
@@ -45,7 +46,15 @@ export const CloudDriveCardBody: React.FC<{
 	workspaces?: readonly { id: string; label: string; value: string }[];
 	/** In place of the Files and Mounted at rows (the Settings panel's face lists the files). */
 	details?: React.ReactNode;
-}> = ({ drive, settings, workspaces = [], details }) => {
+	/** Bound the Settings face's disk and workspace sections independently. */
+	scrollSections?: boolean;
+}> = ({
+	drive,
+	settings,
+	workspaces = [],
+	details,
+	scrollSections = false,
+}) => {
 	const shared = drive.shared ?? [];
 	const sharedUsed = shared.reduce((sum, s) => sum + (s.usedBytes ?? 0), 0);
 	const quotas = [drive.quotaBytes, ...shared.map((s) => s.quotaBytes)];
@@ -55,6 +64,9 @@ export const CloudDriveCardBody: React.FC<{
 	const used = drive.usedBytes + sharedUsed;
 	const status = connection(drive, settings);
 	const level = watermarkLevel(used, limit);
+	const workspaceList = workspaces.length > 0 && (
+		<ShowWorkspaces rows={workspaces} scrollable={scrollSections} />
+	);
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center gap-3">
@@ -82,7 +94,15 @@ export const CloudDriveCardBody: React.FC<{
 					)}
 				</div>
 			</div>
-			<GraphFrame className="flex flex-col gap-3">
+			<GraphFrame
+				className={cn(
+					"flex flex-col gap-3",
+					scrollSections && "max-h-28 overflow-y-auto scrollbar-none",
+				)}
+				role={scrollSections ? "region" : undefined}
+				aria-label={scrollSections ? "Disk space" : undefined}
+				tabIndex={scrollSections ? 0 : undefined}
+			>
 				<QuotaBar
 					label="Cloud Drive used"
 					unit="bytes"
@@ -133,7 +153,12 @@ export const CloudDriveCardBody: React.FC<{
 					)}
 				</dl>
 			)}
-			{workspaces.length > 0 && <ShowWorkspaces rows={workspaces} />}
+			{workspaceList &&
+				(scrollSections ? (
+					<GraphFrame>{workspaceList}</GraphFrame>
+				) : (
+					workspaceList
+				))}
 		</div>
 	);
 };

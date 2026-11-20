@@ -3,7 +3,18 @@ import json
 import unittest
 from unittest.mock import Mock
 
-from uistate import UIState, navbar_layout
+from uistate import UIState, navbar_layout, panel_colors
+
+
+class PanelColorsTest(unittest.TestCase):
+    def test_validates_and_normalizes_per_part_patches(self):
+        self.assertEqual(
+            panel_colors({"cpu": "#AaBbCc", "track": None, "net": "#123456", "disk": "#FEDCBA"}),
+            {"cpu": "#aabbcc", "track": None, "net": "#123456", "disk": "#fedcba"},
+        )
+        for invalid in (None, [], {"unknown": None}, {"text": "red"}, {"surface": True}):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                panel_colors(invalid)
 
 
 class PreferencesTest(unittest.TestCase):

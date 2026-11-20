@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 import { NavLink } from "react-router";
 import { toast } from "sonner";
 import {
+	coderHeartbeat,
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
@@ -46,7 +47,7 @@ import {
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
 import { CompactQuickLinks } from "./CompactQuickLinkMenu";
-import { HudHeartbeat } from "./HudHeartbeat";
+import { HudHeartbeat, heartbeatLabel } from "./HudHeartbeat";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { NavbarMoveMenu } from "./NavbarMoveMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
@@ -164,6 +165,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const menuHost = useSettingsMenuHost();
 	const breadcrumbHost = settingsInNavbar && !docked ? menuHost : null;
 	const compact = Boolean(docked && prefs.data?.settings_sidebar_compact);
+	const heartbeatVisible = hud && hudMenu.open && !compact && (open || docked);
+	const heartbeat = useQuery({
+		...coderHeartbeat(),
+		enabled: heartbeatVisible,
+	});
+	const heartbeatReading = heartbeat.isSuccess ? heartbeat.data : undefined;
 	// The top section (quick links and Controls) expanded down over the bottom panel: from a double click on the
 	// Controls bar for now, or pinned that way in the user's preferences.
 	const topPinned = Boolean(prefs.data?.settings_top_pinned);
@@ -238,18 +245,31 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		<DropdownMenuItem
 			onSelect={(event) => {
 				event.preventDefault();
-				proxy?.refetchProxyLatencies();
+				if (heartbeatVisible) void heartbeat.refetch();
+				else proxy?.refetchProxyLatencies();
 			}}
-			disabled={!proxy}
-			title="Refresh latency"
+			disabled={!heartbeatVisible && !proxy}
+			title={heartbeatVisible ? "Refresh heartbeat latency" : "Refresh latency"}
 			data-testid="navbar-latency-pill"
 			className="h-4 min-w-0 shrink-0 gap-0.5 rounded-full border border-solid border-border px-1 py-0 text-2xs leading-none tabular-nums text-content-secondary [&_svg]:size-2.5!"
 		>
 			<span className="sr-only">
-				Latency for {selectedProxy?.display_name ?? "your region"}
+				{heartbeatVisible
+					? "Coder heartbeat latency"
+					: `Latency for ${selectedProxy?.display_name ?? "your region"}`}
 			</span>
 
-			{selectedProxy || isLoading ? (
+			{heartbeatVisible ? (
+				<>
+					<RadioIcon
+						aria-hidden
+						className={getLatencyColor(heartbeatReading?.latency)}
+					/>
+					<span className="font-mono">
+						{heartbeatLabel(heartbeatReading?.latency, heartbeat.isError)}
+					</span>
+				</>
+			) : selectedProxy || isLoading ? (
 				<>
 					<RadioIcon
 						aria-hidden="true"
@@ -523,13 +543,18 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										</NavLink>
 									</DropdownMenuItem>
 								)}
-								{hud && hudMenu.open && (
+								{heartbeatVisible && (
 									<InlineMenuPanel
 										id={hudMenu.id}
 										label="HUD heartbeat"
 										className="order-last"
 									>
-										<HudHeartbeat />
+										<HudHeartbeat
+											latency={heartbeatReading?.latency}
+											previous={heartbeatReading?.previous}
+											failed={heartbeat.isError}
+											updatedAt={heartbeat.dataUpdatedAt}
+										/>
 									</InlineMenuPanel>
 								)}
 								{controls && (

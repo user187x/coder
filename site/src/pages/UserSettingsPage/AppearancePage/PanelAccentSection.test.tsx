@@ -98,66 +98,92 @@ describe("PanelAccentSection", () => {
 	});
 
 	it.each([
-		[
-			"Workspaces",
-			"Panel text and icon colour picker",
-			{ panel_text_color: "#ff0000" },
-		],
-		[
-			"Sidebar icon colour",
-			"Panel text and icon colour picker",
-			{ panel_text_color: "#ff0000" },
-		],
-		[
-			"Edit panel accent colour",
-			"Panel surface colour picker",
-			{ panel_accent: { mode: "custom", color: "#ff0000" } },
-		],
-		[
-			"Edit card panel colour",
-			"Card panel colour picker",
-			{ panel_card_color: "#ff0000" },
-		],
-	])(
-		"edits the corresponding colour when choosing %s in the preview",
-		async (target, picker, patch) => {
-			vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
-			vi.spyOn(PlatformAPI, "getPanelAccentGlobal").mockResolvedValue({
-				global: null,
-			});
-			const save = vi
-				.spyOn(PlatformAPI, "setUserUIPreferences")
-				.mockImplementation(async (changes) => changes);
-			renderWithAuth(
-				<>
-					<PanelAccentSection />
-					<PanelAccent />
-				</>,
-			);
-			const preview = within(
-				await screen.findByRole("group", { name: "Panel preview" }),
-			);
-			await userEvent.click(preview.getByRole("button", { name: target }));
-			fireEvent.change(await preview.findByLabelText(picker), {
-				target: { value: "#ff0000" },
-			});
-			await waitFor(() => {
-				expect(save).toHaveBeenCalledWith(patch);
-				const style = document.documentElement.style;
-				if ("panel_text_color" in patch) {
-					expect(style.getPropertyValue("--panel-text-primary")).toBe(
-						"0 100% 50%",
-					);
-				} else if ("panel_accent" in patch) {
-					expect(style.getPropertyValue("--panel-accent")).toBe("#ff0000");
-				} else {
-					expect(style.getPropertyValue("--dashboard-panel-bg")).toBe(
-						"#ff0000",
-					);
-				}
-			});
-		},
-	);
+		["backdrop", "Backdrop"],
+		["surface", "Front panel"],
+		["button", "Panel buttons"],
+		["container", "Inner container"],
+		["border", "Panel borders"],
+		["text", "Panel text"],
+		["icon", "Panel icons"],
+		["track", "Graph tracks"],
+		["cpu", "CPU bars"],
+		["memory", "Memory bars"],
+		["net", "NET bars"],
+		["disk", "DISK bars"],
+	])("saves the selected %s colour for everyone", async (part, name) => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		vi.spyOn(PlatformAPI, "getPanelAccentGlobal").mockResolvedValue({
+			global: null,
+			colors: {},
+		});
+		const save = vi
+			.spyOn(PlatformAPI, "setPanelColors")
+			.mockImplementation(async (colors) => ({ global: null, colors }));
+		const savePersonal = vi.spyOn(PlatformAPI, "setUserUIPreferences");
+		renderWithAuth(<PanelAccentSection />);
+		const preview = within(
+			await screen.findByRole("group", { name: "Panel preview" }),
+		);
+		const [target] = await preview.findAllByRole("button", {
+			name: `Edit ${name.toLowerCase()} colour`,
+		});
+		await userEvent.click(target);
+		fireEvent.change(await preview.findByLabelText(`${name} colour picker`), {
+			target: { value: "#ff0000" },
+		});
+		expect(save).not.toHaveBeenCalled();
+		await userEvent.click(
+			preview.getByRole("button", { name: "Save for everyone" }),
+		);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({ [part]: "#ff0000" }),
+		);
+		expect(savePersonal).not.toHaveBeenCalled();
+	});
+
+	it("applies saved global overrides ahead of personal colours", async () => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+			panel_text_color: "#000000",
+			panel_card_color: "#111111",
+		});
+		vi.spyOn(PlatformAPI, "getPanelAccentGlobal").mockResolvedValue({
+			global: null,
+			colors: {
+				backdrop: "#123456",
+				text: "#ff0000",
+				track: "#234567",
+				cpu: "#345678",
+			},
+		});
+		renderWithAuth(<PanelAccent />);
+		await waitFor(() => {
+			const style = document.documentElement.style;
+			expect(style.getPropertyValue("--dashboard-panel-bg")).toBe("#123456");
+			expect(style.getPropertyValue("--panel-text-primary")).toBe("0 100% 50%");
+			expect(style.getPropertyValue("--panel-color-track")).toBe("#234567");
+			expect(style.getPropertyValue("--panel-color-cpu")).toBe("#345678");
+		});
+	});
+
+	it("clears only the selected override", async () => {
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		vi.spyOn(PlatformAPI, "getPanelAccentGlobal").mockResolvedValue({
+			global: null,
+			colors: { cpu: "#223344", memory: "#445566" },
+		});
+		const save = vi
+			.spyOn(PlatformAPI, "setPanelColors")
+			.mockImplementation(async (colors) => ({ global: null, colors }));
+		renderWithAuth(<PanelAccentSection />);
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Edit cpu bars colour" }),
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Reset colour" }));
+		await userEvent.click(
+			screen.getByRole("button", { name: "Save for everyone" }),
+		);
+		await waitFor(() => expect(save).toHaveBeenCalledWith({ cpu: null }));
+	});
 
 	it("sets the card panels' colour, and the panels take it", async () => {
 		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});

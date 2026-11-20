@@ -301,6 +301,11 @@ html[data-settings-dock-edge="left"]
 }
 /* Give the history charts the extra height in the full Metrics face. */
 .settings-menu-surface[data-slit-layout="face"][data-slit-direction="down"] {
+	& [data-settings-metrics] {
+		container-type: inline-size;
+		container-name: settings-metrics;
+	}
+
 	& .cluster-gauge-usage,
 	& .cluster-gauge-series {
 		flex: 1 0 auto;
@@ -317,6 +322,26 @@ html[data-settings-dock-edge="left"]
 	& .cluster-gauge-history > svg,
 	& .cluster-gauge-series > svg {
 		flex: 1 0 auto;
+	}
+}
+/* Trade tall, narrow plots for four wider rows in a narrow Metrics face. */
+@container settings-metrics (inline-size < 17rem) {
+	.cluster-gauge-usage {
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: 0.75rem;
+	}
+
+	:is(.cluster-gauge-history, .cluster-gauge-series) > svg {
+		max-block-size: clamp(3rem, 52cqi, 7rem);
+	}
+
+	.cluster-gauge-series {
+		justify-content: center;
+
+		& > :first-child {
+			flex-wrap: wrap;
+			column-gap: 0.5rem;
+		}
 	}
 }
 .settings-menu[data-settings-docked][data-settings-edge="right"]

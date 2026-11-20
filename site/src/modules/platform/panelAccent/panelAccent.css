@@ -15,8 +15,8 @@
 :root[data-panel-accent]
 	:is(.settings-menu-surface, [data-chat-panel], .chat-side-panel)
 	:is([class*="border-solid"], .chat-card, input, textarea) {
-	background-color: var(--panel-accent-fill);
-	border-color: var(--panel-accent-edge);
+	background-color: var(--panel-part-fill, var(--panel-accent-fill));
+	border-color: var(--panel-color-border, var(--panel-accent-edge));
 }
 
 /* Appearance > Panel size: the Settings menu and panel and the chat's panel drawn larger or smaller, as the
@@ -37,4 +37,76 @@
 	--skeuo-ink: hsl(var(--panel-text-primary));
 	--skeuo-ink-soft: hsl(var(--panel-text-secondary));
 	color: hsl(var(--content-primary));
+}
+
+/* Keep palette overrides local to Settings, its graphs, and the chat panels. */
+:root
+	:is(.settings-menu, .chat-skeuo)
+	:is(.settings-pill, .workspaces-pill, .settings-controls-bar) {
+	--panel-part-fill: var(--panel-color-button);
+}
+
+:root
+	:is(.settings-menu, .chat-skeuo)
+	:is(.settings-menu-well, .settings-admin-notes-inner, [data-cluster-gauge]) {
+	--panel-part-fill: var(--panel-color-container);
+}
+
+:root[data-panel-color-container] .settings-menu [data-cluster-gauge] {
+	background-color: var(--panel-color-container);
+}
+
+:root[data-panel-color-border] .settings-menu [data-cluster-gauge] {
+	border-color: var(--panel-color-border);
+}
+
+:root[data-panel-color-icon]
+	:is(.settings-menu-surface, [data-chat-panel], .chat-side-panel)
+	:is(button, [role="menuitem"], a)
+	> svg:not([role="img"]) {
+	color: var(--panel-color-icon);
+}
+
+:root[data-panel-color-track] .settings-menu-surface [data-panel-graph-track] {
+	background-color: var(--panel-color-track);
+}
+
+:root[data-panel-color-cpu] .settings-menu-surface [data-panel-metric="cpu"] {
+	--panel-metric-fill: var(--panel-color-cpu);
+}
+
+:root[data-panel-color-memory]
+	.settings-menu-surface
+	[data-panel-metric="memory"] {
+	--panel-metric-fill: var(--panel-color-memory);
+}
+
+:root[data-panel-color-net] .settings-menu-surface [data-panel-metric="net"] {
+	--panel-metric-fill: var(--panel-color-net);
+}
+
+:root[data-panel-color-disk] .settings-menu-surface [data-panel-metric="disk"] {
+	--panel-metric-fill: var(--panel-color-disk);
+}
+
+.settings-menu-surface [data-panel-metric] {
+	&:is(
+			:root[data-panel-color-cpu] [data-panel-metric="cpu"],
+			:root[data-panel-color-memory] [data-panel-metric="memory"],
+			:root[data-panel-color-net] [data-panel-metric="net"],
+			:root[data-panel-color-disk] [data-panel-metric="disk"]
+		) {
+		& div[data-panel-graph-fill] {
+			background-color: var(--panel-metric-fill);
+		}
+		& svg [data-panel-graph-fill] {
+			fill: var(--panel-metric-fill);
+		}
+		& [data-panel-graph-label] {
+			color: var(--panel-metric-fill);
+		}
+		& svg [data-panel-graph-stroke] {
+			stroke: var(--panel-metric-fill);
+		}
+	}
 }

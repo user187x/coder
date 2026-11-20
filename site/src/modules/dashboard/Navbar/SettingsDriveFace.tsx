@@ -79,6 +79,7 @@ export const SettingsDriveFace: React.FC = () => {
 					drive={drive.data}
 					settings={settings.data}
 					workspaces={workspaces}
+					scrollSections
 					details={
 						<FilesTable
 							files={drive.data.files}
@@ -120,7 +121,7 @@ const FilesTable: React.FC<{
 }> = ({ files, mountPath, folders, entries, onOpen }) => (
 	<GraphFrame className="flex min-h-0 flex-col gap-1.5 text-[11px]">
 		<div className="flex justify-between gap-2 text-content-secondary">
-			<span>
+			<span className="shrink-0 whitespace-nowrap">
 				Files{" "}
 				<span className="tabular-nums text-content-primary">
 					{files.toLocaleString("en-US")}
@@ -131,7 +132,11 @@ const FilesTable: React.FC<{
 			</span>
 		</div>
 		{folders.length + entries.length > 0 ? (
-			<div className="max-h-28 overflow-y-auto overscroll-contain rounded-md border border-solid border-border scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+			<div
+				role="region"
+				aria-label="Files"
+				className="max-h-28 overflow-y-auto rounded-md border border-solid border-border scrollbar-none"
+			>
 				<table
 					aria-label="Cloud Drive files"
 					className="w-full border-collapse"

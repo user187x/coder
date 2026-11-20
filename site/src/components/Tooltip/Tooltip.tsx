@@ -16,7 +16,9 @@ export const TOOLTIP_DELAY_DURATION = 100;
 
 export const Tooltip = TooltipPrimitive.Root;
 
-export const TooltipTrigger = TooltipPrimitive.Trigger;
+export const TooltipTrigger = (
+	props: React.ComponentProps<typeof TooltipPrimitive.Trigger>,
+) => <TooltipPrimitive.Trigger {...props} data-tooltip-trigger="" />;
 
 type TooltipContentProps = React.ComponentProps<
 	typeof TooltipPrimitive.Content
@@ -34,7 +36,7 @@ export const TooltipContent: React.FC<TooltipContentProps> = ({
 		<TooltipPrimitive.Content
 			sideOffset={sideOffset}
 			className={cn(
-				"z-50 overflow-hidden rounded-md bg-surface-primary px-3 py-2 text-xs font-medium text-content-secondary",
+				"z-50 overflow-hidden rounded-xl bg-surface-primary px-3 py-2 text-xs font-medium text-content-secondary",
 				"border border-solid border-border animate-in fade-in-0 zoom-in-95",
 				"origin-(--radix-popper-transform-origin)",
 				"data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",

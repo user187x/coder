@@ -39,7 +39,8 @@ const cursorTheme = {
 			value: string;
 			cloneBefore: (overrides: { value: string }) => unknown;
 		}) {
-			const keyword = decl.value.trim();
+			const value = decl.value.trim();
+			const keyword = value === "crosshair" ? "pointer" : value;
 			const hotspot = cursorHotspots[keyword];
 			if (!hotspot) {
 				return;

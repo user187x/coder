@@ -1,6 +1,4 @@
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
-import { useQuery } from "react-query";
-import { coderHeartbeat } from "#/api/queries/platform";
 import "./hudHeartbeat.css";
 
 const baseline = "M0 23 H200";
@@ -18,12 +16,23 @@ function heartbeatTrace(latency: number) {
 	return `M0 23 ${pulses.join(" ")} H200`;
 }
 
+export function heartbeatLabel(latency: number | undefined, failed: boolean) {
+	if (latency !== undefined) return `${latency} ms`;
+	return failed ? "No response" : "Checking…";
+}
+
 /** Draws one sweep for each successful probe, with slower responses represented by wider beat spacing. */
-export const HudHeartbeat = () => {
-	const heartbeat = useQuery(coderHeartbeat());
-	const reading = heartbeat.isSuccess ? heartbeat.data : undefined;
-	const latency = reading?.latency;
-	const previous = reading?.previous;
+export const HudHeartbeat = ({
+	latency,
+	previous,
+	failed,
+	updatedAt,
+}: {
+	latency?: number;
+	previous?: number;
+	failed: boolean;
+	updatedAt: number;
+}) => {
 	const change =
 		latency !== undefined && previous !== undefined ? latency - previous : 0;
 	const Trend = change > 0 ? ArrowUpIcon : ArrowDownIcon;
@@ -32,7 +41,7 @@ export const HudHeartbeat = () => {
 	const critical = "var(--hud-heartbeat-critical)";
 	const color =
 		latency === undefined
-			? heartbeat.isError
+			? failed
 				? critical
 				: ok
 			: latency < warningLatency
@@ -57,13 +66,7 @@ export const HudHeartbeat = () => {
 							</span>
 						</>
 					)}
-					{latency !== undefined ? (
-						<span>{latency} ms</span>
-					) : heartbeat.isError ? (
-						"No response"
-					) : (
-						"Checking…"
-					)}
+					<span>{heartbeatLabel(latency, failed)}</span>
 				</span>
 			</div>
 			<svg
@@ -75,14 +78,12 @@ export const HudHeartbeat = () => {
 				<path
 					d={baseline}
 					className={
-						heartbeat.isError
-							? "hud-heartbeat-flatline"
-							: "hud-heartbeat-baseline"
+						failed ? "hud-heartbeat-flatline" : "hud-heartbeat-baseline"
 					}
 				/>
 				{latency !== undefined && (
 					<path
-						key={heartbeat.dataUpdatedAt}
+						key={updatedAt}
 						d={heartbeatTrace(latency)}
 						pathLength={1}
 						className="hud-heartbeat-trace"

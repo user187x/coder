@@ -10,6 +10,8 @@ import type {
 import { hudHistory } from "#/api/queries/platform";
 
 import { ClusterDiskGraph } from "./ClusterDiskGraph";
+import { MetricSample } from "./MetricSample";
+import { MetricYAxis } from "./MetricYAxis";
 
 const GiB = 1024 ** 3;
 
@@ -135,92 +137,161 @@ export const formatRate = (bytesPerSecond: number): string => {
 };
 
 /** The graph's slots: 15 minutes of rounds (60 at the HUD's 15 seconds). */
-const NETWORK_SLOTS = 60;
+export const HISTORY_SLOTS = 60;
+
+/** Rates at one recorded network sample, ordered as they are drawn in the chart. */
+export const networkMeasurement = (tx: number, rx: number) =>
+	`↑ TX ${formatRate(tx)} · ↓ RX ${formatRate(rx)}`;
+
+/** Use the same units and precision in the full panel and shortcut strip. */
+export const usageMeasurement = (
+	kind: Kind,
+	sample: { used: number; total: number; percent: number },
+) =>
+	`${formatAmount(kind, sample.used)} of ${formatAmount(kind, sample.total)} (${Math.round(sample.percent)}%)`;
 
 /** Place samples by their recorded time so missed rounds remain gaps, not a permanent blank leading margin. */
 export const historyX = (time: number, latest: number, every: number): number =>
 	Math.max(
 		0,
 		Math.min(
-			100 - 100 / NETWORK_SLOTS,
+			100 - 100 / HISTORY_SLOTS,
 			100 -
-				100 / NETWORK_SLOTS -
-				((latest - time) / (NETWORK_SLOTS * every)) * 100,
+				100 / HISTORY_SLOTS -
+				((latest - time) / (HISTORY_SLOTS * every)) * 100,
 		),
 	);
 
 /**
+ * Join the measured bar tips without overshooting them. A fresh subpath after
+ * a missing round leaves the gap visible.
+ */
+export function networkTrace(
+	samples: readonly { t: number; x: number; txY: number; rxY: number }[],
+	series: "txY" | "rxY",
+	every: number,
+) {
+	return samples
+		.map((sample, index) => {
+			const y = sample[series];
+			const previous = samples[index - 1];
+			if (
+				!previous ||
+				sample.x <= previous.x ||
+				sample.t - previous.t >= 2 * every
+			) {
+				return `M${sample.x},${y}`;
+			}
+			// Horizontal handles keep each segment between the two measured rates.
+			const handle = (sample.x - previous.x) / 3;
+			return `C${previous.x + handle},${previous[series]} ${sample.x - handle},${y} ${sample.x},${y}`;
+		})
+		.join(" ");
+}
+
+/**
  * Under the CPU and memory bars, as wide as both: the cluster's network
  * traffic over the last 15 minutes, a bar a round (the HUD's samples): what
- * the nodes received rising above the line in green, what they sent hanging
- * below it in blue, both to the same scale (the window's peak). Newest at the
+ * the nodes sent rising above zero in green, what they received below it
+ * in blue, both to the same scale (the window's peak). Newest at the
  * right; each bar's time and rates on hover.
  */
 const NetworkGraph: React.FC<{ network: ClusterNetwork }> = ({ network }) => {
-	const points = network.points.slice(-NETWORK_SLOTS);
+	const points = network.points.slice(-HISTORY_SLOTS);
 	const peak = Math.max(1, ...points.flatMap((p) => [p.rx, p.tx]));
-	const slot = 100 / NETWORK_SLOTS;
+	const slot = 100 / HISTORY_SLOTS;
 	const half = 20;
-	const minutes = Math.round((NETWORK_SLOTS * network.every) / 60);
+	const barWidth = slot * 0.7;
+	const latest = points.at(-1)?.t;
+	const samples = points.map(({ t, tx, rx }) => ({
+		t,
+		x: historyX(t, latest ?? t, network.every) + slot / 2,
+		txY: half - (tx / peak) * (half - 1),
+		rxY: half + (rx / peak) * (half - 1),
+		tx,
+		rx,
+	}));
+	const minutes = Math.round((HISTORY_SLOTS * network.every) / 60);
 
 	return (
 		<div
 			className="cluster-gauge-series mt-3 min-w-0 text-2xs text-content-secondary"
 			data-testid="cluster-network"
+			data-panel-metric="net"
 		>
 			<div className="mb-1 flex justify-between font-semibold text-content-primary">
 				<span>Network</span>
 				<span className="flex gap-2 font-normal tabular-nums">
-					<span className="text-content-success" title="Received by the nodes">
-						↓ {formatRate(network.rx)}
-					</span>
-					<span className="text-content-link" title="Sent by the nodes">
+					<span className="text-content-success" title="TX, sent by the nodes">
 						↑ {formatRate(network.tx)}
+					</span>
+					<span
+						data-panel-graph-label
+						className="text-content-link"
+						title="RX, received by the nodes"
+					>
+						↓ {formatRate(network.rx)}
 					</span>
 				</span>
 			</div>
 			<svg
+				data-panel-graph-track
 				role="img"
 				aria-label={`Cluster network over the last ${minutes} minutes: now ${formatRate(network.rx)} received, ${formatRate(network.tx)} sent`}
-				viewBox={`0 0 100 ${half * 2}`}
+				viewBox={`-5 0 105 ${half * 2}`}
 				preserveAspectRatio="none"
 				className="block h-10 w-full overflow-hidden rounded bg-surface-tertiary"
 			>
+				{samples.map(({ t, x, txY, rxY, tx, rx }) => (
+					<MetricSample
+						key={t}
+						x={x - slot / 2}
+						width={slot}
+						height={half * 2}
+						time={t}
+						measurement={networkMeasurement(tx, rx)}
+					>
+						<rect
+							x={x - barWidth / 2}
+							width={barWidth}
+							y={txY}
+							height={half - txY}
+							className="fill-content-success/65"
+						/>
+						<rect
+							x={x - barWidth / 2}
+							width={barWidth}
+							y={half}
+							height={rxY - half}
+							data-panel-graph-fill
+							fillOpacity={0.65}
+							className="fill-content-link"
+						/>
+					</MetricSample>
+				))}
+				<path
+					d={networkTrace(samples, "txY", network.every)}
+					className="pointer-events-none fill-none stroke-content-success"
+					strokeWidth={1.25}
+					vectorEffect="non-scaling-stroke"
+				/>
+				<path
+					d={networkTrace(samples, "rxY", network.every)}
+					data-panel-graph-stroke
+					className="pointer-events-none fill-none stroke-content-link"
+					strokeWidth={1.25}
+					vectorEffect="non-scaling-stroke"
+				/>
 				<line
 					x1={0}
 					x2={100}
 					y1={half}
 					y2={half}
-					className="stroke-border"
-					strokeWidth={0.4}
+					className="pointer-events-none stroke-content-secondary/50"
+					strokeWidth={0.75}
 					vectorEffect="non-scaling-stroke"
 				/>
-				{points.map((p) => {
-					const x = historyX(p.t, points[points.length - 1].t, network.every);
-					const up = (p.rx / peak) * (half - 1);
-					const down = (p.tx / peak) * (half - 1);
-					return (
-						<g key={p.t}>
-							<title>
-								{`${new Date(p.t * 1000).toLocaleTimeString("en-US")} · ↓ ${formatRate(p.rx)} · ↑ ${formatRate(p.tx)}`}
-							</title>
-							<rect
-								x={x + slot * 0.15}
-								width={slot * 0.7}
-								y={half - up}
-								height={up}
-								className="fill-content-success"
-							/>
-							<rect
-								x={x + slot * 0.15}
-								width={slot * 0.7}
-								y={half}
-								height={down}
-								className="fill-content-link"
-							/>
-						</g>
-					);
-				})}
+				<MetricYAxis min={-peak} max={peak} top={1} bottom={half * 2 - 1} />
 			</svg>
 			<div className="mt-1 flex justify-between tabular-nums">
 				<span>{minutes} min ago</span>
@@ -277,25 +348,27 @@ const UsageGraph: React.FC<{
 	label: string;
 	history: ClusterHistory;
 }> = ({ kind, label, history }) => {
-	const shares = usageShares(history.points.slice(-NETWORK_SLOTS), kind);
+	const shares = usageShares(history.points.slice(-HISTORY_SLOTS), kind);
 	if (shares.length === 0) {
 		return null;
 	}
 	const peak = Math.max(...shares.map((s) => s.percent));
 	const top = graphTop(peak);
-	const slot = 100 / NETWORK_SLOTS;
+	const slot = 100 / HISTORY_SLOTS;
 	const height = 20;
-	const minutes = Math.round((NETWORK_SLOTS * history.every) / 60);
+	const minutes = Math.round((HISTORY_SLOTS * history.every) / 60);
 
 	return (
 		<div
 			className="cluster-gauge-history mt-1.5"
+			data-panel-metric={kind}
 			data-testid={`cluster-${kind}-history`}
 		>
 			<svg
+				data-panel-graph-track
 				role="img"
 				aria-label={`${label} in use over the last ${minutes} minutes: peak ${Math.round(peak)}%`}
-				viewBox={`0 0 100 ${height}`}
+				viewBox={`-5 0 105 ${height}`}
 				preserveAspectRatio="none"
 				className="block h-6 w-full overflow-hidden rounded bg-surface-tertiary"
 			>
@@ -304,11 +377,16 @@ const UsageGraph: React.FC<{
 					const tall = (Math.min(top, s.percent) / top) * (height - 1);
 					const level = levelOf(s.percent);
 					return (
-						<g key={s.t}>
-							<title>
-								{`${new Date(s.t * 1000).toLocaleTimeString("en-US")} · ${formatAmount(kind, s.used)} of ${formatAmount(kind, s.total)} (${Math.round(s.percent)}%)`}
-							</title>
+						<MetricSample
+							key={s.t}
+							x={x}
+							width={slot}
+							height={height}
+							time={s.t}
+							measurement={usageMeasurement(kind, s)}
+						>
 							<rect
+								data-panel-graph-fill
 								x={x + slot * 0.15}
 								width={slot * 0.7}
 								y={height - tall}
@@ -321,9 +399,10 @@ const UsageGraph: React.FC<{
 											: "fill-content-success"
 								}
 							/>
-						</g>
+						</MetricSample>
 					);
 				})}
+				<MetricYAxis max={top} top={1} bottom={height} />
 			</svg>
 			<div className="mt-0.5 flex justify-between tabular-nums">
 				<span>peak {Math.round(peak)}%</span>
@@ -350,6 +429,7 @@ const UsageBar: React.FC<UsageBarProps> = ({ kind, label, usage, history }) => {
 	return (
 		<div
 			className="min-w-0 text-2xs text-content-secondary"
+			data-panel-metric={kind}
 			title={`In use ${formatAmount(kind, usage.used)} · reserved by pods ${formatAmount(kind, usage.requested)} · allocatable ${formatAmount(kind, usage.total)}`}
 		>
 			<div className="flex justify-between mb-1 font-semibold text-content-primary">
@@ -357,6 +437,7 @@ const UsageBar: React.FC<UsageBarProps> = ({ kind, label, usage, history }) => {
 				<span>{Math.round(used)}%</span>
 			</div>
 			<div
+				data-panel-graph-track
 				role="meter"
 				aria-label={`${label} in use`}
 				aria-valuemin={0}
@@ -370,6 +451,7 @@ const UsageBar: React.FC<UsageBarProps> = ({ kind, label, usage, history }) => {
 					style={{ width: `${percentOf(usage.requested)}%` }}
 				/>
 				<div
+					data-panel-graph-fill
 					className={cn(
 						"absolute inset-y-0 left-0 rounded transition-[width] duration-500 motion-reduce:transition-none",
 						level === "high"

@@ -154,19 +154,18 @@ export const DottedRow: React.FC<{
 };
 
 /** A faint squircle round a card's bottom graph (rounded corners where the browser has no squircle corner shape). */
-export const GraphFrame: React.FC<{
-	className?: string;
-	children: React.ReactNode;
-}> = ({ className, children }) => (
+export const GraphFrame: React.FC<React.ComponentProps<"div">> = ({
+	className,
+	...props
+}) => (
 	<div
+		{...props}
 		className={cn(
 			"rounded-[18px] border border-solid border-border/60 bg-surface-secondary/40 px-3 py-2.5",
 			"supports-[corner-shape:squircle]:rounded-[28px] supports-[corner-shape:squircle]:[corner-shape:squircle]",
 			className,
 		)}
-	>
-		{children}
-	</div>
+	/>
 );
 
 /**
@@ -180,7 +179,8 @@ export const ShowWorkspaces: React.FC<{
 		value: React.ReactNode;
 	}[];
 	children?: React.ReactNode;
-}> = ({ rows = [], children }) => {
+	scrollable?: boolean;
+}> = ({ rows = [], children, scrollable = false }) => {
 	const [open, setOpen] = useState(false);
 	return (
 		<Collapsible open={open} onOpenChange={setOpen}>
@@ -191,7 +191,15 @@ export const ShowWorkspaces: React.FC<{
 					className={cn("size-3.5 transition-transform", open && "rotate-180")}
 				/>
 			</CollapsibleTrigger>
-			<CollapsibleContent className="mt-2">
+			<CollapsibleContent
+				className={cn(
+					"mt-2",
+					scrollable && "max-h-28 overflow-y-auto scrollbar-none",
+				)}
+				role={scrollable ? "region" : undefined}
+				aria-label={scrollable ? "Workspaces" : undefined}
+				tabIndex={scrollable ? 0 : undefined}
+			>
 				{children ?? (
 					<dl className="m-0 flex flex-col gap-1.5">
 						{rows.map((row) => (

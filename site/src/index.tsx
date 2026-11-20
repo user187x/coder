@@ -3,6 +3,7 @@ import "./index.css";
 import "./dashboardPanel.css";
 import "./contexts/platformBoot";
 import { App } from "./App";
+import { TitleTooltip } from "./components/Tooltip/TitleTooltip";
 
 // After a redeploy, the SPA still holds old chunk filenames in memory.
 // Navigating to a lazy-loaded route will try to fetch a chunk that no
@@ -31,4 +32,9 @@ if ("serviceWorker" in navigator) {
 }
 
 const root = createRoot(element);
-root.render(<App />);
+root.render(
+	<>
+		<App />
+		<TitleTooltip />
+	</>,
+);

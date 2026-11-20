@@ -54,11 +54,11 @@ export const CustomTextColour: Story = {
 	},
 };
 
-export const EditCardFromPreview: Story = {
+export const EditBackdropFromPreview: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
 			within(canvasElement).getByRole("button", {
-				name: "Edit card panel colour",
+				name: "Edit backdrop colour",
 			}),
 		);
 	},

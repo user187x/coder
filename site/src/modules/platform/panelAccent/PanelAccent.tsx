@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { useQuery } from "react-query";
-import type { PanelAccent as PanelAccentPreference } from "#/api/platform";
+import type {
+	PanelAccent as PanelAccentPreference,
+	PanelColors,
+} from "#/api/platform";
 import { panelAccentGlobal, userUIPreferences } from "#/api/queries/platform";
 import "./panelAccent.css";
 
@@ -34,6 +37,17 @@ export const panelTextTokens = (hex: string) => {
 	return { primary: hsl(l), secondary: hsl(l + (0.5 - l) / 3) };
 };
 
+/** CSS overrides used by both the Appearance preview and the live panels. */
+export function panelColorStyle(colors: PanelColors | undefined) {
+	return Object.fromEntries(
+		Object.entries(colors ?? {}).flatMap(([part, color]) =>
+			color && part !== "backdrop" && part !== "text"
+				? [[`--panel-color-${part}`, color]]
+				: [],
+		),
+	);
+}
+
 /** The panels' size, as a browser zoom would make it: 80% to 150%. */
 export const PANEL_SCALE = { min: 80, max: 150, step: 5, default: 100 };
 
@@ -48,8 +62,23 @@ export const PanelAccent: React.FC = () => {
 	const accent = global.data?.global ?? preferences.data?.panel_accent;
 	const color = accent ? panelAccentColor(accent) : null;
 	const scale = preferences.data?.panel_scale ?? PANEL_SCALE.default;
-	const text = preferences.data?.panel_text_color ?? null;
-	const card = preferences.data?.panel_card_color ?? null;
+	const colors = global.data?.colors;
+	const text = colors?.text ?? preferences.data?.panel_text_color ?? null;
+	const card = colors?.backdrop ?? preferences.data?.panel_card_color ?? null;
+	useEffect(() => {
+		const root = document.documentElement;
+		const overrides = Object.entries(panelColorStyle(colors));
+		for (const [name, value] of overrides) {
+			root.style.setProperty(name, value);
+			root.setAttribute(`data-${name.slice(2)}`, "");
+		}
+		return () => {
+			for (const [name] of overrides) {
+				root.style.removeProperty(name);
+				root.removeAttribute(`data-${name.slice(2)}`);
+			}
+		};
+	}, [colors]);
 	// The parent panels' background (dashboardPanel.css's --dashboard-panel-bg), the theme's without one.
 	useEffect(() => {
 		const root = document.documentElement;

@@ -1,12 +1,3 @@
-import { cn } from "cn";
-import {
-	ChevronDownIcon,
-	GaugeIcon,
-	MonitorIcon,
-	PanelRightCloseIcon,
-	RadioIcon,
-	SettingsIcon,
-} from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import type { PanelAccent, UserUIPreferences } from "#/api/platform";
@@ -29,11 +20,8 @@ import { Slider } from "#/components/Slider/Slider";
 import { Switch } from "#/components/Switch/Switch";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { ColorField } from "#/modules/platform/ColorField";
-import {
-	PANEL_SCALE,
-	panelAccentColor,
-	panelTextTokens,
-} from "#/modules/platform/panelAccent/PanelAccent";
+import { PANEL_SCALE } from "#/modules/platform/panelAccent/PanelAccent";
+import { PanelColorPreview } from "./PanelColorPreview";
 
 const DEFAULT_CUSTOM = "#7c3aed";
 const DEFAULT_TEXT = "#e4e4e7";
@@ -41,7 +29,6 @@ const DEFAULT_CARD = "#e4e7eb";
 /** How long a picker or slider rests before its value is saved. */
 const SAVE_DELAY_MS = 400;
 type Mode = "off" | PanelAccent["mode"];
-type PreviewPart = "accent" | "text" | "card";
 
 const accentFor = (mode: Mode, color: string): PanelAccent | null =>
 	mode === "off"
@@ -117,8 +104,6 @@ export const PanelAccentSection: React.FC<{
 	const locked = isGlobal && !admin;
 	const busy = preferences.isLoading || save.isPending || saveGlobal.isPending;
 	const previewAccent = accentFor(mode, color);
-	// The part of the preview clicked on, whose colour the swatch below it sets.
-	const [picking, setPicking] = useState<PreviewPart | null>(null);
 	const pickAccent = (value: string) => {
 		setColor(value);
 		const next: PanelAccent = { mode: "custom", color: value };
@@ -217,7 +202,8 @@ export const PanelAccentSection: React.FC<{
 							<span className="flex flex-col">
 								<Label htmlFor={`${id}-global`}>Global</Label>
 								<span className="text-xs text-content-secondary">
-									Set this accent for every user, over their own choice.
+									Set the accent for every user. Use the preview to set
+									individual colours.
 								</span>
 							</span>
 						</div>
@@ -225,8 +211,10 @@ export const PanelAccentSection: React.FC<{
 					<div className="flex flex-col gap-3">
 						<Label htmlFor={`${id}-text`}>Text</Label>
 						<Select
-							value={savedText ? "custom" : "theme"}
-							disabled={busy}
+							value={
+								savedText || globalQuery.data?.colors?.text ? "custom" : "theme"
+							}
+							disabled={busy || Boolean(globalQuery.data?.colors?.text)}
 							onValueChange={(value) =>
 								save.mutate({
 									panel_text_color: value === "custom" ? text : null,
@@ -241,7 +229,7 @@ export const PanelAccentSection: React.FC<{
 								<SelectItem value="custom">Custom colour</SelectItem>
 							</SelectContent>
 						</Select>
-						{savedText && (
+						{savedText && !globalQuery.data?.colors?.text && (
 							<ColorField
 								label="Text colour"
 								value={text}
@@ -252,8 +240,12 @@ export const PanelAccentSection: React.FC<{
 					<div className="flex flex-col gap-3">
 						<Label htmlFor={`${id}-card`}>Card panels</Label>
 						<Select
-							value={savedCard ? "custom" : "theme"}
-							disabled={busy}
+							value={
+								savedCard || globalQuery.data?.colors?.backdrop
+									? "custom"
+									: "theme"
+							}
+							disabled={busy || Boolean(globalQuery.data?.colors?.backdrop)}
 							onValueChange={(value) =>
 								save.mutate({
 									panel_card_color: value === "custom" ? card : null,
@@ -273,7 +265,7 @@ export const PanelAccentSection: React.FC<{
 							throughout the app: the Dashboard, Workspaces, Templates,
 							Accounts, the Chat console, User Settings and Appearance.
 						</span>
-						{savedCard && (
+						{savedCard && !globalQuery.data?.colors?.backdrop && (
 							<ColorField
 								label="Card panel colour"
 								value={card}
@@ -312,194 +304,14 @@ export const PanelAccentSection: React.FC<{
 						</span>
 					</div>
 				</div>
-				<div
-					role="group"
-					aria-label="Panel preview"
-					className="flex min-w-0 flex-col gap-2"
-				>
-					<span className="text-sm font-medium">Preview</span>
-					<span className="text-xs text-content-secondary">
-						Click the backdrop, a panel surface, or its text and icons to edit
-						the corresponding colour across the app.
-					</span>
-					<div
-						className="relative flex min-h-72 items-start justify-center overflow-hidden rounded-xl bg-(--dashboard-panel-bg) p-4"
-						style={{ backgroundColor: savedCard ? card : undefined }}
-					>
-						<button
-							type="button"
-							aria-label="Edit card panel colour"
-							title="Edit card panel colour"
-							aria-pressed={picking === "card"}
-							onClick={() => setPicking("card")}
-							className={previewSurfaceTarget}
-						/>
-						<SettingsPanelPreview
-							accent={previewAccent}
-							scale={scale}
-							text={savedText ? text : null}
-							picking={picking}
-							onPick={setPicking}
-						/>
-					</div>
-					{picking === "accent" && !locked && (
-						<ColorField
-							label="Panel surface colour"
-							value={color}
-							onChange={pickAccent}
-						/>
-					)}
-					{picking === "accent" && locked && (
-						<p className="m-0 text-xs text-content-secondary">
-							An administrator set the panel accent for everyone.
-						</p>
-					)}
-					{picking === "text" && (
-						<ColorField
-							label="Panel text and icon colour"
-							value={text}
-							onChange={pickText}
-						/>
-					)}
-					{picking === "card" && (
-						<ColorField
-							label="Card panel colour"
-							value={card}
-							onChange={pickCard}
-						/>
-					)}
-				</div>
+				<PanelColorPreview
+					admin={admin}
+					accent={previewAccent}
+					scale={scale}
+					text={savedText ? text : null}
+					backdrop={savedCard ? card : null}
+				/>
 			</div>
 		</section>
-	);
-};
-
-const previewSurfaceTarget =
-	"absolute inset-0 cursor-pointer rounded-[inherit] border-0 bg-transparent p-0 -outline-offset-2 outline-content-link hover:outline-2 focus-visible:outline-2 aria-pressed:outline-2";
-
-const SettingsPanelPreview: React.FC<{
-	accent: PanelAccent | null;
-	scale: number;
-	text: string | null;
-	picking: PreviewPart | null;
-	onPick: (part: "accent" | "text") => void;
-}> = ({ accent, scale, text, picking, onPick }) => {
-	const tokens = text ? panelTextTokens(text) : null;
-	const textTarget = (
-		children: React.ReactNode,
-		className?: string,
-		label?: string,
-	) => (
-		<button
-			type="button"
-			aria-label={label}
-			aria-pressed={picking === "text"}
-			title="Edit panel text and icon colour"
-			onClick={() => onPick("text")}
-			className={cn(
-				"pointer-events-auto inline-flex cursor-pointer items-center gap-1.5 rounded border-0 bg-transparent px-1 py-0.5 text-xs text-inherit outline-content-link [font-weight:inherit] hover:outline-1 focus-visible:outline-2",
-				className,
-			)}
-		>
-			{children}
-		</button>
-	);
-
-	return (
-		<div
-			data-panel-accent-preview={accent ? "" : undefined}
-			data-panel-text-preview={text ? "" : undefined}
-			className="relative w-64 shrink-0 rounded-2xl border border-solid border-border bg-surface-primary p-2 text-xs shadow-md"
-			style={
-				{
-					zoom: scale / 100,
-					...(accent ? { "--panel-accent": panelAccentColor(accent) } : {}),
-					...(tokens
-						? {
-								"--panel-text-primary": tokens.primary,
-								"--panel-text-secondary": tokens.secondary,
-							}
-						: {}),
-				} as React.CSSProperties
-			}
-		>
-			<button
-				type="button"
-				aria-label="Edit panel accent colour"
-				title="Edit panel surface colour"
-				aria-pressed={picking === "accent"}
-				onClick={() => onPick("accent")}
-				className={previewSurfaceTarget}
-			/>
-			<div className="pointer-events-none relative">
-				<div className="mb-2 flex items-center justify-between px-1 text-content-secondary">
-					{textTarget(
-						<>
-							<SettingsIcon aria-hidden className="size-3.5" />
-							Settings
-						</>,
-						"font-medium text-content-primary",
-					)}
-					{textTarget(
-						<ChevronDownIcon aria-hidden className="size-3.5" />,
-						undefined,
-						"Settings chevron colour",
-					)}
-				</div>
-				<div className="mb-1 flex gap-1">
-					<span className="flex min-h-7 flex-[2] items-center justify-center gap-1 rounded-full border border-solid border-border">
-						{textTarget(
-							<>
-								<GaugeIcon aria-hidden className="size-3.5" />
-								HUD
-							</>,
-						)}
-					</span>
-					<span className="flex min-h-7 flex-1 items-center justify-center rounded-full border border-solid border-border">
-						{textTarget(
-							<PanelRightCloseIcon aria-hidden className="size-3.5" />,
-							undefined,
-							"Sidebar icon colour",
-						)}
-					</span>
-				</div>
-				<div className="flex items-center justify-between px-2 py-1.5 text-content-secondary">
-					{textTarget(
-						<>
-							<RadioIcon aria-hidden className="size-3.5" />
-							Region
-						</>,
-					)}
-					{textTarget("Default")}
-				</div>
-				<span className="mb-2 flex min-h-7 items-center justify-center gap-1.5 rounded-full border border-solid border-border font-medium">
-					{textTarget(
-						<>
-							<MonitorIcon aria-hidden className="size-3.5" />
-							Workspaces
-						</>,
-					)}
-				</span>
-				<div className="flex flex-col gap-2 rounded-lg border border-solid border-border p-2 bg-surface-primary">
-					{textTarget("Cluster", "self-start font-semibold")}
-					{[
-						["CPU", "40%", "w-2/5"],
-						["Memory", "73%", "w-3/4"],
-					].map(([label, value, width]) => (
-						<div key={label} className="flex flex-col gap-1">
-							<span className="flex justify-between text-content-secondary">
-								{textTarget(label)}
-								{textTarget(value)}
-							</span>
-							<span className="h-1.5 rounded-full bg-surface-quaternary">
-								<span
-									className={`block h-full rounded-full bg-content-success ${width}`}
-								/>
-							</span>
-						</div>
-					))}
-				</div>
-			</div>
-		</div>
 	);
 };

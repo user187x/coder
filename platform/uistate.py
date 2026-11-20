@@ -40,6 +40,24 @@ def navbar_layout(value):
     return {'order': order, 'hidden': value['hidden']}
 
 
+
+PANEL_COLOR_PARTS = frozenset((
+    "backdrop", "surface", "button", "container", "border", "text", "icon",
+    "track", "cpu", "memory", "net", "disk",
+))
+
+
+def panel_colors(value):
+    """Validate a per-part patch. Null clears a global override."""
+    if not isinstance(value, dict) or value.keys() - PANEL_COLOR_PARTS:
+        raise ValueError("Invalid panel colour part.")
+    if any(color is not None and (
+        not isinstance(color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", color)
+    ) for color in value.values()):
+        raise ValueError("Panel colours must be six-digit hex colours.")
+    return {part: color.lower() if color is not None else None for part, color in value.items()}
+
+
 class UIState(threading.Thread):
     def __init__(self, pool, log, infrastructure=None):
         super().__init__(daemon=True, name='ui-history')

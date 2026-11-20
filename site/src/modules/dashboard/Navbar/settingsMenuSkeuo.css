@@ -105,8 +105,8 @@
 .settings-menu .settings-admin-notes-panel,
 .settings-chat-dock-slot > [data-settings-chat],
 .settings-menu.workspace-template-picker [cmdk-root] > .settings-menu-surface {
-	background: var(--skeuo-panel);
-	border-color: var(--skeuo-panel-edge);
+	background: var(--panel-color-surface, var(--skeuo-panel));
+	border-color: var(--panel-color-border, var(--skeuo-panel-edge));
 	box-shadow:
 		inset 0 1px 0 var(--skeuo-panel-lip),
 		inset 0 0 0 1px rgb(255 255 255 / 0.04),
@@ -119,8 +119,8 @@
 .settings-menu .settings-pill,
 .settings-menu .workspaces-pill,
 .settings-menu .settings-notes-control {
-	background: var(--skeuo-face);
-	border-color: var(--skeuo-face-edge);
+	background: var(--panel-color-button, var(--skeuo-face));
+	border-color: var(--panel-color-border, var(--skeuo-face-edge));
 	color: var(--skeuo-ink);
 	font-weight: 600;
 	text-shadow: var(--skeuo-engrave);
@@ -201,8 +201,8 @@
 /* Controls: the list in a recessed well, rows engraved, the one in hand on a crisp bar. */
 .settings-menu :is(.settings-menu-well, .settings-admin-notes-inner),
 .settings-chat-dock-slot [data-settings-chat-body] {
-	background: var(--skeuo-well);
-	border-color: var(--skeuo-well-edge);
+	background: var(--panel-color-container, var(--skeuo-well));
+	border-color: var(--panel-color-border, var(--skeuo-well-edge));
 	box-shadow:
 		inset 0 1.5px 3px var(--skeuo-shade),
 		0 1px 0 var(--skeuo-highlight);
@@ -298,7 +298,7 @@
 .settings-menu .settings-controls-chevron {
 	width: 1.5rem;
 	height: 1.5rem;
-	background: var(--skeuo-face);
+	background: var(--panel-color-button, var(--skeuo-face));
 	border: 1px solid var(--skeuo-face-edge);
 	box-shadow:
 		inset 0 1px 0 var(--skeuo-highlight),
@@ -320,7 +320,7 @@
 	padding: 4px;
 	border: 1px solid var(--skeuo-well-edge);
 	border-radius: 12px;
-	background: var(--skeuo-well);
+	background: var(--panel-color-container, var(--skeuo-well));
 	box-shadow:
 		inset 0 1.5px 3px var(--skeuo-shade),
 		0 1px 0 var(--skeuo-highlight);
@@ -333,7 +333,7 @@
 	justify-content: center;
 	border: 1px solid var(--skeuo-face-edge);
 	border-radius: 9px;
-	background: var(--skeuo-face);
+	background: var(--panel-color-button, var(--skeuo-face));
 	color: var(--skeuo-ink);
 	box-shadow:
 		inset 0 1px 0 var(--skeuo-highlight),
@@ -398,8 +398,8 @@
 }
 
 .settings-menu .settings-notes-list {
-	border-color: var(--skeuo-well-edge);
-	background: var(--skeuo-well);
+	border-color: var(--panel-color-border, var(--skeuo-well-edge));
+	background: var(--panel-color-container, var(--skeuo-well));
 }
 
 .settings-chat-dock-slot > [data-settings-chat] {
@@ -410,7 +410,7 @@
 .settings-chat-dock-slot [data-settings-chat-header] {
 	border: 1px solid var(--skeuo-face-edge);
 	border-radius: 9999px;
-	background: var(--skeuo-face);
+	background: var(--panel-color-button, var(--skeuo-face));
 	box-shadow: inset 0 1px 0 var(--skeuo-highlight);
 }
 

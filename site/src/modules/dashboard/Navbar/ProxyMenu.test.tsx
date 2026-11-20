@@ -201,7 +201,7 @@ describe("ProxyMenu", () => {
 		).toBeVisible();
 	});
 
-	it("opens a server heartbeat from the HUD context menu", async () => {
+	it("synchronizes the Metrics latency with the open HUD heartbeat", async () => {
 		const probe = vi
 			.spyOn(globalThis, "fetch")
 			.mockResolvedValue(new Response("OK"));
@@ -216,6 +216,14 @@ describe("ProxyMenu", () => {
 			name: "HUD heartbeat",
 		});
 		await within(heartbeat).findByText("Latency decreased");
+		const pill = await within(menu).findByTestId("navbar-latency-pill");
+		for (const latency of [126, 98, 0]) {
+			act(() => client.setQueryData(coderHeartbeat().queryKey, { latency }));
+			await waitFor(() => {
+				expect(heartbeat).toHaveTextContent(`${latency} ms`);
+				expect(pill).toHaveTextContent(`${latency} ms`);
+			});
+		}
 		expect(probe).toHaveBeenCalledWith(
 			"/healthz",
 			expect.objectContaining({ cache: "no-store" }),
@@ -227,9 +235,13 @@ describe("ProxyMenu", () => {
 		expect(
 			within(menu).queryByRole("group", { name: "HUD heartbeat" }),
 		).toBeNull();
+		expect(pill).toHaveTextContent("Latency for");
 		probe.mockResolvedValueOnce(new Response("Unavailable", { status: 503 }));
 		fireEvent.contextMenu(hud);
-		await within(menu).findByText("No response");
+		await waitFor(() => expect(pill).toHaveTextContent("No response"));
+		expect(
+			within(menu).getByRole("group", { name: "HUD heartbeat" }),
+		).toHaveTextContent("No response");
 	});
 
 	it("shows latency beside the cluster heading and keeps HUD and docking in navigation", async () => {
