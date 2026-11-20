@@ -33,12 +33,12 @@ export const justSignedOut = () => {
 };
 
 /** The sign-in page's settings: boot.js's copy at once, the platform service's after. */
-export const useLoginPageSettings = (): LoginPageSettings => {
+export const useLoginPageSettings = (): LoginPageSettings | undefined => {
 	const query = useQuery({
 		...loginPage(window.__cuiLoginPage),
 		retry: false,
 	});
-	return { ...LOGIN_PAGE_DEFAULT, ...query.data };
+	return query.isLoading ? undefined : { ...LOGIN_PAGE_DEFAULT, ...query.data };
 };
 
 type SignInTitleProps = {

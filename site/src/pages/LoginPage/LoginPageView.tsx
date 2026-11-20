@@ -5,6 +5,7 @@ import { Button } from "#/components/Button/Button";
 import { ProductLogo } from "#/components/Icons/ProductLogo";
 import { Loader } from "#/components/Loader/Loader";
 import { PlatformBackground } from "#/modules/platform/background/PlatformBackground";
+import { useLoginPageSettings } from "#/modules/platform/loginPage/SignInTitle";
 import { SignInForm } from "./SignInForm";
 import { TermsOfServiceLink } from "./TermsOfServiceLink";
 
@@ -27,6 +28,7 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 	redirectTo,
 }) => {
 	const location = useLocation();
+	const settings = useLoginPageSettings();
 	// This allows messages to be displayed at the top of the sign in form.
 	// Helpful for any redirects that want to inform the user of something.
 	const message = new URLSearchParams(location.search).get("message");
@@ -39,8 +41,9 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 			{/* Platform: the sign-in page's background image (Customize). */}
 			<PlatformBackground slot="login" />
 			<div className="w-full max-w-xs flex flex-col items-center gap-4">
-				{/* Platform: the deployment's logo, large: the page's emblem, above the sign-in button. */}
-				<ProductLogo className="h-28 max-w-[320px]" />
+				{settings && settings.headingMode !== "none" && (
+					<ProductLogo className="h-28 max-w-[320px]" />
+				)}
 				{isLoading ? (
 					<Loader />
 				) : tosAcceptanceRequired ? (

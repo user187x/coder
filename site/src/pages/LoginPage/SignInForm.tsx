@@ -100,11 +100,13 @@ export const SignInForm: React.FC<SignInFormProps> = ({
 		<div className="w-full">
 			{/* Platform: the title with its effect and message (Customize > Sign-in page), on signing in and after
 			    signing out */}
-			<SignInTitle
-				settings={settings}
-				applicationName={applicationName}
-				signedOut={justSignedOut()}
-			/>
+			{settings && (
+				<SignInTitle
+					settings={settings}
+					applicationName={applicationName}
+					signedOut={justSignedOut()}
+				/>
+			)}
 
 			{Boolean(error) && (
 				<div className="mb-8">
