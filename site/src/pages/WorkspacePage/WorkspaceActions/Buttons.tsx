@@ -20,6 +20,7 @@ export type ActionButtonProps = {
 	disabled?: boolean;
 	tooltipText?: string;
 	isRunning?: boolean;
+	agentOnly?: boolean;
 	requireActiveVersion?: boolean;
 };
 
@@ -29,6 +30,7 @@ export const UpdateButton: React.FC<ActionButtonProps> = ({
 	loading,
 	disabled,
 	isRunning,
+	agentOnly,
 	requireActiveVersion,
 }) => {
 	return (
@@ -43,9 +45,11 @@ export const UpdateButton: React.FC<ActionButtonProps> = ({
 					aria-label={
 						loading
 							? "Updating"
-							: isRunning
-								? "Update and restart"
-								: "Update and start"
+							: agentOnly
+								? "Restart to update agent"
+								: isRunning
+									? "Update and restart"
+									: "Update and start"
 					}
 				>
 					<span className="agent-update-groove" aria-hidden="true">
@@ -58,11 +62,13 @@ export const UpdateButton: React.FC<ActionButtonProps> = ({
 				</button>
 			</TooltipTrigger>
 			<TooltipContent side="bottom" className="max-w-xs">
-				{requireActiveVersion
-					? "This template requires automatic updates on workspace startup. Contact your administrator if you want to preserve the template version."
-					: isRunning
-						? "Stop workspace and restart it with the latest template version."
-						: "Start workspace with the latest template version."}
+				{agentOnly
+					? "Restart the workspace on its current template version to refresh the agent."
+					: requireActiveVersion
+						? "This template requires automatic updates on workspace startup. Contact your administrator if you want to preserve the template version."
+						: isRunning
+							? "Stop workspace and restart it with the latest template version."
+							: "Start workspace with the latest template version."}
 			</TooltipContent>
 		</Tooltip>
 	);

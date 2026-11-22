@@ -301,6 +301,9 @@ describe("WorkspacePage", () => {
 			const updateWorkspaceMock = vi
 				.spyOn(API, "updateWorkspace")
 				.mockResolvedValueOnce(MockWorkspaceBuild);
+			const restartWorkspaceMock = vi
+				.spyOn(API, "restartWorkspace")
+				.mockResolvedValueOnce(undefined);
 
 			// Render
 			await renderWorkspacePage(workspace);
@@ -311,7 +314,10 @@ describe("WorkspacePage", () => {
 				await within(screen.getByTestId("workspace-actions")).findByRole(
 					"button",
 					{
-						name: "Update and restart",
+						name:
+							reason === "template"
+								? "Update and restart"
+								: "Restart to update agent",
 					},
 				),
 			);
@@ -320,7 +326,13 @@ describe("WorkspacePage", () => {
 
 			// Assertions
 			await waitFor(() => {
-				expect(updateWorkspaceMock).toBeCalled();
+				if (reason === "template") {
+					expect(updateWorkspaceMock).toHaveBeenCalled();
+					expect(restartWorkspaceMock).not.toHaveBeenCalled();
+				} else {
+					expect(restartWorkspaceMock).toHaveBeenCalledWith({ workspace });
+					expect(updateWorkspaceMock).not.toHaveBeenCalled();
+				}
 			});
 		},
 	);

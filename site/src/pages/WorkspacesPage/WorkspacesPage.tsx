@@ -11,6 +11,7 @@ import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { usePagination } from "#/hooks/usePagination";
 import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
+import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { ACTIVE_BUILD_STATUSES } from "#/modules/workspaces/status";
 import { pageTitle } from "#/utils/page";
 import { BatchDeleteConfirmation } from "./BatchDeleteConfirmation";
@@ -51,6 +52,7 @@ type BatchAction = "delete" | "stop" | "restart" | "update";
 
 const WorkspacesPage: React.FC = () => {
 	const queryClient = useQueryClient();
+	const { buildInfo } = useDashboard();
 	// We have to be careful with how we use useSearchParams or any other
 	// derived hooks. The URL is global state, but each call to useSearchParams
 	// creates a different, contradictory source of truth for what the URL
@@ -202,7 +204,7 @@ const WorkspacesPage: React.FC = () => {
 					// action for running workspaces, we're going to invalidate
 					// all relevant queries as a prefetch strategy before the
 					// modal content is even allowed to mount.
-					for (const ws of checkedWorkspaces) {
+					for (const ws of checkedWorkspaces.filter((ws) => ws.outdated)) {
 						// Our data layer is a little messy right now, so
 						// there's no great way to invalidate a bunch of
 						// template version queries with a single function call,
@@ -264,15 +266,15 @@ const WorkspacesPage: React.FC = () => {
 
 			<BatchUpdateModalForm
 				open={activeBatchAction === "update"}
+				buildInfo={buildInfo}
 				workspacesToUpdate={checkedWorkspaces}
 				isProcessing={batchActions.isProcessing}
 				onCancel={() => setActiveBatchAction(undefined)}
-				onSubmit={async () => {
-					await batchActions.updateTemplateVersions({
-						workspaces: checkedWorkspaces,
-					});
-					setActiveBatchAction(undefined);
-				}}
+				onSubmit={(updates) =>
+					batchActions.updateWorkspaces(updates, () =>
+						setActiveBatchAction(undefined),
+					)
+				}
 			/>
 		</>
 	);

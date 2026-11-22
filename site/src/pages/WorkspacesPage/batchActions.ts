@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useMutation } from "react-query";
+import { useMutation, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { API } from "#/api/api";
 import { getErrorDetail } from "#/api/errors";
+import { workspacesKey } from "#/api/queries/workspaces";
 import type { Workspace, WorkspaceBuild } from "#/api/typesGenerated";
 
 /**
@@ -37,8 +38,10 @@ type UseBatchActionsOptions = {
 	onSuccess: () => Promise<void>;
 };
 
-type UpdateAllPayload = Readonly<{
-	workspaces: readonly Workspace[];
+/** The build action shown for a workspace in the bulk update review. */
+export type WorkspaceUpdate = Readonly<{
+	workspace: Workspace;
+	kind: "template" | "agent";
 }>;
 
 type UseBatchActionsResult = Readonly<{
@@ -49,15 +52,17 @@ type UseBatchActionsResult = Readonly<{
 	stop: (workspaces: readonly Workspace[]) => Promise<WorkspaceBuild[]>;
 	restart: (workspaces: readonly Workspace[]) => Promise<unknown[]>;
 	delete: (workspaces: readonly Workspace[]) => Promise<WorkspaceBuild[]>;
-	updateTemplateVersions: (
-		payload: UpdateAllPayload,
-	) => Promise<WorkspaceBuild[]>;
+	updateWorkspaces: (
+		updates: readonly WorkspaceUpdate[],
+		onComplete: () => void,
+	) => void;
 }>;
 
 export function useBatchActions(
 	options: UseBatchActionsOptions,
 ): UseBatchActionsResult {
 	const { onSuccess } = options;
+	const queryClient = useQueryClient();
 
 	const [restartProgress, setRestartProgress] = useState<RestartProgress>();
 
@@ -139,19 +144,29 @@ export function useBatchActions(
 	});
 
 	const updateAllMutation = useMutation({
-		mutationFn: (payload: UpdateAllPayload) => {
-			const { workspaces } = payload;
-			return Promise.all(
-				workspaces
-					.filter((w) => w.outdated && !w.dormant_at)
-					.map((w) => API.updateWorkspace(w)),
+		mutationFn: async (updates: readonly WorkspaceUpdate[]) => {
+			const results = await mapWithConcurrency(
+				updates,
+				RESTART_CONCURRENCY,
+				async ({ workspace, kind }) => {
+					try {
+						if (kind === "template") await API.updateWorkspace(workspace);
+						else await API.restartWorkspace({ workspace });
+						return { ok: true } as const;
+					} catch (error) {
+						return { ok: false, error } as const;
+					}
+				},
 			);
+			const failure = results.find((result) => !result.ok);
+			if (failure) throw failure.error;
 		},
 		onSuccess,
-		onError: (error) => {
+		onError: async (error) => {
 			toast.error("Failed to update some workspaces.", {
 				description: getErrorDetail(error),
 			});
+			await queryClient.invalidateQueries({ queryKey: workspacesKey() });
 		},
 	});
 
@@ -166,7 +181,8 @@ export function useBatchActions(
 		restart: restartAllMutation.mutateAsync,
 		restartProgress,
 		delete: deleteAllMutation.mutateAsync,
-		updateTemplateVersions: updateAllMutation.mutateAsync,
+		updateWorkspaces: (updates, onComplete) =>
+			updateAllMutation.mutate(updates, { onSuccess: onComplete }),
 		isProcessing:
 			startAllMutation.isPending ||
 			stopAllMutation.isPending ||

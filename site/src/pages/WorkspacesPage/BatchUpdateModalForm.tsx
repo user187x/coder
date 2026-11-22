@@ -4,7 +4,7 @@ import { Label, Slot } from "radix-ui";
 import { useId, useRef, useState } from "react";
 import { useQueries } from "react-query";
 import { templateVersion } from "#/api/queries/templates";
-import type { Workspace } from "#/api/typesGenerated";
+import type { BuildInfoResponse, Workspace } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { Badge } from "#/components/Badge/Badge";
@@ -18,11 +18,16 @@ import {
 } from "#/components/Dialog/Dialog";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { ACTIVE_BUILD_STATUSES } from "#/modules/workspaces/status";
+import { workspaceHasAgentUpdate } from "#/utils/workspace";
+import type { WorkspaceUpdate } from "./batchActions";
+
+type AgentBuildInfo = Pick<BuildInfoResponse, "version" | "agent_api_version">;
 
 export const BatchUpdateModalForm: React.FC<BatchUpdateModalFormProps> = ({
 	open,
 	isProcessing,
 	workspacesToUpdate,
+	buildInfo,
 	onCancel,
 	onSubmit,
 }) => {
@@ -38,6 +43,7 @@ export const BatchUpdateModalForm: React.FC<BatchUpdateModalFormProps> = ({
 			<DialogContent className="max-w-(--breakpoint-md)">
 				<ReviewForm
 					workspacesToUpdate={workspacesToUpdate}
+					buildInfo={buildInfo}
 					isProcessing={isProcessing}
 					onCancel={onCancel}
 					onSubmit={onSubmit}
@@ -50,18 +56,26 @@ export const BatchUpdateModalForm: React.FC<BatchUpdateModalFormProps> = ({
 type WorkspacePartitionByUpdateType = Readonly<{
 	dormant: readonly Workspace[];
 	noUpdateNeeded: readonly Workspace[];
-	readyToUpdate: readonly Workspace[];
+	readyToUpdate: readonly WorkspaceUpdate[];
 }>;
 
 function separateWorkspacesByUpdateType(
 	workspaces: readonly Workspace[],
+	buildInfo?: AgentBuildInfo,
 ): WorkspacePartitionByUpdateType {
 	const noUpdateNeeded: Workspace[] = [];
 	const dormant: Workspace[] = [];
-	const readyToUpdate: Workspace[] = [];
+	const readyToUpdate: WorkspaceUpdate[] = [];
 
 	for (const ws of workspaces) {
-		if (!ws.outdated) {
+		const agentUpdate =
+			buildInfo &&
+			workspaceHasAgentUpdate(
+				ws,
+				buildInfo.version,
+				buildInfo.agent_api_version,
+			);
+		if (!ws.outdated && !agentUpdate) {
 			noUpdateNeeded.push(ws);
 			continue;
 		}
@@ -69,7 +83,10 @@ function separateWorkspacesByUpdateType(
 			dormant.push(ws);
 			continue;
 		}
-		readyToUpdate.push(ws);
+		readyToUpdate.push({
+			workspace: ws,
+			kind: ws.outdated ? "template" : "agent",
+		});
 	}
 
 	return { dormant, noUpdateNeeded, readyToUpdate };
@@ -185,8 +202,7 @@ const RunningWorkspacesWarning: React.FC<RunningWorkspacesWarningProps> = ({
 
 			<ul className="flex flex-col gap-1 m-0 px-5 pt-1.5 [&>li]:leading-snug text-content-secondary">
 				<li>
-					Updating a workspace will start it on its latest template version.
-					This can delete non-persistent data.
+					Updating or restarting a workspace can delete non-persistent data.
 				</li>
 				<li>
 					Anyone connected to a running workspace will be disconnected until the
@@ -315,13 +331,15 @@ type RisksStage = "notAccepted" | "accepted" | "failedValidation";
 
 type ReviewFormProps = Readonly<{
 	workspacesToUpdate: readonly Workspace[];
+	buildInfo?: AgentBuildInfo;
 	isProcessing: boolean;
 	onCancel: () => void;
-	onSubmit: () => void;
+	onSubmit: (updates: readonly WorkspaceUpdate[]) => void;
 }>;
 
 const ReviewForm: React.FC<ReviewFormProps> = ({
 	workspacesToUpdate,
+	buildInfo,
 	isProcessing,
 	onCancel,
 	onSubmit,
@@ -335,12 +353,14 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
 	// now, we'll only show the user that some workspaces can't be updated, and
 	// then skip over them for all other update logic
 	const { dormant, noUpdateNeeded, readyToUpdate } =
-		separateWorkspacesByUpdateType(workspacesToUpdate);
+		separateWorkspacesByUpdateType(workspacesToUpdate, buildInfo);
 
 	// The workspaces don't have all necessary data by themselves, so we need to
 	// fetch the unique template versions, and massage the results
 	const uniqueTemplateVersionIds = new Set<string>(
-		readyToUpdate.map((ws) => ws.template_active_version_id),
+		readyToUpdate
+			.filter(({ kind }) => kind === "template")
+			.map(({ workspace }) => workspace.template_active_version_id),
 	);
 	const templateVersionQueries = useQueries({
 		queries: [...uniqueTemplateVersionIds].map((id) => templateVersion(id)),
@@ -393,8 +413,8 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
 
 	const runningIds = new Set<string>(
 		readyToUpdate
-			.filter((ws) => ws.latest_build.status === "running")
-			.map((ws) => ws.id),
+			.filter(({ workspace }) => workspace.latest_build.status === "running")
+			.map(({ workspace }) => workspace.id),
 	);
 
 	/**
@@ -429,8 +449,6 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
 	// they fail any input validations
 	const safeToSubmit = transitioningIds.size === 0 && error === undefined;
 	const buttonIsDisabled = !safeToSubmit || isProcessing;
-	const submitIsValid =
-		risksAcknowledged && error === undefined && readyToUpdate.length > 0;
 
 	return (
 		<Container asChild>
@@ -441,11 +459,9 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
 						onCancel();
 						return;
 					}
-					if (submitIsValid) {
-						onSubmit();
-						return;
-					}
-					if (stage === "accepted") {
+					if (buttonIsDisabled) return;
+					if (risksAcknowledged) {
+						onSubmit(readyToUpdate);
 						return;
 					}
 
@@ -484,9 +500,9 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
 						{readyToUpdate.length > 0 && (
 							<WorkspacesListSection
 								headerText="Ready to update"
-								description="These workspaces will be updated to the latest template version."
+								description="Template updates use the active version. Agent updates restart on the current template version."
 							>
-								{readyToUpdate.map((ws) => {
+								{readyToUpdate.map(({ workspace: ws, kind }) => {
 									const matchedQuery = templateVersionQueries.find(
 										(q) => q.data?.id === ws.template_active_version_id,
 									);
@@ -501,14 +517,16 @@ const ReviewForm: React.FC<ReviewFormProps> = ({
 												workspaceName={ws.name}
 												workspaceIconUrl={ws.template_icon}
 												label={
-													newTemplateName !== undefined && (
-														<TemplateNameChange
-															newTemplateVersionName={newTemplateName}
-															oldTemplateVersionName={
-																ws.latest_build.template_version_name
-															}
-														/>
-													)
+													kind === "agent"
+														? "Restart to refresh the agent"
+														: newTemplateName !== undefined && (
+																<TemplateNameChange
+																	newTemplateVersionName={newTemplateName}
+																	oldTemplateVersionName={
+																		ws.latest_build.template_version_name
+																	}
+																/>
+															)
 												}
 											/>
 										</PanelListItem>
@@ -618,6 +636,7 @@ type BatchUpdateModalFormProps = Readonly<{
 	open: boolean;
 	isProcessing: boolean;
 	workspacesToUpdate: readonly Workspace[];
+	buildInfo?: AgentBuildInfo;
 	onCancel: () => void;
-	onSubmit: () => void;
+	onSubmit: (updates: readonly WorkspaceUpdate[]) => void;
 }>;

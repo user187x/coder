@@ -4,6 +4,7 @@ import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import type { UseFilterResult } from "#/components/Filter/Filter";
 import {
+	MockOutdatedWorkspace,
 	MockStoppedWorkspace,
 	MockTemplate,
 	MockTemplateVersion,
@@ -12,6 +13,7 @@ import {
 	MockWorkspaceResource,
 } from "#/testHelpers/entities";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
+import WorkspacesPage from "./WorkspacesPage";
 import { WorkspacesPageView } from "./WorkspacesPageView";
 
 const createFilter = (used = false): UseFilterResult => ({
@@ -372,6 +374,53 @@ it.each([false, true])(
 		expect(outdated ? restart : update).not.toHaveBeenCalled();
 	},
 );
+
+it("reviews agent and template updates together and applies each reviewed action", async () => {
+	const agentUpdate = {
+		...MockWorkspace,
+		id: "agent-update",
+		name: "agent-update",
+		latest_build: {
+			...MockWorkspace.latest_build,
+			resources: [
+				{
+					...MockWorkspaceResource,
+					agents: [{ ...MockWorkspaceAgent, version: "v1.0.0" }],
+				},
+			],
+		},
+	};
+	const templateUpdate = { ...MockOutdatedWorkspace, id: "template-update" };
+	const current = { ...MockWorkspace, id: "current", name: "current" };
+	vi.spyOn(API, "getWorkspaces").mockResolvedValue({
+		workspaces: [agentUpdate, templateUpdate, current],
+		count: 3,
+	});
+	vi.spyOn(API, "getTemplateVersion").mockResolvedValue(MockTemplateVersion);
+	const restart = vi
+		.spyOn(API, "restartWorkspace")
+		.mockResolvedValue(undefined);
+	const update = vi
+		.spyOn(API, "updateWorkspace")
+		.mockResolvedValue(MockWorkspace.latest_build);
+	const user = userEvent.setup();
+	renderWithAuth(<WorkspacesPage />);
+	await user.click(
+		await screen.findByRole("checkbox", { name: "Select all workspaces" }),
+	);
+	await user.click(screen.getByRole("button", { name: /Update…/ }));
+	const review = within(
+		await screen.findByRole("dialog", { name: "Review updates" }),
+	);
+	await user.click(
+		review.getByRole("checkbox", { name: "I acknowledge these risks." }),
+	);
+	await user.click(review.getByRole("button", { name: "Update" }));
+	await waitFor(() => {
+		expect(restart).toHaveBeenCalledExactlyOnceWith({ workspace: agentUpdate });
+		expect(update).toHaveBeenCalledExactlyOnceWith(templateUpdate);
+	});
+});
 
 it.each(["apps", "controls"])(
 	"opens the workspace from empty %s cell space",

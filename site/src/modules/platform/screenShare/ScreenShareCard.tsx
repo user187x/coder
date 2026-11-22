@@ -4,7 +4,7 @@ import {
 	MonitorIcon,
 	PauseIcon,
 	PlayIcon,
-	ScanIcon,
+	ScalingIcon,
 	SquareIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -172,7 +172,7 @@ export const ScreenShareCard = ({
 						title="Fit shows the entire screen; Fill crops its edges to fill the monitor."
 					>
 						<span className="support-dial-knob" aria-hidden>
-							<ScanIcon />
+							<ScalingIcon />
 						</span>
 						{fill ? "Fit screen" : "Fill monitor"}
 					</Button>

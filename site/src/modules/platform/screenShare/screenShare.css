@@ -21,6 +21,7 @@
 	position: relative;
 	display: flex;
 	flex-direction: column;
+	inline-size: 100%;
 	aspect-ratio: 16 / 9;
 	min-height: 12rem;
 	max-height: calc(100dvh / var(--app-zoom, 1) - var(--support-crt-chrome));
@@ -259,6 +260,8 @@
 
 /* The live-view search as a VCR tape door: centered glyph and text, swinging in on its top hinge when focused. */
 .vhs-search {
+	/* The perspective creates a stacking context for both the door and results. */
+	z-index: 4;
 	perspective: 640px;
 }
 .vhs-door {

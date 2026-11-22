@@ -12,7 +12,7 @@ import {
 import { buildRow } from "#/modules/workspaces/buildRow";
 import type { WorkspacePermissions } from "#/modules/workspaces/permissions";
 import { WorkspaceMoreActions } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceMoreActions";
-import { workspaceAgentNeedsUpdate } from "#/utils/workspace";
+import { workspaceHasAgentUpdate } from "#/utils/workspace";
 import {
 	ActivateButton,
 	CancelButton,
@@ -64,18 +64,15 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 	});
 	const { metadata } = useEmbeddedMetadata();
 	const { data: build } = useQuery(buildInfo(metadata["build-info"]));
-	const agentUpdateAvailable = workspace.latest_build.resources.some(
-		(resource) =>
-			resource.agents?.some((agent) =>
-				workspaceAgentNeedsUpdate(
-					agent,
-					build?.version ?? "",
-					build?.agent_api_version ?? "",
-				),
-			),
-	);
-	const actionWorkspace = agentUpdateAvailable
-		? { ...workspace, outdated: true }
+	const agentOnlyUpdate =
+		!workspace.outdated &&
+		workspaceHasAgentUpdate(
+			workspace,
+			build?.version ?? "",
+			build?.agent_api_version ?? "",
+		);
+	const actionWorkspace = agentOnlyUpdate
+		? { ...workspace, outdated: true, template_require_active_version: false }
 		: workspace;
 	const abilityPermissions = {
 		canDebug: Boolean(deployment?.config.enable_terraform_debug_mode),
@@ -142,7 +139,8 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 		),
 		updateAndRestart: (
 			<UpdateButton
-				handleAction={handleUpdate}
+				handleAction={agentOnlyUpdate ? handleRestart : handleUpdate}
+				agentOnly={agentOnlyUpdate}
 				isRunning
 				requireActiveVersion={false}
 				disabled={disabled}

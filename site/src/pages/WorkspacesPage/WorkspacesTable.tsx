@@ -106,7 +106,7 @@ import {
 import {
 	getDisplayWorkspaceTemplateName,
 	getWorkspaceRestartReasons,
-	workspaceAgentNeedsUpdate,
+	workspaceHasAgentUpdate,
 } from "#/utils/workspace";
 import {
 	isDeleting,
@@ -264,15 +264,10 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					);
 					const workspacePageLink = `/@${workspace.owner_name}/${workspace.name}`;
 					const templateName = getDisplayWorkspaceTemplateName(workspace);
-					const agentUpdateAvailable = workspace.latest_build.resources.some(
-						(resource) =>
-							resource.agents?.some((agent) =>
-								workspaceAgentNeedsUpdate(
-									agent,
-									dashboard.buildInfo.version,
-									dashboard.buildInfo.agent_api_version,
-								),
-							),
+					const agentUpdateAvailable = workspaceHasAgentUpdate(
+						workspace,
+						dashboard.buildInfo.version,
+						dashboard.buildInfo.agent_api_version,
 					);
 
 					return (

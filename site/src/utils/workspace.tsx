@@ -357,6 +357,18 @@ export const workspaceAgentNeedsUpdate = (
 		serverAPIVersion,
 	).status !== agentVersionStatus.Updated;
 
+/** Whether restarting this workspace can refresh an outdated managed agent. */
+export const workspaceHasAgentUpdate = (
+	workspace: TypesGen.Workspace,
+	serverVersion: string,
+	serverAPIVersion: string,
+): boolean =>
+	workspace.latest_build.status === "running" &&
+	!workspace.latest_build.has_external_agent &&
+	getWorkspaceAgents(workspace).some((agent) =>
+		workspaceAgentNeedsUpdate(agent, serverVersion, serverAPIVersion),
+	);
+
 /** Explains the updates that a restart can apply, using the same version policy as the status indicator. */
 export const getWorkspaceRestartReasons = (
 	workspace: TypesGen.Workspace,
