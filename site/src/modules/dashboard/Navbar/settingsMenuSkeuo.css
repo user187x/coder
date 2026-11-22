@@ -187,7 +187,7 @@
 	:is(
 		a.settings-pill:hover,
 		.settings-pill > :is([role="menuitem"], button):hover,
-		[role="menuitem"]:hover > .workspaces-pill
+		[data-workspaces-expanded]:is(:hover, [data-highlighted]) > .workspaces-pill
 	) {
 	background: var(--skeuo-face-hover);
 }

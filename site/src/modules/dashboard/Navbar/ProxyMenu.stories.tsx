@@ -286,6 +286,18 @@ export const SettingsMenuOpened: Story = {
 		);
 	},
 };
+export const WorkspacesPillHovered: Story = {
+	...SettingsMenuOpened,
+	play: async (context) => {
+		await SettingsMenuOpened.play?.(context);
+		await userEvent.hover(
+			within(context.canvasElement.ownerDocument.body).getByRole("menuitem", {
+				name: /^Workspaces/,
+			}),
+		);
+	},
+};
+
 export const TemplatesOnly: Story = {
 	...SettingsMenuOpened,
 	args: {

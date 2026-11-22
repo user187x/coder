@@ -70,37 +70,3 @@ html[data-animations="off"] .workspaces-pill-ring rect {
 		transition: none !important;
 	}
 }
-
-.workspaces-pill::before {
-	content: "";
-	position: absolute;
-	inset: 1px;
-	border-radius: inherit;
-	background: linear-gradient(
-		90deg,
-		hsl(var(--content-link) / 0.12),
-		hsl(var(--content-link) / 0.32) 50%,
-		hsl(var(--content-link) / 0.12)
-	);
-	pointer-events: none;
-	opacity: 0;
-	transform: scaleX(0);
-	transform-origin: center;
-	transition:
-		transform 500ms ease-out,
-		opacity 200ms ease-out;
-}
-.workspaces-pill:hover::before,
-[data-highlighted] > .workspaces-pill::before {
-	opacity: 1;
-	transform: scaleX(1);
-	box-shadow: inset 0 0 0 1px hsl(var(--content-link) / 0.45);
-}
-html[data-animations="off"] .workspaces-pill::before {
-	transition: none;
-}
-@media (prefers-reduced-motion: reduce) {
-	.workspaces-pill::before {
-		transition: none;
-	}
-}

@@ -300,7 +300,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 				data-workspaces-expanded={expanded}
 				aria-controls={listId}
 				data-locked={locked || undefined}
-				className="justify-center px-1 py-1"
+				className="justify-center px-1 py-1 focus:bg-transparent"
 				// The row opens nothing itself: the menu stays open.
 				onSelect={(e) => e.preventDefault()}
 				onPointerDown={(e) => {
