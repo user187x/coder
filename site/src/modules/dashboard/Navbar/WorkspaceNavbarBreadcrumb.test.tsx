@@ -3,27 +3,31 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
-import { MockWorkspace } from "#/testHelpers/entities";
+import { MockUserOwner, MockWorkspace } from "#/testHelpers/entities";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
 import { NavbarStartTarget } from "./NavbarAction";
-import { useRegisterSettingsMenu } from "./settingsMenuHost";
+import { ProxyMenu } from "./ProxyMenu";
 import { WorkspaceNavbarBreadcrumb } from "./WorkspaceNavbarBreadcrumb";
 
 afterEach(() => vi.restoreAllMocks());
 
 const InNavbar: React.FC = () => {
 	const [start, setStart] = useState<HTMLDivElement | null>(null);
-	// The navbar's Settings menu, mounted to open from the breadcrumb's chevron.
-	useRegisterSettingsMenu(true);
 	return (
 		<NavbarStartTarget.Provider value={start}>
 			<div ref={setStart} data-testid="navbar-start" />
 			<WorkspaceNavbarBreadcrumb workspaceName="browser" />
+			<ProxyMenu
+				breadcrumbOnly
+				controls={{ permissions: { canViewHud: true } }}
+				user={MockUserOwner}
+				onSignOut={vi.fn()}
+			/>
 		</NavbarStartTarget.Provider>
 	);
 };
 
-it("links its Workspaces crumb back to the workspace list", async () => {
+it("opens Settings from its Workspaces category", async () => {
 	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 		admin_nav_in_navbar: true,
 	});
@@ -31,10 +35,12 @@ it("links its Workspaces crumb back to the workspace list", async () => {
 	const crumb = within(
 		await screen.findByRole("navigation", { name: "Workspace breadcrumb" }),
 	);
-	expect(crumb.getByRole("link", { name: "Workspaces" })).toHaveAttribute(
-		"href",
-		"/workspaces",
+	await userEvent.click(
+		await crumb.findByRole("button", { name: "Workspaces" }),
 	);
+	expect(
+		await screen.findByTestId("navbar-latency-controls-menu"),
+	).toBeVisible();
 });
 
 it("searches the signed-in user's workspaces and opens the selected result", async () => {

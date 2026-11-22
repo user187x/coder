@@ -64,7 +64,7 @@ export const NavbarSectionsMenu: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const trigger = await within(canvasElement).findByRole("button", {
-			name: "User Settings",
+			name: "Account",
 		});
 		trigger.focus();
 		await userEvent.keyboard("{ArrowDown}");

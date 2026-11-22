@@ -5,34 +5,23 @@ import {
 } from "#/components/Breadcrumb/Breadcrumb";
 import { useOptionalAuthContext } from "#/contexts/auth/AuthProvider";
 import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
-import { defaultHomeLabel } from "./adminQuickLinks";
 import { SettingsRootMenu } from "./SettingsRootMenu";
-import { settingsMenuSlot, useSettingsMenuPresent } from "./settingsMenuHost";
 
 export const SettingsBreadcrumbRoot = ({
-	fallbackPath = "/deployment",
+	fallbackPath = "/dashboard",
 }: {
 	fallbackPath?: string;
 }) => {
-	const settingsMenu = useSettingsMenuPresent();
 	const authenticated = Boolean(useOptionalAuthContext()?.permissions);
-	const { path } = useSettingsDefaultView(!authenticated);
-
-	if (settingsMenu) {
-		return (
-			<BreadcrumbItem
-				ref={settingsMenuSlot}
-				className="settings-breadcrumb-root"
-			/>
-		);
-	}
+	const { path } = useSettingsDefaultView();
 
 	const root = (
 		<BreadcrumbItem className="settings-breadcrumb-root">
 			<BreadcrumbLink
 				to={path ?? fallbackPath}
 				end
-				aria-label={defaultHomeLabel(path)}
+				aria-label="Home"
+				title="Go to your default view"
 			>
 				<MenuIcon aria-hidden className="size-4 shrink-0" />
 			</BreadcrumbLink>

@@ -7,9 +7,9 @@ import {
 	BreadcrumbLink,
 	BreadcrumbList,
 } from "#/components/Breadcrumb/Breadcrumb";
-import { CategoryDefaultMenu } from "./DefaultViewOption";
 import { NavbarStart } from "./NavbarAction";
 import { SettingsBreadcrumbRoot } from "./SettingsBreadcrumbRoot";
+import { SettingsCategoryTrigger } from "./SettingsCategoryTrigger";
 import { WorkspacePicker } from "./SettingsDestinationMenu";
 import {
 	useRegisterPageSettingsBreadcrumb,
@@ -39,14 +39,12 @@ export const WorkspaceNavbarBreadcrumb: React.FC<{ workspaceName: string }> = ({
 			>
 				<BreadcrumbList>
 					<SettingsBreadcrumbRoot />
-					<CategoryDefaultMenu path="/workspaces">
-						<BreadcrumbItem>
-							<BreadcrumbLink to="/workspaces" end>
-								<MonitorIcon aria-hidden className="size-4 shrink-0" />
-								Workspaces
-							</BreadcrumbLink>
-						</BreadcrumbItem>
-					</CategoryDefaultMenu>
+					<SettingsCategoryTrigger label="Workspaces" path="/workspaces">
+						<BreadcrumbLink to="/workspaces" end>
+							<MonitorIcon aria-hidden className="size-4 shrink-0" />
+							Workspaces
+						</BreadcrumbLink>
+					</SettingsCategoryTrigger>
 					<BreadcrumbItem>
 						<WorkspacePicker
 							label={`Switch workspace from ${workspaceName}`}

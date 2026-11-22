@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import {
 	GaugeIcon,
-	MenuIcon,
 	MonitorIcon,
 	PanelRightCloseIcon,
 	PanelRightDashedIcon,
@@ -11,7 +10,7 @@ import {
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
 	coderHeartbeat,
@@ -46,22 +45,22 @@ import {
 	type AdminSettingsPermissions,
 	canViewAdminSettings,
 } from "./AdminSettings";
-import type { AdminPage } from "./adminQuickLinks";
+import { type AdminPage, adminCategory } from "./adminQuickLinks";
+import { BreadcrumbDropdownContent } from "./BreadcrumbMenu";
 import { CompactQuickLinks } from "./CompactQuickLinkMenu";
 import { HudHeartbeat, heartbeatLabel } from "./HudHeartbeat";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
-import { NavbarMoveMenu } from "./NavbarMoveMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
 import {
 	type SettingsFace,
 	SettingsFacePanel,
 	type SettingsPanelLayout,
 } from "./SettingsFacePanel";
-import { SettingsRootMenu } from "./SettingsRootMenu";
 import "./settingsMenuSkeuo.css";
 import { toScreenPx } from "#/utils/appZoom";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
+import { SettingsRootMenu } from "./SettingsRootMenu";
 import { SettingsSidePanels } from "./SettingsSidePanels";
 import {
 	SettingsStripDockControl,
@@ -118,6 +117,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	breadcrumbOnly = false,
 }) => {
 	const navigate = useNavigate();
+	const { pathname } = useLocation();
 	const [open, setOpen] = useState(false);
 	const unreadGlow = useUnreadGlow();
 	// The side of the screen the menu opens on, from where its button is: on the left it hangs from the button's left
@@ -167,10 +167,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const settingsInNavbar = Boolean(
 		controls && canViewAdminSettings(controls.permissions),
 	);
-	// Docked, it stays at the screen's side: the breadcrumb then keeps its own Settings link.
-	useRegisterSettingsMenu(settingsInNavbar && !docked);
+	useRegisterSettingsMenu(settingsInNavbar);
 	const menuHost = useSettingsMenuHost();
-	const breadcrumbHost = settingsInNavbar && !docked ? menuHost : null;
+	const breadcrumbHost = settingsInNavbar ? menuHost : null;
+	const breadcrumbLabel = breadcrumbHost?.label ?? "Settings";
+	const CategoryIcon = adminCategory(pathname)?.icon ?? SettingsIcon;
 	const compact = Boolean(docked && prefs.data?.settings_sidebar_compact);
 	const heartbeatVisible = hud && hudMenu.open && !compact && (open || docked);
 	const heartbeat = useQuery({
@@ -399,11 +400,71 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	// Unread chats or notifications while the chat is not on screen: the closed chevron glows (navbarSoft.css).
 	const glow =
 		(unreadGlow.chat || unreadGlow.notifications) && !open && !docked;
+	const categoryTrigger = breadcrumbHost && (
+		<SettingsRootMenu>
+			<DropdownMenuTrigger asChild>
+				<button
+					ref={docked ? undefined : trigger}
+					type="button"
+					className="settings-breadcrumb-trigger"
+					aria-label={breadcrumbLabel}
+					title={`Open Settings for ${breadcrumbLabel}`}
+					data-testid={docked ? undefined : "navbar-latency-controls"}
+					data-unread-glow={glow || undefined}
+					onPointerDown={docked ? undefined : (event) => event.preventDefault()}
+					onClick={docked ? undefined : () => changeOpen(!open)}
+				>
+					{breadcrumbHost.iconOnly ? (
+						<CategoryIcon aria-hidden className="size-4 shrink-0" />
+					) : (
+						breadcrumbLabel
+					)}
+				</button>
+			</DropdownMenuTrigger>
+		</SettingsRootMenu>
+	);
+
 	// Only for the breadcrumb: nothing to show until a breadcrumb takes its button, unless it is docked at the side.
 	if (breadcrumbOnly && !breadcrumbHost && !docked) return null;
 
 	return (
 		<>
+			{breadcrumbHost &&
+				docked &&
+				createPortal(
+					<DropdownMenu modal={false}>
+						{categoryTrigger}
+						<BreadcrumbDropdownContent aria-label="Settings quick links">
+							<DropdownMenuItem asChild>
+								<NavLink to="/settings/account">
+									<SettingsIcon aria-hidden /> User Settings
+								</NavLink>
+							</DropdownMenuItem>
+							{hud && (
+								<DropdownMenuItem asChild>
+									<NavLink to="/hud">
+										<GaugeIcon aria-hidden /> HUD
+									</NavLink>
+								</DropdownMenuItem>
+							)}
+							{[
+								...new Map(
+									[
+										...(controls?.quickLinks ?? []),
+										...(controls?.categories ?? []),
+									].map((page) => [page.id, page]),
+								).values(),
+							].map((page) => (
+								<DropdownMenuItem key={page.id} asChild>
+									<NavLink to={page.path}>
+										<page.icon aria-hidden /> {page.label}
+									</NavLink>
+								</DropdownMenuItem>
+							))}
+						</BreadcrumbDropdownContent>
+					</DropdownMenu>,
+					breadcrumbHost.element,
+				)}
 			<DropdownMenu
 				modal={false}
 				open={open || docked}
@@ -432,31 +493,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					)}
 				</div>
 				{breadcrumbHost &&
-					createPortal(
-						<NavbarBreadcrumbTrigger
-							inNavbar={Boolean(breadcrumbHost.closest(".navbar-start"))}
-							undocked={!docked}
-						>
-							<DropdownMenuTrigger asChild>
-								<button
-									ref={trigger}
-									type="button"
-									className="settings-breadcrumb-trigger"
-									aria-label="Settings"
-									title="Open Settings"
-									data-testid="navbar-latency-controls"
-									data-unread-glow={glow || undefined}
-									// One click opens it, and another closes it (the menu's own outside-click is told to leave
-									// this button to it).
-									onPointerDown={(event) => event.preventDefault()}
-									onClick={() => changeOpen(!open)}
-								>
-									<MenuIcon aria-hidden className="size-4 shrink-0" />
-								</button>
-							</DropdownMenuTrigger>
-						</NavbarBreadcrumbTrigger>,
-						breadcrumbHost,
-					)}
+					!docked &&
+					createPortal(categoryTrigger, breadcrumbHost.element)}
 				<DropdownMenuContent
 					ref={setMenuElement}
 					data-settings-docked={docked || undefined}
@@ -912,21 +950,3 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		</>
 	);
 };
-
-function NavbarBreadcrumbTrigger({
-	inNavbar,
-	undocked,
-	children,
-}: {
-	inNavbar: boolean;
-	undocked: boolean;
-	children: React.ReactElement;
-}) {
-	if (inNavbar && undocked)
-		return <SettingsRootMenu>{children}</SettingsRootMenu>;
-	return inNavbar ? (
-		<NavbarMoveMenu label="Settings">{children}</NavbarMoveMenu>
-	) : (
-		children
-	);
-}

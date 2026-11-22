@@ -1,4 +1,4 @@
-import { Suspense, useRef, useState } from "react";
+import { Suspense } from "react";
 import { Navigate, Outlet, useMatch } from "react-router";
 import { Avatar } from "#/components/Avatar/Avatar";
 import {
@@ -14,9 +14,9 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { BreadcrumbDropdownContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
 import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
+import { SettingsCategoryTrigger } from "#/modules/dashboard/Navbar/SettingsCategoryTrigger";
 import { useRegisterPageSettingsBreadcrumb } from "#/modules/dashboard/Navbar/settingsMenuHost";
 import { AdminBreadcrumb } from "#/modules/management/AdminBreadcrumb";
-import { CategoryBreadcrumbButton } from "#/modules/management/CategoryBreadcrumbButton";
 import "#/modules/platform/settingsPage/settingsPage.css";
 import { pageTitle } from "#/utils/page";
 import { Sidebar } from "./Sidebar";
@@ -28,14 +28,12 @@ const Layout: React.FC = () => {
 	const { user: me } = useAuthenticated();
 	const match = useMatch("/settings/:section/*");
 	useRegisterPageSettingsBreadcrumb(true);
-	const [sectionsOpen, setSectionsOpen] = useState(false);
-	const sectionTrigger = useRef<HTMLSpanElement>(null);
 	if (!match) return <Navigate to="/settings/account" replace />;
 	const section =
 		Object.entries(settingsSections).find(
 			([path]) => path === match.params.section,
 		)?.[1] ?? settingsSections.account;
-	// In the navbar, one click on User Settings or on its section opens the sections, hanging from User Settings.
+	const SectionIcon = section.icon;
 	const navbarBreadcrumb = (
 		<NavbarStart inlineWithoutNavbar>
 			<AdminBreadcrumb
@@ -45,52 +43,34 @@ const Layout: React.FC = () => {
 			>
 				<BreadcrumbList>
 					<SettingsBreadcrumbRoot />
-					<DropdownMenu
-						modal={false}
-						open={sectionsOpen}
-						onOpenChange={setSectionsOpen}
-					>
-						<BreadcrumbItem>
+					<SettingsCategoryTrigger label="User Settings">
+						<span>
+							<Avatar
+								size="sm"
+								fallback={me.username}
+								src={me.avatar_url}
+								className="size-4 shrink-0"
+							/>
+							User Settings
+						</span>
+					</SettingsCategoryTrigger>
+					<BreadcrumbItem>
+						<DropdownMenu modal={false}>
 							<DropdownMenuTrigger asChild>
 								<button
 									type="button"
-									title={`${me.username}: User Settings sections`}
+									aria-current="page"
+									aria-label={section.label}
+									title={`${section.label}: User Settings sections`}
 								>
-									<Avatar
-										size="sm"
-										fallback={me.username}
-										src={me.avatar_url}
-										className="size-4 shrink-0"
-									/>
-									User Settings
+									<SectionIcon aria-hidden className="size-4 shrink-0" />
 								</button>
 							</DropdownMenuTrigger>
-						</BreadcrumbItem>
-						<BreadcrumbItem>
-							<span ref={sectionTrigger} className="inline-flex">
-								<CategoryBreadcrumbButton
-									label={section.label}
-									icon={section.icon}
-									hasMenu
-									sidebarOpen={sectionsOpen}
-									onToggle={() => setSectionsOpen((value) => !value)}
-								/>
-							</span>
-						</BreadcrumbItem>
-						<BreadcrumbDropdownContent
-							aria-label="User Settings sections"
-							onInteractOutside={(event) => {
-								if (
-									event.target instanceof Node &&
-									sectionTrigger.current?.contains(event.target)
-								) {
-									event.preventDefault();
-								}
-							}}
-						>
-							<Sidebar menu />
-						</BreadcrumbDropdownContent>
-					</DropdownMenu>
+							<BreadcrumbDropdownContent aria-label="User Settings sections">
+								<Sidebar menu />
+							</BreadcrumbDropdownContent>
+						</DropdownMenu>
+					</BreadcrumbItem>
 				</BreadcrumbList>
 			</AdminBreadcrumb>
 		</NavbarStart>

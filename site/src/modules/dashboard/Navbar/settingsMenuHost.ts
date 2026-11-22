@@ -6,7 +6,13 @@ import type { UserUIPreferences } from "#/api/platform";
  * into the navbar, registers its Settings chevron's slot here, and the Settings menu (ProxyMenu) puts its trigger
  * there. The menu says it is mounted, so the breadcrumb keeps its own Settings link when there is no menu to open.
  */
-let host: HTMLElement | null = null;
+type SettingsMenuHost = {
+	element: HTMLElement;
+	label: string;
+	iconOnly: boolean;
+};
+
+let host: SettingsMenuHost | null = null;
 let menus = 0;
 const listeners = new Set<() => void>();
 const emit = () => {
@@ -21,12 +27,16 @@ const subscribe = (listener: () => void) => {
  * The Settings chevron's slot, as a ref: the navbar's own breadcrumb and a settings page's both offer one, and a slot
  * leaving clears the host only while it is still the host, so one replacing the other never loses it.
  */
-export const settingsMenuSlot = (element: HTMLElement | null) => {
+export const settingsMenuSlot = (
+	element: HTMLElement | null,
+	{ label, iconOnly } = { label: "Settings", iconOnly: false },
+) => {
 	if (!element) return;
-	host = element;
+	const registration = { element, label, iconOnly };
+	host = registration;
 	emit();
 	return () => {
-		if (host !== element) return;
+		if (host !== registration) return;
 		host = null;
 		emit();
 	};

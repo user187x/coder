@@ -56,6 +56,7 @@ import {
 	NavbarStart,
 } from "#/modules/dashboard/Navbar/NavbarAction";
 import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
+import { SettingsCategoryTrigger } from "#/modules/dashboard/Navbar/SettingsCategoryTrigger";
 import { TemplateDestinations } from "#/modules/dashboard/Navbar/SettingsDestinationMenu";
 import {
 	useRegisterPageSettingsBreadcrumb,
@@ -356,11 +357,11 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 					>
 						<BreadcrumbList>
 							<SettingsBreadcrumbRoot />
-							<BreadcrumbItem>
+							<SettingsCategoryTrigger label="Template">
 								<BreadcrumbViewMenu label="Template">
 									<TemplateDestinations />
 								</BreadcrumbViewMenu>
-							</BreadcrumbItem>
+							</SettingsCategoryTrigger>
 							<BreadcrumbItem>
 								{menu || <BreadcrumbPage>{displayName}</BreadcrumbPage>}
 							</BreadcrumbItem>

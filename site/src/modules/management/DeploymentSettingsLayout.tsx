@@ -8,10 +8,7 @@ import {
 	banner as bannerQuery,
 	userUIPreferences,
 } from "#/api/queries/platform";
-import {
-	BreadcrumbItem,
-	BreadcrumbList,
-} from "#/components/Breadcrumb/Breadcrumb";
+import { BreadcrumbList } from "#/components/Breadcrumb/Breadcrumb";
 import { ContextMenuSeparator } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { PageLoader } from "#/components/Loader/Loader";
@@ -28,9 +25,9 @@ import {
 	BreadcrumbViewMenu,
 	breadcrumbMenuClass,
 } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
-import { CategoryDefaultMenu } from "#/modules/dashboard/Navbar/DefaultViewOption";
 import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
 import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
+import { SettingsCategoryTrigger } from "#/modules/dashboard/Navbar/SettingsCategoryTrigger";
 import { TemplateDestinations } from "#/modules/dashboard/Navbar/SettingsDestinationMenu";
 import { SettingsPlacementOptions } from "#/modules/dashboard/Navbar/SettingsRootMenu";
 import {
@@ -150,8 +147,10 @@ const DeploymentSettingsLayout: React.FC = () => {
 				className="deployment-breadcrumb admin-navbar-breadcrumb"
 			>
 				<BreadcrumbList>
-					<SettingsBreadcrumbRoot fallbackPath="/deployment/users" />
-					<CategoryDefaultMenu
+					<SettingsBreadcrumbRoot />
+					<SettingsCategoryTrigger
+						label={category?.label ?? "General"}
+						iconOnly
 						path={category?.path}
 						actions={
 							preferences.data?.settings_sidebar && (
@@ -162,54 +161,52 @@ const DeploymentSettingsLayout: React.FC = () => {
 							)
 						}
 					>
-						<BreadcrumbItem>
-							{categoryDestinations ? (
-								<BreadcrumbViewMenu
-									label={category?.label ?? "General"}
-									trigger={<CategoryIcon aria-hidden />}
+						{categoryDestinations ? (
+							<BreadcrumbViewMenu
+								label={category?.label ?? "General"}
+								trigger={<CategoryIcon aria-hidden />}
+							>
+								{categoryDestinations}
+							</BreadcrumbViewMenu>
+						) : (
+							<Popover open={categoriesOpen} onOpenChange={setCategoriesOpen}>
+								<PopoverAnchor asChild>
+									<span className="category-breadcrumb-anchor">
+										<CategoryBreadcrumbButton
+											label={category?.label ?? "General"}
+											icon={CategoryIcon}
+											controls={sidebarId}
+											sidebarOpen={categoriesOpen}
+											onToggle={() => setCategoriesOpen((open) => !open)}
+										/>
+									</span>
+								</PopoverAnchor>
+								<PopoverContent
+									id={sidebarId}
+									align={side === "right" ? "end" : "start"}
+									sideOffset={8}
+									collisionPadding={8}
+									className={cn(
+										breadcrumbMenuClass,
+										"settings-menu-category-links",
+									)}
+									// A category picked from it closes it.
+									onClick={(event) => {
+										if (
+											event.target instanceof Element &&
+											event.target.closest("a")
+										) {
+											setCategoriesOpen(false);
+										}
+									}}
 								>
-									{categoryDestinations}
-								</BreadcrumbViewMenu>
-							) : (
-								<Popover open={categoriesOpen} onOpenChange={setCategoriesOpen}>
-									<PopoverAnchor asChild>
-										<span className="category-breadcrumb-anchor">
-											<CategoryBreadcrumbButton
-												label={category?.label ?? "General"}
-												icon={CategoryIcon}
-												controls={sidebarId}
-												sidebarOpen={categoriesOpen}
-												onToggle={() => setCategoriesOpen((open) => !open)}
-											/>
-										</span>
-									</PopoverAnchor>
-									<PopoverContent
-										id={sidebarId}
-										align={side === "right" ? "end" : "start"}
-										sideOffset={8}
-										collisionPadding={8}
-										className={cn(
-											breadcrumbMenuClass,
-											"settings-menu-category-links",
-										)}
-										// A category picked from it closes it.
-										onClick={(event) => {
-											if (
-												event.target instanceof Element &&
-												event.target.closest("a")
-											) {
-												setCategoriesOpen(false);
-											}
-										}}
-									>
-										<BreadcrumbMenuPanel>
-											<DeploymentSidebar />
-										</BreadcrumbMenuPanel>
-									</PopoverContent>
-								</Popover>
-							)}
-						</BreadcrumbItem>
-					</CategoryDefaultMenu>
+									<BreadcrumbMenuPanel>
+										<DeploymentSidebar />
+									</BreadcrumbMenuPanel>
+								</PopoverContent>
+							</Popover>
+						)}
+					</SettingsCategoryTrigger>
 				</BreadcrumbList>
 			</AdminBreadcrumb>
 		</NavbarStart>

@@ -344,7 +344,7 @@ it("keeps the page action and categories in the navbar with an old Beside Page p
 			read.mockResolvedValue(prefs);
 			return prefs;
 		});
-	const root = within(breadcrumb).getByRole("link", { name: "Settings" });
+	const root = within(breadcrumb).getByRole("link", { name: "Home" });
 	await user.pointer({ target: root, keys: "[MouseRight]" });
 	await user.click(await screen.findByRole("menuitem", { name: "Right Side" }));
 	await waitFor(() =>

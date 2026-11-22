@@ -80,9 +80,10 @@ describe("NavbarView", () => {
 			);
 
 			const start = within(screen.getByTestId("navbar-start"));
-			expect(
-				await start.findByRole("link", { name: "Dashboard" }),
-			).toHaveAttribute("href", "/dashboard");
+			expect(await start.findByRole("link", { name: "Home" })).toHaveAttribute(
+				"href",
+				"/dashboard",
+			);
 			expect(start.getByRole("button", { name: "Template" })).toBeVisible();
 		},
 	);
@@ -240,15 +241,31 @@ describe("NavbarView", () => {
 		expect(onClick).not.toHaveBeenCalled();
 	});
 
-	it("opens admin controls from the Settings breadcrumb", async () => {
-		renderNavbar({ canViewHud: true, canViewAuditLog: true });
-		await userEvent.click(
-			await screen.findByRole("button", { name: "Settings" }),
+	it("opens Settings from the current category breadcrumb", async () => {
+		renderNavbar(
+			{ canViewHud: true, canViewAuditLog: true },
+			MockUserOwner,
+			"/hud",
 		);
+		expect(await screen.findByRole("link", { name: "Home" })).toHaveAttribute(
+			"href",
+			"/dashboard",
+		);
+		await userEvent.click(await screen.findByRole("button", { name: "HUD" }));
 		const menu = await screen.findByTestId("navbar-latency-controls-menu");
 		expect(
 			within(menu).getByRole("menuitem", { name: "Audit logs" }),
 		).toBeInTheDocument();
+	});
+
+	it("keeps the current view's action distinct from Settings and Home", async () => {
+		renderNavbar({ canViewHud: true }, MockUserOwner, "/hud");
+		await userEvent.click(
+			await screen.findByRole("button", { name: "HUD actions" }),
+		);
+		expect(
+			await screen.findByRole("menuitem", { name: "Ping and Latency" }),
+		).toHaveAttribute("href", "/hud/latency");
 	});
 
 	it("gives an auditor admin controls without the HUD", async () => {

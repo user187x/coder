@@ -715,7 +715,7 @@ describe("ProxyMenu", () => {
 		["Settings", undefined],
 		["Storage", "/deployment/storage"],
 	])(
-		"opens Settings from the root chevron with %s as home",
+		"opens Settings from the category with %s as home",
 		async (_home, path) => {
 			vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
 				admin_nav_in_navbar: true,
@@ -737,10 +737,10 @@ describe("ProxyMenu", () => {
 			);
 			let leave: (() => void) | undefined;
 			act(() => {
-				leave = settingsMenuSlot(slot);
+				leave = settingsMenuSlot(slot, { label: "Accounts", iconOnly: true });
 			});
 			const trigger = await within(slot).findByRole("button", {
-				name: "Settings",
+				name: "Accounts",
 			});
 			await user.click(trigger);
 			const menu = await screen.findByTestId("navbar-latency-controls-menu");

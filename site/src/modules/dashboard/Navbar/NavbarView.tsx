@@ -1,19 +1,25 @@
+import {
+	ArrowUpRightIcon,
+	GaugeIcon,
+	SlidersHorizontalIcon,
+} from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "react-query";
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import { API } from "#/api/api";
 import { type NavbarLayout, PlatformAPI } from "#/api/platform";
 import { userUIPreferences } from "#/api/queries/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import {
 	Breadcrumb,
-	BreadcrumbItem,
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
 import { Button } from "#/components/Button/Button";
+import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { useProductLogoURL } from "#/components/Icons/ProductLogo";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
+import { pingLatencyPath } from "#/modules/navigation";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
@@ -34,7 +40,7 @@ import {
 	navbarPageLabel,
 } from "./adminQuickLinks";
 import { BreadcrumbViewMenu } from "./BreadcrumbMenu";
-import { CategoryDefaultMenu } from "./DefaultViewOption";
+import { DefaultViewOption } from "./DefaultViewOption";
 import { MobileMenu } from "./MobileMenu";
 import { NavbarLogo } from "./NavbarLogo";
 import { NavbarMoveMenu, NavbarMoveScope } from "./NavbarMoveMenu";
@@ -42,6 +48,7 @@ import { NavbarResizableGroup } from "./NavbarResizableGroup";
 import { navbarInk, navbarStripColor } from "./navbarStrip";
 import { ProxyMenu } from "./ProxyMenu";
 import { SettingsBreadcrumbRoot } from "./SettingsBreadcrumbRoot";
+import { SettingsCategoryTrigger } from "./SettingsCategoryTrigger";
 import {
 	TemplateDestinations,
 	WorkspacePicker,
@@ -202,8 +209,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	// breadcrumb, every other page in the navbar's own.
 	const settingsInNavbar = canViewAdminSettings(adminPermissions);
 	const pageCrumb = usePageSettingsBreadcrumb();
-	const { pathname } = useLocation();
+	const { pathname, search } = useLocation();
 	const pageLabel = navbarPageLabel(pathname);
+	const categoryLabel = pageLabel ?? "Settings";
 	const settingsMenuPresent = useSettingsMenuPresent();
 	// Editable where there is anything to link to.
 	const quickLinksEditor =
@@ -270,22 +278,20 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					>
 						<BreadcrumbList>
 							<SettingsBreadcrumbRoot />
-							{pageLabel && (
-								<CategoryDefaultMenu path={adminCategory(pathname)?.path}>
-									<BreadcrumbItem>
-										{pageLabel === "Template" || pageLabel === "Templates" ? (
-											<BreadcrumbViewMenu label={pageLabel}>
-												<TemplateDestinations />
-											</BreadcrumbViewMenu>
-										) : pageLabel === "Workspace" ||
-											pageLabel === "Workspaces" ? (
-											<WorkspacePicker label={pageLabel} />
-										) : (
-											<BreadcrumbPage>{pageLabel}</BreadcrumbPage>
-										)}
-									</BreadcrumbItem>
-								</CategoryDefaultMenu>
-							)}
+							<SettingsCategoryTrigger
+								label={categoryLabel}
+								path={adminCategory(pathname)?.path}
+							>
+								{pageLabel === "Template" || pageLabel === "Templates" ? (
+									<BreadcrumbViewMenu label={pageLabel}>
+										<TemplateDestinations />
+									</BreadcrumbViewMenu>
+								) : pageLabel === "Workspace" || pageLabel === "Workspaces" ? (
+									<WorkspacePicker label={pageLabel} />
+								) : (
+									<BreadcrumbPage>{categoryLabel}</BreadcrumbPage>
+								)}
+							</SettingsCategoryTrigger>
 						</BreadcrumbList>
 					</Breadcrumb>
 				</NavbarMoveMenu>
@@ -387,10 +393,45 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						// never alone: always joined to the latency menu
 						hud: null,
 						action: (
-							<div
-								ref={actionRef}
-								className="navbar-action flex items-center"
-							/>
+							<div className="navbar-action-group flex items-center">
+								<div
+									ref={actionRef}
+									className="navbar-action flex items-center"
+								/>
+								<div className="navbar-action-fallback">
+									<BreadcrumbViewMenu
+										label={pageLabel ? `${pageLabel} actions` : "Action"}
+										trigger={
+											<>
+												<SlidersHorizontalIcon aria-hidden />
+												{pageLabel ?? "Action"}
+											</>
+										}
+									>
+										{(pathname === "/hud" || pathname === pingLatencyPath) && (
+											<DropdownMenuItem asChild>
+												<Link
+													to={pathname === "/hud" ? pingLatencyPath : "/hud"}
+												>
+													<GaugeIcon aria-hidden />
+													{pathname === "/hud" ? "Ping and Latency" : "HUD"}
+												</Link>
+											</DropdownMenuItem>
+										)}
+										<DropdownMenuItem asChild>
+											<Link
+												to={pathname + search}
+												target="_blank"
+												rel="noopener"
+											>
+												<ArrowUpRightIcon aria-hidden />
+												Open this view in a new tab
+											</Link>
+										</DropdownMenuItem>
+										<DefaultViewOption path={pathname} />
+									</BreadcrumbViewMenu>
+								</div>
+							</div>
 						),
 					}}
 				/>
