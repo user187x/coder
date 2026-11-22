@@ -7,7 +7,7 @@ import {
 	within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MonitorIcon } from "lucide-react";
+import { MonitorIcon, UsersIcon } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter, useLocation } from "react-router";
 import { API } from "#/api/api";
@@ -819,7 +819,7 @@ describe("ProxyMenu", () => {
 			);
 			let leave: (() => void) | undefined;
 			act(() => {
-				leave = settingsMenuSlot(slot, { label: "Accounts", iconOnly: true });
+				leave = settingsMenuSlot(slot, { label: "Accounts", icon: UsersIcon });
 			});
 			const trigger = await within(slot).findByRole("button", {
 				name: "Accounts",

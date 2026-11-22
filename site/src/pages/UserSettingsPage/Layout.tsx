@@ -1,7 +1,6 @@
 import { ChevronDownIcon, UserRoundCogIcon } from "lucide-react";
 import { Suspense } from "react";
 import { Navigate, Outlet, useMatch } from "react-router";
-import { Avatar } from "#/components/Avatar/Avatar";
 import {
 	BreadcrumbItem,
 	BreadcrumbList,
@@ -12,7 +11,6 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { PageLoader } from "#/components/Loader/Loader";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { BreadcrumbDropdownContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import {
 	NavbarAction,
@@ -41,7 +39,6 @@ function UserSettingsMenu({ trigger }: { trigger: React.ReactElement }) {
 }
 
 const Layout: React.FC = () => {
-	const { user: me } = useAuthenticated();
 	const match = useMatch("/settings/:section/*");
 	useRegisterPageSettingsBreadcrumb(true);
 	if (!match) return <Navigate to="/settings/account" replace />;
@@ -59,15 +56,13 @@ const Layout: React.FC = () => {
 			>
 				<BreadcrumbList>
 					<SettingsBreadcrumbRoot />
-					<SettingsCategoryTrigger label="User Settings">
-						<span>
-							<Avatar
-								size="sm"
-								fallback={me.username}
-								src={me.avatar_url}
-								className="size-4 shrink-0"
-							/>
-							User Settings
+					<SettingsCategoryTrigger
+						label="User Settings"
+						icon={UserRoundCogIcon}
+					>
+						<span title="User Settings">
+							<UserRoundCogIcon aria-hidden className="size-4 shrink-0" />
+							<span className="sr-only">User Settings</span>
 						</span>
 					</SettingsCategoryTrigger>
 					<BreadcrumbItem>

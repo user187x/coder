@@ -2,11 +2,11 @@ import {
 	BriefcaseIcon,
 	CircleUserIcon,
 	ContainerIcon,
-	EyeIcon,
 	FileTextIcon,
 	HourglassIcon,
 	type LucideIcon,
 	MessagesSquareIcon,
+	ScanEyeIcon,
 } from "lucide-react";
 import {
 	type AdminPageAccess,
@@ -88,7 +88,7 @@ const DASHBOARD: readonly WheelChoice[] = [
 	{
 		id: "hud",
 		label: "HUD",
-		icon: EyeIcon,
+		icon: ScanEyeIcon,
 		to: "/hud",
 		group: "dashboard",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,

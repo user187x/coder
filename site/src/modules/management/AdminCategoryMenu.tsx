@@ -1,5 +1,5 @@
 import { arrayMove } from "@dnd-kit/sortable";
-import { GaugeIcon, MenuIcon } from "lucide-react";
+import { MenuIcon, ScanEyeIcon } from "lucide-react";
 import { useContext } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link } from "react-router";
@@ -50,7 +50,7 @@ export const AdminCategoryMenu = ({
 	const order = preferences.data?.admin_sidebar_order ?? [];
 	const pages = [
 		...(permissions.viewDeploymentConfig
-			? [{ id: "hud", label: "HUD", icon: GaugeIcon, path: "/hud" }]
+			? [{ id: "hud", label: "HUD", icon: ScanEyeIcon, path: "/hud" }]
 			: []),
 		...settingsPagesFor({
 			permissions,

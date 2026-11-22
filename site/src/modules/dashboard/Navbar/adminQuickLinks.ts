@@ -2,6 +2,8 @@ import {
 	ActivityIcon,
 	AppWindowIcon,
 	BellIcon,
+	Building2Icon,
+	CableIcon,
 	CloudIcon,
 	ContainerIcon,
 	FileTextIcon,
@@ -19,7 +21,10 @@ import {
 	MonitorIcon,
 	NetworkIcon,
 	PaletteIcon,
+	ScanEyeIcon,
+	ScrollTextIcon,
 	TagIcon,
+	TerminalIcon,
 	UsersIcon,
 	WaypointsIcon,
 } from "lucide-react";
@@ -326,33 +331,36 @@ export const defaultHomeLabel = (path: string | null) =>
 export const adminCategoryLabel = (pathname: string): string | null =>
 	adminCategory(pathname)?.label ?? null;
 
-const navbarRouteLabels = [
-	["/templates", "Templates"],
-	["/templates/*", "Template"],
-	["/starter-templates/*", "Template"],
-	["/images/*", "Images"],
-	["/organizations/*", "Organizations"],
-	["/audit", "Audit logs"],
-	["/connectionlog", "Connection logs"],
-	["/hud", "HUD"],
-	["/install", "Install CLI"],
-	["/external-auth/:provider", "External authentication"],
+const navbarRoutes = [
+	["/templates", "Templates", FileTextIcon],
+	["/templates/*", "Template", FileTextIcon],
+	["/starter-templates/*", "Template", FileTextIcon],
+	["/images/*", "Images", ContainerIcon],
+	["/organizations/*", "Organizations", Building2Icon],
+	["/audit", "Audit logs", ScrollTextIcon],
+	["/connectionlog", "Connection logs", CableIcon],
+	["/hud", "HUD", ScanEyeIcon],
+	["/install", "Install CLI", TerminalIcon],
+	["/external-auth/:provider", "External authentication", KeyRoundIcon],
 ] as const;
 
 /** The section shown beside Settings when the current page has no breadcrumb of its own. */
-export const navbarPageLabel = (pathname: string): string | null => {
-	const route = navbarRouteLabels.find(([pattern]) =>
-		matchPath(pattern, pathname),
-	);
-	if (route) return route[1];
+export const navbarPage = (
+	pathname: string,
+): Pick<AdminPage, "label" | "icon"> | null => {
+	const route = navbarRoutes.find(([pattern]) => matchPath(pattern, pathname));
+	if (route) return { label: route[1], icon: route[2] };
 	if (
 		pathname.startsWith("/@") &&
 		matchPath("/:username/:workspace/*", pathname)
 	) {
-		return "Workspace";
+		return { label: "Workspace", icon: MonitorIcon };
 	}
-	return adminCategoryLabel(pathname);
+	return adminCategory(pathname);
 };
+
+export const navbarPageLabel = (pathname: string): string | null =>
+	navbarPage(pathname)?.label ?? null;
 
 /** A category's icon (the one its quick link shows), by its ID. */
 export const adminPageIcon = (id: string): LucideIcon | undefined =>

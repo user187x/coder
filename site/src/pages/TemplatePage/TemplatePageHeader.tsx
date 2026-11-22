@@ -357,8 +357,11 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 					>
 						<BreadcrumbList>
 							<SettingsBreadcrumbRoot />
-							<SettingsCategoryTrigger label="Template">
-								<BreadcrumbViewMenu label="Template">
+							<SettingsCategoryTrigger label="Template" icon={FileTextIcon}>
+								<BreadcrumbViewMenu
+									label="Template"
+									trigger={<FileTextIcon aria-hidden />}
+								>
 									<TemplateDestinations />
 								</BreadcrumbViewMenu>
 							</SettingsCategoryTrigger>

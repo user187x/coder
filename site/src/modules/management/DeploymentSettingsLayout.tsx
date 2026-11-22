@@ -150,7 +150,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 					<SettingsBreadcrumbRoot />
 					<SettingsCategoryTrigger
 						label={category?.label ?? "General"}
-						iconOnly
+						icon={CategoryIcon}
 						path={category?.path}
 						actions={
 							preferences.data?.settings_sidebar && (

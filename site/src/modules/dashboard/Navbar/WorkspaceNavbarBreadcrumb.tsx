@@ -39,10 +39,18 @@ export const WorkspaceNavbarBreadcrumb: React.FC<{ workspaceName: string }> = ({
 			>
 				<BreadcrumbList>
 					<SettingsBreadcrumbRoot />
-					<SettingsCategoryTrigger label="Workspaces" path="/workspaces">
-						<BreadcrumbLink to="/workspaces" end>
+					<SettingsCategoryTrigger
+						label="Workspaces"
+						icon={MonitorIcon}
+						path="/workspaces"
+					>
+						<BreadcrumbLink
+							to="/workspaces"
+							aria-label="Workspaces"
+							title="Workspaces"
+							end
+						>
 							<MonitorIcon aria-hidden className="size-4 shrink-0" />
-							Workspaces
 						</BreadcrumbLink>
 					</SettingsCategoryTrigger>
 					<BreadcrumbItem>

@@ -175,6 +175,17 @@ export const MinimumResizableWidth: Story = {
 	},
 };
 
+export const PingAndLatencyBreadcrumb: Story = {
+	...MinimumResizableWidth,
+	parameters: {
+		...MinimumResizableWidth.parameters,
+		reactRouter: reactRouterParameters({
+			location: { path: "/hud/latency" },
+			routing: { path: "/hud/latency" },
+		}),
+	},
+};
+
 export const SettingsBetweenAnnouncementAndLogo: Story = {
 	...BreadcrumbFacingAnnouncement,
 	parameters: {

@@ -1,10 +1,10 @@
 import { cn } from "cn";
 import {
 	ChevronDownIcon,
-	GaugeIcon,
 	MonitorIcon,
 	PanelRightCloseIcon,
 	RadioIcon,
+	ScanEyeIcon,
 	SettingsIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -152,7 +152,7 @@ export function PanelColorPreview({
 						{icon(<ChevronDownIcon aria-hidden className="size-3.5" />)}
 					</div>
 					<div className="mb-1 flex gap-1">
-						{pill(<GaugeIcon aria-hidden className="size-3.5" />, "HUD")}
+						{pill(<ScanEyeIcon aria-hidden className="size-3.5" />, "HUD")}
 						{pill(<PanelRightCloseIcon aria-hidden className="size-3.5" />)}
 					</div>
 					<div className="flex items-center justify-between px-2 py-1.5 text-content-secondary">

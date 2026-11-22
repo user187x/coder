@@ -1,3 +1,4 @@
+import { GaugeIcon, ScanEyeIcon } from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import { MockNoPermissions, MockPermissions } from "#/testHelpers/entities";
 import {
@@ -6,6 +7,7 @@ import {
 	adminCategoryLabel,
 	adminPageIcon,
 	adminPagesFor,
+	navbarPage,
 	navbarPageLabel,
 	resolveAdminQuickLinks,
 	settingsPagesFor,
@@ -235,4 +237,11 @@ it.each([
 	["/unknown-route", null],
 ])("resolves the fallback breadcrumb for %s", (path, label) => {
 	expect(navbarPageLabel(path)).toBe(label);
+});
+
+it.each([
+	["/hud", "HUD", ScanEyeIcon],
+	["/hud/latency", "Ping and Latency", GaugeIcon],
+])("uses the matching glyph for %s", (path, label, icon) => {
+	expect(navbarPage(path)).toEqual(expect.objectContaining({ label, icon }));
 });

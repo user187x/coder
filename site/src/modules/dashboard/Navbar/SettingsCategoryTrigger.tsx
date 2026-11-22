@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import { useCallback } from "react";
 import { BreadcrumbItem } from "#/components/Breadcrumb/Breadcrumb";
 import { CategoryDefaultMenu } from "./DefaultViewOption";
@@ -6,13 +7,13 @@ import { settingsMenuSlot, useSettingsMenuPresent } from "./settingsMenuHost";
 /** Anchors the Settings menu to the current category. */
 export function SettingsCategoryTrigger({
 	label,
-	iconOnly = false,
+	icon,
 	path,
 	actions,
 	children,
 }: {
 	label: string;
-	iconOnly?: boolean;
+	icon: LucideIcon;
 	path?: string;
 	actions?: React.ReactNode;
 	children: React.ReactNode;
@@ -20,8 +21,8 @@ export function SettingsCategoryTrigger({
 	const menuPresent = useSettingsMenuPresent();
 	const register = useCallback(
 		(element: HTMLLIElement | null) =>
-			settingsMenuSlot(element, { label, iconOnly }),
-		[label, iconOnly],
+			settingsMenuSlot(element, { label, icon }),
+		[label, icon],
 	);
 	if (menuPresent) return <BreadcrumbItem ref={register} />;
 	return (

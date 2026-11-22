@@ -3,8 +3,8 @@ import {
 	ArrowUpDownIcon,
 	ArrowUpToLineIcon,
 	ChevronRightIcon,
-	GaugeIcon,
 	RotateCcwIcon,
+	ScanEyeIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
@@ -143,7 +143,7 @@ const HudPage: React.FC = () => {
 			>
 				<header className="flex flex-col gap-1">
 					<h1 className="m-0 flex items-center gap-2 text-2xl font-semibold">
-						<GaugeIcon aria-hidden className="size-6" />
+						<ScanEyeIcon aria-hidden className="size-6" />
 						HUD
 					</h1>
 					<p className="m-0 text-xs text-content-secondary">

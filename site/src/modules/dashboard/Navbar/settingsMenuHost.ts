@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import type { UserUIPreferences } from "#/api/platform";
 
@@ -9,7 +10,7 @@ import type { UserUIPreferences } from "#/api/platform";
 type SettingsMenuHost = {
 	element: HTMLElement;
 	label: string;
-	iconOnly: boolean;
+	icon: LucideIcon;
 };
 
 let host: SettingsMenuHost | null = null;
@@ -29,10 +30,10 @@ const subscribe = (listener: () => void) => {
  */
 export const settingsMenuSlot = (
 	element: HTMLElement | null,
-	{ label, iconOnly } = { label: "Settings", iconOnly: false },
+	{ label, icon }: Pick<SettingsMenuHost, "label" | "icon">,
 ) => {
 	if (!element) return;
-	const registration = { element, label, iconOnly };
+	const registration = { element, label, icon };
 	host = registration;
 	emit();
 	return () => {

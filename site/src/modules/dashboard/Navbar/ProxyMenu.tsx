@@ -1,9 +1,14 @@
 import { cn } from "cn";
-import { GaugeIcon, MonitorIcon, RadioIcon, SettingsIcon } from "lucide-react";
+import {
+	MonitorIcon,
+	RadioIcon,
+	ScanEyeIcon,
+	SettingsIcon,
+} from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { NavLink, useLocation, useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
 	coderHeartbeat,
@@ -38,7 +43,7 @@ import {
 	type AdminSettingsPermissions,
 	canViewAdminSettings,
 } from "./AdminSettings";
-import { type AdminPage, adminCategory } from "./adminQuickLinks";
+import type { AdminPage } from "./adminQuickLinks";
 import { BreadcrumbDropdownContent } from "./BreadcrumbMenu";
 import { CompactQuickLinks } from "./CompactQuickLinkMenu";
 import { HudHeartbeat, heartbeatLabel } from "./HudHeartbeat";
@@ -111,7 +116,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	breadcrumbOnly = false,
 }) => {
 	const navigate = useNavigate();
-	const { pathname } = useLocation();
 	const [open, setOpen] = useState(false);
 	const unreadGlow = useUnreadGlow();
 	// The side of the screen the menu opens on, from where its button is: on the left it hangs from the button's left
@@ -163,7 +167,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const menuHost = useSettingsMenuHost();
 	const breadcrumbHost = settingsInNavbar ? menuHost : null;
 	const breadcrumbLabel = breadcrumbHost?.label ?? "Settings";
-	const CategoryIcon = adminCategory(pathname)?.icon ?? SettingsIcon;
+	const CategoryIcon = breadcrumbHost?.icon ?? SettingsIcon;
 	const compact = Boolean(docked && prefs.data?.settings_sidebar_compact);
 	const heartbeatVisible = hud && hudMenu.open && !compact && (open || docked);
 	const heartbeat = useQuery({
@@ -366,11 +370,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					onPointerDown={docked ? undefined : (event) => event.preventDefault()}
 					onClick={docked ? undefined : () => changeOpen(!open)}
 				>
-					{breadcrumbHost.iconOnly ? (
-						<CategoryIcon aria-hidden className="size-4 shrink-0" />
-					) : (
-						breadcrumbLabel
-					)}
+					<CategoryIcon aria-hidden className="size-4 shrink-0" />
 				</button>
 			</DropdownMenuTrigger>
 		</SettingsRootMenu>
@@ -395,7 +395,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							{hud && (
 								<DropdownMenuItem asChild>
 									<NavLink to="/hud">
-										<GaugeIcon aria-hidden /> HUD
+										<ScanEyeIcon aria-hidden /> HUD
 									</NavLink>
 								</DropdownMenuItem>
 							)}
@@ -534,7 +534,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										className="settings-pill settings-hud-pill min-h-8 min-w-0 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
 									>
 										<NavLink to="/hud" title="HUD" aria-label="HUD">
-											<GaugeIcon aria-hidden />
+											<ScanEyeIcon aria-hidden />
 											<span className="settings-hud-label">HUD</span>
 										</NavLink>
 									</DropdownMenuItem>

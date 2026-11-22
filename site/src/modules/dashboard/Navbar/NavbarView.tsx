@@ -1,6 +1,8 @@
 import {
 	ArrowUpRightIcon,
 	GaugeIcon,
+	ScanEyeIcon,
+	SettingsIcon,
 	SlidersHorizontalIcon,
 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
@@ -37,7 +39,7 @@ import { canViewAdminSettings } from "./AdminSettings";
 import {
 	addableAdminPages,
 	adminCategory,
-	navbarPageLabel,
+	navbarPage,
 } from "./adminQuickLinks";
 import { BreadcrumbViewMenu } from "./BreadcrumbMenu";
 import { DefaultViewOption } from "./DefaultViewOption";
@@ -218,7 +220,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	const settingsInNavbar = canViewAdminSettings(adminPermissions);
 	const pageCrumb = usePageSettingsBreadcrumb();
 	const { pathname, search } = useLocation();
-	const pageLabel = navbarPageLabel(pathname);
+	const page = navbarPage(pathname);
+	const pageLabel = page?.label;
+	const CategoryIcon = page?.icon ?? SettingsIcon;
 	const categoryLabel = pageLabel ?? "Settings";
 	const settingsMenuPresent = useSettingsMenuPresent();
 	// Editable where there is anything to link to.
@@ -288,16 +292,26 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 							<SettingsBreadcrumbRoot />
 							<SettingsCategoryTrigger
 								label={categoryLabel}
+								icon={CategoryIcon}
 								path={adminCategory(pathname)?.path}
 							>
 								{pageLabel === "Template" || pageLabel === "Templates" ? (
-									<BreadcrumbViewMenu label={pageLabel}>
+									<BreadcrumbViewMenu
+										label={pageLabel}
+										trigger={<CategoryIcon aria-hidden />}
+									>
 										<TemplateDestinations />
 									</BreadcrumbViewMenu>
 								) : pageLabel === "Workspace" || pageLabel === "Workspaces" ? (
-									<WorkspacePicker label={pageLabel} />
+									<WorkspacePicker
+										label={pageLabel}
+										trigger={<CategoryIcon aria-hidden />}
+									/>
 								) : (
-									<BreadcrumbPage>{categoryLabel}</BreadcrumbPage>
+									<BreadcrumbPage title={categoryLabel}>
+										<CategoryIcon aria-hidden />
+										<span className="sr-only">{categoryLabel}</span>
+									</BreadcrumbPage>
 								)}
 							</SettingsCategoryTrigger>
 						</BreadcrumbList>
@@ -421,8 +435,17 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 												<Link
 													to={pathname === "/hud" ? pingLatencyPath : "/hud"}
 												>
-													<GaugeIcon aria-hidden />
-													{pathname === "/hud" ? "Ping and Latency" : "HUD"}
+													{pathname === "/hud" ? (
+														<>
+															<GaugeIcon aria-hidden />
+															Ping and Latency
+														</>
+													) : (
+														<>
+															<ScanEyeIcon aria-hidden />
+															HUD
+														</>
+													)}
 												</Link>
 											</DropdownMenuItem>
 										)}
