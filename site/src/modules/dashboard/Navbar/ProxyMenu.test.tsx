@@ -436,8 +436,10 @@ describe("ProxyMenu", () => {
 			}),
 			keys: "[MouseRight]",
 		});
-		expect(screen.getByLabelText("Current route")).toHaveTextContent(
-			"/hud/latency",
+		await waitFor(() =>
+			expect(screen.getByLabelText("Current route")).toHaveTextContent(
+				"/hud/latency",
+			),
 		);
 	});
 

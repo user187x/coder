@@ -6,26 +6,22 @@ import { AdminSettingsFrame } from "./AdminSettingsFrame";
 
 const renderAt = (route: string) =>
 	renderWithAuth(<AdminSettingsFrame />, {
-		path: "/workspaces",
+		path: "/",
 		route,
-		children: [{ index: true, element: <h1>Workspaces list</h1> }],
+		children: [
+			{ path: "workspaces", element: <h1>Workspaces list</h1> },
+			{ path: "deployment/users", element: <h1>Accounts list</h1> },
+		],
 	});
 
 describe("AdminSettingsFrame", () => {
-	it("opens the searchable workspace picker from the admin breadcrumb", async () => {
-		renderAt("/workspaces");
+	it("navigates from the Workspaces breadcrumb to another admin category", async () => {
+		const user = userEvent.setup();
+		const { router } = renderAt("/workspaces");
 		await screen.findByRole("heading", { name: "Workspaces list" });
-		await userEvent.click(screen.getByRole("button", { name: "Workspaces" }));
-		expect(
-			await screen.findByRole("link", { name: "Create Workspace" }),
-		).toHaveAttribute("href", expect.stringContaining("/workspaces"));
-		await userEvent.type(
-			screen.getByRole("combobox", { name: "Search workspaces" }),
-			"missing workspace",
-		);
-		expect(
-			screen.getByRole("link", { name: "Create Workspace" }),
-		).toHaveAttribute("href", expect.stringContaining("create-workspace=1"));
+		await user.click(screen.getByRole("button", { name: "Workspaces" }));
+		await user.click(await screen.findByRole("link", { name: "Accounts" }));
+		expect(router.state.location.pathname).toBe("/deployment/users");
 	});
 
 	it("shows the page alone to non-admins", async () => {
