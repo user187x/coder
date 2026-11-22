@@ -1,7 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { clusterMeshKey } from "#/api/clusterNetwork";
 import { coderHeartbeat } from "#/api/queries/platform";
-import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
+import { workspaces } from "#/api/queries/workspaces";
+import { MockMeshReport } from "#/testHelpers/clusterNetwork";
+import {
+	MockPermissions,
+	MockUserOwner,
+	MockWorkspace,
+} from "#/testHelpers/entities";
 import { withAuthProvider } from "#/testHelpers/storybook";
+import { workspaceLatencyPageSize } from "./LatencyConnections";
 import PingLatencyPage from "./PingLatencyPage";
 
 const meta: Meta<typeof PingLatencyPage> = {
@@ -13,6 +21,12 @@ const meta: Meta<typeof PingLatencyPage> = {
 		permissions: MockPermissions,
 		queries: [
 			{ key: coderHeartbeat().queryKey, data: { latency: 89, previous: 108 } },
+			{ key: clusterMeshKey, data: MockMeshReport },
+			{
+				key: workspaces({ limit: workspaceLatencyPageSize, offset: 0 })
+					.queryKey,
+				data: { workspaces: [MockWorkspace], count: 1 },
+			},
 		],
 	},
 };

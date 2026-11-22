@@ -7,6 +7,7 @@ import { Margins } from "#/components/Margins/Margins";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { HudHeartbeat } from "#/modules/dashboard/Navbar/HudHeartbeat";
 import { pageTitle } from "#/utils/page";
+import { ServiceLatencies, WorkspaceLatencies } from "./LatencyConnections";
 
 /** The browser's measured round-trip time to Coder. */
 const PingLatencyPage = () => {
@@ -53,6 +54,8 @@ const PingLatencyPage = () => {
 					/>
 				</div>
 			</section>
+			<ServiceLatencies />
+			<WorkspaceLatencies />
 		</Margins>
 	);
 };
