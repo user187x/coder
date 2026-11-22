@@ -67,7 +67,7 @@ export function readHudSample(
 
 /** Bytes per second, as the workspace's network lights show them: B/s to GB/s. */
 export const formatRate = (bytesPerSecond: number): string => {
-	const units = ["B/s", "kB/s", "MB/s", "GB/s"];
+	const units = ["B/s", "KB/s", "MB/s", "GB/s"];
 	let value = Math.max(0, bytesPerSecond);
 	let i = 0;
 	while (value >= 1000 && i < units.length - 1) {

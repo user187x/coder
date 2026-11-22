@@ -426,110 +426,116 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 							ref={dialog}
 							role="dialog"
 							aria-labelledby={headingId}
-							className="flex w-full max-w-5xl max-h-full flex-col overflow-y-auto rounded-xl border border-solid border-border bg-surface-primary text-sm text-content-secondary shadow-xl"
+							className="flex max-h-full w-full max-w-5xl flex-col rounded-[40px] border border-solid border-border bg-(--dashboard-panel-bg) p-3 text-sm text-content-secondary shadow-xl sm:p-5"
 							data-testid="navbar-arrange-hint"
 						>
-							<div className="min-h-48 p-5 sm:p-10">
-								<h2
-									id={headingId}
-									className="m-0 text-lg font-semibold text-content-primary"
-								>
-									Rearrange navigation bar
-								</h2>
-								{items.logo === null && (
-									<p className="mb-0 mt-2">
-										You can position the Logo tile here. Turn on Show logo in
-										Settings › Appearance to display it.
-									</p>
-								)}
-								<Button
-									size="sm"
-									variant="outline"
-									className="mt-4"
-									disabled={!freeDivider || saving}
-									onClick={() => {
-										if (freeDivider) save([...order, freeDivider]);
-									}}
-								>
-									Add divider
-								</Button>
-								<div
-									className="mt-4 flex flex-wrap items-center gap-2"
-									role="group"
-									aria-label="Removed toolbar items"
-								>
-									{removed.length > 0 ? (
-										<>
-											<span className="w-full font-medium">Restore items</span>
-											{removed.map((id) => (
-												<button
-													key={id}
-													type="button"
-													aria-label={`Restore ${NAVBAR_LABELS[id]}`}
-													title={`Restore ${NAVBAR_LABELS[id]}`}
-													className="flex cursor-pointer items-center rounded-lg border border-dashed border-border bg-transparent p-2 hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
-													onClick={() =>
-														save(
-															order,
-															hidden.filter((item) => item !== id),
-														)
-													}
-												>
-													{/* A live copy of the real control, at the navbar's zoom. */}
-													<div
-														aria-hidden
-														inert
-														className="pointer-events-none flex items-center"
-														style={{ zoom: previewZoom }}
-													>
-														{id === "action"
-															? NAVBAR_LABELS.action
-															: itemContent(id)}
-													</div>
-												</button>
-											))}
-										</>
-									) : (
-										<span>All available items are on the navigation bar.</span>
-									)}
-								</div>
-							</div>
-							<footer className="flex flex-wrap items-center gap-3 border-0 border-t border-solid border-border p-4 sm:px-10 sm:py-5">
-								<span className="mr-auto">
-									Drag to rearrange. Use × to remove.
-								</span>
-								<div className="flex items-center gap-2">
-									{canSetDefault && (
-										<Button
-											size="sm"
-											variant="outline"
-											disabled={saving}
-											onClick={publish}
-											title="Use this arrangement for everyone who has not saved a personal layout."
-										>
-											Set deployment default
-										</Button>
+							<div className="min-h-0 overflow-y-auto rounded-[28px] border border-solid border-border bg-surface-primary sm:rounded-[20px]">
+								<div className="min-h-48 p-4 sm:p-5">
+									<h2
+										id={headingId}
+										className="m-0 text-lg font-semibold text-content-primary"
+									>
+										Rearrange navigation bar
+									</h2>
+									{items.logo === null && (
+										<p className="mb-0 mt-2">
+											You can position the Logo tile here. Turn on Show logo in
+											Settings › Appearance to display it.
+										</p>
 									)}
 									<Button
 										size="sm"
 										variant="outline"
-										onClick={reset}
-										title="Use the deployment default"
+										className="mt-4"
+										disabled={!freeDivider || saving}
+										onClick={() => {
+											if (freeDivider) save([...order, freeDivider]);
+										}}
 									>
-										<RotateCcwIcon aria-hidden />
-										Reset
+										Add divider
 									</Button>
-									<Button
-										ref={doneButton}
-										size="sm"
-										disabled={saving}
-										onClick={done}
+									<div
+										className="mt-4 flex flex-wrap items-center gap-2"
+										role="group"
+										aria-label="Removed toolbar items"
 									>
-										<CheckIcon aria-hidden />
-										{saving ? "Saving…" : "Done"}
-									</Button>
+										{removed.length > 0 ? (
+											<>
+												<span className="w-full font-medium">
+													Restore items
+												</span>
+												{removed.map((id) => (
+													<button
+														key={id}
+														type="button"
+														aria-label={`Restore ${NAVBAR_LABELS[id]}`}
+														title={`Restore ${NAVBAR_LABELS[id]}`}
+														className="flex cursor-pointer items-center rounded-lg border border-dashed border-border bg-transparent p-2 hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
+														onClick={() =>
+															save(
+																order,
+																hidden.filter((item) => item !== id),
+															)
+														}
+													>
+														{/* A live copy of the real control, at the navbar's zoom. */}
+														<div
+															aria-hidden
+															inert
+															className="pointer-events-none flex items-center"
+															style={{ zoom: previewZoom }}
+														>
+															{id === "action"
+																? NAVBAR_LABELS.action
+																: itemContent(id)}
+														</div>
+													</button>
+												))}
+											</>
+										) : (
+											<span>
+												All available items are on the navigation bar.
+											</span>
+										)}
+									</div>
 								</div>
-							</footer>
+								<footer className="flex flex-wrap items-center gap-3 border-0 border-t border-solid border-border p-4 sm:p-5">
+									<span className="mr-auto">
+										Drag to rearrange. Use × to remove.
+									</span>
+									<div className="flex flex-wrap items-center gap-2">
+										{canSetDefault && (
+											<Button
+												size="sm"
+												variant="outline"
+												disabled={saving}
+												onClick={publish}
+												title="Use this arrangement for everyone who has not saved a personal layout."
+											>
+												Set deployment default
+											</Button>
+										)}
+										<Button
+											size="sm"
+											variant="outline"
+											onClick={reset}
+											title="Use the deployment default"
+										>
+											<RotateCcwIcon aria-hidden />
+											Reset
+										</Button>
+										<Button
+											ref={doneButton}
+											size="sm"
+											disabled={saving}
+											onClick={done}
+										>
+											<CheckIcon aria-hidden />
+											{saving ? "Saving…" : "Done"}
+										</Button>
+									</div>
+								</footer>
+							</div>
 						</div>
 					</div>,
 					document.body,

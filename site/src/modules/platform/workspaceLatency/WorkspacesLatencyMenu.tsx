@@ -19,7 +19,6 @@ import {
 	OpenMenuItem,
 	useInlineMenu,
 } from "#/modules/dashboard/Navbar/InlineMenu";
-import { ANNOUNCEMENT_ACTION_SURFACE } from "#/modules/platform/announcement/bannerTokens";
 import { getLatencyColor } from "#/utils/latency";
 import "./workspacesLatency.css";
 
@@ -548,7 +547,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 									</DropdownMenuItem>
 								</div>
 								<div
-									className="flex overflow-hidden rounded-md border border-solid border-border"
+									className="settings-pill flex overflow-hidden rounded-full border border-solid border-border bg-surface-tertiary"
 									role="group"
 									aria-label="Open selected workspaces"
 								>
@@ -567,10 +566,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 											aria-label={label}
 											title={label}
 											disabled={chosen.length === 0}
-											className={cn(
-												"h-7 min-h-0 flex-1 justify-center rounded-none px-3 py-0 first:border-0 first:border-r first:border-solid first:border-border",
-												ANNOUNCEMENT_ACTION_SURFACE,
-											)}
+											className="h-8 min-h-0 flex-1 cursor-pointer justify-center rounded-none px-3 py-0 text-inherit last:border-0 last:border-l last:border-solid last:border-border focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-content-link"
 											onSelect={() =>
 												onOpenGrid?.(
 													chosen.map((w) => w.id),

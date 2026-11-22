@@ -11,7 +11,7 @@ import {
 } from "#/modules/platform/lockdown/Lockdown";
 import { WORKSPACE_PILL } from "#/modules/platform/workspaceUptime/WorkspaceUptime";
 import { useAgentNetworkMetadata } from "./agentMetadataStore";
-import { formatRate, type NetworkSample } from "./NetworkHistogram";
+import { formatRate, type NetworkSample, scaleFor } from "./NetworkHistogram";
 import { mergeSamples, useNetworkSeed } from "./networkSeed";
 
 const parse = (value: string): [number, number] | null => {
@@ -20,17 +20,11 @@ const parse = (value: string): [number, number] | null => {
 };
 
 /** The graph's floor: an idle workspace's few bytes a second stay near the line. */
-const MIN_PEAK = 1024;
+const MIN_PEAK = 1_000;
 const W = 104;
 const H = 16;
-/** "08:10–08:15" on the pill; "Oct 22, 08:10:12 – 08:15:12" in its tooltip (this browser's time). */
+/** The graph's time range, in the browser's time zone. */
 export const spanText = (from: number, to: number) => {
-	const hm = (t: number) =>
-		new Date(t).toLocaleTimeString(undefined, {
-			hour: "numeric",
-			minute: "2-digit",
-			hour12: true,
-		});
 	const hms = (t: number) =>
 		new Date(t).toLocaleTimeString(undefined, {
 			hour: "numeric",
@@ -42,11 +36,7 @@ export const spanText = (from: number, to: number) => {
 		month: "short",
 		day: "numeric",
 	});
-	return {
-		start: hm(from),
-		end: hm(to),
-		long: `${day}, ${hms(from)} – ${hms(to)}`,
-	};
+	return `${day}, ${hms(from)} to ${hms(to)}`;
 };
 
 /** What the pill shows at its narrowest: the last 5 minutes (the platform service keeps them, so a page opens with them). */
@@ -77,20 +67,7 @@ const PILL_TICK_MS = 1000;
 /** Live readings this late: the minutes are asked of the platform service again (and again, while it lasts). */
 const PILL_STALL_MS = 20_000;
 
-const heatColor = (ratio: number) => {
-	if (ratio < 0.25) return "fill-content-link";
-	if (ratio < 0.5) return "fill-content-success";
-	if (ratio < 0.75) return "fill-content-warning";
-	return "fill-content-destructive";
-};
-
-/**
- * The bars of the last 5 minutes, as the metric graphs below draw theirs
- * (MetadataHistogram): 80 slots of 3.75 s, each holding its busiest reading,
- * newest at the right, empty where nothing was read; what was received rising
- * above the middle line, what was sent hanging below it, to the busiest
- * reading shown.
- */
+/** Bucket peaks share one rate scale, with received traffic above zero and sent traffic below it. */
 export const pillBars = (
 	samples: readonly NetworkSample[],
 	now: number,
@@ -115,26 +92,30 @@ export const pillBars = (
 			: { t: s.t, rx: s.rx, tx: s.tx };
 	}
 	const shown = slots.flatMap((v, i) => (v ? [{ ...v, i }] : []));
-	const peak = Math.max(MIN_PEAK, ...shown.flatMap((s) => [s.rx, s.tx]));
+	const { max } = scaleFor(
+		Math.max(MIN_PEAK, ...shown.flatMap((sample) => [sample.rx, sample.tx])),
+	);
 	const slot = W / count;
 	const half = H / 2 - 0.5;
-	return shown.map((s, n) => ({
-		t: s.t,
-		x: s.i * slot + slot * 0.15,
-		width: slot * 0.7,
-		up: Math.max(0.5, (Math.min(s.rx, peak) / peak) * half),
-		down: Math.max(0.5, (Math.min(s.tx, peak) / peak) * half),
-		rxColor: heatColor(s.rx / peak),
-		txColor: heatColor(s.tx / peak),
-		latest: n === shown.length - 1,
-	}));
+	return {
+		max,
+		bars: shown.map((sample, index) => ({
+			t: sample.t,
+			x: sample.i * slot + slot * 0.15,
+			width: slot * 0.7,
+			up: (sample.rx / max) * half,
+			down: (sample.tx / max) * half,
+			latest: index === shown.length - 1,
+		})),
+	};
 };
 
 /**
  * The workspace page's network at a glance: a pill the uptime pill's size,
  * on the other side of the card under the workspace's name, holding the last
  * 5 minutes of its traffic as a tiny histogram drawn as the metric graphs are
- * - received in green above the line, sent in blue below - its rates on hover.
+ * with live rates beside it. Received traffic is green above zero and sent
+ * traffic is blue below it, on a shared scale.
  * The page opens with the minutes before it (the platform service keeps them),
  * then goes on from the live readings. The window slides every second for as
  * long as the page is open - readings or none: old bars move out at the left -
@@ -303,16 +284,18 @@ export const AgentNetworkPill: React.FC<{
 	const now = history[history.length - 1];
 	const end = stoppedAt ?? clock;
 	const windowMs = pillWindow(shownWidth);
-	const bars = locked ? [] : pillBars(history, end, windowMs);
+	const { bars, max } = pillBars(locked ? [] : history, end, windowMs);
+	const rates =
+		now && (stopped || end - now.t <= PILL_STALL_MS) ? now : undefined;
 	// the graph's span, as it is: from its first bar's time to its last's
 	const span = spanText(end - windowMs, end);
 	const label = locked
 		? "Network locked down: nothing gets in or out but Coder's own connection"
 		: stopped
-			? `Network: no live readings (no contact with the workspace) - ${span.long} as it was`
-			: now
-				? `Network, ${span.long}: now ↓ ${formatRate(now.rx)} received · ↑ ${formatRate(now.tx)} sent`
-				: "Network: waiting for the second reading";
+			? `Network: no live readings (no contact with the workspace) - ${span} as it was`
+			: rates
+				? `Network, ${span}: ↓ ${formatRate(rates.rx)} received · ↑ ${formatRate(rates.tx)} sent. Scale: ${formatRate(max)} per direction.`
+				: `Network, ${span}: waiting for a live reading.`;
 
 	return (
 		<Tooltip>
@@ -326,34 +309,46 @@ export const AgentNetworkPill: React.FC<{
 					data-stopped={stopped || undefined}
 					className={cn(
 						WORKSPACE_PILL,
-						"w-auto min-w-0 max-w-full gap-2 overflow-hidden px-3 transition-[filter,opacity] duration-500",
+						"w-auto min-w-0 max-w-full gap-1.5 overflow-hidden px-2 transition-[filter,opacity] duration-500",
 						stopped && "opacity-60 grayscale",
 					)}
 				>
 					{!locked && (
-						<span
-							data-testid="agent-network-start"
-							className="shrink-0 text-[10px] leading-none tabular-nums"
-						>
-							{span.start}
+						<span className="w-12 shrink-0 whitespace-nowrap text-[10px] font-semibold leading-none tabular-nums text-right text-content-success">
+							{rates ? formatRate(rates.rx) : "N/A"}
 						</span>
 					)}
 					<svg
 						viewBox={`0 0 ${W} ${H}`}
 						preserveAspectRatio="none"
 						style={{ width: shownWidth }}
-						className="block h-4 min-w-0 shrink overflow-visible"
+						className="block h-5 min-w-0 shrink overflow-visible"
 						aria-hidden
 					>
+						{!locked &&
+							[H / 4, (3 * H) / 4].map((y) => (
+								<line
+									key={y}
+									x1={0}
+									x2={W}
+									y1={y}
+									y2={y}
+									strokeWidth={0.5}
+									vectorEffect="non-scaling-stroke"
+									className="stroke-content-secondary opacity-30"
+								/>
+							))}
 						<line
 							x1={0}
 							x2={W}
 							y1={H / 2}
 							y2={H / 2}
-							strokeWidth={locked ? 1.2 : 0.6}
+							strokeWidth={locked ? 1.2 : 0.8}
 							vectorEffect="non-scaling-stroke"
 							className={
-								locked ? "stroke-content-destructive" : "stroke-border"
+								locked
+									? "stroke-content-destructive"
+									: "stroke-content-secondary opacity-50"
 							}
 						/>
 						{bars.map((b) => (
@@ -364,8 +359,8 @@ export const AgentNetworkPill: React.FC<{
 									y={H / 2 - b.up}
 									height={b.up}
 									rx={0.75}
-									opacity={b.latest ? 1 : 0.7}
-									className={b.rxColor}
+									opacity={b.latest ? 1 : 0.8}
+									className="fill-content-success"
 								/>
 								<rect
 									x={b.x}
@@ -373,18 +368,15 @@ export const AgentNetworkPill: React.FC<{
 									y={H / 2}
 									height={b.down}
 									rx={0.75}
-									opacity={b.latest ? 1 : 0.7}
-									className={b.txColor}
+									opacity={b.latest ? 1 : 0.8}
+									className="fill-content-link"
 								/>
 							</g>
 						))}
 					</svg>
 					{!locked && (
-						<span
-							data-testid="agent-network-span"
-							className="shrink-0 text-[10px] leading-none tabular-nums"
-						>
-							{span.end}
+						<span className="w-12 shrink-0 whitespace-nowrap text-[10px] font-semibold leading-none tabular-nums text-content-link">
+							{rates ? formatRate(rates.tx) : "N/A"}
 						</span>
 					)}
 					{!locked && (

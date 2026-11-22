@@ -611,8 +611,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					>
 						<div className="flex min-w-0 items-center gap-6 text-sm text-content-secondary">
 							<div className="flex min-w-0 w-full items-center gap-4 md:w-auto">
-								{/* Platform: the workspace's network - its lights (RX / TX) and its last minutes as a graph, with
-							    their time span - in one pill */}
+								{/* The workspace's network lights, recent traffic and current rates. */}
 								{agent.status === "connected" && (
 									<span
 										className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full border border-solid border-border p-0.5 [&>[data-testid]]:border-0 [&>[data-testid]]:bg-transparent"

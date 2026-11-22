@@ -44,8 +44,8 @@ describe("pillBars", () => {
 			{ from: now - 902_000, t: now - 899_000, rx: 10, tx: 10 },
 			{ from: now - 4_000, t: now - 1_000, rx: 10, tx: 10 },
 		];
-		expect(pillBars(samples, now)).toHaveLength(1);
-		const wide = pillBars(samples, now, 900_000);
+		expect(pillBars(samples, now).bars).toHaveLength(1);
+		const { bars: wide } = pillBars(samples, now, 900_000);
 		expect(wide).toHaveLength(2);
 		expect(wide[1].width).toBeCloseTo(wide[0].width);
 		expect(wide[0].x).toBeLessThan(wide[1].x);
@@ -53,7 +53,7 @@ describe("pillBars", () => {
 	const slot = 104 / 80;
 	it("draws the last 5 minutes in 80 narrow slots, newest at the right", () => {
 		const now = 300_000;
-		const bars = pillBars(
+		const { bars } = pillBars(
 			[
 				{ from: 145_000, t: 150_000, rx: 0, tx: 4096 },
 				{ from: 295_000, t: 299_000, rx: 4096, tx: 0 },
@@ -64,28 +64,25 @@ describe("pillBars", () => {
 		expect(bars[0].x).toBeCloseTo(40 * slot + slot * 0.15); // 150 s into the 5 minutes
 		expect(bars[1].x).toBeCloseTo(79 * slot + slot * 0.15); // the last slot
 		expect(bars[0].width).toBeCloseTo(slot * 0.7);
-		expect(bars[0].down).toBeCloseTo(7.5); // the busiest reading: the half height
-		expect(bars[1].up).toBeCloseTo(7.5);
-		expect(bars[0].txColor).toBe("fill-content-destructive");
-		expect(bars[1].rxColor).toBe("fill-content-destructive");
+		expect(bars[0].down).toBeCloseTo((4096 / 5000) * 7.5);
+		expect(bars[1].up).toBeCloseTo(bars[0].down);
+		expect(bars[0].up).toBe(0);
+		expect(bars[1].down).toBe(0);
 		expect(bars[1].latest).toBe(true);
 	});
 
-	it("uses blue for low rates and warmer colors as rates rise", () => {
-		const bars = pillBars(
-			[
-				{ from: 295_000, t: 296_000, rx: 128, tx: 128 },
-				{ from: 298_000, t: 299_000, rx: 1024, tx: 512 },
-			],
+	it("uses a shared, rounded scale for both directions", () => {
+		const { bars, max } = pillBars(
+			[{ from: 298_000, t: 299_000, rx: 1024, tx: 512 }],
 			300_000,
 		);
-		expect(bars[0].rxColor).toBe("fill-content-link");
-		expect(bars[1].rxColor).toBe("fill-content-destructive");
-		expect(bars[1].txColor).toBe("fill-content-warning");
+		expect(max).toBe(2000);
+		expect(bars[0].up).toBe(2 * bars[0].down);
+		expect(pillBars([], 300_000).max).toBe(1000);
 	});
 
 	it("keeps each slot's busiest reading, leaves out what is older than 5 minutes, an idle workspace near the line", () => {
-		const bars = pillBars(
+		const { bars } = pillBars(
 			[
 				{ from: 0, t: 1_000, rx: 99_999, tx: 99_999 }, // more than 5 minutes before
 				{ from: 300_000, t: 301_000, rx: 10, tx: 10 },
@@ -94,7 +91,7 @@ describe("pillBars", () => {
 			305_000,
 		);
 		expect(bars).toHaveLength(1);
-		expect(bars[0].up).toBeLessThan(0.6);
+		expect(bars[0].up).toBeCloseTo((30 / 1000) * 7.5);
 	});
 });
 
@@ -123,7 +120,7 @@ describe("AgentNetworkPill", () => {
 		expect(pill.querySelectorAll("rect")).toHaveLength(2);
 		expect(pill).toHaveAttribute(
 			"aria-label",
-			expect.stringContaining("↓ 4.0 KB/s received"),
+			expect.stringContaining("↓ 4.0 KB/s received · ↑ 2.0 KB/s sent"),
 		);
 	});
 
@@ -280,9 +277,8 @@ describe("AgentNetworkPill", () => {
 describe("spanText", () => {
 	it("gives the graph's span, its first bar's time to its last's", () => {
 		const to = new Date(2026, 9, 22, 8, 15, 12).getTime();
-		const { start, end, long } = spanText(to - 300_000, to);
-		expect(start).toMatch(/8:10\s?AM$/);
-		expect(end).toMatch(/8:15\s?AM$/);
-		expect(long).toMatch(/22, 8:10:12\s?AM \u2013 8:15:12\s?AM$/);
+		expect(spanText(to - 300_000, to)).toMatch(
+			/22, 8:10:12\s?AM to 8:15:12\s?AM$/,
+		);
 	});
 });

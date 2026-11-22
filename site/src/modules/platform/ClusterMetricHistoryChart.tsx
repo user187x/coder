@@ -1,6 +1,7 @@
 import {
 	type ClusterMetricSelection,
 	clusterMetrics,
+	formatRate,
 	nearestSample,
 	networkTrace,
 } from "./clusterMetricHistory";
@@ -21,7 +22,7 @@ const tickNumber = new Intl.NumberFormat("en-US", {
 	maximumSignificantDigits: 4,
 });
 
-/** Draws recorded samples against elapsed time. Network shares a signed scale centered on zero. */
+/** Draws recorded samples against elapsed time. Network directions share a mirrored rate scale. */
 export const ClusterMetricHistoryChart = ({
 	metric,
 	samples,
@@ -77,7 +78,7 @@ export const ClusterMetricHistoryChart = ({
 				className="block w-full"
 			>
 				<text x={plot.left} y={14} className="fill-content-secondary text-xs">
-					{unit}
+					{network ? "Transfer rate" : unit}
 				</text>
 				{metricTicks(min, max).map(({ value, major }) => (
 					<g key={value}>
@@ -99,7 +100,9 @@ export const ClusterMetricHistoryChart = ({
 								dominantBaseline="middle"
 								className="fill-content-secondary text-xs"
 							>
-								{tickNumber.format(value)}
+								{network && value !== 0
+									? formatRate(Math.abs(value))
+									: tickNumber.format(value)}
 							</text>
 						)}
 					</g>
