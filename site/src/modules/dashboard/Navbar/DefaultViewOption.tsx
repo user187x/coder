@@ -70,7 +70,7 @@ export const DefaultViewOrb: React.FC<{ path: string }> = ({ path }) => {
 	return (
 		<span
 			aria-hidden
-			className="pointer-events-none absolute bottom-full left-0 whitespace-nowrap rounded-full bg-content-link px-1 text-[8px] font-semibold leading-[9px] text-content-invert"
+			className="pointer-events-none shrink-0 whitespace-nowrap rounded-full bg-content-link px-1 text-[8px] font-semibold leading-[9px] text-content-invert"
 		>
 			Default home
 		</span>

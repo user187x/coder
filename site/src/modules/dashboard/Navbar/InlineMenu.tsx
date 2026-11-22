@@ -141,8 +141,8 @@ export function MenuLabel({
 	badge?: React.ReactNode;
 }) {
 	return badge ? (
-		<span className="relative min-w-0">
-			<span className="block truncate">{children}</span>
+		<span className="inline-flex min-w-0 items-center gap-1.5">
+			<span className="min-w-0 truncate">{children}</span>
 			{badge}
 		</span>
 	) : (
