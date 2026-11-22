@@ -71,6 +71,49 @@ it("shows each allocation against the quota", async () => {
 	await within(summary()).findByText("1.5 of 4 cores");
 });
 
+it("highlights each resource card from the Summary in the saved card order", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+		dashboard_card_order: ["gpu", "disks", "processor", "memory"],
+	});
+	setup();
+	const user = userEvent.setup();
+	const targets = [
+		["CPU", "CPU"],
+		["Memory", "Memory"],
+		["GPU", "GPU"],
+		["Disk", "Disks"],
+	];
+	const cards = [];
+	for (const [resource, title] of targets) {
+		const card = await screen.findByRole("region", {
+			name: title,
+		});
+		const button = await within(summary()).findByRole("button", {
+			name: `Show ${resource} card`,
+		});
+		const scrollIntoView = vi.fn();
+		const cancel = vi.fn();
+		const animate = vi.fn(() => ({ cancel }));
+		Object.assign(card, { scrollIntoView, animate });
+		cards.push({ button, scrollIntoView, animate, cancel });
+	}
+
+	for (const card of cards) {
+		card.button.focus();
+		await user.keyboard("{Enter}");
+		expect(card.scrollIntoView).toHaveBeenCalledTimes(1);
+		expect(card.animate).toHaveBeenCalledTimes(1);
+		expect(
+			cards.filter(({ animate }) => animate.mock.calls.length > 0),
+		).toHaveLength(cards.indexOf(card) + 1);
+	}
+
+	const disk = cards.at(-1);
+	await user.keyboard(" ");
+	expect(disk?.cancel).toHaveBeenCalledTimes(1);
+	expect(disk?.animate).toHaveBeenCalledTimes(2);
+});
+
 it.each([
 	[7, "near quota", "Near quota"],
 	[8, "at or over quota", "At or over quota"],
@@ -142,12 +185,7 @@ it("writes a ring's reading in the middle while its legend is pointed at", async
 	const user = userEvent.setup();
 	const rings = await screen.findByRole("img", { name: /CPU: 6 of 8 cores/ });
 	expect(within(rings).queryByText("6/8 cores")).toBeNull();
-	const cpu = within(summary())
-		.getAllByRole("listitem")
-		.find((item) => item.textContent?.startsWith("CPU"));
-	if (!cpu) {
-		throw new Error("no CPU legend entry");
-	}
+	const cpu = within(summary()).getByRole("button", { name: "Show CPU card" });
 	await user.hover(cpu);
 	expect(within(rings).getByText("6/8 cores")).toHaveTextContent("6/8 cores");
 	await user.unhover(cpu);

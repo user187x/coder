@@ -9,7 +9,7 @@ import {
 	MonitorIcon,
 	NetworkIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -48,6 +48,7 @@ import {
 	liveFromHud,
 	networkSeries,
 	RESOURCE_UNIT,
+	type Resource,
 	scopeFromCluster,
 	scopeFromMine,
 	totalLimit,
@@ -70,12 +71,54 @@ import {
 /** The Cloud Drive backend is checked less often than the rest; it changes rarely. */
 const DRIVE_SETTINGS_REFRESH_MS = 30_000;
 
+const resourceCardIds = {
+	cpu: "processor",
+	memory: "memory",
+	disk: "disks",
+	gpu: "gpu",
+} as const;
+
+const cardHighlight = "0 0 0 2px hsl(var(--content-link))";
+const clearHighlight = "0 0 0 2px transparent";
+
 /**
  * The Dashboard: everything the signed-in account has allocated to the cluster for its workspaces, against its
  * quota, with live usage, its disks and its Cloud Drive. Admins can switch to the whole cluster against its
  * capacity. Every card refreshes at the HUD's interval until "Live" is switched off.
  */
 const DashboardPage: React.FC = () => {
+	const cardGrid = useRef<HTMLDivElement>(null);
+	const cardPulse = useRef<Animation>(null);
+	const showResourceCard = (resource: Resource | "gpu") => {
+		const card = cardGrid.current?.querySelector<HTMLElement>(
+			`[data-dashboard-card="${resourceCardIds[resource]}"] > section`,
+		);
+		if (!card) return;
+
+		card.scrollIntoView({
+			block: "nearest",
+			inline: "nearest",
+			behavior: "instant",
+		});
+		cardPulse.current?.cancel();
+		const reduceMotion =
+			document.documentElement.dataset.animations === "off" ||
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		cardPulse.current = card.animate(
+			reduceMotion
+				? { boxShadow: [cardHighlight, cardHighlight] }
+				: {
+						boxShadow: [
+							cardHighlight,
+							clearHighlight,
+							cardHighlight,
+							clearHighlight,
+						],
+					},
+			{ duration: 1250, easing: "ease-in-out" },
+		);
+	};
+
 	const { user, permissions } = useAuthenticated();
 	const isAdmin = Boolean(permissions.viewDeploymentConfig);
 	const [paused, setPaused] = useState(false);
@@ -324,7 +367,7 @@ const DashboardPage: React.FC = () => {
 			),
 		},
 		{
-			id: "gpu",
+			id: resourceCardIds.gpu,
 			label: "GPU",
 			node: (
 				// Always there; greyed out while no workspace has a GPU.
@@ -395,12 +438,12 @@ const DashboardPage: React.FC = () => {
 			),
 		},
 		{
-			id: "memory",
+			id: resourceCardIds.memory,
 			label: "Memory",
 			node: usageCard("memory", "Memory"),
 		},
 		{
-			id: "disks",
+			id: resourceCardIds.disk,
 			label: "Disks",
 			node: (
 				<DashboardCard
@@ -433,9 +476,9 @@ const DashboardPage: React.FC = () => {
 			node: <LatencyCard paused={paused} showDetails={isAdmin} />,
 		},
 		{
-			id: "processor",
-			label: "Processor",
-			node: usageCard("cpu", "Processor"),
+			id: resourceCardIds.cpu,
+			label: "CPU",
+			node: usageCard("cpu", "CPU"),
 		},
 		{
 			id: "network",
@@ -537,7 +580,10 @@ const DashboardPage: React.FC = () => {
 				    the right. */}
 				{/* Cards spaced by their top margins: one at a column's top is dropped at the column break, and none is left
 				    below the tallest column, so the parent card's padding stays whole at its top and bottom */}
-				<div className="[column-gap:16px] [columns:20rem_4] [&>*]:mt-4 [&>*:first-child]:mt-0 [&>*]:break-inside-avoid">
+				<div
+					ref={cardGrid}
+					className="[column-gap:16px] [columns:20rem_4] [&>*]:mt-4 [&>*:first-child]:mt-0 [&>*]:break-inside-avoid"
+				>
 					<DashboardCard
 						title="Summary"
 						icon={GaugeIcon}
@@ -559,6 +605,7 @@ const DashboardPage: React.FC = () => {
 									scope={scope}
 									limitName={limitName}
 									gpus={gpus}
+									onShowResource={showResourceCard}
 									live={{
 										cpu: live?.cpu.latest ?? null,
 										memory: live?.memory.latest ?? null,

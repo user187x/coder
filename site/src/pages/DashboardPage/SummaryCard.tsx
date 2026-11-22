@@ -49,6 +49,7 @@ type SummaryCardProps = {
 	limitName: string;
 	/** GPUs the running workspaces claim; null where it is not known (the whole cluster). */
 	gpus?: number | null;
+	onShowResource: (resource: Resource | "gpu") => void;
 };
 
 /** What counts against a resource's limit: the quota's own count, or with a per-workspace limit every
@@ -61,6 +62,9 @@ const ringUsed = (scope: DashboardScope, resource: Resource) =>
 /** The figures under the rings, two to a row: CPU and Memory, then Disk and GPU. */
 const LEGEND: readonly (Resource | "gpu")[] = ["cpu", "memory", "disk", "gpu"];
 
+const legendButton =
+	"-mx-2 flex w-[calc(100%+1rem)] min-w-0 cursor-pointer flex-col rounded-lg border-0 bg-transparent px-2 py-0 text-left hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-content-link";
+
 /**
  * Allocations against limits: concentric rings with the limit's watermark, the big numbers beside them, and how
  * the allocation splits between running and stopped workspaces, with what the running ones use now.
@@ -70,6 +74,7 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 	live,
 	limitName,
 	gpus = null,
+	onShowResource,
 }) => {
 	// The ring pointed at, or its legend entry: both light up together.
 	const [active, setActive] = useState<number | null>(null);
@@ -115,41 +120,47 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 						if (key === "gpu") {
 							const none = !gpus;
 							return (
-								<li
-									key="gpu"
-									className={cn(
-										"-mx-2 flex min-w-0 flex-col rounded-lg px-2",
-										none && active !== gpuIndex && "opacity-40",
-										active === gpuIndex && "bg-surface-secondary",
-									)}
-									onMouseEnter={() => setActive(gpuIndex)}
-									onMouseLeave={() => setActive(null)}
-								>
-									<span className="flex items-center gap-2 whitespace-nowrap text-xs text-content-secondary">
-										<span
-											aria-hidden
-											className={cn(
-												"size-2 rounded-full",
-												none ? "bg-content-secondary" : "bg-content-success",
-											)}
-										/>
-										GPU
-									</span>
-									<span className="whitespace-nowrap text-2xl font-semibold tabular-nums text-content-primary">
-										{gpus === null ? "N/A" : formatQuotaNumber(gpus)}
-										{gpus !== null && (
-											<span className="text-sm font-normal text-content-secondary">
-												{gpus === 1 ? " GPU" : " GPUs"}
-											</span>
+								<li key="gpu" className="min-w-0">
+									<button
+										type="button"
+										aria-label="Show GPU card"
+										className={cn(
+											legendButton,
+											none && active !== gpuIndex && "opacity-40",
+											active === gpuIndex && "bg-surface-secondary",
 										)}
-									</span>
-									<span className="whitespace-nowrap text-[11px] text-content-secondary">
-										{gpus === null
-											? "Per account only"
-											: none
-												? "None claimed"
-												: "Claimed by running workspaces"}
-									</span>
+										onMouseEnter={() => setActive(gpuIndex)}
+										onMouseLeave={() => setActive(null)}
+										onFocus={() => setActive(gpuIndex)}
+										onBlur={() => setActive(null)}
+										onClick={() => onShowResource("gpu")}
+									>
+										<span className="flex items-center gap-2 whitespace-nowrap text-xs text-content-secondary">
+											<span
+												aria-hidden
+												className={cn(
+													"size-2 rounded-full",
+													none ? "bg-content-secondary" : "bg-content-success",
+												)}
+											/>
+											GPU
+										</span>
+										<span className="whitespace-nowrap text-2xl font-semibold tabular-nums text-content-primary">
+											{gpus === null ? "N/A" : formatQuotaNumber(gpus)}
+											{gpus !== null && (
+												<span className="text-sm font-normal text-content-secondary">
+													{gpus === 1 ? " GPU" : " GPUs"}
+												</span>
+											)}
+										</span>
+										<span className="whitespace-nowrap text-[11px] text-content-secondary">
+											{gpus === null
+												? "Per account only"
+												: none
+													? "None claimed"
+													: "Claimed by running workspaces"}
+										</span>
+									</button>
 								</li>
 							);
 						}
@@ -160,35 +171,43 @@ export const SummaryCardBody: React.FC<SummaryCardProps> = ({
 						const style = RESOURCE_STYLE[resource];
 						const level = watermarkLevel(used, limit);
 						return (
-							<li
-								key={resource}
-								className={cn(
-									"-mx-2 flex min-w-0 flex-col rounded-lg px-2 transition-[background-color,opacity] duration-200",
-									active === index && "bg-surface-secondary",
-									active !== null && active !== index && "opacity-50",
-								)}
-								onMouseEnter={() => setActive(index)}
-								onMouseLeave={() => setActive(null)}
-							>
-								<span className="flex items-center gap-2 whitespace-nowrap text-xs text-content-secondary">
-									<span
-										aria-hidden
-										className={cn("size-2 rounded-full", style.dot)}
-									/>
-									{style.label}
-									{scope.modes[resource] === "instance" &&
-										scope.limits[resource] !== null &&
-										` (${amount(scope.limits[resource] ?? 0, resource)} per workspace)`}
-								</span>
-								<span className="whitespace-nowrap text-2xl font-semibold tabular-nums text-content-primary">
-									{formatQuotaNumber(used)}
-									<span className="text-sm font-normal text-content-secondary">
-										{limit === null
-											? ` ${RESOURCE_UNIT[resource]}`
-											: ` / ${amount(limit, resource)}`}
+							<li key={resource} className="min-w-0">
+								<button
+									type="button"
+									aria-label={`Show ${style.label} card`}
+									className={cn(
+										legendButton,
+										active === index && "bg-surface-secondary",
+										active !== null && active !== index && "opacity-50",
+									)}
+									onMouseEnter={() => setActive(index)}
+									onMouseLeave={() => setActive(null)}
+									onFocus={() => setActive(index)}
+									onBlur={() => setActive(null)}
+									onClick={() => onShowResource(resource)}
+								>
+									<span className="flex items-center gap-2 text-xs text-content-secondary">
+										<span
+											aria-hidden
+											className={cn("size-2 shrink-0 rounded-full", style.dot)}
+										/>
+										<span>
+											{style.label}
+											{scope.modes[resource] === "instance" &&
+												scope.limits[resource] !== null &&
+												` (${amount(scope.limits[resource] ?? 0, resource)} per workspace)`}
+										</span>
 									</span>
-								</span>
-								<WatermarkBadge level={level} limitName={limitName} />
+									<span className="whitespace-nowrap text-2xl font-semibold tabular-nums text-content-primary">
+										{formatQuotaNumber(used)}
+										<span className="text-sm font-normal text-content-secondary">
+											{limit === null
+												? ` ${RESOURCE_UNIT[resource]}`
+												: ` / ${amount(limit, resource)}`}
+										</span>
+									</span>
+									<WatermarkBadge level={level} limitName={limitName} />
+								</button>
 							</li>
 						);
 					})}
