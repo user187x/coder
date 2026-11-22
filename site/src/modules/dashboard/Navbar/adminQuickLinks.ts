@@ -5,6 +5,7 @@ import {
 	CloudIcon,
 	ContainerIcon,
 	FileTextIcon,
+	GaugeIcon,
 	HardDriveIcon,
 	HeartPulseIcon,
 	HourglassIcon,
@@ -207,6 +208,13 @@ const WORKSPACE_PAGES: readonly AdminPage[] = [
 	},
 ];
 
+const PING_LATENCY_PAGE = {
+	id: "ping-latency",
+	label: "Ping and Latency",
+	icon: GaugeIcon,
+	path: pingLatencyPath,
+} satisfies AdminPage;
+
 const withAccountActions = (
 	page: AdminPage,
 	{ permissions }: AdminPageAccess,
@@ -223,6 +231,7 @@ export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
 	...WORKSPACE_PAGES.filter(
 		(page) => page.id !== "templates" || canSeeTemplates(access.permissions),
 	),
+	...(access.permissions.viewDeploymentConfig ? [PING_LATENCY_PAGE] : []),
 	...(access.permissions.editDeploymentConfig
 		? [
 				{
@@ -296,6 +305,7 @@ const CATEGORY_PREFIXES: Record<string, readonly string[]> = {
  * Health for /health/derp/regions/1; null for pages outside the categories.
  */
 export const adminCategory = (pathname: string): AdminPage | null => {
+	if (pathname === pingLatencyPath) return PING_LATENCY_PAGE;
 	const under = (prefix: string) =>
 		pathname === prefix || pathname.startsWith(`${prefix}/`);
 	const page = ADMIN_PAGES.find((p) =>
@@ -325,7 +335,6 @@ const navbarRouteLabels = [
 	["/audit", "Audit logs"],
 	["/connectionlog", "Connection logs"],
 	["/hud", "HUD"],
-	[pingLatencyPath, "Ping and Latency"],
 	["/install", "Install CLI"],
 	["/external-auth/:provider", "External authentication"],
 ] as const;
@@ -347,4 +356,6 @@ export const navbarPageLabel = (pathname: string): string | null => {
 
 /** A category's icon (the one its quick link shows), by its ID. */
 export const adminPageIcon = (id: string): LucideIcon | undefined =>
-	[...ADMIN_PAGES, ...WORKSPACE_PAGES].find((page) => page.id === id)?.icon;
+	[...ADMIN_PAGES, ...WORKSPACE_PAGES, PING_LATENCY_PAGE].find(
+		(page) => page.id === id,
+	)?.icon;

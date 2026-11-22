@@ -201,6 +201,19 @@ it("offers personal destinations to members and restores their saved quick links
 	).toEqual(["chat", "workspaces"]);
 });
 
+it("offers Ping and Latency to users who can view deployment configuration", () => {
+	const pages = settingsPagesFor({
+		permissions: { ...MockNoPermissions, viewDeploymentConfig: true },
+		oauth2Provider: false,
+	});
+	expect(resolveAdminQuickLinks(["ping-latency"], pages)).toEqual([
+		expect.objectContaining({
+			label: "Ping and Latency",
+			path: "/hud/latency",
+		}),
+	]);
+});
+
 it("offers Templates to those who make templates", () => {
 	const pages = settingsPagesFor({
 		permissions: { ...MockNoPermissions, createTemplates: true },
