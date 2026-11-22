@@ -4,6 +4,7 @@ import { HttpResponse, http } from "msw";
 import { type PersistenceReport, PlatformAPI } from "#/api/platform";
 import {
 	MockDisasterRecovery,
+	MockPersistenceReport,
 	MockPersistenceReportNeedsAttention,
 	MockPersistenceReportNoOperator,
 } from "#/testHelpers/platform";
@@ -42,6 +43,44 @@ describe("PersistenceView", () => {
 				{
 					fixes: ["cnpg.instances", "cnpg.storage", "cnpg.backup"],
 					settings: MockPersistenceReportNeedsAttention.facts.settings,
+				},
+			]),
+		);
+	});
+
+	it("updates an existing backup schedule with a biweekly calendar rule", async () => {
+		const applied = serve(MockPersistenceReport);
+		const user = userEvent.setup();
+		render(<PersistenceView />);
+
+		await user.click(await screen.findByRole("combobox", { name: "Repeats" }));
+		await user.click(screen.getByRole("option", { name: "Weekly" }));
+		await user.click(screen.getByRole("button", { name: "Mon" }));
+		const interval = screen.getByRole("spinbutton", {
+			name: "Repeat interval",
+		});
+		await user.clear(interval);
+		await user.type(interval, "2");
+		await user.click(screen.getByRole("switch", { name: "AM/PM" }));
+		await user.click(screen.getByRole("combobox", { name: "AM or PM" }));
+		await user.click(screen.getByRole("option", { name: "PM" }));
+		await user.click(
+			screen.getByRole("button", { name: "Apply these settings" }),
+		);
+		await user.click(screen.getByRole("button", { name: "Apply" }));
+
+		await vi.waitFor(() =>
+			expect(applied).toEqual([
+				{
+					fixes: ["cnpg.backup"],
+					settings: expect.objectContaining({
+						backupRecurrence: expect.objectContaining({
+							frequency: "weekly",
+							interval: 2,
+							weekdays: expect.arrayContaining([1]),
+							time: "14:00",
+						}),
+					}),
 				},
 			]),
 		);

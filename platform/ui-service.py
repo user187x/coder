@@ -203,6 +203,7 @@ import workspacecapacity
 import workspacenodemetrics
 import math
 import drivepeers  # noqa: E402  (Cloud Drives shared between users: asked for in chat, approved by admins)
+import backup_schedule
 import database_inventory  # noqa: E402
 import clusternet  # noqa: E402  (the Cluster Network view in depth: entity details, code-server HA, the mesh)
 from http.cookies import SimpleCookie
@@ -5489,12 +5490,13 @@ def persistence_report(token, include_inventory=False):
         if done_backups
         else None
     )
+    settings = suggested_settings(cluster, classes, snaps)
+    backup_schedule.add_to_settings(settings, scheduled)
+    recurrence = settings.get("backupRecurrence")
     facts["backups"] = {
         "configured": bool(method and scheduled),
         "method": method,
-        "schedule": (
-            ((scheduled[0].get("spec") or {}).get("schedule")) if scheduled else None
-        ),
+        "schedule": ("Calendar recurrence" if recurrence else settings["backupSchedule"]) if scheduled else None,
         "lastSuccess": last,
         "lastFailure": st.get("lastFailedBackup"),
         "recoverableSince": st.get("firstRecoverabilityPoint"),
@@ -5518,18 +5520,21 @@ def persistence_report(token, include_inventory=False):
             if last
             else None
         )
+        failed = st.get("lastFailedBackup")
+        if recurrence:
+            warning = bool(failed and (not last or failed > last))
+            detail = "Check the most recent Backup resource for the failure." if warning else ""
+        else:
+            warning = age is None or age >= 48
+            detail = "No backup completed in the last two days: check the Backup resources' status." if warning else ""
         check(
             checks,
             "cnpg.lastbackup",
             "Backups",
             "Last successful backup",
-            "ok" if age is not None and age < 48 else "warn",
+            "warn" if warning else "ok",
             current=last or "none yet",
-            detail=(
-                ""
-                if age is not None and age < 48
-                else "No backup completed in the last two days: check the Backup resources' status."
-            ),
+            detail=detail,
         )
     elif snaps:
         check(
@@ -5555,7 +5560,8 @@ def persistence_report(token, include_inventory=False):
             detail="This cluster has no VolumeSnapshotClass, so snapshot backups can't be set up here. Configure "
             "spec.backup.barmanObjectStore (S3, Azure Blob, Google Cloud Storage or MinIO) on the Cluster and add a ScheduledBackup.",
         )
-    facts["settings"] = suggested_settings(cluster, classes, snaps)
+    facts["settings"] = settings
+    facts["backups"]["editable"] = all(backup_schedule.is_managed(entry) for entry in scheduled)
     return {"generatedAt": now(), "mode": mode, "checks": checks, "facts": facts}
 
 
@@ -5594,6 +5600,8 @@ def clean_pg_settings(raw):
             "Backup schedule: six cron fields (seconds first), for example '0 0 2 * * *'."
         )
     out["backupSchedule"] = schedule
+    if raw.get("backupRecurrence") is not None:
+        out["backupRecurrence"] = backup_schedule.clean(raw["backupRecurrence"])
     return out
 
 
@@ -5682,7 +5690,13 @@ def apply_persistence(fixes, raw_settings, user):
         patch["storage"] = {"size": s["storageSize"]}
         done.append("Growing %s's volumes to %s" % (name, s["storageSize"]))
     if "cnpg.backup" in fixes:
-        snap = s["snapshotClass"] or next(iter(snapshot_classes()), "")
+        schedules = cnpg_list(ns, "scheduledbackups", name)
+        if any(not backup_schedule.is_managed(schedule) for schedule in schedules):
+            raise ValueError("A backup schedule is already managed outside Coder.")
+        available = snapshot_classes()
+        snap = s["snapshotClass"] or next(iter(available), "")
+        if snap and snap not in available:
+            raise ValueError("The selected VolumeSnapshotClass is unavailable.")
         if not snap:
             raise ValueError("No VolumeSnapshotClass exists in this cluster.")
         patch["backup"] = {"volumeSnapshot": {"className": snap}}
@@ -5696,36 +5710,8 @@ def apply_persistence(fixes, raw_settings, user):
                 % (ns, name, status, str(out)[:200])
             )
     if "cnpg.backup" in fixes:
-        sb = name + "-daily"
-        status, _ = KUBE.call(
-            "GET", "%s/namespaces/%s/scheduledbackups/%s" % (CNPG_API, ns, sb)
-        )
-        if status != 200:
-            status, out = KUBE.call(
-                "POST",
-                "%s/namespaces/%s/scheduledbackups" % (CNPG_API, ns),
-                {
-                    "apiVersion": "postgresql.cnpg.io/v1",
-                    "kind": "ScheduledBackup",
-                    "metadata": {"name": sb, "namespace": ns, "labels": labels},
-                    "spec": {
-                        "schedule": s["backupSchedule"],
-                        "backupOwnerReference": "self",
-                        "cluster": {"name": name},
-                        "method": "volumeSnapshot",
-                        "immediate": True,
-                    },
-                },
-            )
-            if status not in (200, 201):
-                raise RuntimeError(
-                    "Creating ScheduledBackup %s failed (HTTP %s): %s"
-                    % (sb, status, str(out)[:200])
-                )
-        done.append(
-            "Scheduled volume-snapshot backups of %s (%s), the first one now"
-            % (name, s["backupSchedule"])
-        )
+        backup_schedule.save(KUBE, ns, name, s, labels)
+        done.append("Saved the volume-snapshot backup schedule for %s" % name)
     owner = managed_by(cluster)
     if owner and owner != "General > Persistence" and patch:
         done.append(
@@ -11104,6 +11090,7 @@ def main():
                      safe=safe, tls=TLS, publish_inbox=publish_inbox_notification)
     dr.setup(log, KUBE)
     dr.start()
+    backup_schedule.start(KUBE, CODER_NAMESPACE, log)
     lockdown.start()
     safe.setup(log, KUBE, safe_accounts, lambda user: imagebuilder.can_edit(user, ADMIN_ROLES),
                lambda user: bool(set(user.get("roles") or []) & ADMIN_ROLES), workspace_info,

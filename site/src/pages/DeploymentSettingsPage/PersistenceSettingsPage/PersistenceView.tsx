@@ -36,6 +36,7 @@ import {
 	DatabaseTopology,
 } from "../DatabaseSettingsPage/DatabaseDiscovery";
 import { InspectableDatabaseMap } from "../DatabaseSettingsPage/InspectableDatabaseMap";
+import { backupScheduleLabel, recurrenceValid } from "./backupRecurrence";
 import { DisasterRecoveryCard, newDrTarget } from "./DisasterRecoveryCard";
 import { ClusterSettingsCard, OperatorSetupCard } from "./PersistenceSetup";
 import { InstancesTable, StorageClassesTable } from "./PersistenceTables";
@@ -93,7 +94,15 @@ export function DatabaseOperations({
 	const fixes = fixesNeeded(report);
 	const formFixes = fixesForSettings(report, settings);
 
-	const applyFixes = (list: PersistenceFix[]) =>
+	const applyFixes = (list: PersistenceFix[]) => {
+		if (
+			list.includes("cnpg.backup") &&
+			!recurrenceValid(settings.backupRecurrence)
+		) {
+			setPending(null);
+			toast.error("Complete the backup schedule before applying it.");
+			return;
+		}
 		apply.mutate(
 			{ fixes: list, settings },
 			{
@@ -110,6 +119,7 @@ export function DatabaseOperations({
 				},
 			},
 		);
+	};
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -240,7 +250,7 @@ export function DatabaseOperations({
 							{settings.storageSize} each
 							{settings.storageClass ? ` on ${settings.storageClass}` : ""}
 							{pending?.includes("cnpg.backup")
-								? `, snapshots with ${settings.snapshotClass || "the first snapshot class"} on ${settings.backupSchedule}`
+								? `, snapshots with ${settings.snapshotClass || "the first snapshot class"} · ${backupScheduleLabel(settings)}`
 								: ""}
 							.
 						</p>

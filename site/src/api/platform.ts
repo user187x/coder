@@ -1071,6 +1071,19 @@ export type PersistenceCheck = {
 	fix: PersistenceFix | "cnpg.operator" | null;
 };
 
+export type BackupRecurrence = {
+	time: string;
+	startDate: string;
+	frequency: "daily" | "weekly" | "monthly" | "yearly";
+	interval: number;
+	weekdays?: readonly number[];
+	monthMode?: "date" | "weekday";
+	monthDay?: number;
+	ordinal?: number;
+	endDate?: string;
+	count?: number;
+};
+
 /** What a Cluster created or changed from General > Persistence looks like. */
 export type PersistenceSettings = {
 	clusterName: string;
@@ -1080,6 +1093,7 @@ export type PersistenceSettings = {
 	snapshotClass: string;
 	/** Six cron fields, seconds first (CloudNativePG's format). */
 	backupSchedule: string;
+	backupRecurrence?: BackupRecurrence;
 };
 
 export type StorageClassInfo = {
@@ -1157,6 +1171,7 @@ type DatabaseStats = {
 
 type BackupState = {
 	configured: boolean;
+	editable?: boolean;
 	method: string | null;
 	schedule: string | null;
 	lastSuccess: string | null;

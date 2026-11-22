@@ -29,7 +29,7 @@ export const fixesForSettings = (
 	report: PersistenceReport,
 	settings: PersistenceSettings,
 ): PersistenceFix[] => {
-	const { cluster, backups } = report.facts;
+	const { cluster, backups, settings: saved } = report.facts;
 	if (!cluster) {
 		return [
 			"cnpg.cluster",
@@ -47,7 +47,15 @@ export const fixesForSettings = (
 	) {
 		fixes.push("cnpg.storage");
 	}
-	if (!backups?.configured && settings.snapshotClass) {
+	if (
+		backups?.editable !== false &&
+		settings.snapshotClass &&
+		(!backups?.configured ||
+			settings.snapshotClass !== saved.snapshotClass ||
+			settings.backupSchedule !== saved.backupSchedule ||
+			JSON.stringify(settings.backupRecurrence) !==
+				JSON.stringify(saved.backupRecurrence))
+	) {
 		fixes.push("cnpg.backup");
 	}
 	return fixes;

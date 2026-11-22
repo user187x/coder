@@ -12,6 +12,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/Select/Select";
+import { BackupScheduleFields } from "./BackupScheduleFields";
+import { recurrenceValid } from "./backupRecurrence";
 import { parseQuantity } from "./persistenceFixes";
 
 const OPERATOR_STEPS: { title: string; detail: string; code: string }[] = [
@@ -209,7 +211,10 @@ export const ClusterSettingsCard: React.FC<ClusterSettingsCardProps> = ({
 					>
 						<Select
 							value={settings.snapshotClass || DEFAULT_CLASS}
-							disabled={!snapshotClasses.length}
+							disabled={
+								!snapshotClasses.length ||
+								report.facts.backups?.editable === false
+							}
 							onValueChange={(value) =>
 								onChange({
 									snapshotClass: value === DEFAULT_CLASS ? "" : value,
@@ -229,21 +234,13 @@ export const ClusterSettingsCard: React.FC<ClusterSettingsCardProps> = ({
 							</SelectContent>
 						</Select>
 					</Field>
-					<Field
-						id={`${id}-schedule`}
-						label="Backup schedule"
-						hint="Six cron fields, seconds first: 0 0 2 * * * is daily at 02:00."
-					>
-						<Input
-							id={`${id}-schedule`}
-							value={settings.backupSchedule}
-							disabled={!settings.snapshotClass}
-							onChange={(event) =>
-								onChange({ backupSchedule: event.target.value })
-							}
-						/>
-					</Field>
 				</div>
+				<BackupScheduleFields
+					settings={settings}
+					startDate={report.generatedAt.slice(0, 10)}
+					readOnly={report.facts.backups?.editable === false}
+					onChange={onChange}
+				/>
 				<div className="flex flex-wrap items-center gap-3">
 					<Button
 						type="submit"
@@ -251,7 +248,8 @@ export const ClusterSettingsCard: React.FC<ClusterSettingsCardProps> = ({
 							!operator.installed ||
 							nothingToApply ||
 							!sizeValid ||
-							!instancesValid
+							!instancesValid ||
+							!recurrenceValid(settings.backupRecurrence)
 						}
 					>
 						{cluster ? "Apply these settings" : "Create the cluster"}

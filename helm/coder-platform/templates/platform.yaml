@@ -6,7 +6,7 @@ receipts, chat). Names are the ones the service expects (coder-ui-updates, coder
 {{- if .Values.platform.enabled }}
 {{- $p := .Values.platform }}
 {{- $ns := .Release.Namespace }}
-{{- $code := print (.Files.Get "files/platform/ui-service.py") (.Files.Get "files/platform/pgwire.py") }}
+{{- $code := print (.Files.Get "files/platform/ui-service.py") (.Files.Get "files/platform/pgwire.py") (.Files.Get "files/platform/backup_schedule.py") }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -20,6 +20,8 @@ data:
     {{- .Files.Get "files/platform/ui-service.py" | nindent 4 }}
   pgwire.py: |
     {{- .Files.Get "files/platform/pgwire.py" | nindent 4 }}
+  backup_schedule.py: |
+    {{- .Files.Get "files/platform/backup_schedule.py" | nindent 4 }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -208,8 +210,11 @@ rules:
     resources: [clusters]
     verbs: [get, list, create, patch]
   - apiGroups: [postgresql.cnpg.io]
-    resources: [backups, scheduledbackups]
+    resources: [backups]
     verbs: [get, list, create]
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [scheduledbackups]
+    verbs: [get, list, create, patch]
   - apiGroups: [""]
     resources: [persistentvolumeclaims]
     verbs: [get, list]

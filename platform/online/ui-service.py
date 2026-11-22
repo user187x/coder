@@ -80,6 +80,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import backup_schedule
 import pgwire  # noqa: E402  (next to this file)
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -2463,8 +2464,11 @@ def persistence_report(token):
                           key=lambda b: (b.get("status") or {}).get("stoppedAt") or "")
     method = "object store (Barman)" if backup_spec.get("barmanObjectStore") else ("volume snapshots" if backup_spec.get("volumeSnapshot") else None)
     last = st.get("lastSuccessfulBackup") or ((done_backups[-1].get("status") or {}).get("stoppedAt") if done_backups else None)
+    settings = suggested_settings(cluster, classes, snaps)
+    backup_schedule.add_to_settings(settings, scheduled)
+    recurrence = settings.get("backupRecurrence")
     facts["backups"] = {"configured": bool(method and scheduled), "method": method,
-                        "schedule": ((scheduled[0].get("spec") or {}).get("schedule")) if scheduled else None,
+                        "schedule": ("Calendar recurrence" if recurrence else settings["backupSchedule"]) if scheduled else None,
                         "lastSuccess": last, "lastFailure": st.get("lastFailedBackup"),
                         "recoverableSince": st.get("firstRecoverabilityPoint"), "count": len(done_backups)}
     if method and scheduled:
@@ -2481,7 +2485,8 @@ def persistence_report(token):
         check(checks, "cnpg.backup", "Backups", "Scheduled backups", "warn", current="none",
               detail="This cluster has no VolumeSnapshotClass, so snapshot backups can't be set up here. Configure "
                      "spec.backup.barmanObjectStore (S3, Azure Blob, Google Cloud Storage or MinIO) on the Cluster and add a ScheduledBackup.")
-    facts["settings"] = suggested_settings(cluster, classes, snaps)
+    facts["settings"] = settings
+    facts["backups"]["editable"] = all(backup_schedule.is_managed(entry) for entry in scheduled)
     return {"generatedAt": now(), "mode": mode, "checks": checks, "facts": facts}
 
 
@@ -2514,6 +2519,8 @@ def clean_pg_settings(raw):
     if not CRON6_RE.match(schedule):
         raise ValueError("Backup schedule: six cron fields (seconds first), for example '0 0 2 * * *'.")
     out["backupSchedule"] = schedule
+    if raw.get("backupRecurrence") is not None:
+        out["backupRecurrence"] = backup_schedule.clean(raw["backupRecurrence"])
     return out
 
 
@@ -2564,7 +2571,13 @@ def apply_persistence(fixes, raw_settings, user):
         patch["storage"] = {"size": s["storageSize"]}
         done.append("Growing %s's volumes to %s" % (name, s["storageSize"]))
     if "cnpg.backup" in fixes:
-        snap = s["snapshotClass"] or next(iter(snapshot_classes()), "")
+        schedules = cnpg_list(ns, "scheduledbackups", name)
+        if any(not backup_schedule.is_managed(schedule) for schedule in schedules):
+            raise ValueError("A backup schedule is already managed outside Coder.")
+        available = snapshot_classes()
+        snap = s["snapshotClass"] or next(iter(available), "")
+        if snap and snap not in available:
+            raise ValueError("The selected VolumeSnapshotClass is unavailable.")
         if not snap:
             raise ValueError("No VolumeSnapshotClass exists in this cluster.")
         patch["backup"] = {"volumeSnapshot": {"className": snap}}
@@ -2573,17 +2586,8 @@ def apply_persistence(fixes, raw_settings, user):
         if status != 200:
             raise RuntimeError("Updating Cluster %s/%s failed (HTTP %s): %s" % (ns, name, status, str(out)[:200]))
     if "cnpg.backup" in fixes:
-        sb = name + "-daily"
-        status, _ = KUBE.call("GET", "%s/namespaces/%s/scheduledbackups/%s" % (CNPG_API, ns, sb))
-        if status != 200:
-            status, out = KUBE.call("POST", "%s/namespaces/%s/scheduledbackups" % (CNPG_API, ns), {
-                "apiVersion": "postgresql.cnpg.io/v1", "kind": "ScheduledBackup",
-                "metadata": {"name": sb, "namespace": ns, "labels": labels},
-                "spec": {"schedule": s["backupSchedule"], "backupOwnerReference": "self", "cluster": {"name": name},
-                         "method": "volumeSnapshot", "immediate": True}})
-            if status not in (200, 201):
-                raise RuntimeError("Creating ScheduledBackup %s failed (HTTP %s): %s" % (sb, status, str(out)[:200]))
-        done.append("Scheduled volume-snapshot backups of %s (%s), the first one now" % (name, s["backupSchedule"]))
+        backup_schedule.save(KUBE, ns, name, s, labels)
+        done.append("Saved the volume-snapshot backup schedule for %s" % name)
     owner = managed_by(cluster)
     if owner and owner != "General > Persistence" and patch:
         done.append("Also change it where the cluster is deployed from (%s), or the next deploy undoes it" % owner)
@@ -3496,6 +3500,7 @@ def main():
     AVATARS = AvatarStore(LOGOS)
     ICONS = IconStore(LOGOS)
     MONITOR = Monitor()
+    backup_schedule.start(KUBE, CODER_NAMESPACE, log)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     server.daemon_threads = True
     log(event="listening", port=PORT, coder=CODER_URL, banner=BANNER_URL, admin_roles=sorted(ADMIN_ROLES), db=DB_PATH,

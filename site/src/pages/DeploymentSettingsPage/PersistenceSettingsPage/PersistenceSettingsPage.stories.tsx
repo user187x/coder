@@ -35,6 +35,33 @@ export const NeedsAttention: Story = {
 	},
 };
 
+export const BackupCalendar: Story = {
+	parameters: {
+		queries: [
+			{
+				key: persistenceReportKey,
+				data: {
+					...MockPersistenceReport,
+					facts: {
+						...MockPersistenceReport.facts,
+						settings: {
+							...MockPersistenceReport.facts.settings,
+							backupRecurrence: {
+								time: "02:30",
+								frequency: "monthly",
+								interval: 2,
+								monthMode: "weekday",
+								ordinal: 2,
+								startDate: "2026-10-04",
+								weekdays: [3],
+							},
+						},
+					},
+				},
+			},
+		],
+	},
+};
 export const ApproveFixesDialog: Story = {
 	parameters: NeedsAttention.parameters,
 	play: async ({ canvasElement }) => {
