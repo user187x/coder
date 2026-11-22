@@ -124,18 +124,13 @@ const Layout: React.FC = () => {
 				data-dashboard-background=""
 				className="flex flex-1 flex-col"
 			>
-				<div
-					data-dashboard-background=""
-					className="mx-auto my-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-10"
-				>
+				<div data-dashboard-background="" className="my-auto w-full">
 					<div
 						data-dashboard-background=""
 						className="flex flex-col gap-4 py-3"
 					>
 						{/* The Dashboard's panel round the section's card (dashboardPanel.css) */}
-						<div className="dashboard-panel min-w-0 max-w-full self-center">
-							{page}
-						</div>
+						<div className="dashboard-panel min-w-0">{page}</div>
 					</div>
 				</div>
 			</div>

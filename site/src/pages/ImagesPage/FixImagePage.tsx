@@ -285,7 +285,7 @@ const FixImage: React.FC<{ image: ImageDetail }> = ({ image }) => {
 		<div className="ws-settings min-h-full">
 			<title>{pageTitle(`Fix ${image.name}`, "Images")}</title>
 			<header className="border-0 border-b border-solid border-(--ws-header-line) bg-(--ws-header)">
-				<div className="mx-auto flex max-w-[1304px] flex-wrap items-center justify-between gap-4 px-8 py-5">
+				<div className="flex flex-wrap items-center justify-between gap-4 py-5">
 					<div className="min-w-0">
 						<nav
 							aria-label="Breadcrumb"
@@ -345,7 +345,7 @@ const FixImage: React.FC<{ image: ImageDetail }> = ({ image }) => {
 						</div>
 					</div>
 				</div>
-				<div className="mx-auto max-w-[1304px] px-8 pb-[18px]">
+				<div className="pb-[18px]">
 					<ol
 						className="m-0 flex list-none flex-wrap items-center gap-1.5 p-0"
 						aria-label="Steps"
@@ -386,7 +386,7 @@ const FixImage: React.FC<{ image: ImageDetail }> = ({ image }) => {
 				</div>
 			</header>
 
-			<div className="mx-auto flex max-w-[1304px] flex-wrap items-start gap-6 px-8 py-7">
+			<div className="flex flex-wrap items-start gap-6 py-7">
 				{image.pit && <PitLane pit={image.pit} imageId={image.id} />}
 				<section
 					aria-labelledby="h-findings"

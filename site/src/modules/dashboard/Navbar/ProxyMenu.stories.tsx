@@ -787,6 +787,46 @@ export const EntryOptions: Story = {
 	},
 };
 
+const thinStripPages = adminPagesFor({
+	permissions: MockPermissions,
+	oauth2Provider: true,
+});
+
+export const ThinStripQuickLinkOptions: Story = {
+	args: {
+		controls: {
+			permissions: { canViewUsers: true },
+			quickLinks: thinStripPages.filter((page) => page.id === "accounts"),
+			pages: thinStripPages,
+			quickLinksEditor: { addable: thinStripPages, onChange: fn() },
+		},
+	},
+	parameters: {
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					settings_sidebar: true,
+					settings_sidebar_compact: true,
+					navbar_settings_side: "left",
+				},
+			},
+		],
+	},
+	play: async ({ canvasElement }) => {
+		const link = await within(canvasElement.ownerDocument.body).findByRole(
+			"menuitem",
+			{ name: "Accounts" },
+		);
+		const rect = link.getBoundingClientRect();
+		await userEvent.pointer({
+			target: link,
+			keys: "[MouseRight]",
+			coords: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+		});
+	},
+};
+
 /** A quick link pointed at: an oval round it, and only its remove and move controls. */
 export const QuickLinkHovered: Story = {
 	...CentralAdminMenu,

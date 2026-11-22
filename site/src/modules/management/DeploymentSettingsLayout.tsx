@@ -220,10 +220,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 				className="flex flex-1 flex-col"
 			>
 				{navbarBreadcrumb}
-				<section
-					data-dashboard-background=""
-					className="mx-auto my-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-10"
-				>
+				<section data-dashboard-background="" className="my-auto w-full">
 					<div
 						data-dashboard-background=""
 						className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8"

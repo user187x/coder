@@ -64,9 +64,6 @@ export const AdminBreadcrumb: React.FC<
 				inline
 					? "min-w-0 flex-1"
 					: "sticky top-[calc(var(--dashboard-navigation-height,72px)+var(--coder-classification-h,0px)*max(1,var(--breadcrumb-scale,1)))] z-30 flow-root pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto",
-				!inline &&
-					props.variant === "connected" &&
-					"w-full max-w-[1920px] px-4 sm:px-6 lg:pr-10 lg:pl-4",
 				className,
 			)}
 		/>

@@ -80,7 +80,10 @@ it.each([false, true])(
 it("removes a quick link from the thin strip's right-click menu", async () => {
 	const user = userEvent.setup();
 	const { onChange, first, second } = renderStrip();
-	fireEvent.contextMenu(screen.getByRole("menuitem", { name: first.label }));
+	await user.pointer({
+		target: screen.getByRole("menuitem", { name: first.label }),
+		keys: "[MouseRight]",
+	});
 	await user.click(
 		await screen.findByRole("menuitem", { name: "Remove from quick links" }),
 	);

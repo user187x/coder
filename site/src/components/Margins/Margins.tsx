@@ -7,8 +7,8 @@ import {
 
 export type Size = "regular" | "medium" | "condensed" | "small";
 
-const widthBySize: Record<Size, number> = {
-	regular: containerWidth,
+const widthBySize: Record<Size, number | string> = {
+	regular: `var(--page-margins-max-width, ${containerWidth}px)`,
 	medium: containerWidthMedium,
 	condensed: containerWidth / 2,
 	small: containerWidth / 3,
@@ -24,15 +24,13 @@ export const Margins: React.FC<MarginsProps> = ({
 	className,
 	...divProps
 }) => {
-	const maxWidth = widthBySize[size];
 	return (
 		<div
 			data-dashboard-background=""
 			{...divProps}
 			style={{
-				maxWidth: maxWidth,
-				paddingLeft: sidePadding,
-				paddingRight: sidePadding,
+				maxWidth: widthBySize[size],
+				paddingInline: `var(--page-margins-padding, ${sidePadding}px)`,
 			}}
 			className={cn("mx-auto w-full", className)}
 		>

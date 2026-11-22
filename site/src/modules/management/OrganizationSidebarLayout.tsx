@@ -5,7 +5,7 @@ import { OrganizationSidebar } from "./OrganizationSidebar";
 
 const OrganizationSidebarLayout: React.FC = () => {
 	return (
-		<section className="px-4 sm:px-6 lg:px-10 max-w-[1920px] mx-auto">
+		<section className="w-full">
 			<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
 				<OrganizationSidebar />
 				<div className="grow min-w-0">

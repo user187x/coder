@@ -124,7 +124,7 @@ const HudPage: React.FC = () => {
 
 	if (!allowed) {
 		return (
-			<div className="w-full px-6 py-10">
+			<div className="w-full py-10">
 				<p className="text-content-secondary">The HUD is for administrators.</p>
 			</div>
 		);
@@ -139,7 +139,7 @@ const HudPage: React.FC = () => {
 			<title>{pageTitle("HUD")}</title>
 			<div
 				data-dashboard-background=""
-				className="flex w-full min-w-0 flex-col gap-6 px-6 pb-12 pt-8"
+				className="flex w-full min-w-0 flex-col gap-6 pb-12 pt-8"
 			>
 				<header className="flex flex-col gap-1">
 					<h1 className="m-0 flex items-center gap-2 text-2xl font-semibold">

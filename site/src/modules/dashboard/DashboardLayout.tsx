@@ -112,8 +112,9 @@ export const DashboardLayout: React.FC = () => {
 						data-dashboard-background=""
 						tabIndex={-1}
 						className={cn(
-							"relative flex flex-col flex-1 min-h-0",
-							!embedded && "pb-20 has-[>.flex-1]:pb-0",
+							"relative flex flex-col flex-1 min-h-0 min-w-0",
+							!embedded &&
+								"mx-auto w-full max-w-[1920px] px-4 pb-20 [--page-margins-max-width:100%] [--page-margins-padding:0px] has-[>.flex-1]:pb-0 sm:px-6 lg:px-10",
 							"focus:outline-hidden",
 						)}
 					>

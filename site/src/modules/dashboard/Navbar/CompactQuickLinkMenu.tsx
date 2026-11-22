@@ -46,17 +46,23 @@ const CompactQuickLinkMenu: React.FC<{
 	onChange?: (ids: string[]) => void;
 	children: React.ReactElement;
 }> = ({ link, ids, others, onChange, children }) => {
+	const [open, setOpen] = useState(false);
 	const [pinned, setPinned] = useState(false);
 	return (
 		<ContextMenu
 			modal={false}
-			onOpenChange={(open) => {
-				if (!open) setPinned(false);
+			onOpenChange={(nextOpen) => {
+				setOpen(nextOpen);
+				if (!nextOpen) setPinned(false);
 			}}
 		>
 			<ContextMenuTrigger
 				asChild
 				onContextMenu={(event) => event.stopPropagation()}
+				onPointerLeave={(event) => {
+					// The enclosing dropdown would take focus back as the pointer enters the context menu.
+					if (open) event.preventDefault();
+				}}
 			>
 				{children}
 			</ContextMenuTrigger>

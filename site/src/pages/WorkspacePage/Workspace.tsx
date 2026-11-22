@@ -228,7 +228,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 		/>
 	) : undefined;
 	const dashboard = (
-		<div className="workspace-dashboard-grid relative flex flex-col gap-6 max-w-[1200px] m-auto">
+		<div className="workspace-dashboard-grid relative flex w-full min-w-0 flex-col gap-6">
 			{!embedded && (
 				<div className="workspace-dashboard-expand-corner absolute z-[1]">
 					<CornerExpandButton
@@ -344,7 +344,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 		>
 			{/* Platform: no left sidebar - its Resources and History open from the top pill (WorkspaceNav), which floats
 			    over the dashboard as wide as it, staying in view as the dashboard scrolls */}
-			<div className="workspace-dashboard-scroll relative flex-1 min-h-0 w-full overflow-y-auto p-4 md:p-8 md:pt-6">
+			<div className="workspace-dashboard-scroll relative flex-1 min-h-0 w-full overflow-y-auto py-4 md:py-6">
 				<div className="workspace-dashboard-content relative z-10">
 					{!topAgents.length && workspaceTopbar}
 

@@ -11,6 +11,10 @@
 }
 .support-crt-screen {
 	position: relative;
+	display: flex;
+	flex-direction: column;
+	aspect-ratio: 4 / 3;
+	min-height: 12rem;
 	overflow: hidden;
 	border-radius: 22px / 18px;
 	border: 8px solid #090b0d;
@@ -36,24 +40,14 @@
 	display: none;
 }
 
-/*
- * Fill the monitor's width at 16:9, letterboxing other ratios, no taller than the window's room below the navbar,
- * the admin breadcrumb and the classification bars, less the monitor's own frame and footer (6rem): scrolled to
- * its top (support-crt-screen's scroll margin), the whole remote screen is in view.
- */
 .support-monitor-video,
 .support-workspace-screen {
 	width: 100%;
-	aspect-ratio: 16 / 9;
-	min-height: 256px;
-	max-height: calc(
-		calc(100dvh / var(--app-zoom, 1)) -
-		var(--dashboard-navigation-height, 72px) -
-		var(--admin-breadcrumb-height, 0px) -
-		2 *
-		var(--coder-classification-h, 0px) -
-		6rem
-	);
+	height: 100%;
+}
+.support-workspace-screen {
+	min-height: 0;
+	flex: 1;
 }
 .support-crt-screen {
 	scroll-margin-top: calc(
@@ -80,28 +74,71 @@
 	transform-origin: center;
 }
 .support-crt-screen:fullscreen {
-	display: flex;
-	flex-direction: column;
+	aspect-ratio: auto;
+	min-height: 0;
 	border: 0;
 	border-radius: 0;
 	background: #000;
 	box-shadow: none;
 }
-.support-crt-screen:fullscreen .support-monitor-video {
-	height: 100%;
-	min-height: 0;
-	max-height: none;
-	aspect-ratio: auto;
-}
-.support-crt-screen:fullscreen .support-workspace-screen {
-	flex: 1;
-	min-height: 0;
-	max-height: none;
-	aspect-ratio: auto;
-}
 
 .support-monitor {
 	container-type: inline-size;
+}
+.support-dial-control {
+	min-width: 5.125rem;
+	flex-direction: column;
+	gap: 0.375rem;
+	padding: 0.375rem 0.5rem;
+}
+.support-dial-knob {
+	position: relative;
+	display: grid;
+	width: 2.75rem;
+	aspect-ratio: 1;
+	place-items: center;
+	border-radius: 50%;
+	border: 2px solid #111215;
+	background: repeating-conic-gradient(#515257 0deg 6deg, #303136 6deg 12deg);
+	color: #e4e5e6;
+	box-shadow:
+		0 2px 4px #0009,
+		inset 0 0 0 1px #ffffff22;
+}
+.support-dial-knob::before {
+	content: "";
+	position: absolute;
+	inset: 4px;
+	border-radius: inherit;
+	background: linear-gradient(145deg, #67686d, #232427 70%);
+	box-shadow: inset 0 1px 1px #ffffff35;
+}
+.support-dial-knob::after {
+	content: "";
+	position: absolute;
+	inset: 3px 0 auto;
+	margin-inline: auto;
+	width: 2px;
+	height: 5px;
+	border-radius: 2px;
+	transform-origin: center 17px;
+	transform: rotate(-36deg);
+	background: currentColor;
+}
+.support-dial-knob > svg {
+	position: relative;
+	width: 0.9375rem;
+	height: 0.9375rem;
+}
+.support-dial-control:not(:disabled):hover .support-dial-knob {
+	filter: brightness(1.18);
+}
+.support-dial-control[aria-pressed="true"] .support-dial-knob::after {
+	transform: rotate(36deg);
+	background: hsl(var(--content-success));
+}
+.support-dial-control:disabled .support-dial-knob {
+	opacity: 0.65;
 }
 .support-search-controls {
 	display: grid;

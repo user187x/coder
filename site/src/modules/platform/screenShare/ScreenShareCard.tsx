@@ -76,10 +76,8 @@ export const ScreenShareCard = ({
 			setFullscreenError("Fullscreen is unavailable in this browser.");
 		}
 	};
-	// Brings the whole monitor into view, its top just under the navbar.
-	const showWholeScreen = () =>
+	const scrollToScreen = () =>
 		viewer.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-	// A remote screen that starts showing is scrolled fully into view.
 	const live = Boolean(media.remote);
 	useEffect(() => {
 		if (live)
@@ -144,33 +142,46 @@ export const ScreenShareCard = ({
 							Waiting for the user to allow tab video
 						</span>
 					)}
-					<Button size="sm" variant="outline" onClick={toggleFullscreen}>
-						<MaximizeIcon />
+					<Button
+						size="xs"
+						variant="subtle"
+						className="support-dial-control"
+						onClick={toggleFullscreen}
+					>
+						<span className="support-dial-knob" aria-hidden>
+							<MaximizeIcon />
+						</span>
 						Fullscreen
 					</Button>
 					<Button
-						size="sm"
-						variant="outline"
+						size="xs"
+						variant="subtle"
+						className="support-dial-control"
 						disabled={!media.remote}
 						aria-pressed={fill}
 						onClick={() => {
 							setFill(!fill);
-							showWholeScreen();
+							scrollToScreen();
 						}}
 						title="Fit shows the entire screen; Fill crops its edges to fill the monitor."
 					>
-						<ScanIcon />
+						<span className="support-dial-knob" aria-hidden>
+							<ScanIcon />
+						</span>
 						{fill ? "Fit screen" : "Fill monitor"}
 					</Button>
 					<Button
-						size="sm"
-						variant="outline"
+						size="xs"
+						variant="subtle"
+						className="support-dial-control"
 						disabled={!media.remote}
 						aria-pressed={paused}
 						onClick={() => setPaused(!paused)}
 						title="Pause your view without stopping the remote workspace."
 					>
-						{paused ? <PlayIcon /> : <PauseIcon />}
+						<span className="support-dial-knob" aria-hidden>
+							{paused ? <PlayIcon /> : <PauseIcon />}
+						</span>
 						{paused ? "Resume view" : "Pause view"}
 					</Button>
 					{selected && !directWorkspace && (
@@ -263,7 +274,7 @@ export const ScreenShareCard = ({
 							controlButtonRef={controlButton}
 						/>
 					) : (
-						<div className="flex min-h-64 flex-col items-center justify-center gap-3 p-8 text-center font-mono">
+						<div className="flex flex-1 flex-col items-center justify-center gap-3 p-4 text-center font-mono sm:p-8">
 							<span className="text-3xl">◉</span>
 							<strong>{media.id ? media.status : "NO SIGNAL"}</strong>
 							<span className="text-xs text-content-secondary">
