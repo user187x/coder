@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import "./hudHeartbeat.css";
 
@@ -24,12 +25,14 @@ export function heartbeatLabel(latency: number | undefined, failed: boolean) {
 /** Draws one sweep for each successful probe, with slower responses represented by wider beat spacing. */
 export const HudHeartbeat = ({
 	label = "Coder heartbeat",
+	compact = false,
 	latency,
 	previous,
 	failed,
 	updatedAt,
 }: {
 	label?: string;
+	compact?: boolean;
 	latency?: number;
 	previous?: number;
 	failed: boolean;
@@ -51,29 +54,35 @@ export const HudHeartbeat = ({
 				: `color-mix(in srgb, ${warning}, ${critical} ${Math.min((latency - warningLatency) / (criticalLatency - warningLatency), 1) * 100}%)`;
 
 	return (
-		<div className="hud-heartbeat" style={{ color }}>
-			<div className="flex items-center justify-between gap-2 px-2 pt-1.5 text-xs">
-				<span className="font-medium text-content-primary">{label}</span>
-				<span
-					className="flex items-center gap-0.5 font-mono tabular-nums"
-					aria-live="polite"
-				>
-					{change !== 0 && (
-						<>
-							<Trend aria-hidden className="size-3 shrink-0" />
-							<span className="sr-only">
-								{change > 0 ? "Latency increased" : "Latency decreased"}
-							</span>
-						</>
-					)}
-					<span>{heartbeatLabel(latency, failed)}</span>
-				</span>
-			</div>
+		<div
+			className="hud-heartbeat"
+			style={{ color }}
+			aria-hidden={compact || undefined}
+		>
+			{!compact && (
+				<div className="flex items-center justify-between gap-2 px-2 pt-1.5 text-xs">
+					<span className="font-medium text-content-primary">{label}</span>
+					<span
+						className="flex items-center gap-0.5 font-mono tabular-nums"
+						aria-live="polite"
+					>
+						{change !== 0 && (
+							<>
+								<Trend aria-hidden className="size-3 shrink-0" />
+								<span className="sr-only">
+									{change > 0 ? "Latency increased" : "Latency decreased"}
+								</span>
+							</>
+						)}
+						<span>{heartbeatLabel(latency, failed)}</span>
+					</span>
+				</div>
+			)}
 			<svg
 				aria-hidden
 				viewBox="0 0 200 44"
 				preserveAspectRatio="none"
-				className="block h-10 w-full"
+				className={cn("block w-full", compact ? "h-8" : "h-10")}
 			>
 				<path
 					d={baseline}

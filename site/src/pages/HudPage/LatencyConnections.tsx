@@ -7,6 +7,7 @@ import { workspaces } from "#/api/queries/workspaces";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Loader } from "#/components/Loader/Loader";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
+import { HudHeartbeat } from "#/modules/dashboard/Navbar/HudHeartbeat";
 import { workspaceLatency } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 
@@ -50,48 +51,62 @@ export function ServiceLatencies() {
 				</p>
 			)}
 			<div className={gridClass}>
-				{links.map((edge) => (
-					<article key={edge.id} className={cardClass}>
-						<h3 className="m-0 flex flex-wrap items-center gap-2 text-sm font-medium">
-							{labels.get(edge.from) ?? edge.from}
-							<ArrowRightIcon
-								aria-hidden
-								className="size-3 shrink-0 text-content-secondary"
-							/>
-							<span className="sr-only">to</span>
-							{labels.get(edge.to) ?? edge.to}
-						</h3>
-						<p className="my-2 font-mono text-base tabular-nums">
-							{formatLatency(edge.ms) ??
-								(edge.error ? "Unavailable" : "Not measured")}
-						</p>
-						<p className="m-0 break-words text-xs text-content-secondary">
-							{edge.error ?? edge.note ?? edge.method}
-						</p>
-						{edge.samples.length > 0 && (
-							<details className="mt-3 text-xs">
-								<summary className="cursor-pointer text-content-link">
-									Measurements
-								</summary>
-								<ul className="my-2 list-none space-y-2 p-0">
-									{edge.samples.map((sample) => (
-										<li
-											key={`${sample.target}:${sample.method}`}
-											className="break-words"
-										>
-											{sample.target}{" "}
-											<span className="text-content-secondary">
-												{formatLatency(sample.ms) ??
-													sample.error ??
-													"Not measured"}
-											</span>
-										</li>
-									))}
-								</ul>
-							</details>
-						)}
-					</article>
-				))}
+				{links.map((edge) => {
+					const latency = formatLatency(edge.ms);
+					return (
+						<article key={edge.id} className={cardClass}>
+							<div className="mb-2 flex items-start justify-between gap-3">
+								<div className="min-w-0">
+									<h3 className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
+										{labels.get(edge.from) ?? edge.from}
+										<ArrowRightIcon
+											aria-hidden
+											className="size-3 shrink-0 text-content-secondary"
+										/>
+										<span className="sr-only">to</span>
+										{labels.get(edge.to) ?? edge.to}
+									</h3>
+									<p className="mb-0 mt-2 font-mono text-base tabular-nums">
+										{latency ?? (edge.error ? "Unavailable" : "Not measured")}
+									</p>
+								</div>
+								<div className="w-[clamp(3rem,34%,8rem)] shrink-0 rounded-lg border border-solid border-border/70 bg-surface-secondary/50 p-1">
+									<HudHeartbeat
+										compact
+										latency={latency ? (edge.ms ?? undefined) : undefined}
+										failed={Boolean(edge.error)}
+										updatedAt={query.dataUpdatedAt}
+									/>
+								</div>
+							</div>
+							<p className="m-0 break-words text-xs text-content-secondary">
+								{edge.error ?? edge.note ?? edge.method}
+							</p>
+							{edge.samples.length > 0 && (
+								<details className="mt-3 text-xs">
+									<summary className="cursor-pointer text-content-link">
+										Measurements
+									</summary>
+									<ul className="my-2 list-none space-y-2 p-0">
+										{edge.samples.map((sample) => (
+											<li
+												key={`${sample.target}:${sample.method}`}
+												className="break-words"
+											>
+												{sample.target}{" "}
+												<span className="text-content-secondary">
+													{formatLatency(sample.ms) ??
+														sample.error ??
+														"Not measured"}
+												</span>
+											</li>
+										))}
+									</ul>
+								</details>
+							)}
+						</article>
+					);
+				})}
 			</div>
 		</section>
 	);
