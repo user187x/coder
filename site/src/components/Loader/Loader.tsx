@@ -32,7 +32,11 @@ export const Loader: React.FC<LoaderProps> = ({
 				className,
 			)}
 		>
-			<Spinner size={fullscreen && size === "lg" ? "page" : size} loading />
+			<Spinner
+				size={fullscreen && size === "lg" ? "page" : size}
+				className={size === "lg" && !fullscreen ? "size-10" : undefined}
+				loading
+			/>
 		</div>
 	);
 };

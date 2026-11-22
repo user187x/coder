@@ -68,7 +68,11 @@ export const QuotaClusterLoad: React.FC<{ report: QuotaReport }> = ({
 						: " Metrics unavailable: CPU and memory show reservations."}
 				</p>
 			</div>
-			<div className="my-auto flex flex-col gap-3">
+			<div
+				role="group"
+				aria-label="Cluster resource usage"
+				className="flex flex-col divide-y divide-solid divide-border rounded-2xl border border-solid border-border bg-surface-secondary px-3 [&>div]:py-3"
+			>
 				{rows.map((r) => {
 					const provisioned = users.reduce(
 						(sum, u) => sum + u.usage[r.kind],

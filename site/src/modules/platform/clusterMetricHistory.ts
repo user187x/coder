@@ -1,5 +1,24 @@
 import type { ClusterNetwork } from "#/api/platform";
 
+export const GIBIBYTE = 1024 ** 3;
+
+const capacityUnits = ["B", "KB", "MB", "GB", "TB", "PB"];
+const capacityAmount = new Intl.NumberFormat("en-US", {
+	maximumFractionDigits: 2,
+});
+
+/** Formats bytes in decimal capacity units. The source readings keep their full precision. */
+export const formatCapacity = (bytes: number): string => {
+	if (!Number.isFinite(bytes) || bytes < 0) return "Unknown";
+	let unit = 0;
+	let amount = bytes;
+	while (amount >= 1000 && unit < capacityUnits.length - 1) {
+		amount /= 1000;
+		unit++;
+	}
+	return `${capacityAmount.format(unit === 0 ? Math.round(amount) : amount)} ${capacityUnits[unit]}`;
+};
+
 export const clusterMetrics = {
 	cpu: { title: "Total CPU used", unit: "cores" },
 	memory: { title: "Total memory used", unit: "GiB" },

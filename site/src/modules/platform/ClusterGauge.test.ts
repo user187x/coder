@@ -1,6 +1,23 @@
 import { graphTop, usageShares } from "./ClusterGauge";
-import { formatRate, historyX, networkTrace } from "./clusterMetricHistory";
+import {
+	formatCapacity,
+	formatRate,
+	GIBIBYTE,
+	historyX,
+	networkTrace,
+} from "./clusterMetricHistory";
 import { metricTicks } from "./MetricYAxis";
+
+describe("formatCapacity", () => {
+	it("uses decimal units for the bytes represented by each reading", () => {
+		expect(formatCapacity(0)).toBe("0 B");
+		expect(formatCapacity(512_000)).toBe("512 KB");
+		expect(formatCapacity(32_000_000)).toBe("32 MB");
+		expect(formatCapacity(64 * GIBIBYTE)).toBe("68.72 GB");
+		expect(formatCapacity(1876.7 * GIBIBYTE)).toBe("2.02 TB");
+		expect(formatCapacity(Number.NaN)).toBe("Unknown");
+	});
+});
 
 describe("formatRate", () => {
 	it("shows bytes per second from B/s to GB/s", () => {

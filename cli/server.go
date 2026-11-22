@@ -1114,6 +1114,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			options.WorkspaceBuilderMetrics = wsBuilderMetrics
 
 			// Manage notifications.
+			options.DeploymentValues.Notifications.SuppressAINotifications = true
 			var (
 				notificationsCfg     = options.DeploymentValues.Notifications
 				notificationsManager *notifications.Manager

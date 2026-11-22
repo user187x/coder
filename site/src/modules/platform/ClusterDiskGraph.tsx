@@ -1,6 +1,7 @@
 import { getErrorMessage } from "#/api/errors";
 import type { HudHistory, HudHistoryPoint } from "#/api/platform";
 import { ClusterMetricPlot } from "./ClusterMetricDrilldown";
+import { formatCapacity, GIBIBYTE } from "./clusterMetricHistory";
 import { MetricMeter } from "./MetricMeter";
 import { MetricSample } from "./MetricSample";
 import { MetricYAxis } from "./MetricYAxis";
@@ -24,9 +25,7 @@ export const diskAmounts = (point: Partial<HudHistoryPoint> | undefined) => {
 };
 
 const formatDisk = (value: number | null) =>
-	value === null
-		? "Unknown"
-		: `${value.toLocaleString("en-US", { maximumFractionDigits: 1 })} GiB`;
+	value === null ? "Unknown" : formatCapacity(value * GIBIBYTE);
 
 /** The measurements use independent physical capacity and PVC claims. */
 export function diskMeasurement({

@@ -22,6 +22,7 @@ import (
 
 var (
 	ErrCannotEnqueueDisabledNotification = xerrors.New("notification is not enabled")
+	errAINotificationsSuppressed         = xerrors.New("AI notifications suppressed by the server")
 	ErrDuplicate                         = xerrors.New("duplicate notification")
 )
 
@@ -40,6 +41,7 @@ type StoreEnqueuer struct {
 	defaultMethod  database.NotificationMethod
 	defaultEnabled bool
 	inboxEnabled   bool
+	suppressAI     bool
 
 	// helpers holds a map of template funcs which are used when rendering templates. These need to be passed in because
 	// the template funcs will return values which are inappropriately encapsulated in this struct.
@@ -66,6 +68,7 @@ func NewStoreEnqueuer(cfg codersdk.NotificationsConfig, store Store, helpers tem
 		defaultMethod:  method,
 		defaultEnabled: cfg.Enabled(),
 		inboxEnabled:   cfg.Inbox.Enabled.Value(),
+		suppressAI:     cfg.SuppressAINotifications,
 		helpers:        helpers,
 		clock:          clock,
 	}, nil
@@ -81,6 +84,11 @@ func (s *StoreEnqueuer) Enqueue(ctx context.Context, userID, templateID uuid.UUI
 // Messages will be dequeued by a notifier later and dispatched.
 // Returns the IDs of successfully enqueued messages, if any.
 func (s *StoreEnqueuer) EnqueueWithData(ctx context.Context, userID, templateID uuid.UUID, labels map[string]string, data map[string]any, createdBy string, targets ...uuid.UUID) ([]uuid.UUID, error) {
+	if s.suppressAI && IsAINotificationTemplate(templateID) {
+		s.log.Debug(ctx, "notification not enqueued", slog.F("template_id", templateID), slog.Error(errAINotificationsSuppressed))
+		return nil, nil
+	}
+
 	metadata, err := s.store.FetchNewMessageMetadata(ctx, database.FetchNewMessageMetadataParams{
 		UserID:                 userID,
 		NotificationTemplateID: templateID,

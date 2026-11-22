@@ -1985,6 +1985,54 @@ func TestDisabledBeforeEnqueue(t *testing.T) {
 	require.Empty(t, notifIDs)
 }
 
+func TestAINotificationsSuppressed(t *testing.T) {
+	t.Parallel()
+
+	ctx := dbauthz.AsNotifier(testutil.Context(t, testutil.WaitSuperLong))
+	store, pubsub := dbtestutil.NewDB(t)
+	logger := testutil.Logger(t)
+	user := createSampleUser(t, store)
+	id := notifications.TemplateAIModelsUnpricedReport
+	cfg := defaultNotificationsConfig(database.NotificationMethodSmtp)
+	original, err := notifications.NewStoreEnqueuer(cfg, store, defaultHelpers(), logger, quartz.NewReal())
+	require.NoError(t, err)
+	_, err = store.UpdateUserNotificationPreferences(ctx, database.UpdateUserNotificationPreferencesParams{
+		UserID:                  user.ID,
+		NotificationTemplateIds: []uuid.UUID{id},
+		Disableds:               []bool{false},
+	})
+	require.NoError(t, err)
+	queued, err := original.Enqueue(ctx, user.ID, id, nil, "test")
+	require.NoError(t, err)
+	require.NotEmpty(t, queued)
+
+	cfg.SuppressAINotifications = true
+	enq, err := notifications.NewStoreEnqueuer(cfg, store, defaultHelpers(), logger, quartz.NewReal())
+	require.NoError(t, err)
+	for _, templateID := range []uuid.UUID{id, notifications.TemplateChatShared} {
+		ids, err := enq.Enqueue(ctx, user.ID, templateID, nil, "test")
+		require.NoError(t, err)
+		require.Empty(t, ids)
+	}
+	mgr, err := notifications.NewManager(cfg, store, pubsub, defaultHelpers(), createMetrics(), logger)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, mgr.Stop(ctx)) })
+	mgr.Run(ctx)
+	require.EventuallyWithT(t, func(ct *assert.CollectT) {
+		inhibited, err := store.GetNotificationMessagesByStatus(ctx, database.GetNotificationMessagesByStatusParams{
+			Status: database.NotificationMessageStatusInhibited,
+			Limit:  10,
+		})
+		assert.NoError(ct, err)
+		if assert.Len(ct, inhibited, len(queued)) {
+			for _, message := range inhibited {
+				assert.Contains(ct, queued, message.ID)
+				assert.Contains(ct, message.StatusReason.String, "AI notifications suppressed")
+			}
+		}
+	}, testutil.WaitLong, testutil.IntervalFast)
+}
+
 // TestDisabledAfterEnqueue ensures that notifications enqueued before a notification template was disabled will not be
 // sent, and will instead be marked as "inhibited".
 func TestDisabledAfterEnqueue(t *testing.T) {

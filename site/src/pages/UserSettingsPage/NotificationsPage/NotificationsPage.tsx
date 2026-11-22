@@ -14,12 +14,17 @@ import {
 } from "#/api/queries/notifications";
 import type { NotificationTemplate } from "#/api/typesGenerated";
 import { Loader } from "#/components/Loader/Loader";
-import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Switch } from "#/components/Switch/Switch";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "#/components/Tabs/Tabs";
 import {
 	Tooltip,
 	TooltipContent,
@@ -91,7 +96,7 @@ const NotificationsPage: React.FC = () => {
 			});
 	}, [searchParams.delete, disabledId, disableMutation]);
 
-	const [groupPage, setGroupPage] = useState(1);
+	const [selectedGroup, setSelectedGroup] = useState("");
 	const ready =
 		disabledPreferences.data &&
 		systemTemplatesByGroup.data &&
@@ -102,12 +107,14 @@ const NotificationsPage: React.FC = () => {
 		...systemTemplatesByGroup.data,
 		...customTemplatesByGroup.data,
 	};
-	// One group a page: the list is long, and the card keeps the Account card's size.
-	const groups = Object.entries(allTemplatesByGroup).filter(([group]) =>
-		canSeeNotificationGroup(group, permissions),
-	);
-	const pageCount = Math.max(1, groups.length);
-	const shownPage = Math.min(groupPage, pageCount);
+	const groups = Object.entries(allTemplatesByGroup)
+		.filter(([group]) => canSeeNotificationGroup(group, permissions))
+		.map(([group, templates]) => ({
+			group,
+			templates,
+			id: encodeURIComponent(group),
+		}));
+	const shownGroup = groups.find(({ id }) => id === selectedGroup) ?? groups[0];
 
 	return (
 		<>
@@ -121,136 +128,145 @@ const NotificationsPage: React.FC = () => {
 			</UserSettingsHeader>
 
 			{ready ? (
-				<div className="flex flex-col gap-8">
-					{groups.slice(shownPage - 1, shownPage).map(([group, templates]) => {
-						const allDisabled = templates.some((tpl) => {
-							return notificationIsDisabled(disabledPreferences.data, tpl);
-						});
+				<Tabs
+					value={shownGroup?.id ?? ""}
+					onValueChange={setSelectedGroup}
+					className="flex flex-col gap-5"
+				>
+					<TabsList aria-label="Notification groups">
+						{groups.map(({ group, id }) => (
+							<TabsTrigger key={id} value={id}>
+								{group}
+							</TabsTrigger>
+						))}
+					</TabsList>
+					{groups
+						.filter(({ id }) => id === shownGroup?.id)
+						.map(({ group, templates, id }) => {
+							const allDisabled = templates.some((tpl) => {
+								return notificationIsDisabled(disabledPreferences.data, tpl);
+							});
 
-						return (
-							<article
-								className="border border-solid rounded-lg overflow-hidden bg-surface-primary"
-								key={group}
-							>
-								<div className="flex flex-col">
-									<header className="flex items-center justify-start gap-2 bg-surface-secondary border-0 border-b border-solid px-4 py-3">
-										<div className="flex items-center gap-2">
-											<Switch
-												id={group}
-												checked={!allDisabled}
-												onCheckedChange={async (checked) => {
-													const updated = { ...disabledPreferences.data };
-													for (const tpl of templates) {
-														updated[tpl.id] = !checked;
-													}
-													await updatePreferences.mutateAsync(
-														{
-															template_disabled_map: updated,
-														},
-														{
-															onSuccess: () => {
-																toast.success(
-																	"Notification preferences updated.",
-																);
+							return (
+								<TabsContent
+									value={id}
+									className="border border-solid rounded-lg overflow-hidden bg-surface-primary"
+									key={group}
+								>
+									<div className="flex flex-col">
+										<header className="flex items-center justify-start gap-2 bg-surface-secondary border-0 border-b border-solid px-4 py-3">
+											<div className="flex items-center gap-2">
+												<Switch
+													id={`notification-group-${id}`}
+													checked={!allDisabled}
+													onCheckedChange={async (checked) => {
+														const updated = { ...disabledPreferences.data };
+														for (const tpl of templates) {
+															updated[tpl.id] = !checked;
+														}
+														await updatePreferences.mutateAsync(
+															{
+																template_disabled_map: updated,
 															},
-															onError: (error) => {
-																toast.error(
-																	"Error updating notification preferences.",
-																	{
-																		description: getErrorDetail(error),
-																	},
-																);
+															{
+																onSuccess: () => {
+																	toast.success(
+																		"Notification preferences updated.",
+																	);
+																},
+																onError: (error) => {
+																	toast.error(
+																		"Error updating notification preferences.",
+																		{
+																			description: getErrorDetail(error),
+																		},
+																	);
+																},
 															},
-														},
-													);
-												}}
-											/>
-										</div>
-										<label htmlFor={group} className="font-medium text-sm">
-											{group}
-										</label>
-									</header>
-									{templates.map((tmpl) => {
-										const method = castNotificationMethod(
-											tmpl.method || dispatchMethods.data.default,
-										);
-										const Icon = methodIcons[method];
-										const label = methodLabels[method];
+														);
+													}}
+												/>
+											</div>
+											<label
+												htmlFor={`notification-group-${id}`}
+												className="font-medium text-sm"
+											>
+												{group}
+											</label>
+										</header>
+										{templates.map((tmpl) => {
+											const method = castNotificationMethod(
+												tmpl.method || dispatchMethods.data.default,
+											);
+											const Icon = methodIcons[method];
+											const label = methodLabels[method];
 
-										const disabled = notificationIsDisabled(
-											disabledPreferences.data,
-											tmpl,
-										);
+											const disabled = notificationIsDisabled(
+												disabledPreferences.data,
+												tmpl,
+											);
 
-										return (
-											<Fragment key={tmpl.id}>
-												<div className="flex items-center justify-between gap-3 px-4 py-3 border-0 not-last:border-b border-solid">
-													<div className="flex items-center gap-2">
-														<Switch
-															id={tmpl.id}
-															checked={!disabled}
-															onCheckedChange={async (checked) => {
-																await updatePreferences.mutateAsync(
-																	{
-																		template_disabled_map: {
-																			...disabledPreferences.data,
-																			[tmpl.id]: !checked,
+											return (
+												<Fragment key={tmpl.id}>
+													<div className="flex items-center justify-between gap-3 px-4 py-3 border-0 not-last:border-b border-solid">
+														<div className="flex items-center gap-2">
+															<Switch
+																id={tmpl.id}
+																checked={!disabled}
+																onCheckedChange={async (checked) => {
+																	await updatePreferences.mutateAsync(
+																		{
+																			template_disabled_map: {
+																				...disabledPreferences.data,
+																				[tmpl.id]: !checked,
+																			},
 																		},
-																	},
-																	{
-																		onSuccess: () => {
-																			toast.success(
-																				"Notification preferences updated.",
-																			);
+																		{
+																			onSuccess: () => {
+																				toast.success(
+																					"Notification preferences updated.",
+																				);
+																			},
+																			onError: (error) => {
+																				toast.error(
+																					"Error updating notification preferences.",
+																					{
+																						description: getErrorDetail(error),
+																					},
+																				);
+																			},
 																		},
-																		onError: (error) => {
-																			toast.error(
-																				"Error updating notification preferences.",
-																				{
-																					description: getErrorDetail(error),
-																				},
-																			);
-																		},
-																	},
-																);
-															}}
-														/>
-														<label
-															htmlFor={tmpl.id}
-															className="font-medium text-sm"
-														>
-															{tmpl.name}
-														</label>
-													</div>
-
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<Icon
-																className="size-icon-sm text-content-secondary"
-																aria-label={label}
+																	);
+																}}
 															/>
-														</TooltipTrigger>
-														<TooltipContent side="bottom">
-															Delivery via {label}
-														</TooltipContent>
-													</Tooltip>
-												</div>
-											</Fragment>
-										);
-									})}
-								</div>
-							</article>
-						);
-					})}
-					<PaginationWidgetBase
-						currentPage={shownPage}
-						pageSize={1}
-						totalRecords={groups.length}
-						onPageChange={setGroupPage}
-						hasPreviousPage={shownPage > 1}
-						hasNextPage={shownPage < pageCount}
-					/>
-				</div>
+															<label
+																htmlFor={tmpl.id}
+																className="font-medium text-sm"
+															>
+																{tmpl.name}
+															</label>
+														</div>
+
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<Icon
+																	className="size-icon-sm text-content-secondary"
+																	aria-label={label}
+																/>
+															</TooltipTrigger>
+															<TooltipContent side="bottom">
+																Delivery via {label}
+															</TooltipContent>
+														</Tooltip>
+													</div>
+												</Fragment>
+											);
+										})}
+									</div>
+								</TabsContent>
+							);
+						})}
+				</Tabs>
 			) : (
 				<Loader />
 			)}
@@ -270,12 +286,8 @@ function canSeeNotificationGroup(
 		case "User Events":
 			return permissions.createUser;
 		case "Workspace Events":
-		case "Chat Events":
 		case "Custom Events":
-		case "AI Cost Control Events":
 			return true;
-		case "AI Cost Control Admin Events":
-			return permissions.createUser;
 		default:
 			return false;
 	}

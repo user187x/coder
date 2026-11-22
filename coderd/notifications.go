@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -138,6 +139,11 @@ func (api *API) notificationTemplatesByKind(rw http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if kind == database.NotificationTemplateKindSystem && api.DeploymentValues.Notifications.SuppressAINotifications {
+		templates = slices.DeleteFunc(templates, func(template database.NotificationTemplate) bool {
+			return notifications.IsAINotificationTemplate(template.ID)
+		})
+	}
 	out := convertNotificationTemplates(templates)
 	httpapi.Write(r.Context(), rw, http.StatusOK, out)
 }

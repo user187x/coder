@@ -171,9 +171,14 @@ func (n *notifier) process(ctx context.Context, success chan<- dispatchResult, f
 
 	var eg errgroup.Group
 	for _, msg := range msgs {
-		// If a notification template has been disabled by the user after a notification was enqueued, mark it as inhibited
-		if msg.Disabled {
-			failure <- n.newInhibitedDispatch(msg)
+		// Apply the current policy to messages queued before a template was disabled.
+		suppressAI := n.cfg.SuppressAINotifications && IsAINotificationTemplate(msg.TemplateID)
+		if msg.Disabled || suppressAI {
+			result := n.newInhibitedDispatch(msg)
+			if suppressAI {
+				result.err = errAINotificationsSuppressed
+			}
+			failure <- result
 			n.metrics.pendingUpdatesGauge.set(func() int { return len(success) + len(failure) })
 			continue
 		}

@@ -1256,6 +1256,9 @@ type RetentionConfig struct {
 }
 
 type NotificationsConfig struct {
+	// SuppressAINotifications is the server's policy for AI templates.
+	SuppressAINotifications bool `json:"-"`
+
 	// The upper limit of attempts to send a notification.
 	MaxSendAttempts serpent.Int64 `json:"max_send_attempts" typescript:",notnull"`
 	// The minimum time between retries.

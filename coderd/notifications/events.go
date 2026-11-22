@@ -68,3 +68,16 @@ var (
 	TemplateAIBudgetLimitReachedAdmin = uuid.MustParse("0bafe0ea-a78b-4217-ad05-1ef12e92e025")
 	TemplateAIModelsUnpricedReport    = uuid.MustParse("1b7d9fa7-f5a8-4e46-8078-5cf53abfed94")
 )
+
+// IsAINotificationTemplate identifies the agent chat and AI cost control templates.
+func IsAINotificationTemplate(id uuid.UUID) bool {
+	switch id {
+	case TemplateChatAutoArchiveDigest, TemplateChatShared,
+		TemplateAIBudgetWarningUser, TemplateAIBudgetLimitReachedUser,
+		TemplateAIBudgetWarningAdmin, TemplateAIBudgetLimitReachedAdmin,
+		TemplateAIModelsUnpricedReport:
+		return true
+	default:
+		return false
+	}
+}

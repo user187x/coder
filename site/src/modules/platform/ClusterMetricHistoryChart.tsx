@@ -1,7 +1,9 @@
 import {
 	type ClusterMetricSelection,
 	clusterMetrics,
+	formatCapacity,
 	formatRate,
+	GIBIBYTE,
 	nearestSample,
 	networkTrace,
 } from "./clusterMetricHistory";
@@ -40,6 +42,15 @@ export const ClusterMetricHistoryChart = ({
 	}
 	const network = metric === "net";
 	const { title, unit } = clusterMetrics[metric];
+	const capacity = metric === "memory" || metric === "disk";
+	const axisTitle = network ? "Transfer rate" : capacity ? "Capacity" : unit;
+	const formatTick = (value: number) => {
+		if (value === 0) return "0";
+		if (network) return formatRate(Math.abs(value));
+		return capacity
+			? formatCapacity(value * GIBIBYTE)
+			: tickNumber.format(value);
+	};
 	const peak = Math.max(
 		network ? 1 : 0.01,
 		...samples.flatMap((p) => [p.value, p.received ?? 0]),
@@ -73,12 +84,12 @@ export const ClusterMetricHistoryChart = ({
 		<div className="min-w-0" data-panel-metric={metric}>
 			<svg
 				role="img"
-				aria-label={`${title} from ${sampleClock(first.t)} to ${sampleClock(last.t)}, ${unit}`}
+				aria-label={`${title} from ${sampleClock(first.t)} to ${sampleClock(last.t)}, ${axisTitle}`}
 				viewBox="0 0 780 255"
 				className="block w-full"
 			>
 				<text x={plot.left} y={14} className="fill-content-secondary text-xs">
-					{network ? "Transfer rate" : unit}
+					{axisTitle}
 				</text>
 				{metricTicks(min, max).map(({ value, major }) => (
 					<g key={value}>
@@ -100,9 +111,7 @@ export const ClusterMetricHistoryChart = ({
 								dominantBaseline="middle"
 								className="fill-content-secondary text-xs"
 							>
-								{network && value !== 0
-									? formatRate(Math.abs(value))
-									: tickNumber.format(value)}
+								{formatTick(value)}
 							</text>
 						)}
 					</g>

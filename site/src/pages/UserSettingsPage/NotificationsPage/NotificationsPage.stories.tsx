@@ -54,28 +54,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof NotificationsPage>;
 
-export const Default: Story = {
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await Promise.all([
-			// System notification templates
-			canvas.findByRole("switch", { name: "Chat Events" }),
-			canvas.findByRole("switch", { name: "Template Events" }),
-			canvas.findByRole("switch", { name: "User Events" }),
-			canvas.findByRole("switch", { name: "Workspace Events" }),
-
-			// Custom notification template
-			canvas.findByRole("switch", { name: "Custom Events" }),
-		]);
-	},
-};
+export const Default: Story = {};
 
 export const ToggleGroup: Story = {
 	play: async ({ canvasElement }) => {
 		spyOn(API, "putUserNotificationPreferences").mockResolvedValue([]);
 		const user = userEvent.setup();
 		const canvas = within(canvasElement);
+		await user.click(
+			await canvas.findByRole("tab", { name: "Workspace Events" }),
+		);
 		const groupLabel = await canvas.findByLabelText("Workspace Events");
 		await user.click(groupLabel);
 	},
@@ -86,6 +74,9 @@ export const ToggleNotification: Story = {
 		spyOn(API, "putUserNotificationPreferences").mockResolvedValue([]);
 		const user = userEvent.setup();
 		const canvas = within(canvasElement);
+		await user.click(
+			await canvas.findByRole("tab", { name: "Workspace Events" }),
+		);
 		const notificationLabel = await canvas.findByLabelText(
 			"Workspace Marked as Dormant",
 		);
@@ -157,9 +148,11 @@ export const DisableValidTemplate: Story = {
 	],
 	play: async ({ canvasElement }) => {
 		await within(document.body).findByText("Notification has been disabled.");
-		const switchEl = await within(canvasElement).findByLabelText(
-			templateToDisable.name,
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			await canvas.findByRole("tab", { name: templateToDisable.group }),
 		);
+		const switchEl = await canvas.findByLabelText(templateToDisable.name);
 		expect(switchEl).not.toBeChecked();
 	},
 };

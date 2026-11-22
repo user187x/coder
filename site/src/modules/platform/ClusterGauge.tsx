@@ -12,7 +12,9 @@ import { hudHistory } from "#/api/queries/platform";
 import { ClusterDiskGraph } from "./ClusterDiskGraph";
 import { ClusterMetricPlot } from "./ClusterMetricDrilldown";
 import {
+	formatCapacity,
 	formatRate,
+	GIBIBYTE,
 	HISTORY_SLOTS,
 	historyX,
 	horizontalHistoryWindow,
@@ -23,12 +25,15 @@ import { MetricMeter } from "./MetricMeter";
 import { MetricSample } from "./MetricSample";
 import { MetricYAxis } from "./MetricYAxis";
 
-const GiB = 1024 ** 3;
-
+const compactCount = new Intl.NumberFormat("en-US", {
+	notation: "compact",
+	maximumSignificantDigits: 3,
+});
 const trimNumber = (value: number): string => {
 	if (!Number.isFinite(value)) {
 		return "0";
 	}
+	if (value >= 1000) return compactCount.format(value);
 	const fixed =
 		value >= 100
 			? value.toFixed(0)
@@ -40,18 +45,10 @@ const trimNumber = (value: number): string => {
 
 type Kind = "cpu" | "memory";
 
-const amount = (kind: Kind, value: number) =>
-	trimNumber(kind === "cpu" ? value : value / GiB);
-
-const unit = (kind: Kind, value: number) => {
-	if (kind === "memory") {
-		return "GiB";
-	}
-	return Math.abs(value - 1) < 0.005 ? "core" : "cores";
-};
-
 const formatAmount = (kind: Kind, value: number) =>
-	`${amount(kind, value)} ${unit(kind, value)}`;
+	kind === "memory"
+		? formatCapacity(value)
+		: `${trimNumber(value)} ${Math.abs(value - 1) < 0.005 ? "core" : "cores"}`;
 
 /**
  * The last entry of the Settings menu: the cluster's CPU and memory at a glance,
@@ -342,7 +339,7 @@ const UsageGraph: React.FC<{
 	const shares = usageShares(history.points.slice(-HISTORY_SLOTS), kind).map(
 		(sample) => ({
 			...sample,
-			value: kind === "cpu" ? sample.used : sample.used / GiB,
+			value: kind === "cpu" ? sample.used : sample.used / GIBIBYTE,
 			measurement: usageMeasurement(kind, sample),
 		}),
 	);
@@ -457,9 +454,14 @@ const UsageBar: React.FC<UsageBarProps> = ({ kind, label, usage, history }) => {
 							: "bg-content-success"
 				}
 			/>
-			<div className="mt-1 tabular-nums text-content-primary truncate">
-				{amount(kind, usage.used)} / {amount(kind, usage.total)}{" "}
-				{unit(kind, usage.total)}
+			<div className="mt-1 flex flex-wrap gap-x-1 tabular-nums text-content-primary">
+				<span>
+					{kind === "cpu"
+						? trimNumber(usage.used)
+						: formatAmount(kind, usage.used)}{" "}
+					/
+				</span>
+				<span>{formatAmount(kind, usage.total)}</span>
 			</div>
 			<div className="tabular-nums">{formatAmount(kind, usage.free)} free</div>
 			{history && history.points.length > 0 && (
