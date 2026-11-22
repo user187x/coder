@@ -207,6 +207,48 @@ describe("ProxyMenu", () => {
 		},
 	);
 
+	it.each([
+		["left", "Return to dropdown", "right"],
+		["right", "Collapse Settings to shortcut icons", "left"],
+	] as const)(
+		"slides out the dock choices into the page from the %s",
+		async (edge, label, side) => {
+			const prefs = {
+				settings_sidebar: true,
+				settings_sidebar_compact: false,
+				navbar_settings_side: edge,
+			};
+			vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue(prefs);
+			const save = vi
+				.spyOn(PlatformAPI, "setUserUIPreferences")
+				.mockImplementation(async (changes) => ({ ...prefs, ...changes }));
+			const user = userEvent.setup();
+			renderMenu({ proxyContextValue: value, hud: true, controls });
+			const control = await screen.findByRole("menuitem", { name: label });
+			await user.pointer({ target: control, keys: "[MouseRight]" });
+			const choices = await screen.findByRole("dialog", {
+				name: "Settings layout",
+			});
+			expect(choices).toHaveAttribute("data-side", side);
+			expect(
+				within(choices).getByRole("button", { name: "Side Panel" }),
+			).toHaveAttribute("aria-current", "true");
+			expect(within(choices).getAllByRole("button")).toHaveLength(3);
+			await user.click(
+				within(choices).getByRole("button", { name: "Breadcrumb" }),
+			);
+			await waitFor(() =>
+				expect(save).toHaveBeenCalledWith({
+					settings_sidebar: false,
+					settings_sidebar_compact: false,
+				}),
+			);
+			expect(
+				screen.queryByRole("dialog", { name: "Settings layout" }),
+			).toBeNull();
+		},
+	);
+
 	describe("compact metric history", () => {
 		const start = 1_780_000_000;
 		const timestamps = [start, start + 15, start + 30, start + 45];

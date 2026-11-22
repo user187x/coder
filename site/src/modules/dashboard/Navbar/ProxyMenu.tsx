@@ -1,12 +1,5 @@
 import { cn } from "cn";
-import {
-	GaugeIcon,
-	MonitorIcon,
-	PanelRightCloseIcon,
-	PanelRightDashedIcon,
-	RadioIcon,
-	SettingsIcon,
-} from "lucide-react";
+import { GaugeIcon, MonitorIcon, RadioIcon, SettingsIcon } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -58,14 +51,15 @@ import {
 } from "./SettingsFacePanel";
 import "./settingsMenuSkeuo.css";
 import { toScreenPx } from "#/utils/appZoom";
+import {
+	SettingsDockControl,
+	type SettingsDockMode,
+	settingsDockPillClassName,
+} from "./SettingsDockControl";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsRootMenu } from "./SettingsRootMenu";
 import { SettingsSidePanels } from "./SettingsSidePanels";
-import {
-	SettingsStripDockControl,
-	settingsDockPillClassName,
-} from "./SettingsStripDockControl";
 import {
 	settingsChatSlot,
 	useRegisterSettingsMenu,
@@ -139,8 +133,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	};
 	// Each entry's right-click options (InlineMenu).
 	const hudMenu = useInlineMenu();
-	const dockMenu = useInlineMenu();
-	const compactMenu = useInlineMenu();
 	const regionMenu = useInlineMenu();
 	const [regionOpen, setRegionOpen] = useState(false);
 	const client = useQueryClient();
@@ -321,54 +313,15 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		</>
 	);
 
-	const dockLabel = docked ? "Return to dropdown" : "Dock Settings";
-
-	const compactLabel = docked
-		? "Collapse Settings to shortcut icons"
-		: "Dock Settings as shortcut icons";
-	const toggleCompact = () => {
-		if (!docked) setOpen(true);
+	const dockDisabled = docking.isPending || !prefs.data;
+	const dockMode = compact ? "strip" : docked ? "panel" : "breadcrumb";
+	const setDockLayout = (next: SettingsDockMode, fromTrigger = false) => {
+		if (next === "breadcrumb") setOpen(fromTrigger && !compact);
 		docking.mutate({
-			settings_sidebar: true,
-			settings_sidebar_compact: !compact,
+			settings_sidebar: next !== "breadcrumb",
+			settings_sidebar_compact: next === "strip",
 		});
 	};
-	const toggleDock = (showMenu = true) => {
-		setOpen(showMenu);
-		docking.mutate({
-			settings_sidebar: !docked,
-			settings_sidebar_compact: false,
-		});
-	};
-	const compactToggle = (docked || controls) && (
-		<DropdownMenuItem
-			{...compactMenu.trigger}
-			aria-label={compactLabel}
-			title={compactLabel}
-			disabled={docking.isPending || !prefs.data}
-			className="min-h-8 flex-1 justify-center rounded-none border-0 border-l border-solid border-border px-1"
-			onSelect={(event) => {
-				event.preventDefault();
-				toggleCompact();
-			}}
-		>
-			<PanelRightDashedIcon aria-hidden />
-		</DropdownMenuItem>
-	);
-	const compactOptions = compactMenu.open && (
-		<InlineMenuPanel
-			id={compactMenu.id}
-			label={`${compactLabel} options`}
-			className="order-last"
-		>
-			<OpenMenuItem
-				onOpen={() => {
-					compactMenu.close();
-					toggleCompact();
-				}}
-			/>
-		</InlineMenuPanel>
-	);
 
 	// The screen's side the menu opens on: the one its button is on.
 	const measureEdge = () => {
@@ -619,65 +572,47 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									</InlineMenuPanel>
 								)}
 								{controls && (
-									// The docking buttons together in one pill, each doing its own
 									<div
 										role="group"
 										aria-label="Docking"
 										className={cn(settingsDockPillClassName, "flex-1")}
 									>
-										<DropdownMenuItem
-											{...dockMenu.trigger}
-											aria-label={dockLabel}
-											title={dockLabel}
-											disabled={docking.isPending || !prefs.data}
+										<SettingsDockControl
+											edge={edge}
+											mode={dockMode}
+											target={docked ? "breadcrumb" : "panel"}
+											label={docked ? "Return to dropdown" : "Dock Settings"}
 											className="min-h-8 flex-1 justify-center rounded-none px-1"
-											onSelect={(event) => {
-												event.preventDefault();
-												toggleDock();
-											}}
-										>
-											{docked ? (
-												<PanelRightCloseIcon
-													aria-hidden
-													className="-rotate-90"
-												/>
-											) : (
-												<PanelRightCloseIcon
-													aria-hidden
-													className={
-														dockEdge === "left" ? "-scale-x-100" : undefined
-													}
-												/>
-											)}
-										</DropdownMenuItem>
-										{!compact && compactToggle}
+											disabled={dockDisabled}
+											onChange={setDockLayout}
+										/>
+										<SettingsDockControl
+											edge={edge}
+											mode={dockMode}
+											target="strip"
+											label={
+												docked
+													? "Collapse Settings to shortcut icons"
+													: "Dock Settings as shortcut icons"
+											}
+											className="min-h-8 flex-1 justify-center rounded-none border-0 border-l border-solid border-border px-1"
+											disabled={dockDisabled}
+											onChange={setDockLayout}
+										/>
 									</div>
 								)}
-								{controls && dockMenu.open && (
-									<InlineMenuPanel
-										id={dockMenu.id}
-										label={`${dockLabel} options`}
-										className="order-last"
-									>
-										<OpenMenuItem
-											onOpen={() => {
-												dockMenu.close();
-												toggleDock();
-											}}
-										/>
-									</InlineMenuPanel>
-								)}
-								{!controls && compactToggle}
-								{compactOptions}
 							</div>
 						)}
 						{compact ? (
 							<>
-								<SettingsStripDockControl
-									edge={dockEdge}
-									disabled={docking.isPending || !prefs.data}
-									onSidePanel={toggleCompact}
-									onBreadcrumb={() => toggleDock(false)}
+								<SettingsDockControl
+									edge={edge}
+									mode="strip"
+									target="panel"
+									label="Expand Settings sidebar"
+									className="settings-strip-key mx-auto shrink-0 rounded-full"
+									disabled={dockDisabled}
+									onChange={setDockLayout}
 								/>
 								{/* The account as in the dropdown, between thin dividers */}
 								<DropdownMenuSeparator className="mx-auto my-1 w-6 shrink-0" />

@@ -22,54 +22,64 @@ import { useInlineMenu } from "./InlineMenu";
 export const settingsDockPillClassName =
 	"settings-pill flex min-h-8 items-stretch overflow-hidden rounded-full border border-solid border-border";
 
-const optionClassName =
-	"flex min-w-0 flex-1 cursor-pointer items-center justify-center border-0 p-1 text-inherit focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link disabled:opacity-50";
+export type SettingsDockMode = "strip" | "panel" | "breadcrumb";
 
-type SettingsStripDockControlProps = {
+type SettingsDockControlProps = {
 	edge: "left" | "right";
+	mode: SettingsDockMode;
+	target: SettingsDockMode;
+	label: string;
+	className: string;
 	disabled: boolean;
-	onSidePanel: () => void;
-	onBreadcrumb: () => void;
+	onChange: (mode: SettingsDockMode, fromTrigger?: boolean) => void;
 };
 
-export const SettingsStripDockControl = ({
+/** The layout choices expand horizontally from each Settings layout control. */
+export function SettingsDockControl({
 	edge,
+	mode,
+	target,
+	label,
+	className,
 	disabled,
-	onSidePanel,
-	onBreadcrumb,
-}: SettingsStripDockControlProps) => {
+	onChange,
+}: SettingsDockControlProps) {
 	const menu = useInlineMenu();
 	const key = useRef<HTMLDivElement>(null);
-	const openSidePanel = () => {
-		menu.close();
-		onSidePanel();
-	};
 	const options = [
 		{
+			mode: "strip",
 			label: "Thin Settings sidebar",
-			description: "Keep Settings in the thin sidebar",
+			description: "Use the thin Settings sidebar",
 			icon: PanelRightDashedIcon,
-			current: true,
-			select: menu.close,
+			iconClassName: undefined,
 		},
 		{
+			mode: "panel",
 			label: "Side Panel",
-			description: "Expand Settings to the sidebar panel",
+			description: "Use the full Settings sidebar panel",
 			icon: edge === "left" ? PanelLeftIcon : PanelRightIcon,
-			select: openSidePanel,
+			iconClassName: undefined,
 		},
 		{
+			mode: "breadcrumb",
 			label: "Breadcrumb",
-			description: "Move Settings into the navbar breadcrumb",
+			description: "Open Settings from the navbar breadcrumb",
 			icon: PanelRightCloseIcon,
 			iconClassName: "-rotate-90",
-			select: () => {
-				menu.close();
-				onBreadcrumb();
-			},
 		},
-	];
-	if (edge === "right") options.reverse();
+	] as const;
+	const original =
+		options.find(
+			(option) => option.mode === (mode === "strip" ? mode : target),
+		) ?? options[0];
+	const OriginalIcon = original.icon;
+	const sequence = edge === "left" ? options : [...options].reverse();
+
+	function choose(next: SettingsDockMode, fromTrigger = false) {
+		menu.close();
+		if (next !== mode) onChange(next, fromTrigger);
+	}
 
 	return (
 		<Popover open={menu.open} onOpenChange={(open) => !open && menu.close()}>
@@ -77,24 +87,20 @@ export const SettingsStripDockControl = ({
 				<DropdownMenuItem
 					{...menu.trigger}
 					ref={key}
-					aria-label="Expand Settings sidebar"
-					title="Expand Settings sidebar"
+					aria-label={label}
+					title={label}
 					aria-haspopup="dialog"
 					disabled={disabled}
-					className={cn(
-						"settings-strip-key mx-auto shrink-0 rounded-full",
-						menu.open && "invisible",
-					)}
+					className={cn(className, menu.open && "invisible")}
 					onPointerLeave={(event) => {
-						// Keep the menu from reclaiming focus as the pointer enters the pill.
 						if (menu.open) event.preventDefault();
 					}}
 					onSelect={(event) => {
 						event.preventDefault();
-						openSidePanel();
+						choose(target, true);
 					}}
 				>
-					<PanelRightDashedIcon aria-hidden />
+					<OriginalIcon aria-hidden className={original.iconClassName} />
 				</DropdownMenuItem>
 			</PopoverAnchor>
 			<PopoverContent
@@ -115,30 +121,23 @@ export const SettingsStripDockControl = ({
 				}}
 			>
 				<div className={cn(settingsDockPillClassName, "h-full min-h-0")}>
-					{options.map(
+					{sequence.map(
 						(
-							{
-								label,
-								description,
-								icon: Icon,
-								iconClassName,
-								current,
-								select,
-							},
+							{ mode: option, label, description, icon: Icon, iconClassName },
 							index,
 						) => (
-							<Tooltip key={label}>
+							<Tooltip key={option}>
 								<TooltipTrigger asChild>
 									<button
 										type="button"
 										aria-label={label}
-										aria-current={current}
+										aria-current={option === mode}
 										className={cn(
-											optionClassName,
+											"flex min-w-0 flex-1 cursor-pointer items-center justify-center border-0 p-1 text-inherit focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link disabled:opacity-50",
 											index > 0 && "border-l border-solid border-border",
 										)}
 										disabled={disabled}
-										onClick={select}
+										onClick={() => choose(option)}
 									>
 										<Icon aria-hidden className={cn("size-4", iconClassName)} />
 									</button>
@@ -151,4 +150,4 @@ export const SettingsStripDockControl = ({
 			</PopoverContent>
 		</Popover>
 	);
-};
+}
