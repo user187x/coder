@@ -166,3 +166,46 @@ it("allows confirming deletion of a shared note from another author", async () =
 		}),
 	);
 });
+
+it("selects notes across visibility filters and deletes them in one confirmed action", async () => {
+	const user = userEvent.setup();
+	const privateNote = { ...MockAdminNote, revision: 3 };
+	const sharedNote = { ...MockUnreadAdminNote, can_edit: false };
+	const notes = [privateNote, sharedNote];
+	vi.mocked(AdminNotesAPI.list).mockResolvedValue({ notes });
+	const change = vi
+		.spyOn(AdminNotesAPI, "change")
+		.mockImplementation(async () => {
+			vi.mocked(AdminNotesAPI.list).mockResolvedValue({ notes: [] });
+			return { notes: [] };
+		});
+	renderNotes();
+
+	const table = await screen.findByRole("table", { name: "Admin notes" });
+	const openMenu = () => user.pointer({ target: table, keys: "[MouseRight]" });
+	await openMenu();
+	await user.click(await screen.findByRole("menuitem", { name: "Select all" }));
+	expect(screen.getByText("2 selected")).toBeVisible();
+	expect(
+		screen.getByRole("checkbox", { name: "Select all admin notes" }),
+	).toBeChecked();
+
+	await openMenu();
+	await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
+	expect(screen.getByText("Delete all 2 selected notes?")).toBeVisible();
+	expect(change).not.toHaveBeenCalled();
+	await user.click(screen.getByRole("button", { name: "Cancel" }));
+	expect(screen.getByText("2 selected")).toBeVisible();
+
+	await user.click(screen.getByRole("button", { name: "Delete selected" }));
+	await user.click(screen.getByRole("button", { name: "Confirm delete" }));
+	await waitFor(() =>
+		expect(change).toHaveBeenCalledExactlyOnceWith(MockOrganization.id, {
+			action: "delete_many",
+			notes: notes.map(({ id, revision }) => ({ id, revision })),
+		}),
+	);
+	expect(
+		await screen.findByText("No notes with this visibility yet."),
+	).toBeVisible();
+});

@@ -1,6 +1,7 @@
 import {
 	ChevronDownIcon,
 	ChevronUpIcon,
+	ListChecksIcon,
 	PencilIcon,
 	PlusIcon,
 	SaveIcon,
@@ -15,6 +16,13 @@ import { organizations } from "#/api/queries/organizations";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import {
@@ -76,11 +84,58 @@ export const AdminNotesPanel = ({
 	const remove = useMutation(changeAdminNote(client, org));
 	const [draft, setDraft] = useState<Draft | null>(null);
 	const [reading, setReading] = useState<string | null>(null);
-	const [deleting, setDeleting] = useState<AdminNote | null>(null);
+	const [deleting, setDeleting] = useState<readonly AdminNote[] | null>(null);
+	const [selection, setSelection] = useState<ReadonlySet<string>>(new Set());
+	const [contextNote, setContextNote] = useState<string | null>(null);
 	const notes = query.data?.notes.filter((note) =>
 		visibility === "admins" ? note.shared : !note.shared,
 	);
+	const selectableNotes =
+		query.data?.notes.filter((note) => note.can_edit || note.shared) ?? [];
+	const selectedNotes = selectableNotes.filter((note) =>
+		selection.has(note.id),
+	);
+	const contextTargets = selectedNotes.length
+		? selectedNotes
+		: selectableNotes.filter((note) => note.id === contextNote);
+	const allSelected =
+		selectedNotes.length > 0 && selectedNotes.length === selectableNotes.length;
 	const busy = save.isPending || remove.isPending;
+	const selectionDisabled = busy || Boolean(deleting);
+	const selectAll = () =>
+		setSelection(new Set(selectableNotes.map((note) => note.id)));
+	const setSelected = (noteId: string, checked: boolean) => {
+		setSelection((previous) => {
+			const next = new Set(previous);
+			if (checked) next.add(noteId);
+			else next.delete(noteId);
+			return next;
+		});
+	};
+	const requestDelete = (targets: readonly AdminNote[]) => {
+		if (!targets.length) return;
+		remove.reset();
+		setDeleting(targets);
+	};
+	const confirmDelete = () => {
+		const notes = deleting?.map(({ id, revision }) => ({ id, revision }));
+		if (!notes?.length) return;
+		remove.mutate(
+			notes.length === 1
+				? { action: "delete", ...notes[0] }
+				: { action: "delete_many", notes },
+			{
+				onSuccess: () => {
+					setDeleting(null);
+					setSelection((previous) => {
+						const next = new Set(previous);
+						for (const note of notes) next.delete(note.id);
+						return next;
+					});
+				},
+			},
+		);
+	};
 	const edit = (note?: AdminNote) => {
 		save.reset();
 		setDraft(
@@ -253,183 +308,286 @@ export const AdminNotesPanel = ({
 							</>
 						)}
 						{remove.error && <ErrorAlert error={remove.error} />}
-						{query.data && (
-							<div className="settings-notes-list shrink-0 overflow-hidden rounded-lg border border-solid border-border bg-surface-primary">
-								<Table aria-label="Admin notes" className="table-fixed">
-									<TableHeader>
-										<TableRow>
-											<TableHead>Note</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{notes?.length === 0 && (
-											<TableRow>
-												<TableCell className="text-xs text-content-secondary">
-													No notes with this visibility yet.
-													<Button
-														type="button"
-														size="xs"
-														variant="subtle"
-														onClick={() => edit()}
-													>
-														<PlusIcon aria-hidden />
-														Write a note
-													</Button>
-												</TableCell>
-											</TableRow>
-										)}
-										{notes?.map((note, index) => {
-											const expanded = reading === note.id;
-											const title =
-												note.title ||
-												note.text.split("\n", 1)[0]?.slice(0, 120) ||
-												"Untitled note";
-											const toggleNote = () => {
-												setVisibility(visibility);
-												setReading(expanded ? null : note.id);
-												if (!expanded && note.unread && !read.isPending) {
-													read.mutate({
-														action: "read",
-														id: note.id,
-														revision: note.revision,
-													});
-												}
-											};
-											return (
-												<TableRow key={note.id} className="group/note">
-													<TableCell className="align-top">
-														<header className="flex items-start gap-1">
-															<span className="shrink-0 text-xs tabular-nums text-content-secondary">
-																{index + 1}.
-															</span>
-															<button
-																type="button"
-																className="block min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left text-xs text-content-primary"
-																aria-label={`${note.can_edit ? "Edit" : "Read"} note: ${title}`}
-																aria-expanded={
-																	note.can_edit ? undefined : expanded
-																}
-																onClick={
-																	note.can_edit ? () => edit(note) : toggleNote
-																}
-															>
-																<span className="mb-1 block truncate font-semibold">
-																	{title}
-																</span>
-																<span
-																	className={
-																		expanded
-																			? "whitespace-pre-wrap wrap-anywhere"
-																			: "line-clamp-2 wrap-anywhere"
-																	}
-																>
-																	{note.text}
-																</span>
-															</button>
-															<div className="flex shrink-0 opacity-0 group-hover/note:opacity-100 group-has-[:focus-visible]/note:opacity-100 [@media(hover:none)]:opacity-100">
-																<Button
-																	size="icon"
-																	variant="subtle"
-																	className="size-6"
-																	aria-label={
-																		expanded ? "Collapse note" : "Expand note"
-																	}
-																	title={
-																		expanded ? "Collapse note" : "Expand note"
-																	}
-																	aria-expanded={expanded}
-																	onClick={toggleNote}
-																>
-																	{expanded ? (
-																		<ChevronUpIcon aria-hidden />
-																	) : (
-																		<ChevronDownIcon aria-hidden />
-																	)}
-																</Button>
-																{(note.can_edit || note.shared) && (
-																	<Button
-																		size="icon"
-																		variant="subtle"
-																		className="size-6"
-																		aria-label="Delete note"
-																		title="Delete note"
-																		disabled={busy}
-																		onClick={() => {
-																			remove.reset();
-																			setDeleting(note);
-																		}}
-																	>
-																		<Trash2Icon aria-hidden />
-																	</Button>
-																)}
-															</div>
-														</header>
-														<div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-content-secondary">
-															<span>{note.author_name}</span>
-															{note.unread && <Badge size="sm">New</Badge>}
-															<Badge size="sm">
-																{note.shared ? "Admins" : "Self"}
-															</Badge>
-															{note.can_edit && (
-																<Button
-																	size="icon"
-																	variant="subtle"
-																	className="ml-auto size-6"
-																	aria-label="Edit note"
-																	title="Edit note"
-																	disabled={busy}
-																	onClick={() => edit(note)}
-																>
-																	<PencilIcon aria-hidden />
-																</Button>
-															)}
-														</div>
-														<time
-															className="text-xs text-content-secondary"
-															dateTime={note.updated_at}
-														>
-															{new Date(note.updated_at).toLocaleString(
-																"en-US",
-															)}
-														</time>
-														{deleting?.id === note.id && (
-															<div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-																<span>Delete this note?</span>
-																<Button
-																	size="sm"
-																	variant="outline"
-																	disabled={busy}
-																	onClick={() => setDeleting(null)}
-																>
-																	<Trash2Icon aria-hidden />
-																	Discard
-																</Button>
-																<Button
-																	size="sm"
-																	variant="destructive"
-																	disabled={busy}
-																	onClick={() =>
-																		remove.mutate(
-																			{
-																				action: "delete",
-																				id: note.id,
-																				revision: note.revision,
-																			},
-																			{ onSuccess: () => setDeleting(null) },
-																		)
-																	}
-																>
-																	Confirm delete
-																</Button>
-															</div>
-														)}
-													</TableCell>
-												</TableRow>
-											);
-										})}
-									</TableBody>
-								</Table>
+						{selectedNotes.length > 0 && (
+							<div className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
+								<span aria-live="polite">{selectedNotes.length} selected</span>
+								<Button
+									size="sm"
+									variant="outline"
+									disabled={selectionDisabled}
+									onClick={() => requestDelete(selectedNotes)}
+								>
+									<Trash2Icon aria-hidden />
+									Delete selected
+								</Button>
+								<Button
+									size="sm"
+									variant="subtle"
+									disabled={selectionDisabled}
+									onClick={() => setSelection(new Set())}
+								>
+									Clear selection
+								</Button>
 							</div>
+						)}
+						{deleting && (
+							<div
+								role="group"
+								aria-label="Confirm deleting notes"
+								className="flex shrink-0 flex-wrap items-center gap-2 rounded-lg border border-solid border-border p-2 text-xs"
+							>
+								<span>
+									{deleting.length === 1
+										? "Delete this note?"
+										: `Delete all ${deleting.length} selected notes?`}
+								</span>
+								<Button
+									size="sm"
+									variant="outline"
+									disabled={busy}
+									onClick={() => setDeleting(null)}
+								>
+									Cancel
+								</Button>
+								<Button
+									size="sm"
+									variant="destructive"
+									disabled={busy}
+									onClick={confirmDelete}
+								>
+									{remove.isPending ? "Deleting…" : "Confirm delete"}
+								</Button>
+							</div>
+						)}
+						{query.data && (
+							<ContextMenu modal={false}>
+								<ContextMenuTrigger asChild>
+									<div
+										onContextMenu={(event) => {
+											event.stopPropagation();
+											const row =
+												event.target instanceof Element
+													? event.target.closest("[data-note-id]")
+													: null;
+											setContextNote(row?.getAttribute("data-note-id") ?? null);
+										}}
+										className="settings-notes-list shrink-0 overflow-hidden rounded-lg border border-solid border-border bg-surface-primary"
+									>
+										<Table aria-label="Admin notes" className="table-fixed">
+											<TableHeader>
+												<TableRow>
+													<TableHead className="w-8 px-0 text-center">
+														<Checkbox
+															aria-label="Select all admin notes"
+															title="Select all notes across Self and Admins"
+															disabled={
+																selectionDisabled || !selectableNotes.length
+															}
+															checked={
+																allSelected
+																	? true
+																	: selectedNotes.length
+																		? "indeterminate"
+																		: false
+															}
+															onCheckedChange={(checked) =>
+																checked ? selectAll() : setSelection(new Set())
+															}
+														/>
+													</TableHead>
+													<TableHead>Note</TableHead>
+												</TableRow>
+											</TableHeader>
+											<TableBody>
+												{notes?.length === 0 && (
+													<TableRow>
+														<TableCell
+															colSpan={2}
+															className="text-xs text-content-secondary"
+														>
+															No notes with this visibility yet.
+															<Button
+																type="button"
+																size="xs"
+																variant="subtle"
+																onClick={() => edit()}
+															>
+																<PlusIcon aria-hidden />
+																Write a note
+															</Button>
+														</TableCell>
+													</TableRow>
+												)}
+												{notes?.map((note, index) => {
+													const expanded = reading === note.id;
+													const title =
+														note.title ||
+														note.text.split("\n", 1)[0]?.slice(0, 120) ||
+														"Untitled note";
+													const toggleNote = () => {
+														setVisibility(visibility);
+														setReading(expanded ? null : note.id);
+														if (!expanded && note.unread && !read.isPending) {
+															read.mutate({
+																action: "read",
+																id: note.id,
+																revision: note.revision,
+															});
+														}
+													};
+													return (
+														<TableRow
+															key={note.id}
+															className="group/note"
+															data-note-id={note.id}
+															data-state={
+																selection.has(note.id) ? "selected" : undefined
+															}
+														>
+															<TableCell className="px-0 align-top text-center">
+																<Checkbox
+																	aria-label={`Select note: ${title}`}
+																	checked={selection.has(note.id)}
+																	disabled={
+																		selectionDisabled ||
+																		!(note.can_edit || note.shared)
+																	}
+																	onCheckedChange={(checked) =>
+																		setSelected(note.id, checked === true)
+																	}
+																/>
+															</TableCell>
+															<TableCell className="align-top">
+																<header className="flex items-start gap-1">
+																	<span className="shrink-0 text-xs tabular-nums text-content-secondary">
+																		{index + 1}.
+																	</span>
+																	<button
+																		type="button"
+																		className="block min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left text-xs text-content-primary"
+																		aria-label={`${note.can_edit ? "Edit" : "Read"} note: ${title}`}
+																		aria-expanded={
+																			note.can_edit ? undefined : expanded
+																		}
+																		onClick={
+																			note.can_edit
+																				? () => edit(note)
+																				: toggleNote
+																		}
+																	>
+																		<span className="mb-1 block truncate font-semibold">
+																			{title}
+																		</span>
+																		<span
+																			className={
+																				expanded
+																					? "whitespace-pre-wrap wrap-anywhere"
+																					: "line-clamp-2 wrap-anywhere"
+																			}
+																		>
+																			{note.text}
+																		</span>
+																	</button>
+																	<div className="flex shrink-0 opacity-0 group-hover/note:opacity-100 group-has-[:focus-visible]/note:opacity-100 [@media(hover:none)]:opacity-100">
+																		<Button
+																			size="icon"
+																			variant="subtle"
+																			className="size-6"
+																			aria-label={
+																				expanded
+																					? "Collapse note"
+																					: "Expand note"
+																			}
+																			title={
+																				expanded
+																					? "Collapse note"
+																					: "Expand note"
+																			}
+																			aria-expanded={expanded}
+																			onClick={toggleNote}
+																		>
+																			{expanded ? (
+																				<ChevronUpIcon aria-hidden />
+																			) : (
+																				<ChevronDownIcon aria-hidden />
+																			)}
+																		</Button>
+																		{(note.can_edit || note.shared) && (
+																			<Button
+																				size="icon"
+																				variant="subtle"
+																				className="size-6"
+																				aria-label="Delete note"
+																				title="Delete note"
+																				disabled={busy}
+																				onClick={() => requestDelete([note])}
+																			>
+																				<Trash2Icon aria-hidden />
+																			</Button>
+																		)}
+																	</div>
+																</header>
+																<div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-content-secondary">
+																	<span>{note.author_name}</span>
+																	{note.unread && <Badge size="sm">New</Badge>}
+																	<Badge size="sm">
+																		{note.shared ? "Admins" : "Self"}
+																	</Badge>
+																	{note.can_edit && (
+																		<Button
+																			size="icon"
+																			variant="subtle"
+																			className="ml-auto size-6"
+																			aria-label="Edit note"
+																			title="Edit note"
+																			disabled={busy}
+																			onClick={() => edit(note)}
+																		>
+																			<PencilIcon aria-hidden />
+																		</Button>
+																	)}
+																</div>
+																<time
+																	className="text-xs text-content-secondary"
+																	dateTime={note.updated_at}
+																>
+																	{new Date(note.updated_at).toLocaleString(
+																		"en-US",
+																	)}
+																</time>
+															</TableCell>
+														</TableRow>
+													);
+												})}
+											</TableBody>
+										</Table>
+									</div>
+								</ContextMenuTrigger>
+								<ContextMenuContent
+									aria-label="Admin notes actions"
+									className="z-[2147483647]"
+								>
+									<ContextMenuItem
+										disabled={
+											selectionDisabled ||
+											allSelected ||
+											!selectableNotes.length
+										}
+										title="Select all notes across Self and Admins"
+										onSelect={selectAll}
+									>
+										<ListChecksIcon aria-hidden />
+										Select all
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={selectionDisabled || !contextTargets.length}
+										onSelect={() => requestDelete(contextTargets)}
+									>
+										<Trash2Icon aria-hidden />
+										Delete
+									</ContextMenuItem>
+								</ContextMenuContent>
+							</ContextMenu>
 						)}
 					</>
 				)}

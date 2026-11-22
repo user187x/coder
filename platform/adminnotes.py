@@ -55,6 +55,44 @@ def notes(db, organization, author):
     return [json.loads(row[0]) for row in rows]
 
 
+class NoteConflict(Exception):
+    """A requested note has a newer revision."""
+
+
+def note_revision(body):
+    note_id = str(uuid.UUID(body.get('id', '')))
+    revision = body.get('revision')
+    if type(revision) is not int or not 1 <= revision <= 2147483647:
+        raise ValueError('Reload this note before changing it.')
+    return note_id, revision
+
+
+def delete_notes(db, organization, author, selection):
+    if not isinstance(selection, list) or not selection:
+        raise ValueError('Select at least one note.')
+    refs = dict()
+    for item in selection:
+        note_id, revision = note_revision(item)
+        if note_id in refs:
+            raise ValueError('Select each note only once.')
+        refs[note_id] = revision
+    target_ids = json.dumps(list(refs))
+    with db.transaction() as tx:
+        rows = tx.query("""SELECT n.id::text, n.revision FROM coder_ui_updates.admin_notes n
+            JOIN json_array_elements_text($3::json) AS requested(id) ON n.id=requested.id::uuid
+            WHERE n.organization_id=$1::uuid AND (n.author_id=$2::uuid OR n.shared)
+            ORDER BY n.id FOR UPDATE OF n""", [organization, author, target_ids])
+        if len(rows) != len(refs):
+            raise LookupError('A selected note was removed or is not accessible.')
+        if any(int(revision) != refs[note_id] for note_id, revision in rows):
+            raise NoteConflict
+        tx.query("""DELETE FROM coder_ui_updates.admin_notes n
+            USING json_array_elements_text($3::json) AS requested(id)
+            WHERE n.id=requested.id::uuid AND n.organization_id=$1::uuid
+            AND (n.author_id=$2::uuid OR n.shared)""", [organization, author, target_ids])
+    return refs
+
+
 def handle(h, method, path):
     match = ROUTE.fullmatch(path)
     if not match:
@@ -83,8 +121,14 @@ def handle(h, method, path):
             raise PermissionError('Your session cannot change administrator notes in this organization.')
         body = volumes.read_json(h)
         action = body.get('action')
-        if action not in ('create', 'update', 'delete', 'read'):
+        if action not in ('create', 'update', 'delete', 'delete_many', 'read'):
             raise ValueError('Unknown note action.')
+        if action in ('delete', 'delete_many'):
+            refs = delete_notes(db, organization, author, [body] if action == 'delete' else body.get('notes'))
+            for note_id in refs:
+                LOG(event='admin-note-delete', note=note_id, organization=organization, by=author)
+            h.send_json(200, {'notes': notes(db, organization, author)})
+            return True
         if action in ('create', 'update'):
             text, shared, title = body.get('text'), body.get('shared', False), body.get('title')
             if not isinstance(text, str) or not 1 <= len(text.strip()) <= 10000:
@@ -100,15 +144,12 @@ def handle(h, method, path):
             db.query('''INSERT INTO coder_ui_updates.admin_notes(id, organization_id, author_id, text, shared, title)
                 VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5::boolean,$6)''', [note_id, organization, author, text.strip(), shared, title or ''])
         else:
-            note_id = str(uuid.UUID(body.get('id', '')))
-            revision = body.get('revision')
-            if type(revision) is not int or revision < 1:
-                raise ValueError('Reload this note before changing it.')
+            note_id, revision = note_revision(body)
             with db.transaction() as tx:
                 row = tx.query('''SELECT revision FROM coder_ui_updates.admin_notes
                     WHERE id=$1::uuid AND organization_id=$2::uuid
                     AND (author_id=$3::uuid OR ($4::boolean AND shared)) FOR UPDATE''',
-                    [note_id, organization, author, action in ('read', 'delete')])
+                    [note_id, organization, author, action == 'read'])
                 if not row:
                     raise LookupError('This note was removed or is not accessible.')
                 current_revision = int(row[0][0])
@@ -121,15 +162,14 @@ def handle(h, method, path):
                         ON CONFLICT(note_id,user_id) DO UPDATE SET
                         revision=GREATEST(admin_note_reads.revision,EXCLUDED.revision)''',
                         [organization, note_id, author, revision])
-                elif action == 'delete':
-                    tx.query('''DELETE FROM coder_ui_updates.admin_notes WHERE id=$1::uuid
-                        AND organization_id=$2::uuid AND (author_id=$3::uuid OR shared)''', [note_id, organization, author])
                 else:
                     tx.query('''UPDATE coder_ui_updates.admin_notes SET text=$4, shared=$5::boolean, title=COALESCE($6::text,title),
                         revision=revision+1, updated_at=now() WHERE id=$1::uuid AND organization_id=$2::uuid AND author_id=$3::uuid''',
                         [note_id, organization, author, text.strip(), shared, title])
         LOG(event='admin-note-' + action, note=note_id, organization=organization, by=author)
         h.send_json(200, {'notes': notes(db, organization, author)})
+    except NoteConflict:
+        h.send_json(409, {'error': 'A selected note changed elsewhere. Review the latest version before deleting.'})
     except (ValueError, TypeError, AttributeError) as error:
         h.send_json(400, {'error': str(error)})
     except PermissionError as error:

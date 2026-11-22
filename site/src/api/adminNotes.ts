@@ -25,7 +25,11 @@ export type AdminNoteChange =
 			text: string;
 			shared: boolean;
 	  }
-	| { action: "delete" | "read"; id: string; revision: number };
+	| { action: "delete" | "read"; id: string; revision: number }
+	| {
+			action: "delete_many";
+			notes: readonly Pick<AdminNote, "id" | "revision">[];
+	  };
 
 const path = (org: string) =>
 	`${platformRequest.base}/api/organizations/${encodeURIComponent(org)}/admin-notes`;

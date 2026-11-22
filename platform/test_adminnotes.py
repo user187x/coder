@@ -107,6 +107,37 @@ class AdminNotesTest(unittest.TestCase):
         self.assertEqual(self.call(self.other, delete).status, 200)
         self.assertEqual(self.call(self.author).body['notes'], [])
 
+    def test_bulk_delete_mixes_self_and_shared_notes_without_touching_other_notes(self):
+        private = self.call(self.author, {'action': 'create', 'text': 'Private operations'}).body['notes'][0]
+        shared = self.call(self.other, {'action': 'create', 'text': 'Shared handover', 'shared': True}).body['notes'][0]
+        hidden = self.call(self.other, {'action': 'create', 'text': 'Other private note'}).body['notes'][0]
+        different = self.call(self.author, {'action': 'create', 'text': 'Other organization'},
+                              org=self.other_org).body['notes'][0]
+        refs = [{'id': note['id'], 'revision': note['revision']} for note in (private, shared)]
+        delete = {'action': 'delete_many', 'notes': refs}
+        for target in (hidden, different):
+            inaccessible = {'id': target['id'], 'revision': target['revision']}
+            self.assertEqual(self.call(self.author, {**delete, 'notes': [*refs, inaccessible]}).status, 404)
+            self.assertEqual(len(self.call(self.author).body['notes']), 2)
+        self.assertEqual(self.call(self.author, delete, roles=['member']).status, 403)
+        self.assertEqual(self.call(self.author, delete, csrf=False).status, 403)
+        self.assertEqual(self.call(self.author, delete).body['notes'], [])
+        self.assertEqual(self.call(self.other).body['notes'], [hidden])
+        self.assertEqual(self.call(self.author, org=self.other_org).body['notes'], [different])
+
+    def test_bulk_delete_rejects_stale_and_duplicate_selections_atomically(self):
+        self.call(self.author, {'action': 'create', 'text': 'First note'})
+        self.call(self.author, {'action': 'create', 'text': 'Second note'})
+        first, second = sorted(self.call(self.author).body['notes'], key=lambda note: note['text'])
+        refs = [{'id': note['id'], 'revision': note['revision']} for note in (first, second)]
+        updated = self.call(self.author, {'action': 'update', **refs[1], 'text': 'New second note', 'shared': False})
+        self.assertEqual(updated.status, 200)
+        self.assertEqual(self.call(self.author, {'action': 'delete_many', 'notes': refs}).status, 409)
+        self.assertEqual(self.call(self.author, {'action': 'delete_many', 'notes': [refs[0], refs[0]]}).status, 400)
+        self.assertEqual(self.call(self.author, {'action': 'delete_many', 'notes': []}).status, 400)
+        self.assertEqual({note['text'] for note in self.call(self.author).body['notes']},
+                         {'First note', 'New second note'})
+
     def test_read_receipts_are_private_persistent_and_revision_specific(self):
         note = self.call(self.author, {'action': 'create', 'text': 'Shared handover', 'shared': True}).body['notes'][0]
         self.assertFalse(note['unread'])
