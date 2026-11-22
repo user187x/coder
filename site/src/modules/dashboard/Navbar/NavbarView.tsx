@@ -71,6 +71,7 @@ type NavbarViewProps = {
 	buildInfo?: TypesGen.BuildInfoResponse;
 	supportLinks: readonly TypesGen.LinkConfig[];
 	onSignOut: () => void;
+	onEditAnnouncement?: () => void;
 	adminPermissions: AdminSettingsPermissions;
 	/** The admin's quick links; without it the Admin menu has none (and no add row). */
 	adminQuickLinks?: AdminQuickLinks;
@@ -89,6 +90,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	buildInfo,
 	supportLinks,
 	onSignOut,
+	onEditAnnouncement,
 	adminPermissions,
 	adminQuickLinks,
 	proxyContextValue,
@@ -347,6 +349,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						banner: (
 							<AnnouncementBanner
 								placement="navbar"
+								onEdit={onEditAnnouncement}
 								terminateAlertViewerId={
 									adminPermissions.canEditDeployment ? user.id : undefined
 								}

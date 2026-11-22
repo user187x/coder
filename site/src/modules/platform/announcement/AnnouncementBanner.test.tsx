@@ -1,11 +1,13 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
+import { createMemoryRouter } from "react-router";
 import type { Banner } from "#/api/platform";
 import { announcementStatusKey } from "#/api/queries/platform";
-import { render } from "#/testHelpers/renderHelpers";
+import { render, renderWithRouter } from "#/testHelpers/renderHelpers";
 import { server } from "#/testHelpers/server";
 import { AnnouncementBanner, viewedTooltip } from "./AnnouncementBanner";
+import * as sectionIntroductions from "./sectionIntroductions";
 
 const MockBanner: Banner = {
 	id: "announcement-1",
@@ -71,6 +73,40 @@ it("shows a recorded SHA-256 fingerprint on the last tooltip line", () => {
 });
 
 describe("AnnouncementBanner", () => {
+	it("announces the current view in place and offers editing with pulldown off", async () => {
+		useBanner({
+			...MockBanner,
+			id: "announcement-actions",
+			receipts: false,
+			introductions: false,
+			pulldown: false,
+		});
+		const showSection = vi
+			.spyOn(sectionIntroductions, "showSectionSplash")
+			.mockImplementation(() => {});
+		const onEdit = vi.fn();
+		const router = createMemoryRouter(
+			[
+				{
+					path: "/hud",
+					element: <AnnouncementBanner placement="navbar" onEdit={onEdit} />,
+				},
+			],
+			{ initialEntries: ["/hud"] },
+		);
+		renderWithRouter(router);
+		const button = await screen.findByRole("button", {
+			name: "Show current view name",
+		});
+		const user = userEvent.setup();
+		await user.click(button);
+		expect(showSection).toHaveBeenCalledWith("HUD", undefined);
+		expect(router.state.location.pathname).toBe("/hud");
+		await user.pointer({ target: button, keys: "[MouseRight]" });
+		await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+		expect(onEdit).toHaveBeenCalledOnce();
+		showSection.mockRestore();
+	});
 	it.each([
 		["other-admin", true],
 		["signer", true],

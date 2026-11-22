@@ -218,31 +218,32 @@ const unavailableMessage = (error: unknown) => {
  * page, published by the coder-banner service, and who has confirmed reading
  * it.
  */
-const AnnouncementSettingsPage: React.FC = () => {
+export const AnnouncementSettingsView: React.FC = () => {
 	const stateQuery = useQuery(bannerState());
 
-	return (
-		<>
-			<title>{pageTitle("Announcement")}</title>
-			<h1 className="sr-only">Announcement</h1>
-
-			{stateQuery.isLoading ? (
-				<Loader />
-			) : !stateQuery.data ? (
-				<Alert severity="warning" prominent>
-					{unavailableMessage(stateQuery.error)}
-				</Alert>
-			) : (
-				<div className="flex flex-col gap-6">
-					<AnnouncementEditor state={stateQuery.data} />
-					<div className="dashboard-panel">
-						<Acknowledgements banner={stateQuery.data.banner} />
-					</div>
-				</div>
-			)}
-		</>
+	return stateQuery.isLoading ? (
+		<Loader />
+	) : !stateQuery.data ? (
+		<Alert severity="warning" prominent>
+			{unavailableMessage(stateQuery.error)}
+		</Alert>
+	) : (
+		<div className="flex flex-col gap-6">
+			<AnnouncementEditor state={stateQuery.data} />
+			<div className="dashboard-panel">
+				<Acknowledgements banner={stateQuery.data.banner} />
+			</div>
+		</div>
 	);
 };
+
+const AnnouncementSettingsPage: React.FC = () => (
+	<>
+		<title>{pageTitle("Announcement")}</title>
+		<h1 className="sr-only">Announcement</h1>
+		<AnnouncementSettingsView />
+	</>
+);
 
 type ConfirmKind = "reshow" | "reset";
 

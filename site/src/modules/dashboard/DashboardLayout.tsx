@@ -1,9 +1,17 @@
 import { cn } from "cn";
-import { Suspense, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useQuery } from "react-query";
 import { Outlet } from "react-router";
 import { globalLockdown } from "#/api/queries/globalLockdown";
 import { terminateSignoffs } from "#/api/queries/workspacePower";
+import { Button } from "#/components/Button/Button";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogTitle,
+} from "#/components/Dialog/Dialog";
 import { PageLoader } from "#/components/Loader/Loader";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -21,9 +29,18 @@ import { NavbarActionTarget, NavbarStartTarget } from "./Navbar/NavbarAction";
 import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
 import { useUpdateCheck } from "./useUpdateCheck";
 
+const AnnouncementSettingsView = lazy(async () => ({
+	default: (
+		await import(
+			"#/pages/DeploymentSettingsPage/AnnouncementSettingsPage/AnnouncementSettingsPage"
+		)
+	).AnnouncementSettingsView,
+}));
+
 export const DashboardLayout: React.FC = () => {
 	const [actionTarget, setActionTarget] = useState<HTMLDivElement | null>(null);
 	const [startTarget, setStartTarget] = useState<HTMLDivElement | null>(null);
+	const [editingAnnouncement, setEditingAnnouncement] = useState(false);
 	const { permissions, user } = useAuthenticated();
 	const { data: lockdown } = useQuery(globalLockdown());
 	const updateCheck = useUpdateCheck(permissions.viewDeploymentConfig);
@@ -33,6 +50,9 @@ export const DashboardLayout: React.FC = () => {
 	const embedded = isEmbeddedFrame();
 	const canEditDeployment =
 		!embedded && Boolean(permissions.editDeploymentConfig);
+	const editAnnouncement = canEditDeployment
+		? () => setEditingAnnouncement(true)
+		: undefined;
 	const { data: terminateRound } = useQuery({
 		...terminateSignoffs(),
 		enabled: canEditDeployment,
@@ -64,7 +84,11 @@ export const DashboardLayout: React.FC = () => {
 						Skip to main content
 					</a>
 					{!embedded && (
-						<Navbar actionRef={setActionTarget} startRef={setStartTarget} />
+						<Navbar
+							actionRef={setActionTarget}
+							startRef={setStartTarget}
+							onEditAnnouncement={editAnnouncement}
+						/>
 					)}
 					{/* On narrow screens the announcement is not docked in the navbar. */}
 					<div
@@ -73,6 +97,7 @@ export const DashboardLayout: React.FC = () => {
 					>
 						<AnnouncementBanner
 							placement="page"
+							onEdit={editAnnouncement}
 							terminateAlertViewerId={
 								permissions.editDeploymentConfig ? user.id : undefined
 							}
@@ -108,6 +133,32 @@ export const DashboardLayout: React.FC = () => {
 					)}
 				</DashboardBackgroundMenu>
 
+				{canEditDeployment && (
+					<Dialog
+						open={editingAnnouncement}
+						onOpenChange={setEditingAnnouncement}
+					>
+						<DialogContent
+							className="max-w-6xl p-5 sm:p-8"
+							overlayClassName="backdrop-blur-md"
+						>
+							<div className="flex items-center justify-between gap-3">
+								<DialogTitle>Announcement banner</DialogTitle>
+								<DialogClose asChild>
+									<Button variant="outline" size="sm">
+										Close
+									</Button>
+								</DialogClose>
+							</div>
+							<DialogDescription className="sr-only">
+								Edit the deployment announcement and view acknowledgements.
+							</DialogDescription>
+							<Suspense fallback={<PageLoader />}>
+								<AnnouncementSettingsView />
+							</Suspense>
+						</DialogContent>
+					</Dialog>
+				)}
 				<DashboardAddons />
 			</NavbarStartTarget.Provider>
 		</NavbarActionTarget.Provider>

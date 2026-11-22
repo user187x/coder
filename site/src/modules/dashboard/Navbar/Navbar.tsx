@@ -29,7 +29,8 @@ export const Navbar: React.FC<{
 	actionRef?: React.Ref<HTMLDivElement>;
 	/** The top-left slot after the logo (NavbarStart). */
 	startRef?: React.Ref<HTMLDivElement>;
-}> = ({ actionRef, startRef }) => {
+	onEditAnnouncement?: () => void;
+}> = ({ actionRef, startRef, onEditAnnouncement }) => {
 	const { metadata } = useEmbeddedMetadata();
 	const buildInfoQuery = useQuery(buildInfo(metadata["build-info"]));
 	const { appearance, canViewOrganizationSettings } = useDashboard();
@@ -68,6 +69,7 @@ export const Navbar: React.FC<{
 		<NavbarView
 			actionRef={actionRef}
 			startRef={startRef}
+			onEditAnnouncement={onEditAnnouncement}
 			defaultLayout={navbar?.defaultLayout}
 			transparency={navbar?.transparency}
 			stripColor={navbar?.color}

@@ -1,3 +1,4 @@
+import { BookOpenIcon, PencilIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { BannerFields } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
@@ -31,10 +32,11 @@ export const AnnouncementReader: React.FC<{
 	banner: BannerFields;
 	children: React.ReactElement;
 	navbarMove?: boolean;
-}> = ({ banner, children, navbarMove }) => {
+	onEdit?: () => void;
+}> = ({ banner, children, navbarMove, onEdit }) => {
 	const [open, setOpen] = useState(false);
 	const pulldown = usePulldownAllowed(banner);
-	if (!pulldown) {
+	if (!pulldown && !onEdit) {
 		return (
 			<AnnouncementMotionDisabled.Provider
 				value={banner.animationsDisabled === true}
@@ -50,9 +52,18 @@ export const AnnouncementReader: React.FC<{
 			<ContextMenu>
 				<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
 				<ContextMenuContent>
-					<ContextMenuItem onSelect={() => setOpen(true)}>
-						Open announcement in modal
-					</ContextMenuItem>
+					{pulldown && (
+						<ContextMenuItem onSelect={() => setOpen(true)}>
+							<BookOpenIcon aria-hidden />
+							Open announcement in modal
+						</ContextMenuItem>
+					)}
+					{onEdit && (
+						<ContextMenuItem onSelect={onEdit}>
+							<PencilIcon aria-hidden />
+							Edit
+						</ContextMenuItem>
+					)}
 					{navbarMove && <NavbarMoveOption divided />}
 				</ContextMenuContent>
 			</ContextMenu>

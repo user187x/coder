@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn, userEvent, within } from "storybook/test";
 import { announcementStatusKey, bannerKey } from "#/api/queries/platform";
 import { MockBanner } from "#/testHelpers/platform";
 import { AnnouncementBanner } from "./AnnouncementBanner";
@@ -32,6 +33,19 @@ export const Navbar: Story = {
 			</div>
 		),
 	],
+};
+
+export const EditMenu: Story = {
+	...Navbar,
+	args: { ...Navbar.args, onEdit: fn() },
+	play: async ({ canvasElement }) => {
+		await userEvent.pointer({
+			target: within(canvasElement).getByRole("button", {
+				name: "Show current view name",
+			}),
+			keys: "[MouseRight]",
+		});
+	},
 };
 
 export const ConfirmedAndKept: Story = {

@@ -19,7 +19,10 @@ const setSplash = (label: string | null) => {
 };
 
 /** Names a section in the announcement banner for durationMs; a newer one replaces it. */
-const showSectionSplash = (label: string, durationMs: number) => {
+export const showSectionSplash = (
+	label: string,
+	durationMs: number = INTRO_DURATION.default,
+) => {
 	clearTimeout(timer);
 	setSplash(label);
 	timer = setTimeout(() => setSplash(null), durationMs);

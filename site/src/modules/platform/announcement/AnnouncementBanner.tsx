@@ -2,7 +2,7 @@ import { cn } from "cn";
 import { XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation } from "react-router";
 import type { Banner, BannerFields } from "#/api/platform";
 import { globalLockdown } from "#/api/queries/globalLockdown";
 import {
@@ -14,7 +14,7 @@ import {
 import { terminateSignoffs } from "#/api/queries/workspacePower";
 import { workspaceByOwnerAndName } from "#/api/queries/workspaces";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
-import { useSettingsDefaultView } from "#/modules/management/settingsDefaultView";
+import { navbarPageLabel } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { GlobalLockdownNotice } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { SignoffLight } from "../globalLockdown/TerminateSignoff";
 import {
@@ -40,7 +40,7 @@ import {
 	SectionSplashPill,
 	SPLASH_MIN_HEIGHT_CLASS,
 } from "./SectionSplashPill";
-import { useSectionSplash } from "./sectionIntroductions";
+import { showSectionSplash, useSectionSplash } from "./sectionIntroductions";
 import { useAnnouncementMotion } from "./useAnnouncementMotion";
 import { usePulldownAllowed } from "./usePulldownAllowed";
 import "./bannerLcd.css";
@@ -134,6 +134,7 @@ const CARD_RADIUS: Record<Placement, number> = {
 
 type AnnouncementBannerProps = {
 	placement: Placement;
+	onEdit?: () => void;
 	/** Set only for administrators who can use Global Command & Control. */
 	terminateAlertViewerId?: string;
 };
@@ -142,6 +143,7 @@ type AnnouncementBannerProps = {
 export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 	placement,
 	terminateAlertViewerId,
+	onEdit,
 }) => {
 	const { pathname } = useLocation();
 	const match = pathname.match(/^\/@([^/]+)\/([^/]+)\/?$/);
@@ -209,6 +211,7 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 			key={`${banner.id}:${banner.message}:${banner.effect}`}
 			banner={banner}
 			placement={placement}
+			onEdit={onEdit}
 			terminateAlertViewerId={
 				placement === "login" ? undefined : terminateAlertViewerId
 			}
@@ -231,12 +234,14 @@ type AnnouncementCardProps = {
 	banner: Banner;
 	placement: Placement;
 	onDismiss: () => void;
+	onEdit?: () => void;
 };
 
 const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	banner,
 	placement,
 	onDismiss,
+	onEdit,
 	terminateAlertViewerId,
 }) => {
 	const { data: terminateRound } = useQuery({
@@ -250,9 +255,9 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const leftSignoff = activeSignoffs?.[0];
 	const rightSignoff = activeSignoffs?.[1] ?? leftSignoff;
 	const motion = useAnnouncementMotion(banner.animationsDisabled);
-	const introductions = banner.introductions === true && placement !== "login";
+	const showSections = placement !== "login";
 	const sectionSplash = useSectionSplash();
-	const splash = introductions ? sectionSplash : null;
+	const splash = showSections ? sectionSplash : null;
 	const queryClient = useQueryClient();
 	// Receipts (who viewed it, Confirm): not on the sign-in page, and only when
 	// the announcement asks for them (a greeting need not).
@@ -261,21 +266,19 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const receipts = hasReceipts(banner, placement);
 	const compact = placement !== "page";
 	const inNavbar = placement === "navbar";
-	// A single click on the banner (not on its buttons or links) takes the user to their Default View.
-	const navigate = useNavigate();
-	const location = useLocation();
-	const defaultView = useSettingsDefaultView(placement !== "login");
-	const goToDefaultView = (event: React.MouseEvent) => {
+	const { pathname } = useLocation();
+	const showCurrentView = () => {
+		const label = navbarPageLabel(pathname) ?? document.title.split(" - ")[0];
+		showSectionSplash(label || "Coder", banner.introDurationMs);
+	};
+	const onBannerClick = (event: React.MouseEvent) => {
 		if (
-			placement === "login" ||
 			event.detail !== 1 ||
-			!defaultView.path ||
-			location.pathname === defaultView.path ||
 			(event.target instanceof Element &&
 				event.target.closest("button, a, input, [role=button]"))
 		)
 			return;
-		navigate(defaultView.path);
+		showCurrentView();
 	};
 	const statusQuery = useQuery({
 		...announcementStatus(banner.id),
@@ -329,12 +332,12 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const opening = motion.effects && open.opening && !close.closing;
 
 	return (
-		<AnnouncementReader banner={banner} navbarMove={inNavbar}>
-			{/* biome-ignore lint/a11y/useKeyWithClickEvents: a pointer shortcut to the Default View, which the keyboard reaches from the Settings menu's quick links */}
+		<AnnouncementReader banner={banner} navbarMove={inNavbar} onEdit={onEdit}>
+			{/* biome-ignore lint/a11y/useKeyWithClickEvents: the screen button below provides the keyboard action. */}
 			<div
 				ref={card}
 				id="coder-system-banner"
-				onClick={goToDefaultView}
+				onClick={showSections ? onBannerClick : undefined}
 				data-announcement-motion={motion.effects ? "on" : "off"}
 				role={blank ? undefined : "status"}
 				data-closing={motion.effects ? close.props["data-closing"] : undefined}
@@ -369,6 +372,14 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					radius={CARD_RADIUS[placement]}
 					opacity={banner.opacity}
 				>
+					{showSections && (
+						<button
+							type="button"
+							aria-label="Show current view name"
+							onClick={showCurrentView}
+							className="absolute inset-0 cursor-pointer rounded-[inherit] border-0 bg-transparent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link"
+						/>
+					)}
 					{leftSignoff && (
 						<span className="relative z-10 ml-2 flex shrink-0 items-center">
 							<SignoffLight signoff={leftSignoff} />
@@ -387,7 +398,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 								!inNavbar &&
 								"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
 							// The section splash replaces the message while it shows: none of it peeks out beside the pill.
-							introductions &&
+							showSections &&
 								motion.effects &&
 								"transition-opacity duration-300 motion-reduce:transition-none",
 							splash && "opacity-0",
@@ -402,7 +413,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 						</span>
 					)}
 					{/* The section's name over whatever the banner shows, on a blurred pill. */}
-					{introductions && (
+					{showSections && (
 						<span
 							aria-live="polite"
 							data-testid="section-splash"
