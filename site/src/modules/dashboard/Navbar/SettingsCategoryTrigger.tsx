@@ -24,10 +24,16 @@ export function SettingsCategoryTrigger({
 			settingsMenuSlot(element, { label, icon }),
 		[label, icon],
 	);
-	if (menuPresent) return <BreadcrumbItem ref={register} />;
+	if (menuPresent) {
+		return (
+			<BreadcrumbItem ref={register} className="settings-category-crumb" />
+		);
+	}
 	return (
 		<CategoryDefaultMenu path={path} actions={actions}>
-			<BreadcrumbItem>{children}</BreadcrumbItem>
+			<BreadcrumbItem className="settings-category-crumb">
+				{children}
+			</BreadcrumbItem>
 		</CategoryDefaultMenu>
 	);
 }

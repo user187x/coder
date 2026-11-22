@@ -320,6 +320,12 @@
 	width: 3rem;
 	min-width: 3rem;
 }
+/* A category between Settings and a destination only needs room for its icon and chevrons. */
+.breadcrumb-connected.admin-navbar-breadcrumb
+	> ol
+	> li.settings-category-crumb:not(:last-child) {
+	width: auto;
+}
 .breadcrumb-connected.admin-navbar-breadcrumb > ol > li > :is(a, span, button),
 .breadcrumb-connected.admin-navbar-breadcrumb
 	.category-breadcrumb-button::before,
