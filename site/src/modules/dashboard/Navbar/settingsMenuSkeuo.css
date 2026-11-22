@@ -135,6 +135,14 @@
 .settings-menu .settings-pill > :is([role="menuitem"], button) {
 	background: transparent;
 }
+.settings-menu .settings-hud-pill {
+	container: settings-hud-pill / inline-size;
+}
+@container settings-hud-pill (max-width: 46px) {
+	.settings-hud-label {
+		display: none;
+	}
+}
 .settings-menu .settings-dock-pill {
 	display: grid;
 	flex: 1 1 0%;

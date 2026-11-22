@@ -531,11 +531,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									<DropdownMenuItem
 										asChild
 										{...hudMenu.trigger}
-										className="settings-pill min-h-8 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
+										className="settings-pill settings-hud-pill min-h-8 min-w-0 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
 									>
-										<NavLink to="/hud" title="HUD">
+										<NavLink to="/hud" title="HUD" aria-label="HUD">
 											<GaugeIcon aria-hidden />
-											HUD
+											<span className="settings-hud-label">HUD</span>
 										</NavLink>
 									</DropdownMenuItem>
 								)}
