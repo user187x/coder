@@ -388,6 +388,15 @@ describe("ProxyMenu", () => {
 		expect(
 			within(menu).getByRole("group", { name: "HUD heartbeat" }),
 		).toHaveTextContent("No response");
+		await userEvent.pointer({
+			target: within(menu).getByRole("menuitem", {
+				name: "Open Ping and Latency",
+			}),
+			keys: "[MouseRight]",
+		});
+		expect(screen.getByLabelText("Current route")).toHaveTextContent(
+			"/hud/latency",
+		);
 	});
 
 	it("shows latency beside the cluster heading and keeps HUD and docking in navigation", async () => {

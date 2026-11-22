@@ -11,7 +11,7 @@ import {
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
 	coderHeartbeat,
@@ -36,6 +36,7 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
+import { pingLatencyPath } from "#/modules/navigation";
 import { WorkspaceGrid } from "#/modules/platform/workspaceGrid/WorkspaceGrid";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
@@ -116,6 +117,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	controls,
 	breadcrumbOnly = false,
 }) => {
+	const navigate = useNavigate();
 	const [open, setOpen] = useState(false);
 	const unreadGlow = useUnreadGlow();
 	// The side of the screen the menu opens on, from where its button is: on the left it hangs from the button's left
@@ -553,12 +555,29 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										label="HUD heartbeat"
 										className="order-last"
 									>
-										<HudHeartbeat
-											latency={heartbeatReading?.latency}
-											previous={heartbeatReading?.previous}
-											failed={heartbeat.isError}
-											updatedAt={heartbeat.dataUpdatedAt}
-										/>
+										<DropdownMenuItem
+											asChild
+											className="block cursor-pointer p-0"
+										>
+											<NavLink
+												to={pingLatencyPath}
+												aria-label="Open Ping and Latency"
+												title="Open Ping and Latency"
+												onContextMenu={(event) => {
+													event.preventDefault();
+													event.stopPropagation();
+													closeMenu();
+													void navigate(pingLatencyPath);
+												}}
+											>
+												<HudHeartbeat
+													latency={heartbeatReading?.latency}
+													previous={heartbeatReading?.previous}
+													failed={heartbeat.isError}
+													updatedAt={heartbeat.dataUpdatedAt}
+												/>
+											</NavLink>
+										</DropdownMenuItem>
 									</InlineMenuPanel>
 								)}
 								{controls && (

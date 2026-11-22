@@ -26,3 +26,6 @@ export const linkToTemplate =
 
 /** Opens the template picker on the Workspaces page. */
 export const createWorkspaceSearchParam = "create-workspace";
+
+/** Coder's deployment latency view. */
+export const pingLatencyPath = "/hud/latency";
