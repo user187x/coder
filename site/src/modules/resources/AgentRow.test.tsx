@@ -59,12 +59,28 @@ it("opens overview actions on click and lets the user collapse or request fullsc
 		name: "Workspace overview options",
 	});
 	await user.click(trigger);
-	await user.click(
-		screen.getByRole("menuitem", { name: "Collapse workspace overview" }),
-	);
+	const collapse = screen.getByRole("button", {
+		name: "Collapse workspace overview",
+	});
+	expect(collapse).toBe(trigger);
+	await user.click(collapse);
+	expect(screen.getByText("Workspace test overview")).not.toBeVisible();
 	await user.click(trigger);
-	screen.getByRole("menuitem", { name: "Expand workspace overview" });
-	await user.click(screen.getByRole("menuitem", { name: "Enter fullscreen" }));
+	const expand = screen.getByRole("button", {
+		name: "Expand workspace overview",
+	});
+	await user.tab();
+	expect(
+		screen.getByRole("button", { name: "Enter fullscreen" }),
+	).toHaveFocus();
+	await user.keyboard("{Escape}");
+	expect(trigger).toHaveFocus();
+	expect(trigger).toHaveAccessibleName("Workspace overview options");
+	await user.click(trigger);
+	await user.click(expand);
+	expect(screen.getByText("Workspace test overview")).toBeVisible();
+	await user.click(trigger);
+	await user.click(screen.getByRole("button", { name: "Enter fullscreen" }));
 	expect(onToggleFullscreen).toHaveBeenCalledOnce();
 });
 

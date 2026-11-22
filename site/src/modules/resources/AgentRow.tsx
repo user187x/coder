@@ -33,7 +33,6 @@ import {
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuItem,
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
@@ -127,6 +126,7 @@ type AgentRowProps = {
 	/** Platform: under the card's last panel, inside it (the workspace's Build timeline). */
 	footer?: React.ReactNode;
 	topbar?: React.ReactNode;
+	cornerControl?: React.ReactNode;
 	restricted?: boolean;
 	/** Embedded dashboards defer panel sessions until the user opens them. */
 	initiallyCollapsed?: boolean;
@@ -190,13 +190,22 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	initialMetadata,
 	footer,
 	topbar,
+	cornerControl,
 	restricted = false,
 	initiallyCollapsed = false,
 	onToggleFullscreen,
 	fullscreen = false,
 }) => {
 	const [overviewCollapsed, setOverviewCollapsed] = useState(false);
+	const [overviewControlsOpen, setOverviewControlsOpen] = useState(false);
+	const overviewButton = useRef<HTMLButtonElement>(null);
 	const overviewId = useId();
+	const overviewLabel = overviewControlsOpen
+		? overviewCollapsed
+			? "Expand workspace overview"
+			: "Collapse workspace overview"
+		: "Workspace overview options";
+	const fullscreenLabel = fullscreen ? "Exit fullscreen" : "Enter fullscreen";
 
 	const agent = normalizeWorkspaceApps(originalAgent);
 	const { browser_only, workspace_external_agent } = useFeatureVisibility();
@@ -523,71 +532,84 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					topbar && "rounded-[40px]",
 				)}
 			>
+				{cornerControl}
 				{topbar && (
-					<DropdownMenu modal={false}>
-						<DropdownMenuTrigger asChild>
+					<div
+						role="group"
+						aria-label="Workspace overview controls"
+						className="workspace-overview-toggle absolute left-1/2 top-1 z-20 -translate-x-1/2 overflow-hidden rounded-b-full border border-t-0 border-solid border-border bg-surface-secondary text-content-secondary"
+						data-open={
+							(overviewControlsOpen && Boolean(onToggleFullscreen)) || undefined
+						}
+						onBlur={(event) => {
+							if (!event.currentTarget.contains(event.relatedTarget)) {
+								setOverviewControlsOpen(false);
+							}
+						}}
+						onKeyDown={(event) => {
+							if (event.key === "Escape" && overviewControlsOpen) {
+								event.stopPropagation();
+								overviewButton.current?.focus();
+								setOverviewControlsOpen(false);
+							}
+						}}
+					>
+						<Button
+							ref={overviewButton}
+							variant="subtle"
+							size="icon"
+							className="h-full w-full rounded-none px-0 focus-visible:ring-inset [&>svg]:size-3 [&>svg]:p-0"
+							aria-label={overviewLabel}
+							title={overviewLabel}
+							aria-controls={
+								overviewControlsOpen
+									? `${overviewId} ${overviewId}-network ${overviewId}-metrics`
+									: undefined
+							}
+							aria-expanded={overviewControlsOpen && !overviewCollapsed}
+							onClick={() => {
+								if (overviewControlsOpen) {
+									setOverviewCollapsed((current) => !current);
+									setOverviewControlsOpen(false);
+								} else {
+									setOverviewControlsOpen(true);
+								}
+							}}
+						>
+							<ChevronUpIcon
+								aria-hidden
+								className={cn(
+									(!overviewControlsOpen || overviewCollapsed) && "rotate-180",
+								)}
+							/>
+						</Button>
+						{overviewControlsOpen && onToggleFullscreen && (
 							<Button
-								type="button"
 								variant="subtle"
 								size="icon"
-								className="workspace-overview-toggle absolute left-1/2 top-1 z-20 h-3 w-9 -translate-x-1/2 rounded-b-full rounded-t-none border border-t-0 border-solid border-border bg-surface-secondary text-content-secondary"
-								aria-label="Workspace overview options"
-								title="Workspace overview options"
+								className="h-full w-full rounded-none border-0 border-l border-solid border-border px-0 focus-visible:ring-inset [&>svg]:size-3 [&>svg]:p-0"
+								aria-label={fullscreenLabel}
+								title={fullscreenLabel}
+								onClick={() => {
+									onToggleFullscreen();
+									overviewButton.current?.focus();
+									setOverviewControlsOpen(false);
+								}}
 							>
-								<ChevronUpIcon aria-hidden className="size-3 rotate-180" />
+								{fullscreen ? (
+									<MinimizeIcon aria-hidden />
+								) : (
+									<MaximizeIcon aria-hidden />
+								)}
 							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent
-							aria-label="Workspace overview options"
-							container={fullscreen ? document.fullscreenElement : undefined}
-							side="bottom"
-							sideOffset={0}
-							className="flex min-w-0 gap-1 rounded-b-xl rounded-t-none p-1"
-						>
-							{onToggleFullscreen && (
-								<DropdownMenuItem
-									aria-label={
-										fullscreen ? "Exit fullscreen" : "Enter fullscreen"
-									}
-									title={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-									onSelect={onToggleFullscreen}
-								>
-									{fullscreen ? (
-										<MinimizeIcon aria-hidden />
-									) : (
-										<MaximizeIcon aria-hidden />
-									)}
-								</DropdownMenuItem>
-							)}
-							<DropdownMenuItem
-								aria-label={
-									overviewCollapsed
-										? "Expand workspace overview"
-										: "Collapse workspace overview"
-								}
-								title={
-									overviewCollapsed
-										? "Expand workspace overview"
-										: "Collapse workspace overview"
-								}
-								aria-controls={`${overviewId} ${overviewId}-network ${overviewId}-metrics`}
-								onSelect={() => setOverviewCollapsed((current) => !current)}
-							>
-								<ChevronUpIcon
-									aria-hidden
-									className={cn(overviewCollapsed && "rotate-180")}
-								/>
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
+						)}
+					</div>
 				)}
 				{topbar && (
 					<div
 						id={overviewId}
-						className={cn(
-							"w-full min-w-0 [&>header]:m-0 [&>header]:w-full [&>header]:max-w-none [&>header]:rounded-[20px]",
-							overviewCollapsed && "hidden",
-						)}
+						hidden={overviewCollapsed}
+						className="w-full min-w-0 [&>header]:m-0 [&>header]:w-full [&>header]:max-w-none [&>header]:rounded-[20px]"
 					>
 						{topbar}
 					</div>

@@ -1000,6 +1000,16 @@ export const ExpandedDashboard: Story = {
 		);
 	},
 };
+export const WorkspaceOverviewOptions: Story = {
+	...Running,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Workspace overview options",
+			}),
+		);
+	},
+};
 export const CollapsedOverview: Story = {
 	...ExpandedDashboard,
 	play: async ({ canvasElement }) => {
@@ -1011,7 +1021,7 @@ export const CollapsedOverview: Story = {
 			canvas.getByRole("button", { name: "Workspace overview options" }),
 		);
 		await userEvent.click(
-			within(canvasElement.ownerDocument.body).getByRole("menuitem", {
+			canvas.getByRole("button", {
 				name: "Collapse workspace overview",
 			}),
 		);

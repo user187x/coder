@@ -4,9 +4,9 @@ html[data-workspace-expanded] {
 .workspace-dashboard-expand-corner {
 	width: 40px;
 	height: 40px;
-	/* Inset inside the agent card's border, so the tab and its hover fill never cover the border line or its glow. */
-	top: 2px;
-	right: 2px;
+	/* Clear the 3px border drawn by the agent status effect. */
+	top: 4px;
+	right: 4px;
 	pointer-events: none;
 }
 .workspace-dashboard-expand-corner .corner-expand-tab > svg {
@@ -94,13 +94,34 @@ html[data-workspace-expanded] {
 	min-height: 0;
 }
 
-.workspace-overview-toggle:is(:hover, :focus-visible) {
+.workspace-overview-toggle {
+	display: grid;
+	width: 2.25rem;
+	height: 1.25rem;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+	transition:
+		width 160ms ease-out,
+		grid-template-columns 160ms ease-out;
+}
+.workspace-overview-toggle[data-open] {
+	width: 4rem;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+@media (prefers-reduced-motion: reduce) {
+	.workspace-overview-toggle {
+		transition: none;
+	}
+}
+html[data-animations="off"] .workspace-overview-toggle {
+	transition: none;
+}
+.workspace-overview-toggle:is(:hover, :focus-within) {
 	border-color: hsl(var(--content-link));
 	color: hsl(var(--content-link));
 	box-shadow: 0 0 8px hsl(var(--content-link) / 0.6);
 }
 .workspace-dashboard-grid:has(
-		.workspace-overview-toggle:is(:hover, :focus-visible)
+		.workspace-overview-toggle:is(:hover, :focus-within)
 	)
 	.workspace-agent-card,
 .workspace-dashboard-grid:has(.corner-expand-tab:is(:hover, :focus-visible))
@@ -111,7 +132,7 @@ html[data-workspace-expanded] {
 }
 .workspace-dashboard-expand-corner .corner-expand-tab {
 	clip-path: none;
-	border-radius: 0 22px 0 18px;
+	border-radius: 0 34px 0 18px;
 	/* Transparent at rest so the card's border and glow show through; it fills only on hover or focus. Its z-index 1
 	   keeps the Resources and History panels above it. */
 	background: transparent;
@@ -123,6 +144,7 @@ html[data-workspace-expanded] {
 	backdrop-filter: blur(12px);
 	background: hsl(var(--surface-tertiary));
 	color: hsl(var(--content-link));
+	box-shadow: none;
 }
 
 .workspace-dashboard-page:fullscreen {

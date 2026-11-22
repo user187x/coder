@@ -227,17 +227,18 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 			}
 		/>
 	) : undefined;
+	const expandCorner = !embedded && (
+		<div className="workspace-dashboard-expand-corner absolute z-[1]">
+			<CornerExpandButton
+				expanded={expanded}
+				onToggle={() => setExpanded((current) => !current)}
+				label="workspace dashboard"
+			/>
+		</div>
+	);
 	const dashboard = (
 		<div className="workspace-dashboard-grid relative flex w-full min-w-0 flex-col gap-6">
-			{!embedded && (
-				<div className="workspace-dashboard-expand-corner absolute z-[1]">
-					<CornerExpandButton
-						expanded={expanded}
-						onToggle={() => setExpanded((current) => !current)}
-						label="workspace dashboard"
-					/>
-				</div>
-			)}
+			{!topAgents.length && expandCorner}
 			{/* Platform: the notice while an admin has the workspace locked down */}
 			<LockdownBanner workspace={workspace} />
 			<WorkspaceQuarantineControl workspace={workspace} noticeOnly />
@@ -288,6 +289,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 							key={agent.id}
 							agent={agent}
 							topbar={i === 0 ? workspaceTopbar : undefined}
+							cornerControl={i === 0 ? expandCorner : undefined}
 							restricted={restricted}
 							subAgents={selectedResource.agents?.filter(
 								(a) => a.parent_id === agent.id,
