@@ -306,4 +306,24 @@ describe("ChatConsoleOverlay: the chat bar's console button", () => {
 			),
 		);
 	});
+
+	it("shows a hidden chat bar from the Chat page header", async () => {
+		const read = vi
+			.spyOn(PlatformAPI, "getUserUIPreferences")
+			.mockResolvedValue({ chat_hidden: true });
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (updates) => {
+				read.mockResolvedValue(updates);
+				return updates;
+			});
+		renderDashboard(CHAT_CONSOLE_PAGE);
+
+		const action = await screen.findByRole("button", { name: "Show chat bar" });
+		await waitFor(() => expect(action).toBeEnabled());
+		expect(screen.queryByTestId("chat-bar")).toBeNull();
+		await userEvent.click(action);
+		await waitFor(() => expect(screen.getByTestId("chat-bar")).toBeVisible());
+		expect(save).toHaveBeenCalledWith({ chat_hidden: false });
+	});
 });

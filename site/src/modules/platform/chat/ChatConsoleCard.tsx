@@ -7,6 +7,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "#/components/Button/Button";
+import { ShowChatBarButton } from "./ChatBarControls";
 import { ChatConsoleWorkspace } from "./ChatConsoleWorkspace";
 import {
 	attachConsole,
@@ -166,6 +167,9 @@ export const ChatConsoleCard: React.FC = () => {
 					className="min-w-0 flex-1"
 					actions={
 						<>
+							<ShowChatBarButton
+								onShow={fullscreen ? () => void toggleFullscreen() : undefined}
+							/>
 							<Button
 								variant="subtle"
 								size="icon"

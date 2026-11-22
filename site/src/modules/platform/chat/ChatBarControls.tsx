@@ -6,6 +6,8 @@ import {
 	PinIcon,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
 import {
 	updateUserUIPreferences,
 	userUIPreferences,
@@ -13,6 +15,47 @@ import {
 import { Button } from "#/components/Button/Button";
 import { ChatOnSwitch } from "./ChatPanel";
 import { closeConsoleOverlay, setDockMode, useChatSnapshot } from "./chatStore";
+
+/** Show the dashboard's chat bar, including when saved preferences hide it. */
+export function ShowChatBarButton({
+	label = "Show chat bar",
+	onShow,
+}: {
+	label?: string;
+	onShow?: () => void;
+}) {
+	const preferences = useQuery(userUIPreferences());
+	const client = useQueryClient();
+	const save = useMutation({
+		...updateUserUIPreferences(client),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, "Could not show the chat bar.")),
+	});
+	const show = () => {
+		closeConsoleOverlay();
+		setDockMode("bar");
+		onShow?.();
+	};
+	return (
+		<Button
+			variant="subtle"
+			size="icon"
+			aria-label={label}
+			title={label}
+			data-testid="chat-console-back-to-bar"
+			disabled={preferences.isLoading || save.isPending}
+			onClick={() => {
+				if (preferences.data && !preferences.data.chat_hidden) {
+					show();
+				} else {
+					save.mutate({ chat_hidden: false }, { onSuccess: show });
+				}
+			}}
+		>
+			<ArrowDownToLineIcon aria-hidden />
+		</Button>
+	);
+}
 
 /**
  * The chat bar's controls, in the chat console's header (the bar itself keeps only collapse, window and close): back
@@ -31,16 +74,7 @@ export const ChatBarControls: React.FC = () => {
 	};
 	return (
 		<>
-			<Button
-				variant="subtle"
-				size="icon"
-				aria-label="Back to the chat bar"
-				title="Back to the chat bar"
-				data-testid="chat-console-back-to-bar"
-				onClick={() => leaveFor("bar")}
-			>
-				<ArrowDownToLineIcon />
-			</Button>
+			<ShowChatBarButton label="Back to the chat bar" />
 			<Button
 				variant="subtle"
 				size="icon"
