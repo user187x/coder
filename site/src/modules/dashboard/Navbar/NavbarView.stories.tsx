@@ -186,6 +186,40 @@ export const PingAndLatencyBreadcrumb: Story = {
 	},
 };
 
+export const CategoryDropdown: Story = {
+	...PingAndLatencyBreadcrumb,
+	args: {
+		adminQuickLinks: {
+			links: [],
+			categories: adminPages,
+			pages: adminPages,
+			onChange: fn(),
+		},
+	},
+	parameters: {
+		...PingAndLatencyBreadcrumb.parameters,
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: { settings_sidebar: true, navbar_floating: true },
+			},
+			{ key: bannerKey, data: { ...MockBanner, receipts: false } },
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Ping and Latency" }),
+		);
+		const menu = await within(canvasElement.ownerDocument.body).findByRole(
+			"menu",
+			{ name: "Settings categories" },
+		);
+		await userEvent.hover(
+			within(menu).getByRole("menuitem", { name: "Profile" }),
+		);
+	},
+};
+
 export const SettingsBetweenAnnouncementAndLogo: Story = {
 	...BreadcrumbFacingAnnouncement,
 	parameters: {

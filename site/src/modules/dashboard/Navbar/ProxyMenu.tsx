@@ -44,7 +44,6 @@ import {
 	canViewAdminSettings,
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
-import { BreadcrumbDropdownContent } from "./BreadcrumbMenu";
 import { CompactQuickLinks } from "./CompactQuickLinkMenu";
 import { HudHeartbeat, heartbeatLabel } from "./HudHeartbeat";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
@@ -56,6 +55,7 @@ import {
 } from "./SettingsFacePanel";
 import "./settingsMenuSkeuo.css";
 import { toScreenPx } from "#/utils/appZoom";
+import { SettingsCategoryDropdown } from "./SettingsCategoryDropdown";
 import {
 	SettingsDockControl,
 	type SettingsDockMode,
@@ -386,34 +386,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				createPortal(
 					<DropdownMenu modal={false}>
 						{categoryTrigger}
-						<BreadcrumbDropdownContent aria-label="Settings quick links">
-							<DropdownMenuItem asChild>
-								<NavLink to="/settings/account">
-									<SettingsIcon aria-hidden /> User Settings
-								</NavLink>
-							</DropdownMenuItem>
-							{hud && (
-								<DropdownMenuItem asChild>
-									<NavLink to="/hud">
-										<ScanEyeIcon aria-hidden /> HUD
-									</NavLink>
-								</DropdownMenuItem>
-							)}
-							{[
-								...new Map(
-									[
-										...(controls?.quickLinks ?? []),
-										...(controls?.categories ?? []),
-									].map((page) => [page.id, page]),
-								).values(),
-							].map((page) => (
-								<DropdownMenuItem key={page.id} asChild>
-									<NavLink to={page.path}>
-										<page.icon aria-hidden /> {page.label}
-									</NavLink>
-								</DropdownMenuItem>
-							))}
-						</BreadcrumbDropdownContent>
+						<SettingsCategoryDropdown
+							categories={controls?.categories ?? []}
+							quickLinks={controls?.quickLinks ?? []}
+							hud={hud}
+						/>
 					</DropdownMenu>,
 					breadcrumbHost.element,
 				)}

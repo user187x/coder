@@ -237,7 +237,7 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'navbar_settings_side', 'settings_unread_glow', 'settings_top_pinned', 'settings_face_hidden', 'settings_face_collapse_direction', 'panel_card_color', 'settings_menu_hidden'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target', 'panel_accent', 'dashboard_card_order', 'settings_default_view', 'panel_scale', 'panel_text_color', 'navbar_strip_radius', 'navbar_strip_off', 'admin_nav_in_navbar', 'navbar_floating', 'navbar_resizable_width', 'navbar_settings_side', 'settings_unread_glow', 'settings_top_pinned', 'settings_face_hidden', 'settings_face_collapse_direction', 'panel_card_color', 'settings_menu_hidden', 'settings_category_order'}:
                 raise ValueError('Unsupported preference.')
             if 'admin_notes_tray_target' in changes and changes['admin_notes_tray_target'] not in ('chat', 'notes'):
                 raise ValueError('Invalid admin notes tray target.')
@@ -275,6 +275,12 @@ class UIState(threading.Thread):
             # Which end of the navbar holds the Settings chevron group.
             if changes.get('navbar_settings_side') not in (None, 'left', 'right'):
                 raise ValueError('Invalid navbar Settings side.')
+            if 'settings_category_order' in changes:
+                order = changes['settings_category_order']
+                if not isinstance(order, list) or len(order) > 64 or not all(
+                        isinstance(item, str) and re.fullmatch(r'[a-z][a-z0-9-]{0,63}', item) for item in order
+                ) or len(set(order)) != len(order):
+                    raise ValueError('Invalid Settings category order.')
             if changes.get('settings_menu_hidden') is not None:
                 hidden = changes['settings_menu_hidden']
                 if not isinstance(hidden, list) or len(hidden) > 64 or len(set(hidden)) != len(hidden) or not all(

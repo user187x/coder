@@ -109,6 +109,13 @@ class PreferencesTest(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 self.state.preferences('user-id', {'settings_menu_hidden': bad})
 
+    def test_settings_category_order(self):
+        self.state.preferences('user-id', {'settings_category_order': ['profile', 'hud']})
+        self.state.preferences('user-id', {'settings_category_order': []})
+        for bad in (['profile', 'profile'], ['HUD'], ['invalid/path'], [None], [{}], 'profile'):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                self.state.preferences('user-id', {'settings_category_order': bad})
+
 
 if __name__ == '__main__':
     unittest.main()

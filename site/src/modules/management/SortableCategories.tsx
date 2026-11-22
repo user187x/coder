@@ -19,6 +19,7 @@ import { cn } from "cn";
 import { ArrowDownAZIcon, GripVerticalIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "#/components/Button/Button";
+import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { canonicalAdminPageId } from "#/modules/dashboard/Navbar/adminQuickLinks";
 
 export type SidebarCategory = {
@@ -51,6 +52,7 @@ export const orderCategories = (
 type SortableCategoriesProps = {
 	/** In place of the "Settings" label above the list (the settings breadcrumb). */
 	header?: React.ReactNode;
+	dropdown?: boolean;
 	categories: readonly SidebarCategory[];
 	/** The user's order (page IDs); empty: alphabetical. */
 	order: readonly string[];
@@ -68,6 +70,7 @@ export const SortableCategories: React.FC<SortableCategoriesProps> = ({
 	order,
 	onReorder,
 	header,
+	dropdown = false,
 }) => {
 	const ordered = orderCategories(categories, order);
 	const ids = ordered.map((c) => c.id);
@@ -97,6 +100,27 @@ export const SortableCategories: React.FC<SortableCategoriesProps> = ({
 		setAnnouncement(`${label} moved to position ${to + 1} of ${ids.length}.`);
 	};
 
+	const sort = (
+		<Button
+			size="icon"
+			variant="subtle"
+			className="size-7"
+			aria-label="List the categories alphabetically"
+			title={
+				isAlphabetical
+					? "Listed alphabetically: drag a category's handle to move it"
+					: "List the categories alphabetically"
+			}
+			disabled={isAlphabetical}
+			onClick={() => {
+				onReorder([]);
+				setAnnouncement("Categories listed alphabetically.");
+			}}
+		>
+			<ArrowDownAZIcon />
+		</Button>
+	);
+
 	return (
 		<>
 			<div
@@ -110,24 +134,17 @@ export const SortableCategories: React.FC<SortableCategoriesProps> = ({
 						Settings
 					</span>
 				)}
-				<Button
-					size="icon"
-					variant="subtle"
-					className="size-7"
-					aria-label="List the categories alphabetically"
-					title={
-						isAlphabetical
-							? "Listed alphabetically: drag a category's handle to move it"
-							: "List the categories alphabetically"
-					}
-					disabled={isAlphabetical}
-					onClick={() => {
-						onReorder([]);
-						setAnnouncement("Categories listed alphabetically.");
-					}}
-				>
-					<ArrowDownAZIcon />
-				</Button>
+				{dropdown ? (
+					<DropdownMenuItem
+						asChild
+						disabled={isAlphabetical}
+						onSelect={(event) => event.preventDefault()}
+					>
+						{sort}
+					</DropdownMenuItem>
+				) : (
+					sort
+				)}
 			</div>
 			<DndContext
 				sensors={sensors}
@@ -138,7 +155,11 @@ export const SortableCategories: React.FC<SortableCategoriesProps> = ({
 				<SortableContext items={ids} strategy={verticalListSortingStrategy}>
 					<div className="flex flex-col gap-1" data-testid="admin-categories">
 						{ordered.map((category) => (
-							<SortableCategory key={category.id} category={category} />
+							<SortableCategory
+								key={category.id}
+								category={category}
+								dropdown={dropdown}
+							/>
 						))}
 					</div>
 				</SortableContext>
@@ -150,9 +171,10 @@ export const SortableCategories: React.FC<SortableCategoriesProps> = ({
 	);
 };
 
-const SortableCategory: React.FC<{ category: SidebarCategory }> = ({
-	category,
-}) => {
+const SortableCategory: React.FC<{
+	category: SidebarCategory;
+	dropdown: boolean;
+}> = ({ category, dropdown }) => {
 	const {
 		attributes,
 		listeners,
@@ -162,6 +184,27 @@ const SortableCategory: React.FC<{ category: SidebarCategory }> = ({
 		transition,
 		isDragging,
 	} = useSortable({ id: category.id });
+	const handle = (
+		<button
+			ref={setActivatorNodeRef}
+			type="button"
+			aria-label={`Move ${category.label}`}
+			title="Drag to move"
+			className={cn(
+				"mt-2 flex h-5 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded border-0 bg-transparent p-0 text-content-disabled",
+				dropdown
+					? "mt-0 h-8 w-6 opacity-0 transition-opacity group-hover/category:opacity-100 group-focus-within/category:opacity-100"
+					: "opacity-40 transition-opacity group-hover/category:opacity-100 focus-visible:opacity-100",
+				isDragging && "cursor-grabbing opacity-100",
+			)}
+			{...attributes}
+			role={dropdown ? "menuitem" : attributes.role}
+			{...listeners}
+		>
+			<GripVerticalIcon aria-hidden className="size-3.5" />
+		</button>
+	);
+
 	return (
 		<div
 			ref={setNodeRef}
@@ -173,22 +216,13 @@ const SortableCategory: React.FC<{ category: SidebarCategory }> = ({
 				isDragging && "z-10 rounded-md bg-surface-secondary shadow-md",
 			)}
 		>
-			<button
-				ref={setActivatorNodeRef}
-				type="button"
-				aria-label={`Move ${category.label}`}
-				title="Drag to move"
-				className={cn(
-					"mt-2 flex h-5 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded border-0 bg-transparent p-0 text-content-disabled",
-					"opacity-40 transition-opacity group-hover/category:opacity-100 focus-visible:opacity-100",
-					isDragging && "cursor-grabbing opacity-100",
-				)}
-				{...attributes}
-				{...listeners}
-			>
-				<GripVerticalIcon aria-hidden className="size-3.5" />
-			</button>
+			{!dropdown && handle}
 			<div className="min-w-0 flex-1">{category.node}</div>
+			{dropdown && (
+				<DropdownMenuItem asChild onSelect={(event) => event.preventDefault()}>
+					{handle}
+				</DropdownMenuItem>
+			)}
 		</div>
 	);
 };

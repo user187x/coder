@@ -1538,6 +1538,7 @@ export type UserUIPreferences = {
 	panel_card_color?: string | null;
 	/** The Settings menu's fixed items hidden into its Controls list: organizations, audit-logs, connection-logs. */
 	settings_menu_hidden?: string[] | null;
+	settings_category_order?: string[];
 	/** Appearance > Navigation bar: the backstrip hidden. */
 	navbar_strip_off?: boolean | null;
 	/** Appearance > Panel accents' text colour for the Settings and chat panels ("#rrggbb"); null: the theme's. */
