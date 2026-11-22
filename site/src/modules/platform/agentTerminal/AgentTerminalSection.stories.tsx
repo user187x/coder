@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { deploymentConfigQueryKey } from "#/api/queries/deployment";
 import {
 	MockDeploymentConfig,
@@ -38,6 +38,44 @@ const meta: Meta<typeof AgentTerminalSection> = {
 export default meta;
 type Story = StoryObj<typeof AgentTerminalSection>;
 export const Single: Story = {};
+const terminalOutput = Array.from(
+	{ length: 100 },
+	(_, i) => `Output line ${i + 1}`,
+).join("\r\n");
+export const LongCanvasOutput: Story = {
+	parameters: {
+		queries: [
+			{
+				key: deploymentConfigQueryKey,
+				data: {
+					...MockDeploymentConfig,
+					config: {
+						...MockDeploymentConfig.config,
+						web_terminal_renderer: "canvas",
+					},
+				},
+			},
+		],
+		webSocket: [
+			{ event: "open" },
+			{
+				event: "message",
+				data: `${terminalOutput}\r\nworkspace ~ $ `,
+			},
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await waitFor(() => {
+			const textLayer =
+				canvasElement.querySelector<HTMLCanvasElement>(".xterm-text-layer");
+			if (!textLayer) throw new Error("Terminal canvas is unavailable");
+			expect(textLayer.clientHeight).toBeGreaterThan(0);
+			expect(
+				Math.abs(textLayer.height - textLayer.clientHeight * devicePixelRatio),
+			).toBeLessThanOrEqual(1);
+		});
+	},
+};
 export const VerticalTiles: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.click(

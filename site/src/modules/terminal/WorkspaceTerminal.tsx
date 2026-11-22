@@ -805,6 +805,11 @@ export const WorkspaceTerminal = ({
 	return (
 		<>
 			<style>{`
+				/* These renderers size their canvases in device pixels but draw cells in unzoomed units. */
+				${terminalScopeSelector}:is([data-terminal-renderer="canvas"], [data-terminal-renderer="webgl"]) {
+					zoom: calc(1 / var(--app-zoom, 1));
+				}
+
 				${terminalScopeSelector}[data-terminal-renderer="ghostty"],
 				${terminalScopeSelector}[data-terminal-renderer="ghostty"] * {
 					cursor: pointer !important;
