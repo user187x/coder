@@ -166,8 +166,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		const previousFocus = document.activeElement;
 		const previousLayer = navbar.style.zIndex;
 		navbar.style.zIndex = "121";
-		// The backdrop is portaled to the body, under the app's scale: from the navbar's bottom in CSS pixels, so it
-		// never covers the navbar's strip.
+		// Keep the palette below the raised toolbar, using the portal's coordinate scale.
 		const measure = () =>
 			setNavbarBottom(toCssPx(navbar.getBoundingClientRect().bottom));
 		measure();
@@ -414,8 +413,10 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 				createPortal(
 					<div
 						ref={controls}
-						className="fixed inset-x-0 bottom-[var(--coder-classification-h,0px)] z-[120] flex items-center justify-center bg-black/25 p-2 backdrop-blur-md sm:p-8"
-						style={{ top: navbarBottom }}
+						className="fixed inset-x-0 top-0 bottom-[var(--coder-classification-h,0px)] z-[120] flex items-center justify-center bg-black/25 p-(--arrange-padding) backdrop-blur-md [--arrange-padding:0.5rem] sm:[--arrange-padding:2rem]"
+						style={{
+							paddingTop: `calc(${navbarBottom}px + var(--arrange-padding))`,
+						}}
 						onContextMenu={(event) => {
 							event.preventDefault();
 							event.stopPropagation();
