@@ -425,31 +425,39 @@ def startup_issue(token, oid, wid):
     status, listed = KUBE.call("GET", "/api/v1/pods?labelSelector=" + selector)
     if status != 200:
         raise RuntimeError("Workspace pod status unavailable.")
-    pods = sorted((p for p in listed.get("items", []) if not p["metadata"].get("deletionTimestamp")),
+    items = listed.get("items", [])
+    # A pod can still reserve its CPU and memory after the stop build succeeds.
+    has_workspace_pods = any(
+        p["metadata"].get("labels", {}).get("app.kubernetes.io/name") == "coder-workspace"
+        and (p.get("status") or {}).get("phase") not in ("Succeeded", "Failed")
+        for p in items
+    )
+    pods = sorted((p for p in items if not p["metadata"].get("deletionTimestamp")),
                   key=lambda p: p["metadata"].get("creationTimestamp", ""), reverse=True)
-    if not pods:
-        return {"issue": None}
-    pod = pods[0]
+    return {"issue": _pod_startup_issue(pods[0]) if pods else None, "hasWorkspacePods": has_workspace_pods}
+
+
+def _pod_startup_issue(pod):
     state = pod.get("status") or {}
     condition = next((c for c in state.get("conditions", []) if c["type"] == "PodScheduled" and c["status"] == "False"), None)
     if condition:
-        return {"issue": {"reason": condition.get("reason", "Waiting for placement"),
-                          "message": condition.get("message") or "Kubernetes has not assigned the workspace to a node."}}
+        return {"reason": condition.get("reason", "Waiting for placement"),
+                "message": condition.get("message") or "Kubernetes has not assigned the workspace to a node."}
     for container in (state.get("initContainerStatuses") or []) + (state.get("containerStatuses") or []):
         waiting = container.get("state", {}).get("waiting") or {}
         if waiting.get("reason") not in (None, "PodInitializing", "ContainerCreating"):
-            return {"issue": {"reason": waiting["reason"], "message": "%s: %s" % (
-                container["name"], waiting.get("message") or waiting["reason"])}}
+            return {"reason": waiting["reason"], "message": "%s: %s" % (
+                container["name"], waiting.get("message") or waiting["reason"])}
     if state.get("phase") == "Failed":
-        return {"issue": {"reason": state.get("reason") or "Pod failed", "message": state.get("message") or "Workspace pod failed."}}
+        return {"reason": state.get("reason") or "Pod failed", "message": state.get("message") or "Workspace pod failed."}
     if state.get("phase") == "Pending":
         ns = urllib.parse.quote(pod["metadata"]["namespace"], safe="")
         query = urllib.parse.urlencode({"fieldSelector": "type=Warning,involvedObject.uid=" + pod["metadata"]["uid"]})
         st, events = KUBE.call("GET", "/api/v1/namespaces/%s/events?%s" % (ns, query))
         if st == 200 and events.get("items"):
             latest = max(events["items"], key=lambda e: e.get("lastTimestamp") or e.get("eventTime") or e["metadata"].get("creationTimestamp", ""))
-            return {"issue": {"reason": latest["reason"], "message": latest.get("message") or latest["reason"]}}
-    return {"issue": None}
+            return {"reason": latest["reason"], "message": latest.get("message") or latest["reason"]}
+    return None
 
 
 def handle(h, method, path, query=""):

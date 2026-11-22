@@ -127,6 +127,12 @@ export const WorkspaceStatusIndicator: React.FC<
 	const { data } = useQuery(startup);
 	const issue = startup.enabled ? data?.issue : null;
 	if (issue) {
+		const resource =
+			issue.reason === "Unschedulable" &&
+			issue.message.match(/\bInsufficient (cpu|memory)\b/i)?.[1].toLowerCase();
+		const reason = resource
+			? `insufficient ${resource === "cpu" ? "CPU" : resource}`
+			: issue.reason;
 		return (
 			<StatusIndicator
 				variant="warning"
@@ -134,13 +140,7 @@ export const WorkspaceStatusIndicator: React.FC<
 				title={issue.message}
 			>
 				<StatusIndicatorDot />
-				<span>
-					Startup blocked:{" "}
-					{issue.reason === "Unschedulable" &&
-					issue.message.includes("Insufficient memory")
-						? "insufficient memory"
-						: issue.reason}
-				</span>
+				<span>Startup blocked: {reason}</span>
 			</StatusIndicator>
 		);
 	}

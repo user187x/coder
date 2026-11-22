@@ -2,15 +2,48 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { API } from "#/api/api";
-import { getErrorDetail } from "#/api/errors";
+import { DetailedError, getErrorDetail } from "#/api/errors";
+import { PlatformError } from "#/api/platform";
 import { workspacesKey } from "#/api/queries/workspaces";
 import type { Workspace, WorkspaceBuild } from "#/api/typesGenerated";
+import { getWorkspaceStartup } from "#/api/workspaceMetrics";
+import { delay } from "#/utils/delay";
 
-/**
- * Restarts unpack workspace images and load the host, so only a few run at
- * once. Each slot is held until the whole stop and start has finished.
- */
-const RESTART_CONCURRENCY = 2;
+// Concurrent starts unpack workspace images and compete for host resources.
+const WORKSPACE_START_CONCURRENCY = 2;
+
+/** A completed stop build can leave a pod holding resources during shutdown. */
+async function waitForWorkspacePodShutdown(
+	workspace: Workspace,
+): Promise<void> {
+	const deadline = Date.now() + 180_000;
+	let waitingForPods = false;
+	while (Date.now() < deadline) {
+		try {
+			const startup = await getWorkspaceStartup(
+				workspace.organization_id,
+				workspace.id,
+			);
+			if (startup?.hasWorkspacePods === false) return;
+			// Deployments without the platform field use the provisioner result.
+			if (startup?.hasWorkspacePods === undefined && !waitingForPods) return;
+			waitingForPods = true;
+		} catch (error) {
+			if (
+				error instanceof PlatformError &&
+				error.status === 404 &&
+				!waitingForPods
+			)
+				return;
+			throw error;
+		}
+		await delay(2_000);
+	}
+	throw new DetailedError(
+		"Workspace shutdown timed out.",
+		`The previous pods for ${workspace.name} are still shutting down.`,
+	);
+}
 
 /** Runs `fn` over `items` with at most `limit` calls in flight at once. */
 export async function mapWithConcurrency<T, R>(
@@ -19,16 +52,22 @@ export async function mapWithConcurrency<T, R>(
 	fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
 	const results: R[] = new Array(items.length);
+	const failures: unknown[] = [];
 	let next = 0;
 	const worker = async () => {
 		while (next < items.length) {
 			const index = next++;
-			results[index] = await fn(items[index]);
+			try {
+				results[index] = await fn(items[index]);
+			} catch (error) {
+				failures.push(error);
+			}
 		}
 	};
 	await Promise.all(
 		Array.from({ length: Math.min(limit, items.length) }, worker),
 	);
+	if (failures.length > 0) throw failures[0];
 	return results;
 }
 
@@ -68,19 +107,24 @@ export function useBatchActions(
 
 	const startAllMutation = useMutation({
 		mutationFn: (workspaces: readonly Workspace[]) => {
-			return Promise.all(
-				workspaces
-					.filter((w) => w.latest_build.status === "stopped")
-					.map((w) =>
-						API.startWorkspace(w.id, w.latest_build.template_version_id),
-					),
+			return mapWithConcurrency(
+				workspaces.filter((w) => w.latest_build.status === "stopped"),
+				WORKSPACE_START_CONCURRENCY,
+				async (workspace) => {
+					await waitForWorkspacePodShutdown(workspace);
+					return API.startWorkspace(
+						workspace.id,
+						workspace.latest_build.template_version_id,
+					);
+				},
 			);
 		},
 		onSuccess,
-		onError: (error) => {
+		onError: async (error) => {
 			toast.error("Failed to start workspaces.", {
 				description: getErrorDetail(error),
 			});
+			await queryClient.invalidateQueries({ queryKey: workspacesKey() });
 		},
 	});
 
@@ -112,9 +156,12 @@ export function useBatchActions(
 			try {
 				return await mapWithConcurrency(
 					running,
-					RESTART_CONCURRENCY,
+					WORKSPACE_START_CONCURRENCY,
 					async (workspace) => {
-						await API.restartWorkspace({ workspace });
+						await API.restartWorkspace({
+							workspace,
+							beforeStart: () => waitForWorkspacePodShutdown(workspace),
+						});
 						completed++;
 						setRestartProgress({ completed, total: running.length });
 					},
@@ -124,10 +171,11 @@ export function useBatchActions(
 			}
 		},
 		onSuccess,
-		onError: (error) => {
+		onError: async (error) => {
 			toast.error("Failed to restart workspaces.", {
 				description: getErrorDetail(error),
 			});
+			await queryClient.invalidateQueries({ queryKey: workspacesKey() });
 		},
 	});
 
@@ -145,21 +193,18 @@ export function useBatchActions(
 
 	const updateAllMutation = useMutation({
 		mutationFn: async (updates: readonly WorkspaceUpdate[]) => {
-			const results = await mapWithConcurrency(
+			await mapWithConcurrency(
 				updates,
-				RESTART_CONCURRENCY,
+				WORKSPACE_START_CONCURRENCY,
 				async ({ workspace, kind }) => {
-					try {
-						if (kind === "template") await API.updateWorkspace(workspace);
-						else await API.restartWorkspace({ workspace });
-						return { ok: true } as const;
-					} catch (error) {
-						return { ok: false, error } as const;
+					const beforeStart = () => waitForWorkspacePodShutdown(workspace);
+					if (kind === "template") {
+						await API.updateWorkspace(workspace, undefined, beforeStart);
+					} else {
+						await API.restartWorkspace({ workspace, beforeStart });
 					}
 				},
 			);
-			const failure = results.find((result) => !result.ok);
-			if (failure) throw failure.error;
 		},
 		onSuccess,
 		onError: async (error) => {

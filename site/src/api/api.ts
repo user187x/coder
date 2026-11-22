@@ -269,6 +269,7 @@ function normalizeGetTemplatesOptions(
 type RestartWorkspaceParameters = Readonly<{
 	workspace: TypesGen.Workspace;
 	buildParameters?: TypesGen.WorkspaceBuildParameter[];
+	beforeStart?: () => Promise<void>;
 }>;
 
 export type DeleteWorkspaceOptions = Pick<
@@ -1362,6 +1363,7 @@ class ApiMethods {
 	restartWorkspace = async ({
 		workspace,
 		buildParameters,
+		beforeStart,
 	}: RestartWorkspaceParameters): Promise<void> => {
 		const stopBuild = await this.stopWorkspace(workspace.id);
 		const awaitedStopBuild = await this.waitForBuild(stopBuild);
@@ -1371,6 +1373,7 @@ class ApiMethods {
 			return;
 		}
 
+		await beforeStart?.();
 		const startBuild = await this.startWorkspace(
 			workspace.id,
 			workspace.latest_build.template_version_id,
@@ -2603,8 +2606,10 @@ class ApiMethods {
 		workspace: TypesGen.Workspace,
 		templateVersionId: string,
 		newBuildParameters: TypesGen.WorkspaceBuildParameter[] = [],
+		beforeStart?: () => Promise<void>,
 	): Promise<TypesGen.WorkspaceBuild> => {
 		await this.stopWorkspaceIfRunning(workspace);
+		await beforeStart?.();
 
 		try {
 			return await this.postWorkspaceBuild(workspace.id, {
@@ -2633,6 +2638,7 @@ class ApiMethods {
 	updateWorkspace = async (
 		workspace: TypesGen.Workspace,
 		newBuildParameters: TypesGen.WorkspaceBuildParameter[] = [],
+		beforeStart?: () => Promise<void>,
 	): Promise<TypesGen.WorkspaceBuild> => {
 		const template = await this.getTemplate(workspace.template_id);
 		const activeVersionId = template.active_version_id;
@@ -2641,6 +2647,7 @@ class ApiMethods {
 			workspace,
 			activeVersionId,
 			newBuildParameters,
+			beforeStart,
 		);
 	};
 

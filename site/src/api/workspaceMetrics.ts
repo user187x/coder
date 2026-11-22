@@ -69,6 +69,10 @@ export const getWorkspaceInfrastructureMetrics = (
 	);
 
 export const getWorkspaceStartup = (org: string, id: string) =>
-	platformGet<{ issue: { reason: string; message: string } | null }>(
+	platformGet<{
+		issue: { reason: string; message: string } | null;
+		hasWorkspacePods?: boolean;
+	}>(
 		`/__coder-ui/api/organizations/${encodeURIComponent(org)}/workspaces/${encodeURIComponent(id)}/startup`,
+		{ timeout: 10_000 },
 	);

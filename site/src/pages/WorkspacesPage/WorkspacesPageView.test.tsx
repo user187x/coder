@@ -417,8 +417,15 @@ it("reviews agent and template updates together and applies each reviewed action
 	);
 	await user.click(review.getByRole("button", { name: "Update" }));
 	await waitFor(() => {
-		expect(restart).toHaveBeenCalledExactlyOnceWith({ workspace: agentUpdate });
-		expect(update).toHaveBeenCalledExactlyOnceWith(templateUpdate);
+		expect(restart).toHaveBeenCalledExactlyOnceWith({
+			workspace: agentUpdate,
+			beforeStart: expect.any(Function),
+		});
+		expect(update).toHaveBeenCalledExactlyOnceWith(
+			templateUpdate,
+			undefined,
+			expect.any(Function),
+		);
 	});
 });
 

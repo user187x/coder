@@ -406,10 +406,22 @@ class WorkspaceVMMetricsTest(unittest.TestCase):
         self.assertIsNone(result["allocation"]["disk"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 class StartupReasonTest(unittest.TestCase):
+    def test_terminating_workspace_pod_counts_until_it_exits(self):
+        wid, oid = str(uuid.uuid4()), str(uuid.uuid4())
+        pod = {"metadata": {"deletionTimestamp": "2026-11-22T22:00:00Z",
+                            "labels": {"app.kubernetes.io/name": "coder-workspace"}},
+               "status": {"phase": "Running"}}
+        kube = mock.Mock()
+        kube.call.return_value = (200, {"items": [pod]})
+        with mock.patch.object(metrics, "KUBE", kube), mock.patch.object(
+                metrics, "WORKSPACE_INFO", return_value={"organization_id": oid}):
+            self.assertEqual(metrics.startup_issue("session", oid, wid),
+                             {"issue": None, "hasWorkspacePods": True})
+            pod["status"]["phase"] = "Succeeded"
+            self.assertEqual(metrics.startup_issue("session", oid, wid),
+                             {"issue": None, "hasWorkspacePods": False})
+
     def test_reveals_current_pod_reason_only_to_authorized_workspace_reader(self):
         wid, oid = str(uuid.uuid4()), str(uuid.uuid4())
         pod = {"metadata": {"name": "workspace", "namespace": "coder", "uid": "pod"},
@@ -426,3 +438,7 @@ class StartupReasonTest(unittest.TestCase):
             self.assertIn("Insufficient memory", result["issue"]["message"])
             pod["status"] = {"phase": "Running", "containerStatuses": [{"name": "dev", "state": {"running": {}}}]}
             self.assertIsNone(metrics.startup_issue("session", oid, wid)["issue"])
+
+
+if __name__ == "__main__":
+    unittest.main()
