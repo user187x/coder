@@ -21,6 +21,31 @@ function formatLatency(milliseconds: number | null | undefined) {
 		: undefined;
 }
 
+function ConnectionHeartbeat({
+	latency,
+	failed = false,
+	updatedAt,
+}: {
+	latency: number | null | undefined;
+	failed?: boolean;
+	updatedAt: number;
+}) {
+	return (
+		<div className="w-[clamp(3rem,34%,8rem)] shrink-0 rounded-lg border border-solid border-border/70 bg-surface-secondary/50 p-1">
+			<HudHeartbeat
+				compact
+				latency={
+					typeof latency === "number" && Number.isFinite(latency)
+						? latency
+						: undefined
+				}
+				failed={failed}
+				updatedAt={updatedAt}
+			/>
+		</div>
+	);
+}
+
 export function ServiceLatencies() {
 	const query = useQuery(clusterMesh(false));
 	const labels = new Map(
@@ -70,14 +95,11 @@ export function ServiceLatencies() {
 										{latency ?? (edge.error ? "Unavailable" : "Not measured")}
 									</p>
 								</div>
-								<div className="w-[clamp(3rem,34%,8rem)] shrink-0 rounded-lg border border-solid border-border/70 bg-surface-secondary/50 p-1">
-									<HudHeartbeat
-										compact
-										latency={latency ? (edge.ms ?? undefined) : undefined}
-										failed={Boolean(edge.error)}
-										updatedAt={query.dataUpdatedAt}
-									/>
-								</div>
+								<ConnectionHeartbeat
+									latency={edge.ms}
+									failed={Boolean(edge.error)}
+									updatedAt={query.dataUpdatedAt}
+								/>
 							</div>
 							<p className="m-0 break-words text-xs text-content-secondary">
 								{edge.error ?? edge.note ?? edge.method}
@@ -142,25 +164,33 @@ export function WorkspaceLatencies() {
 				{query.data?.workspaces.map((workspace) => {
 					const latency =
 						workspace.latest_build.status === "running"
-							? formatLatency(workspaceLatency(workspace))
+							? workspaceLatency(workspace)
 							: undefined;
 					return (
 						<article key={workspace.id} className={cardClass}>
-							<h3 className="m-0 break-words text-sm font-medium">
-								<Link
-									className="text-content-link"
-									to={`/@${encodeURIComponent(workspace.owner_name)}/${encodeURIComponent(workspace.name)}`}
-								>
-									{workspace.name}
-								</Link>
-							</h3>
-							<p className="mt-1 mb-3 break-words text-xs text-content-secondary">
-								{workspace.owner_name}
-							</p>
+							<div className="mb-3 flex items-start justify-between gap-3">
+								<div className="min-w-0">
+									<h3 className="m-0 break-words text-sm font-medium">
+										<Link
+											className="text-content-link"
+											to={`/@${encodeURIComponent(workspace.owner_name)}/${encodeURIComponent(workspace.name)}`}
+										>
+											{workspace.name}
+										</Link>
+									</h3>
+									<p className="mb-0 mt-1 break-words text-xs text-content-secondary">
+										{workspace.owner_name}
+									</p>
+								</div>
+								<ConnectionHeartbeat
+									latency={latency}
+									updatedAt={query.dataUpdatedAt}
+								/>
+							</div>
 							<div className="flex flex-wrap items-center justify-between gap-2">
 								<WorkspaceStatusIndicator workspace={workspace} />
 								<span className="font-mono text-sm tabular-nums">
-									{latency ?? "No measurement"}
+									{formatLatency(latency) ?? "No measurement"}
 								</span>
 							</div>
 						</article>

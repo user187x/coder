@@ -5,6 +5,7 @@ import { workspaces } from "#/api/queries/workspaces";
 import { MockMeshReport } from "#/testHelpers/clusterNetwork";
 import {
 	MockPermissions,
+	MockStoppedWorkspace,
 	MockUserOwner,
 	MockWorkspace,
 } from "#/testHelpers/entities";
@@ -25,7 +26,13 @@ const meta: Meta<typeof PingLatencyPage> = {
 			{
 				key: workspaces({ limit: workspaceLatencyPageSize, offset: 0 })
 					.queryKey,
-				data: { workspaces: [MockWorkspace], count: 1 },
+				data: {
+					workspaces: [
+						MockWorkspace,
+						{ ...MockStoppedWorkspace, name: "stopped-workspace" },
+					],
+					count: 2,
+				},
 			},
 		],
 	},
