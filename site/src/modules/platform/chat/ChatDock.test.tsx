@@ -162,7 +162,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		);
 	});
 
-	it("expands or drags into the Settings slot and returns to the bar when it closes", async () => {
+	it("hides the chat bar when undocked from Settings and lets the user restore it", async () => {
 		const user = userEvent.setup();
 		const slot = document.createElement("div");
 		document.body.append(slot);
@@ -174,6 +174,11 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 			await user.click(
 				within(slot).getByRole("button", { name: "Dismiss quick chat" }),
 			);
+			const restore = await screen.findByRole("button", {
+				name: "Restore chat bar",
+			});
+			expect(screen.queryByRole("button", { name: "Chats" })).toBeNull();
+			await user.click(restore);
 			const bar = await screen.findByRole("button", { name: "Chats" });
 			vi.spyOn(slot, "getBoundingClientRect").mockReturnValue(
 				new DOMRect(10, 450, 240, 300),
@@ -186,7 +191,8 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 			]);
 			await within(slot).findByRole("region", { name: "Quick chat" });
 			act(() => unregister?.());
-			await screen.findByRole("button", { name: "Chats" });
+			await screen.findByRole("button", { name: "Restore chat bar" });
+			expect(screen.queryByRole("button", { name: "Chats" })).toBeNull();
 		} finally {
 			act(() => unregister?.());
 			slot.remove();

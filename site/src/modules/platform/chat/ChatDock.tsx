@@ -209,7 +209,7 @@ export const ChatDock: React.FC = () => {
 	const mode = state.dockMode;
 	const settingsSlot = useSettingsChatSlot();
 	useEffect(() => {
-		if (mode === "settings" && !settingsSlot) setDockMode("bar");
+		if (mode === "settings" && !settingsSlot) setDockMode("compact");
 	}, [mode, settingsSlot]);
 	const shown = !embedded && Boolean(state.me);
 	const preferences = useQuery({ ...userUIPreferences(), enabled: shown });
@@ -518,7 +518,7 @@ export const ChatDock: React.FC = () => {
 						settingsSlot &&
 						!overlaid &&
 						createPortal(
-							<SettingsChatPanel onClose={() => setDockMode("bar")} />,
+							<SettingsChatPanel onClose={() => setDockMode("compact")} />,
 							settingsSlot,
 						)}
 					{mode === "side" && <ChatSidePanel onClose={closeChat} />}
