@@ -29,3 +29,6 @@ export const createWorkspaceSearchParam = "create-workspace";
 
 /** Coder's deployment latency view. */
 export const pingLatencyPath = "/hud/latency";
+
+/** The read-only cluster diagnostics terminal. */
+export const hudTerminalPath = "/hud/terminal";

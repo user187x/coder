@@ -532,6 +532,16 @@ export type NodePod = PodBrief & {
 	status: string;
 	containers: number;
 	readyContainers: number;
+	images?: string[];
+};
+
+export type WorkloadKind = "deployments" | "statefulsets" | "daemonsets";
+type ClusterWorkload = {
+	name: string;
+	namespace: string;
+	desired: number;
+	ready: number;
+	available: number;
 };
 
 /** What a drain did: each pod as namespace/name, with the reason for those not evicted. */
@@ -559,6 +569,10 @@ type CleanupResponse = { scan: CloudDriveCleanupScan | null };
 const cleanupPath = `${base}/api/network/cloud-drive-volumes/cleanup`;
 
 export const ClusterNetworkAPI = {
+	workloads: (kind: WorkloadKind) =>
+		get<{ workloads: ClusterWorkload[] }>(
+			`${base}/api/network/workloads?${new URLSearchParams({ kind })}`,
+		),
 	nodePods: (name?: string) =>
 		get<{ node: string | null; pods: NodePod[] }>(
 			`${base}/api/network/node-pods?${new URLSearchParams(name ? { name } : {})}`,
@@ -762,6 +776,12 @@ export const networkNodePods = (name?: string) => ({
 	queryKey: [...clusterNetworkKey, "node-pods", name ?? "all"] as const,
 	queryFn: () => ClusterNetworkAPI.nodePods(name),
 	refetchInterval: 5_000,
+	retry: false,
+});
+
+export const networkWorkloads = (kind: WorkloadKind) => ({
+	queryKey: [...clusterNetworkKey, "workloads", kind] as const,
+	queryFn: () => ClusterNetworkAPI.workloads(kind),
 	retry: false,
 });
 

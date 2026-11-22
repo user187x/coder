@@ -1818,6 +1818,42 @@ def list_node_pods(name=""):
             return pods
 
 
+WORKLOAD_FIELDS = {
+    "deployments": ("replicas", "readyReplicas", "availableReplicas"),
+    "statefulsets": ("replicas", "readyReplicas", "availableReplicas"),
+    "daemonsets": ("desiredNumberScheduled", "numberReady", "numberAvailable"),
+}
+
+
+def workload_inventory(query):
+    """List controller readiness with the existing cluster read permissions."""
+    kind = (urllib.parse.parse_qs(query).get("kind") or [""])[0]
+    if kind not in WORKLOAD_FIELDS:
+        raise ValueError("Choose deployments, statefulsets, or daemonsets.")
+    desired, ready, available = WORKLOAD_FIELDS[kind]
+    workloads, continuation = [], ""
+    while True:
+        params = {"limit": 250}
+        if continuation:
+            params["continue"] = continuation
+        page = _get("/apis/apps/v1/%s?%s" % (kind, urllib.parse.urlencode(params)), kind)
+        for item in page.get("items") or []:
+            meta = item.get("metadata") or {}
+            spec = item.get("spec") or {}
+            status = item.get("status") or {}
+            workloads.append({
+                "name": meta["name"],
+                "namespace": meta["namespace"],
+                "desired": status.get(desired, 0) if kind == "daemonsets" else spec.get(desired, 1),
+                "ready": status.get(ready, 0),
+                "available": status.get(available, 0),
+            })
+        continuation = (page.get("metadata") or {}).get("continue")
+        if not continuation:
+            break
+    return {"workloads": sorted(workloads, key=lambda item: (item["namespace"], item["name"]))}
+
+
 def node_pods(query):
     args = urllib.parse.parse_qs(query)
     name = (args.get("name") or [""])[0]
@@ -1853,7 +1889,9 @@ def node_pods(query):
                      "ready": any(c.get("type") == "Ready" and c.get("status") == "True" for c in status.get("conditions") or []),
                      "restarts": sum(c.get("restartCount", 0) for c in containers + init), "uid": meta["uid"], "created": meta.get("creationTimestamp"),
                      "kind": component_kind(meta.get("labels") or {}), "status": phase, "readyContainers": sum(bool(c.get("ready")) for c in states),
-                     "containers": len(spec.get("containers") or []) + len(sidecars)})
+                     "containers": len(spec.get("containers") or []) + len(sidecars),
+                     "images": list(dict.fromkeys(c["image"] for c in (spec.get("containers") or []) + sidecars
+                                                   if c.get("image")))})
     return {"node": name or None, "pods": sorted(pods, key=lambda p: (p["namespace"], p["name"]))}
 
 
@@ -1919,6 +1957,8 @@ def handle(h, method, path, query):
             return h.send_json(200, node_config(query)) or True
         if path == BASE + "/api/network/node-pods":
             return h.send_json(200, node_pods(query)) or True
+        if path == BASE + "/api/network/workloads":
+            return h.send_json(200, workload_inventory(query)) or True
         if path == BASE + "/api/network/edit-node":
             if method != "POST":
                 return h.send_json(405, {"error": "method not allowed"}) or True
