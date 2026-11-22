@@ -53,7 +53,6 @@ export const HideableRow: React.FC<{
 				to={item.path}
 				icon={item.icon}
 				label={item.label}
-				labelBadge={<DefaultViewOrb path={item.path} />}
 				className={cn("min-w-0 flex-1", itemClassName)}
 				panelClassName="order-last"
 				options={
@@ -79,40 +78,48 @@ export const HideableRow: React.FC<{
 			>
 				<Trash2Icon aria-hidden />
 			</DropdownMenuItem>
-			<DropdownMenuItem
-				ref={setActivatorNodeRef}
-				aria-label={`Reorder ${item.label}`}
-				title="Drag to reorder"
-				className={cn(
-					"flex-none touch-none px-1 text-content-secondary",
-					!shown &&
-						"invisible group-hover/quick:visible group-focus-within/quick:visible",
-					isDragging ? "cursor-grabbing" : "cursor-grab",
-					moving &&
-						"bg-surface-secondary text-content-primary ring-1 ring-content-link",
+			<div className="relative flex shrink-0 items-center">
+				{!shown && (
+					<DefaultViewOrb
+						path={item.path}
+						className="absolute inset-0 m-auto group-hover/quick:invisible group-focus-within/quick:invisible"
+					/>
 				)}
-				{...listeners}
-				onSelect={(event) => event.preventDefault()}
-				onKeyDown={(event) => {
-					if (event.key === "Enter" || event.key === " ") {
-						event.preventDefault();
-						onToggleMoving();
-						return;
-					}
-					if (!moving) return;
-					if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-						event.preventDefault();
-						event.stopPropagation();
-						onMove(event.key === "ArrowUp" ? -1 : 1);
-					} else if (event.key === "Escape") {
-						event.preventDefault();
-						event.stopPropagation();
-						onStopMoving();
-					}
-				}}
-			>
-				<GripVerticalIcon aria-hidden />
-			</DropdownMenuItem>
+				<DropdownMenuItem
+					ref={setActivatorNodeRef}
+					aria-label={`Reorder ${item.label}`}
+					title="Drag to reorder"
+					className={cn(
+						"flex-none touch-none px-1 text-content-secondary",
+						!shown &&
+							"invisible group-hover/quick:visible group-focus-within/quick:visible",
+						isDragging ? "cursor-grabbing" : "cursor-grab",
+						moving &&
+							"bg-surface-secondary text-content-primary ring-1 ring-content-link",
+					)}
+					{...listeners}
+					onSelect={(event) => event.preventDefault()}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							event.preventDefault();
+							onToggleMoving();
+							return;
+						}
+						if (!moving) return;
+						if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+							event.preventDefault();
+							event.stopPropagation();
+							onMove(event.key === "ArrowUp" ? -1 : 1);
+						} else if (event.key === "Escape") {
+							event.preventDefault();
+							event.stopPropagation();
+							onStopMoving();
+						}
+					}}
+				>
+					<GripVerticalIcon aria-hidden />
+				</DropdownMenuItem>
+			</div>
 		</div>
 	);
 };

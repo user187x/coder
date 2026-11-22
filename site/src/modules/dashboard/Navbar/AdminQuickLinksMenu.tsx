@@ -652,10 +652,8 @@ function DestinationLink({
 	link,
 	className,
 	options,
-	labelBadge,
 }: {
 	link: AdminPage;
-	labelBadge?: React.ReactNode;
 	className?: string;
 	/** Options after "Open" in its right-click menu. */
 	options?: React.ReactNode;
@@ -666,7 +664,6 @@ function DestinationLink({
 				link={link}
 				className={className}
 				options={options}
-				labelBadge={labelBadge}
 			/>
 		);
 	return (
@@ -674,7 +671,6 @@ function DestinationLink({
 			to={link.path}
 			icon={link.icon}
 			label={link.label}
-			labelBadge={labelBadge}
 			className={cn("min-w-0 flex-1", className)}
 			options={
 				<>
@@ -759,21 +755,16 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					className={cn("min-w-0 flex-1", itemClassName)}
 				/>
 			) : link.id === "announcement" ? (
-				<AnnouncementMenuItem
-					className={cn("min-w-0 flex-1", itemClassName)}
-					labelBadge={<DefaultViewOrb path={link.path} />}
-				/>
+				<AnnouncementMenuItem className={cn("min-w-0 flex-1", itemClassName)} />
 			) : link.id === "customize" ? (
 				<AppearanceMenuItem
 					to={link.path}
 					className={cn("min-w-0 flex-1", itemClassName)}
-					labelBadge={<DefaultViewOrb path={link.path} />}
 					options={<DefaultViewOption path={link.path} />}
 				/>
 			) : (
 				<DestinationLink
 					link={link}
-					labelBadge={<DefaultViewOrb path={link.path} />}
 					className={itemClassName}
 					options={
 						<>
@@ -793,7 +784,7 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					}
 				/>
 			)}
-			{editable && (
+			{editable ? (
 				<>
 					<DropdownMenuItem
 						aria-label={`Remove ${link.label} from the quick links`}
@@ -811,48 +802,58 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					>
 						<Trash2Icon aria-hidden />
 					</DropdownMenuItem>
-					<DropdownMenuItem
-						ref={(node) => {
-							setActivatorNodeRef(node);
-							handleRef(node);
-						}}
-						aria-label={`Reorder ${link.label}`}
-						title="Drag to reorder"
-						className={cn(
-							"flex-none touch-none px-1 text-content-secondary",
-							!(moving || isDragging) &&
-								"invisible group-hover/quick:visible group-focus-within/quick:visible",
-							isDragging ? "cursor-grabbing" : "cursor-grab",
-							moving &&
-								"bg-surface-secondary text-content-primary ring-1 ring-content-link",
+					<div className="relative flex shrink-0 items-center">
+						{!moving && !isDragging && (
+							<DefaultViewOrb
+								path={link.path}
+								className="absolute inset-0 m-auto group-hover/quick:invisible group-focus-within/quick:invisible"
+							/>
 						)}
-						{...listeners}
-						// A click on the handle does nothing (and keeps the menu open).
-						onSelect={(event) => event.preventDefault()}
-						onKeyDown={(event) => {
-							if (event.key === "Enter" || event.key === " ") {
-								event.preventDefault();
-								onToggleMoving();
-								return;
-							}
-							if (!moving) {
-								return;
-							}
-							// While moving, the arrows move this row instead of the menu's focus.
-							if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-								event.preventDefault();
-								event.stopPropagation();
-								onMove(event.key === "ArrowUp" ? -1 : 1);
-							} else if (event.key === "Escape") {
-								event.preventDefault();
-								event.stopPropagation();
-								onStopMoving();
-							}
-						}}
-					>
-						<GripVerticalIcon aria-hidden />
-					</DropdownMenuItem>
+						<DropdownMenuItem
+							ref={(node) => {
+								setActivatorNodeRef(node);
+								handleRef(node);
+							}}
+							aria-label={`Reorder ${link.label}`}
+							title="Drag to reorder"
+							className={cn(
+								"flex-none touch-none px-1 text-content-secondary",
+								!(moving || isDragging) &&
+									"invisible group-hover/quick:visible group-focus-within/quick:visible",
+								isDragging ? "cursor-grabbing" : "cursor-grab",
+								moving &&
+									"bg-surface-secondary text-content-primary ring-1 ring-content-link",
+							)}
+							{...listeners}
+							// A click on the handle does nothing (and keeps the menu open).
+							onSelect={(event) => event.preventDefault()}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									onToggleMoving();
+									return;
+								}
+								if (!moving) {
+									return;
+								}
+								// While moving, the arrows move this row instead of the menu's focus.
+								if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+									event.preventDefault();
+									event.stopPropagation();
+									onMove(event.key === "ArrowUp" ? -1 : 1);
+								} else if (event.key === "Escape") {
+									event.preventDefault();
+									event.stopPropagation();
+									onStopMoving();
+								}
+							}}
+						>
+							<GripVerticalIcon aria-hidden />
+						</DropdownMenuItem>
+					</div>
 				</>
+			) : (
+				<DefaultViewOrb path={link.path} className="mr-1.5" />
 			)}
 		</div>
 	);

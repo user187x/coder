@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { HouseIcon, XIcon } from "lucide-react";
 import { useContext } from "react";
 import {
@@ -64,15 +65,22 @@ export const CategoryDefaultMenu: React.FC<{
 };
 
 /** Marks the quick link used as the default home. */
-export const DefaultViewOrb: React.FC<{ path: string }> = ({ path }) => {
+export const DefaultViewOrb: React.FC<{ path: string; className?: string }> = ({
+	path,
+	className,
+}) => {
 	const view = useSettingsDefaultView();
 	if (view.path !== path) return null;
 	return (
 		<span
-			aria-hidden
-			className="pointer-events-none shrink-0 whitespace-nowrap rounded-full bg-content-link px-1 text-[8px] font-semibold leading-[9px] text-content-invert"
+			role="img"
+			aria-label="Default home"
+			className={cn(
+				"pointer-events-none grid size-5 shrink-0 place-items-center rounded-full border border-solid border-content-link/40 bg-surface-sky text-content-link",
+				className,
+			)}
 		>
-			Default home
+			<HouseIcon aria-hidden className="size-3" />
 		</span>
 	);
 };
