@@ -1,3 +1,4 @@
+import { ChevronDownIcon, UserRoundCogIcon } from "lucide-react";
 import { Suspense } from "react";
 import { Navigate, Outlet, useMatch } from "react-router";
 import { Avatar } from "#/components/Avatar/Avatar";
@@ -5,6 +6,7 @@ import {
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "#/components/Breadcrumb/Breadcrumb";
+import { Button } from "#/components/Button/Button";
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -12,7 +14,10 @@ import {
 import { PageLoader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { BreadcrumbDropdownContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
-import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
+import {
+	NavbarAction,
+	NavbarStart,
+} from "#/modules/dashboard/Navbar/NavbarAction";
 import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
 import { SettingsCategoryTrigger } from "#/modules/dashboard/Navbar/SettingsCategoryTrigger";
 import { useRegisterPageSettingsBreadcrumb } from "#/modules/dashboard/Navbar/settingsMenuHost";
@@ -23,6 +28,17 @@ import { Sidebar } from "./Sidebar";
 import { settingsSections } from "./settingsSections";
 import "./userSettings.css";
 import "#/modules/dashboard/Navbar/settingsMenuSkeuo.css";
+
+function UserSettingsMenu({ trigger }: { trigger: React.ReactElement }) {
+	return (
+		<DropdownMenu modal={false}>
+			<DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+			<BreadcrumbDropdownContent aria-label="User Settings sections">
+				<Sidebar menu />
+			</BreadcrumbDropdownContent>
+		</DropdownMenu>
+	);
+}
 
 const Layout: React.FC = () => {
 	const { user: me } = useAuthenticated();
@@ -55,8 +71,8 @@ const Layout: React.FC = () => {
 						</span>
 					</SettingsCategoryTrigger>
 					<BreadcrumbItem>
-						<DropdownMenu modal={false}>
-							<DropdownMenuTrigger asChild>
+						<UserSettingsMenu
+							trigger={
 								<button
 									type="button"
 									aria-current="page"
@@ -65,11 +81,8 @@ const Layout: React.FC = () => {
 								>
 									<SectionIcon aria-hidden className="size-4 shrink-0" />
 								</button>
-							</DropdownMenuTrigger>
-							<BreadcrumbDropdownContent aria-label="User Settings sections">
-								<Sidebar menu />
-							</BreadcrumbDropdownContent>
-						</DropdownMenu>
+							}
+						/>
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</AdminBreadcrumb>
@@ -89,6 +102,22 @@ const Layout: React.FC = () => {
 		<>
 			<title>{pageTitle("Settings")}</title>
 			{navbarBreadcrumb}
+			<NavbarAction>
+				<UserSettingsMenu
+					trigger={
+						<Button
+							size="lg"
+							variant="outline"
+							data-navbar-ink-follow=""
+							aria-label="User Settings actions"
+						>
+							<UserRoundCogIcon aria-hidden />
+							User Settings
+							<ChevronDownIcon aria-hidden />
+						</Button>
+					}
+				/>
+			</NavbarAction>
 			{/* Centred in the window, and filling the page's room so a page that fits does not scroll */}
 			<div
 				data-admin-layout=""

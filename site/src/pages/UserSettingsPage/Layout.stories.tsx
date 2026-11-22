@@ -6,7 +6,10 @@ import {
 	reactRouterParameters,
 } from "storybook-addon-remix-react-router";
 import { userUIPreferences } from "#/api/queries/platform";
-import { NavbarStartTarget } from "#/modules/dashboard/Navbar/NavbarAction";
+import {
+	NavbarActionTarget,
+	NavbarStartTarget,
+} from "#/modules/dashboard/Navbar/NavbarAction";
 import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
 import {
 	withAuthProvider,
@@ -55,16 +58,20 @@ export const NavbarSectionsMenu: Story = {
 	},
 	render: function Render() {
 		const [start, setStart] = useState<HTMLDivElement | null>(null);
+		const [action, setAction] = useState<HTMLDivElement | null>(null);
 		return (
-			<NavbarStartTarget.Provider value={start}>
-				<div className="navbar-start" ref={setStart} />
-				<Layout />
-			</NavbarStartTarget.Provider>
+			<NavbarActionTarget.Provider value={action}>
+				<NavbarStartTarget.Provider value={start}>
+					<div className="navbar-start" ref={setStart} />
+					<div className="navbar-action" ref={setAction} />
+					<Layout />
+				</NavbarStartTarget.Provider>
+			</NavbarActionTarget.Provider>
 		);
 	},
 	play: async ({ canvasElement }) => {
 		const trigger = await within(canvasElement).findByRole("button", {
-			name: "Account",
+			name: "User Settings actions",
 		});
 		trigger.focus();
 		await userEvent.keyboard("{ArrowDown}");
