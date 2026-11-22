@@ -138,10 +138,10 @@
 	background-color: hsl(var(--content-success));
 }
 .navbar-resize-handle-left {
-	left: -0.375rem;
+	left: 0;
 }
 .navbar-resize-handle-right {
-	right: -0.375rem;
+	right: 0;
 }
 .navbar-resizable-group:hover > .navbar-resize-handle,
 .navbar-resizable-group[data-dragging] > .navbar-resize-handle,
