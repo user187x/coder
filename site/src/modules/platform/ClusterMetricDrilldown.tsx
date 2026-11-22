@@ -186,7 +186,7 @@ export function ClusterMetricPlot<T extends ClusterMetricSample>({
 			asChild
 			disabled={!samples.length}
 			className={cn(
-				"relative m-0 block w-full min-w-0 cursor-pointer touch-none overflow-hidden rounded p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link [&>svg]:size-full",
+				"relative m-0 block w-full min-w-0 cursor-pointer touch-none overflow-hidden rounded p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link",
 				className,
 			)}
 			onSelect={(event) => event.preventDefault()}
@@ -260,7 +260,10 @@ export function ClusterMetricPlot<T extends ClusterMetricSample>({
 				<span id={instructions} hidden>
 					Activate a sample or drag to select a time range.
 				</span>
-				{children(selection?.plot.samples ?? samples)}
+				{/* Direct SVG children of a menu item are sized as icons. */}
+				<span className="absolute inset-0 [&>svg]:size-full">
+					{children(selection?.plot.samples ?? samples)}
+				</span>
 				{selection && (
 					<span
 						aria-hidden
