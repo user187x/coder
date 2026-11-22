@@ -85,6 +85,29 @@ describe("WorkspacesPageView", () => {
 		await waitFor(() => expect(search).not.toBeInTheDocument());
 	});
 
+	it("lists owned workspaces and sends the create action to Templates", async () => {
+		const list = vi.spyOn(API, "getWorkspaces").mockResolvedValue({
+			workspaces: [MockWorkspace],
+			count: 1,
+		});
+		const { router } = renderWithAuth(
+			<WorkspacesPageView {...defaultProps} />,
+			{
+				path: "/workspaces",
+				route: "/workspaces",
+				extraRoutes: [{ path: "/templates", element: <h1>Templates</h1> }],
+			},
+		);
+		const user = userEvent.setup();
+		await user.click(await screen.findByRole("button", { name: "Workspace" }));
+		await screen.findByRole("option", { name: MockWorkspace.name });
+		expect(list).toHaveBeenCalledWith(
+			expect.objectContaining({ q: "owner:me" }),
+		);
+		await user.click(screen.getByRole("link", { name: "Create Workspace" }));
+		expect(router.state.location.pathname).toBe("/templates");
+	});
+
 	it("hides the New workspace button and explains the missing permission", async () => {
 		renderWithAuth(
 			<WorkspacesPageView {...defaultProps} canCreateWorkspace={false} />,

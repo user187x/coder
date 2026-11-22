@@ -8,9 +8,11 @@ import {
 	XIcon,
 } from "lucide-react";
 import type { UseQueryResult } from "react-query";
+import { useLocation } from "react-router";
 import { hasError, isApiValidationError } from "#/api/errors";
 import type { Template, Workspace } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
+import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
 import type { UseFilterResult } from "#/components/Filter/Filter";
@@ -19,6 +21,9 @@ import { PageHeaderTitle } from "#/components/PageHeader/PageHeader";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
+import { WorkspacePicker } from "#/modules/dashboard/Navbar/SettingsDestinationMenu";
+import { createWorkspaceSearchParam } from "#/modules/navigation";
+import { canSeeTemplates } from "#/modules/permissions/templates";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { WorkspaceQuotaPill } from "#/modules/platform/workspaceQuota/WorkspaceQuotaPill";
 import { WorkspaceTableTunnels } from "#/modules/platform/workspaceTunnels/WorkspaceTableTunnels";
@@ -85,7 +90,9 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 	// does not exist. In this case, the page is not valid and we want to show a
 	// better error message.
 	const pageNumberIsInvalid = page !== 1 && workspaces?.length === 0;
-	const { user: me } = useAuthenticated();
+	const { user: me, permissions } = useAuthenticated();
+	const { search } = useLocation();
+	const creating = new URLSearchParams(search).has(createWorkspaceSearchParam);
 	// Platform: the table's footer - what the page shows and how many run
 	const shown = workspaces?.length ?? 0;
 	const running = (workspaces ?? []).filter(
@@ -111,17 +118,31 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 			{/* Platform: Workspaces | Templates | Images. */}
 			{/* The announcement banner names the section, so the heading is for assistive technology only. */}
 			<PageHeaderTitle className="sr-only">Workspaces</PageHeaderTitle>
-			{/* The create action renders in the navbar (NavbarAction), so no header row reserves space here. */}
 			{canCreateWorkspace && (
 				<NavbarAction>
-					<WorkspacesButton
-						templates={templates}
-						templatesFetchStatus={templatesFetchStatus}
-					>
-						{/* Platform: the plus glyph says "new" */}
-						<MonitorIcon aria-hidden />
-						Workspace
-					</WorkspacesButton>
+					{creating ? (
+						<WorkspacesButton
+							templates={templates}
+							templatesFetchStatus={templatesFetchStatus}
+						>
+							<MonitorIcon aria-hidden />
+							Workspace
+						</WorkspacesButton>
+					) : (
+						<WorkspacePicker
+							label="Workspace"
+							createHref={
+								canSeeTemplates(permissions) ? "/templates" : undefined
+							}
+							button={
+								<Button variant="outline" size="lg" data-navbar-ink-follow="">
+									<MonitorIcon aria-hidden />
+									Workspace
+									<ChevronDownIcon aria-hidden />
+								</Button>
+							}
+						/>
+					)}
 				</NavbarAction>
 			)}
 

@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { INTRO_DURATION } from "#/api/platform";
 
-let splash: string | null = null;
+let splash: { label: string; manual: boolean } | null = null;
 /**
  * The section last shown, kept outside any component: Workspaces, Templates
  * and the deployment pages each mount their own settings layout, so moving
@@ -11,8 +11,8 @@ let lastSection: string | null | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<() => void>();
 
-const setSplash = (label: string | null) => {
-	splash = label;
+const setSplash = (next: typeof splash) => {
+	splash = next;
 	for (const listener of listeners) {
 		listener();
 	}
@@ -22,9 +22,10 @@ const setSplash = (label: string | null) => {
 export const showSectionSplash = (
 	label: string,
 	durationMs: number = INTRO_DURATION.default,
+	manual = true,
 ) => {
 	clearTimeout(timer);
-	setSplash(label);
+	setSplash({ label, manual });
 	timer = setTimeout(() => setSplash(null), durationMs);
 };
 
@@ -36,10 +37,10 @@ const subscribe = (listener: () => void) => {
 };
 
 /** The section name the announcement banner is showing in place of its message, if any. */
-export const useSectionSplash = () =>
+export const useSectionSplash = (showAutomatic: boolean) =>
 	useSyncExternalStore(
 		subscribe,
-		() => splash,
+		() => (showAutomatic || splash?.manual ? (splash?.label ?? null) : null),
 		() => null,
 	);
 
@@ -62,7 +63,7 @@ export const useAnnounceSection = (
 		}
 		lastSection = id;
 		if (!first && enabled && label) {
-			showSectionSplash(label, durationMs);
+			showSectionSplash(label, durationMs, false);
 		}
 	}, [id, label, enabled, durationMs]);
 };

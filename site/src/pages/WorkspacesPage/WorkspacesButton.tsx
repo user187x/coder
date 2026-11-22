@@ -1,4 +1,4 @@
-import { ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon, PlusIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { UseQueryResult } from "react-query";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router";
@@ -17,7 +17,7 @@ import {
 } from "#/components/Combobox/Combobox";
 import { Link } from "#/components/Link/Link";
 import { Spinner } from "#/components/Spinner/Spinner";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { useOptionalAuthContext } from "#/contexts/auth/AuthProvider";
 import {
 	BreadcrumbMenuPanel,
 	breadcrumbMenuClass,
@@ -35,22 +35,26 @@ type WorkspacesButtonProps = {
 	children?: React.ReactNode;
 	templatesFetchStatus: TemplatesQuery["status"];
 	templates: TemplatesQuery["data"];
+	createTemplateHref?: string;
 };
 
 export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 	children,
 	templatesFetchStatus,
 	templates,
+	createTemplateHref,
 }) => {
 	const navigate = useNavigate();
 	const { search } = useLocation();
 	const searchParams = new URLSearchParams(search);
-	const requested = searchParams.has(createWorkspaceSearchParam);
+	const requested =
+		!createTemplateHref && searchParams.has(createWorkspaceSearchParam);
 	const [open, setOpen] = useState(false);
 	const getLink = useLinks();
 	// Platform: the Templates pages are for those who make or change templates.
-	const { permissions } = useAuthenticated();
-	const templatesPage = canSeeTemplates(permissions);
+	const permissions = useOptionalAuthContext()?.permissions;
+	const templatesPage =
+		Boolean(createTemplateHref) || canSeeTemplates(permissions ?? {});
 
 	// Dataset should always be small enough that client-side filtering should be
 	// good enough. Can swap out down the line if it becomes an issue
@@ -85,7 +89,7 @@ export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 					return;
 				}
 				navigate(
-					`${getLink(linkToTemplate(template.organization_name, template.name))}/workspace`,
+					`${getLink(linkToTemplate(template.organization_name, template.name))}${createTemplateHref ? "" : "/workspace"}`,
 				);
 			}}
 		>
@@ -104,8 +108,16 @@ export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 			>
 				<BreadcrumbMenuPanel>
 					<ComboboxInput
-						placeholder="Type/select a workspace template"
-						aria-label="Template select for workspace"
+						placeholder={
+							createTemplateHref
+								? "Type/select a template"
+								: "Type/select a workspace template"
+						}
+						aria-label={
+							createTemplateHref
+								? "Search templates"
+								: "Template select for workspace"
+						}
 					/>
 					<ComboboxList
 						// Cap the list to the popover's available height minus the search
@@ -146,13 +158,23 @@ export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 							))
 						)}
 					</ComboboxList>
-					{templatesFetchStatus !== "pending" &&
+					{templatesFetchStatus === "error" && !templates?.length && (
+						<p
+							role="alert"
+							className="px-3 py-2 text-sm text-content-destructive"
+						>
+							Could not load templates.
+						</p>
+					)}
+					{(templatesFetchStatus === "success" || Boolean(templates?.length)) &&
 						(templates?.length === 0 ? (
 							<ComboboxEmpty>
 								No templates yet.{" "}
 								{templatesPage && (
 									<Link asChild showExternalIcon={false}>
-										<RouterLink to="/templates">Create one now.</RouterLink>
+										<RouterLink to={createTemplateHref ?? "/templates"}>
+											Create one now.
+										</RouterLink>
 									</Link>
 								)}
 							</ComboboxEmpty>
@@ -162,11 +184,17 @@ export const WorkspacesButton: React.FC<WorkspacesButtonProps> = ({
 					{templatesPage && (
 						<div className="shrink-0 border-0 border-t border-solid border-border py-1">
 							<RouterLink
-								to="/templates"
+								to={createTemplateHref ?? "/templates"}
 								className="workspace-template-option flex items-center gap-3 px-3 py-2 text-sm font-medium no-underline outline-hidden"
 							>
-								<ExternalLinkIcon className="size-icon-xs" />
-								<span>See all templates</span>
+								{createTemplateHref ? (
+									<PlusIcon aria-hidden className="size-icon-xs" />
+								) : (
+									<ExternalLinkIcon aria-hidden className="size-icon-xs" />
+								)}
+								<span>
+									{createTemplateHref ? "Create Template" : "See all templates"}
+								</span>
 							</RouterLink>
 						</div>
 					)}

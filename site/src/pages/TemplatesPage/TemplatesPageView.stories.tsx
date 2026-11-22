@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { userEvent, within } from "storybook/test";
 import {
 	getDefaultFilterProps,
 	MockMenu,
@@ -38,6 +39,20 @@ const meta: Meta<typeof TemplatesPageView> = {
 
 export default meta;
 type Story = StoryObj<typeof TemplatesPageView>;
+
+export const TemplateActionPicker: Story = {
+	args: {
+		canCreateTemplates: true,
+		templates: [MockTemplate],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Template",
+			}),
+		);
+	},
+};
 
 export const WithTemplates: Story = {
 	args: {

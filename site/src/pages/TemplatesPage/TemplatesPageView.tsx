@@ -42,6 +42,7 @@ import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { TemplateAccessMenu } from "#/modules/platform/templateAccess/TemplateAccessMenu";
 import { TemplateMenu } from "#/pages/TemplatePage/TemplatePageHeader";
+import { WorkspacesButton } from "#/pages/WorkspacesPage/WorkspacesButton";
 import { createDayString } from "#/utils/createDayString";
 import {
 	formatTemplateActiveDevelopersLabel,
@@ -334,19 +335,20 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 			{/* The create action renders in the navbar (NavbarAction), so no header row reserves space here. */}
 			{canCreateTemplates && (
 				<NavbarAction>
-					<Button asChild size="lg">
-						<RouterLink
-							to={
-								templateBuilderEnabled
-									? "/templates/new/builder"
-									: "/starter-templates"
-							}
-						>
-							{/* Platform: the plus glyph says "new" */}
-							<FileTextIcon />
-							Template
-						</RouterLink>
-					</Button>
+					<WorkspacesButton
+						templates={templates}
+						templatesFetchStatus={
+							error ? "error" : isLoading ? "pending" : "success"
+						}
+						createTemplateHref={
+							templateBuilderEnabled
+								? "/templates/new/builder"
+								: "/starter-templates"
+						}
+					>
+						<FileTextIcon aria-hidden />
+						Template
+					</WorkspacesButton>
 				</NavbarAction>
 			)}
 

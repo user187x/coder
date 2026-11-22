@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import uniqueId from "lodash/uniqueId";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { workspaceQuarantineKey } from "#/api/queries/workspaceQuarantine";
+import { workspaces as workspacesQuery } from "#/api/queries/workspaces";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import {
 	type Workspace,
@@ -189,8 +190,16 @@ const meta: Meta<typeof WorkspacesPageView> = {
 export default meta;
 type Story = StoryObj<typeof WorkspacesPageView>;
 
-export const TemplatePicker: Story = {
+export const WorkspacePicker: Story = {
 	args: { workspaces: [], count: 0 },
+	parameters: {
+		queries: [
+			{
+				key: workspacesQuery({ q: "owner:me" }).queryKey,
+				data: { workspaces: [MockWorkspace], count: 1 },
+			},
+		],
+	},
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
 			within(canvasElement).getByRole("button", { name: "Workspace" }),

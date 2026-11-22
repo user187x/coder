@@ -31,10 +31,7 @@ import {
 import { CategoryDefaultMenu } from "#/modules/dashboard/Navbar/DefaultViewOption";
 import { NavbarStart } from "#/modules/dashboard/Navbar/NavbarAction";
 import { SettingsBreadcrumbRoot } from "#/modules/dashboard/Navbar/SettingsBreadcrumbRoot";
-import {
-	TemplateDestinations,
-	WorkspacePicker,
-} from "#/modules/dashboard/Navbar/SettingsDestinationMenu";
+import { TemplateDestinations } from "#/modules/dashboard/Navbar/SettingsDestinationMenu";
 import { SettingsPlacementOptions } from "#/modules/dashboard/Navbar/SettingsRootMenu";
 import {
 	navbarSettingsSide,
@@ -166,12 +163,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 						}
 					>
 						<BreadcrumbItem>
-							{category?.id === "workspaces" ? (
-								<WorkspacePicker
-									label={category.label}
-									trigger={<CategoryIcon aria-hidden />}
-								/>
-							) : categoryDestinations ? (
+							{categoryDestinations ? (
 								<BreadcrumbViewMenu
 									label={category?.label ?? "General"}
 									trigger={<CategoryIcon aria-hidden />}

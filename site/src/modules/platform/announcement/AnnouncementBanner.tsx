@@ -256,8 +256,10 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const rightSignoff = activeSignoffs?.[1] ?? leftSignoff;
 	const motion = useAnnouncementMotion(banner.animationsDisabled);
 	const showSections = placement !== "login";
-	const sectionSplash = useSectionSplash();
+	const introductions = banner.introductions === true && showSections;
+	const sectionSplash = useSectionSplash(introductions);
 	const splash = showSections ? sectionSplash : null;
+	const showSplash = introductions || Boolean(splash);
 	const queryClient = useQueryClient();
 	// Receipts (who viewed it, Confirm): not on the sign-in page, and only when
 	// the announcement asks for them (a greeting need not).
@@ -398,7 +400,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 								!inNavbar &&
 								"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
 							// The section splash replaces the message while it shows: none of it peeks out beside the pill.
-							showSections &&
+							showSplash &&
 								motion.effects &&
 								"transition-opacity duration-300 motion-reduce:transition-none",
 							splash && "opacity-0",
@@ -413,7 +415,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 						</span>
 					)}
 					{/* The section's name over whatever the banner shows, on a blurred pill. */}
-					{showSections && (
+					{showSplash && (
 						<span
 							aria-live="polite"
 							data-testid="section-splash"

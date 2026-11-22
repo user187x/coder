@@ -2,7 +2,7 @@ import { cn } from "cn";
 import { FileTextIcon, MonitorIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "react-query";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, type To, useLocation, useNavigate } from "react-router";
 import { deploymentConfig } from "#/api/queries/deployment";
 import { userUIPreferences } from "#/api/queries/platform";
 import { templates } from "#/api/queries/templates";
@@ -98,9 +98,13 @@ function useWorkspaceDestinations(enabled = true) {
 export function WorkspacePicker({
 	label,
 	trigger,
+	button,
+	createHref,
 }: {
 	label: string;
 	trigger?: React.ReactNode;
+	button?: React.ReactElement;
+	createHref?: To;
 }) {
 	const [open, setOpen] = useState(false);
 	const { canCreateWorkspace, query, icons, createSearch, ownedWorkspaces } =
@@ -111,13 +115,17 @@ export function WorkspacePicker({
 	return (
 		<Combobox open={open} onOpenChange={setOpen}>
 			<ComboboxTrigger asChild>
-				<button type="button" aria-label={label} title={label}>
-					{trigger ?? label}
-				</button>
+				{button ?? (
+					<button type="button" aria-label={label} title={label}>
+						{trigger ?? label}
+					</button>
+				)}
 			</ComboboxTrigger>
 			<ComboboxContent
 				align={
-					navbarSettingsSide(preferences.data) === "right" ? "end" : "start"
+					button || navbarSettingsSide(preferences.data) === "right"
+						? "end"
+						: "start"
 				}
 				sideOffset={8}
 				collisionPadding={8}
@@ -171,10 +179,12 @@ export function WorkspacePicker({
 					{canCreateWorkspace && (
 						<div className="shrink-0 border-0 border-t border-solid border-border bg-surface-tertiary py-1">
 							<Link
-								to={{
-									pathname: "/workspaces",
-									search: createSearch.toString(),
-								}}
+								to={
+									createHref ?? {
+										pathname: "/workspaces",
+										search: createSearch.toString(),
+									}
+								}
 								onClick={() => setOpen(false)}
 								className="workspace-template-option flex items-center gap-3 px-3 py-2 text-sm font-medium no-underline outline-hidden"
 							>
