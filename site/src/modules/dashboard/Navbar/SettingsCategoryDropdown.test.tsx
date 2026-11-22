@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UsersIcon } from "lucide-react";
 import { createMemoryRouter } from "react-router";
@@ -63,7 +63,7 @@ it("saves category moves, sorts alphabetically, and opens Profile", async () => 
 	expect(router.state.location.pathname).toBe("/settings/account");
 });
 
-it("marks only the selected category when switching between HUD and Ping and Latency", async () => {
+it("marks only the current category after selecting Ping and Latency, HUD, or Profile", async () => {
 	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
 	const categories = (
 		<DropdownMenu>
@@ -80,7 +80,7 @@ it("marks only the selected category when switching between HUD and Ping and Lat
 			/>
 		</DropdownMenu>
 	);
-	renderWithRouter(
+	const { router } = renderWithRouter(
 		createMemoryRouter([{ path: "*", element: categories }], {
 			initialEntries: ["/hud"],
 		}),
@@ -92,6 +92,7 @@ it("marks only the selected category when switching between HUD and Ping and Lat
 	for (const [selected, other] of [
 		["Ping and Latency", "HUD"],
 		["HUD", "Ping and Latency"],
+		["Profile", "User Settings"],
 	]) {
 		await user.click(await screen.findByRole("menuitem", { name: selected }));
 		await open();
@@ -103,4 +104,11 @@ it("marks only the selected category when switching between HUD and Ping and Lat
 			"aria-current",
 		);
 	}
+	await act(() => router.navigate("/settings/ssh-keys"));
+	expect(
+		screen.getByRole("menuitem", { name: "User Settings" }),
+	).toHaveAttribute("aria-current", "page");
+	expect(screen.getByRole("menuitem", { name: "Profile" })).not.toHaveAttribute(
+		"aria-current",
+	);
 });

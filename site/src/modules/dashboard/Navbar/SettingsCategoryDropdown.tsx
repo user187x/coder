@@ -1,7 +1,7 @@
 import { arrayMove } from "@dnd-kit/sortable";
 import { ScanEyeIcon, SettingsIcon, UserRoundIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { NavLink } from "react-router";
+import { Link, NavLink, useMatch } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import {
@@ -28,6 +28,8 @@ export function SettingsCategoryDropdown({
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
 	const save = useMutation(updateUserUIPreferences(client));
+	const settingsSection = useMatch("/settings/*");
+	const profile = useMatch("/settings/account");
 	const pages = [
 		{
 			id: "user-settings",
@@ -102,10 +104,22 @@ export function SettingsCategoryDropdown({
 									reorder(arrayMove(orderedIds, from, to));
 							}}
 						>
-							<NavLink to={path} end={id === "hud"}>
-								<Icon aria-hidden />
-								<span className="truncate">{label}</span>
-							</NavLink>
+							{id === "user-settings" ? (
+								<Link
+									to={path}
+									aria-current={
+										settingsSection && !profile ? "page" : undefined
+									}
+								>
+									<Icon aria-hidden />
+									<span className="truncate">{label}</span>
+								</Link>
+							) : (
+								<NavLink to={path} end={id === "hud" || id === "profile"}>
+									<Icon aria-hidden />
+									<span className="truncate">{label}</span>
+								</NavLink>
+							)}
 						</DropdownMenuItem>
 					),
 				}))}
