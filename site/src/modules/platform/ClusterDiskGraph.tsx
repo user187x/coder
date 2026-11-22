@@ -1,5 +1,6 @@
 import { getErrorMessage } from "#/api/errors";
 import type { HudHistory, HudHistoryPoint } from "#/api/platform";
+import { ClusterMetricPlot } from "./ClusterMetricDrilldown";
 import { MetricMeter } from "./MetricMeter";
 import { MetricSample } from "./MetricSample";
 import { MetricYAxis } from "./MetricYAxis";
@@ -121,64 +122,86 @@ export const ClusterDiskGraph: React.FC<{
 						</div>
 					</div>
 					{hasMeasurements && history ? (
-						<svg
-							data-panel-graph-track
-							role="img"
-							aria-label={`Cluster disk over the last ${Math.round(span / 60)} minutes: ${summary}. Used and remaining capacity are stacked; claims are separate markers.`}
-							viewBox="-5 0 105 40"
-							preserveAspectRatio="none"
-							className="block h-10 w-full overflow-hidden rounded bg-surface-tertiary"
-						>
-							{points.map((point) => {
-								const disk = diskAmounts(point);
-								const { used, total, claimed, remaining } = disk;
-								const x = ((point.t - history.start) / span) * 100;
-								const barX = x + slot * 0.15;
-								const width = slot * 0.7;
-								return (
-									<MetricSample
-										key={point.t}
-										x={x}
-										width={slot}
-										height={40}
-										time={point.t}
-										measurement={diskMeasurement(disk)}
-									>
-										{total !== null && (
-											<rect
-												x={barX}
-												width={width}
-												y={39 - height(total)}
-												height={height(remaining ?? total)}
-												className="fill-content-secondary/25"
-											/>
-										)}
-										{used !== null && (
-											<rect
-												x={barX}
-												width={width}
-												y={39 - height(used)}
-												height={height(used)}
-												data-panel-graph-fill
-												className="fill-content-link"
-											/>
-										)}
-										{claimed !== null && (
-											<line
-												x1={barX}
-												x2={barX + width}
-												y1={39 - height(claimed)}
-												y2={39 - height(claimed)}
-												className="stroke-content-warning"
-												strokeWidth={1.5}
-												vectorEffect="non-scaling-stroke"
-											/>
-										)}
-									</MetricSample>
-								);
+						<ClusterMetricPlot
+							metric="disk"
+							samples={points.flatMap((point) => {
+								const sample = diskAmounts(point);
+								return sample.used === null
+									? []
+									: [
+											{
+												t: point.t,
+												value: sample.used,
+												measurement: diskMeasurement(sample),
+											},
+										];
 							})}
-							<MetricYAxis max={scale} top={1} bottom={39} />
-						</svg>
+							every={history.step}
+							start={history.start - history.step / 2 - 0.05 * span}
+							span={1.05 * span}
+							className="h-10"
+						>
+							{() => (
+								<svg
+									data-panel-graph-track
+									role="img"
+									aria-label={`Cluster disk over the last ${Math.round(span / 60)} minutes: ${summary}. Used and remaining capacity are stacked; claims are separate markers.`}
+									viewBox="-5 0 105 40"
+									preserveAspectRatio="none"
+									className="block h-10 w-full overflow-hidden rounded bg-surface-tertiary"
+								>
+									{points.map((point) => {
+										const disk = diskAmounts(point);
+										const { used, total, claimed, remaining } = disk;
+										const x = ((point.t - history.start) / span) * 100;
+										const barX = x + slot * 0.15;
+										const width = slot * 0.7;
+										return (
+											<MetricSample
+												key={point.t}
+												x={x}
+												width={slot}
+												height={40}
+												time={point.t}
+												measurement={diskMeasurement(disk)}
+											>
+												{total !== null && (
+													<rect
+														x={barX}
+														width={width}
+														y={39 - height(total)}
+														height={height(remaining ?? total)}
+														className="fill-content-secondary/25"
+													/>
+												)}
+												{used !== null && (
+													<rect
+														x={barX}
+														width={width}
+														y={39 - height(used)}
+														height={height(used)}
+														data-panel-graph-fill
+														className="fill-content-link"
+													/>
+												)}
+												{claimed !== null && (
+													<line
+														x1={barX}
+														x2={barX + width}
+														y1={39 - height(claimed)}
+														y2={39 - height(claimed)}
+														className="stroke-content-warning"
+														strokeWidth={1.5}
+														vectorEffect="non-scaling-stroke"
+													/>
+												)}
+											</MetricSample>
+										);
+									})}
+									<MetricYAxis max={scale} top={1} bottom={39} />
+								</svg>
+							)}
+						</ClusterMetricPlot>
 					) : (
 						<p className="m-0 py-2">No disk measurements available.</p>
 					)}

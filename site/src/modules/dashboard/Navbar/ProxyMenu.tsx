@@ -856,6 +856,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 												<SettingsMetricGraphs
 													anchor={setMetricsElement}
 													latency={clusterLatency}
+													canViewHud={hud}
 													chatExpanded={false}
 												/>
 											) : null

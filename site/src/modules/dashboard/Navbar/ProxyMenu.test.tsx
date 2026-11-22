@@ -249,14 +249,17 @@ describe("ProxyMenu", () => {
 		},
 	);
 
-	describe("compact metric history", () => {
+	describe.each([
+		{ label: "thin-strip", compact: true },
+		{ label: "mid-sized", compact: false },
+	])("$label metric history", ({ compact }) => {
 		const start = 1_780_000_000;
 		const timestamps = [start, start + 15, start + 30, start + 45];
 
 		beforeEach(() => {
 			vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
 				settings_sidebar: true,
-				settings_sidebar_compact: true,
+				settings_sidebar_compact: compact,
 			});
 			vi.mocked(PlatformAPI.getClusterUsage).mockResolvedValue({
 				...MockClusterUsage,
@@ -289,6 +292,8 @@ describe("ProxyMenu", () => {
 				...MockHudHistory,
 				range: "15m",
 				step: 15,
+				start: start + 60 - 900,
+				end: start + 60,
 				points: timestamps.map((t, index) => ({
 					...MockHudHistory.points[index],
 					t,
@@ -300,10 +305,17 @@ describe("ProxyMenu", () => {
 			const graph = await screen.findByRole("menuitem", { name });
 			await waitFor(() => expect(graph).not.toHaveAttribute("aria-disabled"));
 			vi.spyOn(graph, "getBoundingClientRect").mockReturnValue(
-				new DOMRect(0, 0, 36, 600),
+				compact ? new DOMRect(0, 0, 36, 600) : new DOMRect(0, 0, 630, 36),
 			);
 			return graph;
 		};
+
+		const earlier = compact
+			? { clientX: 12, clientY: 575 }
+			: { clientX: 605, clientY: 12 };
+		const later = compact
+			? { clientX: 12, clientY: 595 }
+			: { clientX: 625, clientY: 12 };
 
 		it.each([
 			["Total CPU used", "cpu"],
@@ -315,7 +327,7 @@ describe("ProxyMenu", () => {
 			const user = userEvent.setup();
 			await user.pointer({
 				target: graph,
-				coords: { clientX: 12, clientY: 575 },
+				coords: earlier,
 				keys: "[MouseLeft]",
 			});
 			await waitFor(() =>
@@ -331,10 +343,10 @@ describe("ProxyMenu", () => {
 			await user.pointer([
 				{
 					target: graph,
-					coords: { clientX: 12, clientY: 595 },
+					coords: later,
 					keys: "[MouseLeft>]",
 				},
-				{ target: graph, coords: { clientX: 12, clientY: 575 } },
+				{ target: graph, coords: earlier },
 				{ keys: "[/MouseLeft]" },
 			]);
 			const dialog = await screen.findByRole("dialog", {

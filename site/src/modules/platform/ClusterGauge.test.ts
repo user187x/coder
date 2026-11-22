@@ -1,10 +1,5 @@
-import {
-	formatRate,
-	graphTop,
-	historyX,
-	networkTrace,
-	usageShares,
-} from "./ClusterGauge";
+import { graphTop, usageShares } from "./ClusterGauge";
+import { formatRate, historyX, networkTrace } from "./clusterMetricHistory";
 import { metricTicks } from "./MetricYAxis";
 
 describe("formatRate", () => {

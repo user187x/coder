@@ -18,6 +18,7 @@ import {
 } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
+import { ClusterMetricDrilldown } from "#/modules/platform/ClusterMetricDrilldown";
 import { CompactClusterGraphs } from "./CompactClusterGraphs";
 
 /** Chat temporarily occupies the graph area without changing the user's saved layout. */
@@ -98,7 +99,9 @@ export const SettingsMetricGraphs: React.FC<{
 				)}
 				<div id={id} hidden={!expanded} className="min-h-0 flex-1">
 					{expanded && (
-						<CompactClusterGraphs data={cluster.data} canViewHud={canViewHud} />
+						<ClusterMetricDrilldown canViewHud={canViewHud}>
+							<CompactClusterGraphs data={cluster.data} />
+						</ClusterMetricDrilldown>
 					)}
 				</div>
 			</div>
@@ -106,11 +109,13 @@ export const SettingsMetricGraphs: React.FC<{
 	}
 	return (
 		<div ref={anchor} data-settings-metrics className="flex min-h-min flex-col">
-			<ClusterGauge
-				data={cluster.data}
-				latency={latency}
-				className="m-0 flex flex-auto flex-col justify-between gap-2"
-			/>
+			<ClusterMetricDrilldown canViewHud={canViewHud}>
+				<ClusterGauge
+					data={cluster.data}
+					latency={latency}
+					className="m-0 flex flex-auto flex-col justify-between gap-2"
+				/>
+			</ClusterMetricDrilldown>
 		</div>
 	);
 };

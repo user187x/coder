@@ -1,8 +1,8 @@
-import { networkTrace } from "./ClusterGauge";
 import {
 	type ClusterMetricSelection,
 	clusterMetrics,
 	nearestSample,
+	networkTrace,
 } from "./clusterMetricHistory";
 import { MetricSample } from "./MetricSample";
 import { metricTicks } from "./MetricYAxis";

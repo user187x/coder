@@ -337,8 +337,9 @@ html[data-settings-dock-edge="left"]
 	}
 
 	& .cluster-gauge-history,
-	& .cluster-gauge-history > svg,
-	& .cluster-gauge-series > svg {
+	&
+		:is(.cluster-gauge-history, .cluster-gauge-series)
+		> :is(svg, [data-metric-plot]) {
 		flex: 1 0 auto;
 	}
 }
@@ -349,7 +350,8 @@ html[data-settings-dock-edge="left"]
 		row-gap: 0.75rem;
 	}
 
-	:is(.cluster-gauge-history, .cluster-gauge-series) > svg {
+	:is(.cluster-gauge-history, .cluster-gauge-series)
+		> :is(svg, [data-metric-plot]) {
 		max-block-size: clamp(3rem, 52cqi, 7rem);
 	}
 

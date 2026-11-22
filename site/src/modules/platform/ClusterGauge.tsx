@@ -10,6 +10,15 @@ import type {
 import { hudHistory } from "#/api/queries/platform";
 
 import { ClusterDiskGraph } from "./ClusterDiskGraph";
+import { ClusterMetricPlot } from "./ClusterMetricDrilldown";
+import {
+	formatRate,
+	HISTORY_SLOTS,
+	historyX,
+	horizontalHistoryWindow,
+	networkMeasurement,
+	networkTrace,
+} from "./clusterMetricHistory";
 import { MetricMeter } from "./MetricMeter";
 import { MetricSample } from "./MetricSample";
 import { MetricYAxis } from "./MetricYAxis";
@@ -125,70 +134,12 @@ export const ClusterGauge: React.FC<{
 	);
 };
 
-/** Bytes per second, as the workspace's network lights show them: B/s to GB/s. */
-export const formatRate = (bytesPerSecond: number): string => {
-	const units = ["B/s", "kB/s", "MB/s", "GB/s"];
-	let value = Math.max(0, bytesPerSecond);
-	let i = 0;
-	while (value >= 1000 && i < units.length - 1) {
-		value /= 1000;
-		i++;
-	}
-	return `${value >= 100 || i === 0 ? Math.round(value) : value.toFixed(1)} ${units[i]}`;
-};
-
-/** The graph's slots: 15 minutes of rounds (60 at the HUD's 15 seconds). */
-export const HISTORY_SLOTS = 60;
-
-/** Rates at one recorded network sample, ordered as they are drawn in the chart. */
-export const networkMeasurement = (tx: number, rx: number) =>
-	`↑ TX ${formatRate(tx)} · ↓ RX ${formatRate(rx)}`;
-
 /** Use the same units and precision in the full panel and shortcut strip. */
 export const usageMeasurement = (
 	kind: Kind,
 	sample: { used: number; total: number; percent: number },
 ) =>
 	`${formatAmount(kind, sample.used)} of ${formatAmount(kind, sample.total)} (${Math.round(sample.percent)}%)`;
-
-/** Place samples by their recorded time so missed rounds remain gaps, not a permanent blank leading margin. */
-export const historyX = (time: number, latest: number, every: number): number =>
-	Math.max(
-		0,
-		Math.min(
-			100 - 100 / HISTORY_SLOTS,
-			100 -
-				100 / HISTORY_SLOTS -
-				((latest - time) / (HISTORY_SLOTS * every)) * 100,
-		),
-	);
-
-/**
- * Join the measured bar tips without overshooting them. A fresh subpath after
- * a missing round leaves the gap visible.
- */
-export function networkTrace(
-	samples: readonly { t: number; x: number; txY: number; rxY: number }[],
-	series: "txY" | "rxY",
-	every: number,
-) {
-	return samples
-		.map((sample, index) => {
-			const y = sample[series];
-			const previous = samples[index - 1];
-			if (
-				!previous ||
-				sample.x <= previous.x ||
-				sample.t - previous.t >= 2 * every
-			) {
-				return `M${sample.x},${y}`;
-			}
-			// Horizontal handles keep each segment between the two measured rates.
-			const handle = (sample.x - previous.x) / 3;
-			return `C${previous.x + handle},${previous[series]} ${sample.x - handle},${y} ${sample.x},${y}`;
-		})
-		.join(" ");
-}
 
 /**
  * Under the CPU and memory bars, as wide as both: the cluster's network
@@ -213,6 +164,9 @@ const NetworkGraph: React.FC<{ network: ClusterNetwork }> = ({ network }) => {
 		rxY: half + (rx / peak) * (half - 1),
 		tx,
 		rx,
+		value: tx,
+		received: rx,
+		measurement: networkMeasurement(tx, rx),
 	}));
 	const minutes = Math.round((HISTORY_SLOTS * network.every) / 60);
 
@@ -261,65 +215,75 @@ const NetworkGraph: React.FC<{ network: ClusterNetwork }> = ({ network }) => {
 					className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-content-secondary/70"
 				/>
 			</div>
-			<svg
-				data-panel-graph-track
-				role="img"
-				aria-label={`Cluster network over the last ${minutes} minutes: now ${formatRate(network.rx)} received, ${formatRate(network.tx)} sent`}
-				viewBox={`-5 0 105 ${half * 2}`}
-				preserveAspectRatio="none"
-				className="block h-10 w-full overflow-hidden rounded bg-surface-tertiary"
+			<ClusterMetricPlot
+				metric="net"
+				samples={samples}
+				every={network.every}
+				{...horizontalHistoryWindow(latest ?? 0, network.every)}
+				className="h-10"
 			>
-				{samples.map(({ t, x, txY, rxY, tx, rx }) => (
-					<MetricSample
-						key={t}
-						x={x - slot / 2}
-						width={slot}
-						height={half * 2}
-						time={t}
-						measurement={networkMeasurement(tx, rx)}
+				{(shown) => (
+					<svg
+						data-panel-graph-track
+						role="img"
+						aria-label={`Cluster network over the last ${minutes} minutes: now ${formatRate(network.rx)} received, ${formatRate(network.tx)} sent`}
+						viewBox={`-5 0 105 ${half * 2}`}
+						preserveAspectRatio="none"
+						className="block h-10 w-full overflow-hidden rounded bg-surface-tertiary"
 					>
-						<rect
-							x={x - barWidth / 2}
-							width={barWidth}
-							y={txY}
-							height={half - txY}
-							className="fill-content-success/65"
+						{shown.map(({ t, x, txY, rxY, measurement }) => (
+							<MetricSample
+								key={t}
+								x={x - slot / 2}
+								width={slot}
+								height={half * 2}
+								time={t}
+								measurement={measurement}
+							>
+								<rect
+									x={x - barWidth / 2}
+									width={barWidth}
+									y={txY}
+									height={half - txY}
+									className="fill-content-success/65"
+								/>
+								<rect
+									x={x - barWidth / 2}
+									width={barWidth}
+									y={half}
+									height={rxY - half}
+									data-panel-graph-fill
+									fillOpacity={0.65}
+									className="fill-content-link"
+								/>
+							</MetricSample>
+						))}
+						<path
+							d={networkTrace(shown, "txY", network.every)}
+							className="pointer-events-none fill-none stroke-content-success"
+							strokeWidth={1.25}
+							vectorEffect="non-scaling-stroke"
 						/>
-						<rect
-							x={x - barWidth / 2}
-							width={barWidth}
-							y={half}
-							height={rxY - half}
-							data-panel-graph-fill
-							fillOpacity={0.65}
-							className="fill-content-link"
+						<path
+							d={networkTrace(shown, "rxY", network.every)}
+							data-panel-graph-stroke
+							className="pointer-events-none fill-none stroke-content-link"
+							strokeWidth={1.25}
+							vectorEffect="non-scaling-stroke"
 						/>
-					</MetricSample>
-				))}
-				<path
-					d={networkTrace(samples, "txY", network.every)}
-					className="pointer-events-none fill-none stroke-content-success"
-					strokeWidth={1.25}
-					vectorEffect="non-scaling-stroke"
-				/>
-				<path
-					d={networkTrace(samples, "rxY", network.every)}
-					data-panel-graph-stroke
-					className="pointer-events-none fill-none stroke-content-link"
-					strokeWidth={1.25}
-					vectorEffect="non-scaling-stroke"
-				/>
-				<line
-					x1={0}
-					x2={100}
-					y1={half}
-					y2={half}
-					className="pointer-events-none stroke-content-secondary/50"
-					strokeWidth={0.75}
-					vectorEffect="non-scaling-stroke"
-				/>
-				<MetricYAxis min={-peak} max={peak} top={1} bottom={half * 2 - 1} />
-			</svg>
+						<line
+							x1={0}
+							x2={100}
+							y1={half}
+							y2={half}
+							className="pointer-events-none stroke-content-secondary/50"
+							strokeWidth={0.75}
+							vectorEffect="non-scaling-stroke"
+						/>
+						<MetricYAxis min={-peak} max={peak} top={1} bottom={half * 2 - 1} />
+					</svg>
+				)}
+			</ClusterMetricPlot>
 			<div className="mt-1 flex justify-between tabular-nums">
 				<span>{minutes} min ago</span>
 				<span>peak {formatRate(peak)}</span>
@@ -375,7 +339,13 @@ const UsageGraph: React.FC<{
 	label: string;
 	history: ClusterHistory;
 }> = ({ kind, label, history }) => {
-	const shares = usageShares(history.points.slice(-HISTORY_SLOTS), kind);
+	const shares = usageShares(history.points.slice(-HISTORY_SLOTS), kind).map(
+		(sample) => ({
+			...sample,
+			value: kind === "cpu" ? sample.used : sample.used / GiB,
+			measurement: usageMeasurement(kind, sample),
+		}),
+	);
 	if (shares.length === 0) {
 		return null;
 	}
@@ -391,46 +361,56 @@ const UsageGraph: React.FC<{
 			data-panel-metric={kind}
 			data-testid={`cluster-${kind}-history`}
 		>
-			<svg
-				data-panel-graph-track
-				role="img"
-				aria-label={`${label} in use over the last ${minutes} minutes: peak ${Math.round(peak)}%`}
-				viewBox={`-5 0 105 ${height}`}
-				preserveAspectRatio="none"
-				className="block h-6 w-full overflow-hidden rounded bg-surface-tertiary"
+			<ClusterMetricPlot
+				metric={kind}
+				samples={shares}
+				every={history.every}
+				{...horizontalHistoryWindow(shares[shares.length - 1].t, history.every)}
+				className="h-6"
 			>
-				{shares.map((s) => {
-					const x = historyX(s.t, shares[shares.length - 1].t, history.every);
-					const tall = (Math.min(top, s.percent) / top) * (height - 1);
-					const level = levelOf(s.percent);
-					return (
-						<MetricSample
-							key={s.t}
-							x={x}
-							width={slot}
-							height={height}
-							time={s.t}
-							measurement={usageMeasurement(kind, s)}
-						>
-							<rect
-								data-panel-graph-fill
-								x={x + slot * 0.15}
-								width={slot * 0.7}
-								y={height - tall}
-								height={tall}
-								className={
-									level === "high"
-										? "fill-content-destructive"
-										: level === "mid"
-											? "fill-content-warning"
-											: "fill-content-success"
-								}
-							/>
-						</MetricSample>
-					);
-				})}
-				<MetricYAxis max={top} top={1} bottom={height} />
-			</svg>
+				{(shown) => (
+					<svg
+						data-panel-graph-track
+						role="img"
+						aria-label={`${label} in use over the last ${minutes} minutes: peak ${Math.round(peak)}%`}
+						viewBox={`-5 0 105 ${height}`}
+						preserveAspectRatio="none"
+						className="block h-6 w-full overflow-hidden rounded bg-surface-tertiary"
+					>
+						{shown.map((s) => {
+							const x = historyX(s.t, shown[shown.length - 1].t, history.every);
+							const tall = (Math.min(top, s.percent) / top) * (height - 1);
+							const level = levelOf(s.percent);
+							return (
+								<MetricSample
+									key={s.t}
+									x={x}
+									width={slot}
+									height={height}
+									time={s.t}
+									measurement={s.measurement}
+								>
+									<rect
+										data-panel-graph-fill
+										x={x + slot * 0.15}
+										width={slot * 0.7}
+										y={height - tall}
+										height={tall}
+										className={
+											level === "high"
+												? "fill-content-destructive"
+												: level === "mid"
+													? "fill-content-warning"
+													: "fill-content-success"
+										}
+									/>
+								</MetricSample>
+							);
+						})}
+						<MetricYAxis max={top} top={1} bottom={height} />
+					</svg>
+				)}
+			</ClusterMetricPlot>
 			<div className="mt-0.5 flex justify-between tabular-nums">
 				<span>peak {Math.round(peak)}%</span>
 				<span title="The graph's scale">0–{top}%</span>
