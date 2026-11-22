@@ -30,6 +30,8 @@ def database():
                     text text NOT NULL CHECK (char_length(text) BETWEEN 1 AND 10000),
                     shared boolean NOT NULL DEFAULT false, revision integer NOT NULL DEFAULT 1,
                     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now())''')
+                tx.query('''ALTER TABLE coder_ui_updates.admin_notes ADD COLUMN IF NOT EXISTS title text
+                    NOT NULL DEFAULT '' CHECK (char_length(title) <= 120)''')
                 tx.query('CREATE INDEX IF NOT EXISTS admin_notes_organization ON coder_ui_updates.admin_notes(organization_id, updated_at DESC)')
                 tx.query('''CREATE TABLE IF NOT EXISTS coder_ui_updates.admin_note_reads (
                     organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -42,7 +44,7 @@ def database():
 
 def notes(db, organization, author):
     rows = db.query('''SELECT row_to_json(n)::text FROM (
-        SELECT n.id, n.organization_id, n.author_id, u.username AS author_name, n.text, n.shared,
+        SELECT n.id, n.organization_id, n.author_id, u.username AS author_name, n.title, n.text, n.shared,
             n.revision, n.created_at, n.updated_at, n.author_id=$2::uuid AS can_edit,
             n.shared AND n.author_id<>$2::uuid AND COALESCE(r.revision,0)<n.revision AS unread
         FROM coder_ui_updates.admin_notes n JOIN users u ON u.id=n.author_id
@@ -84,15 +86,19 @@ def handle(h, method, path):
         if action not in ('create', 'update', 'delete', 'read'):
             raise ValueError('Unknown note action.')
         if action in ('create', 'update'):
-            text, shared = body.get('text'), body.get('shared', False)
+            text, shared, title = body.get('text'), body.get('shared', False), body.get('title')
             if not isinstance(text, str) or not 1 <= len(text.strip()) <= 10000:
                 raise ValueError('Enter a note between 1 and 10,000 characters.')
             if type(shared) is not bool:
                 raise ValueError('Invalid note sharing setting.')
+            if title is not None:
+                if not isinstance(title, str) or len(title.strip()) > 120 or any(newline in title for newline in ('\r', '\n')):
+                    raise ValueError('Enter a title on one line with up to 120 characters.')
+                title = title.strip()
         if action == 'create':
             note_id = str(uuid.uuid4())
-            db.query('''INSERT INTO coder_ui_updates.admin_notes(id, organization_id, author_id, text, shared)
-                VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5::boolean)''', [note_id, organization, author, text.strip(), shared])
+            db.query('''INSERT INTO coder_ui_updates.admin_notes(id, organization_id, author_id, text, shared, title)
+                VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5::boolean,$6)''', [note_id, organization, author, text.strip(), shared, title or ''])
         else:
             note_id = str(uuid.UUID(body.get('id', '')))
             revision = body.get('revision')
@@ -119,9 +125,9 @@ def handle(h, method, path):
                     tx.query('''DELETE FROM coder_ui_updates.admin_notes WHERE id=$1::uuid
                         AND organization_id=$2::uuid AND (author_id=$3::uuid OR shared)''', [note_id, organization, author])
                 else:
-                    tx.query('''UPDATE coder_ui_updates.admin_notes SET text=$4, shared=$5::boolean,
+                    tx.query('''UPDATE coder_ui_updates.admin_notes SET text=$4, shared=$5::boolean, title=COALESCE($6::text,title),
                         revision=revision+1, updated_at=now() WHERE id=$1::uuid AND organization_id=$2::uuid AND author_id=$3::uuid''',
-                        [note_id, organization, author, text.strip(), shared])
+                        [note_id, organization, author, text.strip(), shared, title])
         LOG(event='admin-note-' + action, note=note_id, organization=organization, by=author)
         h.send_json(200, {'notes': notes(db, organization, author)})
     except (ValueError, TypeError, AttributeError) as error:

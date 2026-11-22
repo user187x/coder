@@ -15,6 +15,7 @@ import { organizations } from "#/api/queries/organizations";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import {
 	Select,
@@ -37,7 +38,13 @@ import { Textarea } from "#/components/Textarea/Textarea";
 import { NotesResizeHandle } from "./NotesResizeHandle";
 import "./adminNotesTray.css";
 
-type Draft = { id?: string; revision?: number; text: string; shared: boolean };
+type Draft = {
+	id?: string;
+	revision?: number;
+	title: string;
+	text: string;
+	shared: boolean;
+};
 
 /** Database-backed notes, with local drafts preserved across background refreshes. */
 export const AdminNotesPanel = ({
@@ -81,10 +88,11 @@ export const AdminNotesPanel = ({
 				? {
 						id: note.id,
 						revision: note.revision,
+						title: note.title ?? "",
 						text: note.text,
 						shared: note.shared,
 					}
-				: { text: "", shared: visibility === "admins" },
+				: { title: "", text: "", shared: visibility === "admins" },
 		);
 	};
 	return (
@@ -162,7 +170,11 @@ export const AdminNotesPanel = ({
 						className="flex flex-1 flex-col gap-3"
 						onSubmit={(event) => {
 							event.preventDefault();
-							const fields = { text: draft.text, shared: draft.shared };
+							const fields = {
+								title: draft.title.trim(),
+								text: draft.text,
+								shared: draft.shared,
+							};
 							const change =
 								draft.id && draft.revision
 									? {
@@ -180,6 +192,19 @@ export const AdminNotesPanel = ({
 							});
 						}}
 					>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor={`${id}-title`}>Title</Label>
+							<Input
+								id={`${id}-title`}
+								placeholder="Use the first line of the note"
+								maxLength={120}
+								value={draft.title}
+								disabled={busy}
+								onChange={(event) =>
+									setDraft({ ...draft, title: event.target.value })
+								}
+							/>
+						</div>
 						<Label htmlFor={`${id}-text`}>Note</Label>
 						<Textarea
 							id={`${id}-text`}
@@ -241,11 +266,24 @@ export const AdminNotesPanel = ({
 											<TableRow>
 												<TableCell className="text-xs text-content-secondary">
 													No notes with this visibility yet.
+													<Button
+														type="button"
+														size="xs"
+														variant="subtle"
+														onClick={() => edit()}
+													>
+														<PlusIcon aria-hidden />
+														Write a note
+													</Button>
 												</TableCell>
 											</TableRow>
 										)}
-										{notes?.map((note) => {
+										{notes?.map((note, index) => {
 											const expanded = reading === note.id;
+											const title =
+												note.title ||
+												note.text.split("\n", 1)[0]?.slice(0, 120) ||
+												"Untitled note";
 											const toggleNote = () => {
 												setVisibility(visibility);
 												setReading(expanded ? null : note.id);
@@ -261,13 +299,23 @@ export const AdminNotesPanel = ({
 												<TableRow key={note.id} className="group/note">
 													<TableCell className="align-top">
 														<header className="flex items-start gap-1">
+															<span className="shrink-0 text-xs tabular-nums text-content-secondary">
+																{index + 1}.
+															</span>
 															<button
 																type="button"
 																className="block min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-left text-xs text-content-primary"
-																aria-label={`Read note: ${note.text.slice(0, 60)}`}
-																aria-expanded={expanded}
-																onClick={toggleNote}
+																aria-label={`${note.can_edit ? "Edit" : "Read"} note: ${title}`}
+																aria-expanded={
+																	note.can_edit ? undefined : expanded
+																}
+																onClick={
+																	note.can_edit ? () => edit(note) : toggleNote
+																}
 															>
+																<span className="mb-1 block truncate font-semibold">
+																	{title}
+																</span>
 																<span
 																	className={
 																		expanded

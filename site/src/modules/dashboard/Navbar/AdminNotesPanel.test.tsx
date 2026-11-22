@@ -31,7 +31,8 @@ it("creates a private note, shares an edit, and deletes with its revision", asyn
 		.spyOn(AdminNotesAPI, "change")
 		.mockResolvedValue({ notes: [MockAdminNote] });
 	renderNotes();
-	await user.click(await screen.findByRole("button", { name: "Edit note" }));
+	await user.click(await screen.findByRole("button", { name: /^Edit note:/ }));
+	await user.type(screen.getByRole("textbox", { name: "Title" }), "Handover");
 	await user.clear(screen.getByRole("textbox", { name: "Note" }));
 	await user.type(
 		screen.getByRole("textbox", { name: "Note" }),
@@ -45,6 +46,7 @@ it("creates a private note, shares an edit, and deletes with its revision", asyn
 			action: "update",
 			id: MockAdminNote.id,
 			revision: 1,
+			title: "Handover",
 			text: "Updated handover",
 			shared: true,
 		}),
@@ -60,6 +62,7 @@ it("creates a private note, shares an edit, and deletes with its revision", asyn
 	await waitFor(() =>
 		expect(save).toHaveBeenLastCalledWith(MockOrganization.id, {
 			action: "create",
+			title: "",
 			text: "Private reminder",
 			shared: false,
 		}),
@@ -99,6 +102,7 @@ it("keeps a draft after refetch and failed save, and discard does not submit", a
 			action: "update",
 			id: MockAdminNote.id,
 			revision: 1,
+			title: "",
 			text: "My draft",
 			shared: false,
 		}),

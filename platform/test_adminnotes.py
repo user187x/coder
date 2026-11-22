@@ -73,9 +73,10 @@ class AdminNotesTest(unittest.TestCase):
         return h
 
     def test_private_shared_persistent_and_author_owned(self):
-        created = self.call(self.author, {'action': 'create', 'text': 'Private operations note', 'shared': False})
+        created = self.call(self.author, {'action': 'create', 'title': ' Ops handover ', 'text': 'Private operations note', 'shared': False})
         self.assertEqual(created.status, 200, created.body)
         note = created.body['notes'][0]
+        self.assertEqual(note['title'], 'Ops handover')
         self.assertTrue(note['can_edit'])
         self.assertEqual(self.call(self.other).body['notes'], [])
         self.assertEqual(self.call(self.author, org=self.other_org).body['notes'], [])
@@ -84,6 +85,7 @@ class AdminNotesTest(unittest.TestCase):
         shared = self.call(self.author, {'action': 'update', 'id': note['id'], 'revision': note['revision'], 'text': note['text'], 'shared': True}).body['notes'][0]
         viewed = self.call(self.other).body['notes'][0]
         self.assertEqual(viewed['text'], note['text'])
+        self.assertEqual(viewed['title'], 'Ops handover')
         self.assertFalse(viewed['can_edit'])
         importlib.reload(adminnotes)
         adminnotes.setup(SimpleNamespace(database=lambda: self.pool), lambda **kw: None)

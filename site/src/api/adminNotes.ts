@@ -5,6 +5,7 @@ export type AdminNote = {
 	organization_id: string;
 	author_id: string;
 	author_name: string;
+	title?: string;
 	text: string;
 	shared: boolean;
 	revision: number;
@@ -15,11 +16,12 @@ export type AdminNote = {
 };
 
 export type AdminNoteChange =
-	| { action: "create"; text: string; shared: boolean }
+	| { action: "create"; title?: string; text: string; shared: boolean }
 	| {
 			action: "update";
 			id: string;
 			revision: number;
+			title?: string;
 			text: string;
 			shared: boolean;
 	  }
