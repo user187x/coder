@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { matchPath } from "react-router";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
-import { hudTerminalPath, pingLatencyPath } from "#/modules/navigation";
+import { pingLatencyPath } from "#/modules/navigation";
 import type { Permissions } from "#/modules/permissions";
 import { canSeeTemplates } from "#/modules/permissions/templates";
 import { accountsPath } from "#/modules/users/AccountCreationMenuItems";
@@ -335,7 +335,6 @@ const navbarRouteLabels = [
 	["/audit", "Audit logs"],
 	["/connectionlog", "Connection logs"],
 	["/hud", "HUD"],
-	[hudTerminalPath, "Cluster terminal"],
 	["/install", "Install CLI"],
 	["/external-auth/:provider", "External authentication"],
 ] as const;

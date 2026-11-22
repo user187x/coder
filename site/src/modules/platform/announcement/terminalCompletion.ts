@@ -1,3 +1,5 @@
+import { diagnosticCommandNames } from "./clusterDiagnosticCommands";
+
 /** The commands the announcement terminal knows (BannerScrollView, TerminalAnswers), for Tab completion. */
 const COMMANDS = [
 	"/dev/mouse",
@@ -7,10 +9,10 @@ const COMMANDS = [
 	"close",
 	"date",
 	"dir",
-	"doom",
 	"echo",
 	"exit",
 	"health",
+	"help",
 	"ip",
 	"ls",
 	"matrix",
@@ -25,10 +27,33 @@ const COMMANDS = [
 const WORKSPACES_COMMANDS = ["connect", "terminal"] as const;
 
 /** Commands that take an argument: completed with a space after them, as a shell does. */
-const TAKES_ARGUMENT = new Set(["cat", "cd", "dir", "echo", "ls", "rm"]);
+const TAKES_ARGUMENT = new Set([
+	"cat",
+	"cd",
+	"dir",
+	"echo",
+	"ls",
+	"rm",
+	"admins",
+	"database",
+	"describe",
+	"pods",
+	"show",
+	"users",
+	"version",
+]);
 
-export const terminalCommands = (onWorkspaces: boolean): string[] =>
-	[...COMMANDS, ...(onWorkspaces ? WORKSPACES_COMMANDS : [])].sort();
+export const terminalCommands = (
+	onWorkspaces: boolean,
+	diagnostics = false,
+	doomUnlocked = false,
+): string[] =>
+	[
+		...COMMANDS,
+		...(onWorkspaces ? WORKSPACES_COMMANDS : []),
+		...(diagnostics ? diagnosticCommandNames : []),
+		...(doomUnlocked ? ["doom"] : []),
+	].sort();
 
 type Completion = {
 	/** The line after Tab. */

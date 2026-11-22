@@ -6,7 +6,7 @@ import { Button } from "#/components/Button/Button";
 const DOOM_PAGE = "/doom/index.html";
 
 /**
- * DOOM in the announcement panel, in place of its terminal, typed at the prompt. The game runs in its own frame, which
+ * DOOM in the announcement panel, in place of its terminal. The game runs in its own frame, which
  * keeps the focus so every key and the mouse go to it, not the dashboard; Exit DOOM, or quitting from the game's menu,
  * returns to the terminal.
  */

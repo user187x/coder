@@ -17,10 +17,9 @@ import {
 } from "#/api/queries/platform";
 import { users } from "#/api/queries/users";
 import type { User } from "#/api/typesGenerated";
-import { formatUptime } from "./SystemUptime";
+import { humanDuration } from "#/utils/time";
 
 const commandHelp = [
-	["help", "List available commands"],
 	["ping", "Measure the HTTPS round trip to Coder"],
 	["nodes", "List cluster nodes"],
 	["pods [workspace|database|coder]", "List pods, optionally filtered by role"],
@@ -44,7 +43,6 @@ const commandHelp = [
 ] as const;
 
 const commandOptions = {
-	help: [],
 	ping: [],
 	nodes: [],
 	pods: ["workspace", "database", "coder"],
@@ -73,6 +71,16 @@ const aliases: Readonly<Partial<Record<string, keyof typeof commandOptions>>> =
 		ds: "daemonsets",
 		issues: "status",
 	};
+export const diagnosticCommandNames = [
+	...Object.keys(commandOptions),
+	...Object.keys(aliases),
+	"show",
+	"describe",
+];
+
+export const diagnosticCommandHelp = () =>
+	table(["COMMAND", "DESCRIPTION"], commandHelp);
+
 const resourceName = /^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$/;
 
 type Resource = "node" | "pod" | "service";
@@ -457,8 +465,6 @@ export async function runTerminalCommand(
 	}
 	const { name, argument } = command;
 	switch (name) {
-		case "help":
-			return table(["COMMAND", "DESCRIPTION"], commandHelp);
 		case "ping":
 			return `Coder HTTPS round trip: ${(await client.fetchQuery(coderHeartbeat())).latency} ms`;
 		case "nodes":
@@ -486,7 +492,7 @@ export async function runTerminalCommand(
 			const since = report.uptime?.since;
 			return since
 				? details({
-						Uptime: formatUptime(Date.now() - new Date(since).getTime()),
+						Uptime: humanDuration(Date.now() - new Date(since).getTime()),
 						"Started at": since,
 						Replicas: report.uptime?.replicas,
 					})

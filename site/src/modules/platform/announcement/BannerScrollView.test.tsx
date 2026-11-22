@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRef } from "react";
+import { QueryClient } from "react-query";
 import { MemoryRouter } from "react-router";
+import { ClusterNetworkAPI } from "#/api/clusterNetwork";
 import { BannerScrollView, RM_RF } from "./BannerScrollView";
 import { timeText } from "./DotMatrixTime";
 import { SPARKS_CLASS } from "./sparksCursor";
@@ -13,15 +15,20 @@ vi.mock("#/contexts/auth/AuthProvider", () => ({
 const message =
 	"# Maintenance tonight\nThe cluster restarts at 22:00.\n\n- save your work\n- push your branches\n\n![diagram](/icon/desktop.svg) 🚀 **Thanks!**";
 
-const Harness: React.FC<{ picture?: string }> = ({ picture }) => {
+const Harness: React.FC<{
+	picture?: string;
+	diagnosticClient?: QueryClient;
+	terminal?: boolean;
+}> = ({ picture, diagnosticClient, terminal }) => {
 	const anchor = useRef<HTMLDivElement>(null);
 	return (
 		<MemoryRouter>
 			<div>
 				<div ref={anchor}>
 					<BannerScrollView
-						banner={{ id: "x", message, font: "default", picture }}
+						banner={{ id: "x", message, font: "default", picture, terminal }}
 						anchor={anchor}
+						diagnosticClient={diagnosticClient}
 					/>
 				</div>
 				<p>elsewhere</p>
@@ -132,28 +139,116 @@ describe("BannerScrollView", () => {
 		expect(timeText(new Date(2026, 0, 2, 3, 4, 5).getTime())).toBe("03:04:05");
 	});
 
-	it("starts DOOM for doom, in any case, and leaves it on Exit DOOM", () => {
+	const unlock = (target: HTMLElement) => {
+		for (const key of [
+			"ArrowUp",
+			"ArrowUp",
+			"ArrowDown",
+			"ArrowDown",
+			"ArrowLeft",
+			"ArrowRight",
+			"ArrowLeft",
+			"ArrowRight",
+			"b",
+			"a",
+		])
+			fireEvent.keyDown(target, { key });
+	};
+
+	it("unlocks DOOM with the sequence and keeps it available after exiting", () => {
 		render(<Harness />);
 		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		const view = screen.getByTestId("announcement-scroll-view");
 		type("DOOM");
-		fireEvent.keyDown(screen.getByTestId("announcement-scroll-view"), {
-			key: "Enter",
-		});
+		fireEvent.keyDown(view, { key: "Enter" });
+		expect(screen.getByText("DOOM is locked.")).toBeVisible();
+		expect(screen.queryByRole("region", { name: "DOOM" })).toBeNull();
+
+		unlock(view);
+		expect(screen.getByTitle("DOOM")).toHaveAttribute(
+			"src",
+			"/doom/index.html",
+		);
 		fireEvent.click(screen.getByRole("button", { name: "Exit DOOM" }));
 		expect(screen.queryByRole("region", { name: "DOOM" })).toBeNull();
+		type("doom");
+		fireEvent.keyDown(view, { key: "Enter" });
+		expect(screen.getByRole("region", { name: "DOOM" })).toBeVisible();
 	});
 
 	it("ends DOOM when the panel closes, reopening to the terminal", () => {
 		render(<Harness />);
 		const toggle = screen.getByTestId("announcement-scroll-toggle");
 		fireEvent.click(toggle);
-		type("doom");
+		unlock(screen.getByTestId("announcement-scroll-view"));
+		fireEvent.click(toggle);
+		act(() => vi.advanceTimersByTime(300));
+		fireEvent.click(toggle);
+		expect(screen.queryByRole("region", { name: "DOOM" })).toBeNull();
+		expect(screen.getByTestId("announcement-scroll-prompt")).toBeVisible();
+	});
+
+	it("opens DOOM from the dashboard while the announcement panel is closed", () => {
+		render(<Harness />);
+		const toggle = screen.getByTestId("announcement-scroll-toggle");
+		const anchor = toggle.parentElement;
+		if (!anchor) throw new Error("Missing announcement anchor");
+		vi.spyOn(anchor, "getBoundingClientRect").mockReturnValue(
+			new DOMRect(30, 10, 640, 30),
+		);
+		unlock(screen.getByText("elsewhere"));
+		expect(screen.getByRole("region", { name: "DOOM" })).toBeVisible();
+		expect(toggle).toHaveAttribute("aria-expanded", "true");
+	});
+
+	it("keeps the sequence inactive when the pseudo-terminal is disabled", () => {
+		render(<Harness terminal={false} />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		unlock(screen.getByTestId("announcement-scroll-view"));
+		expect(screen.queryByRole("region", { name: "DOOM" })).toBeNull();
+	});
+
+	it("runs read-only diagnostics in the same terminal and lists them in help", async () => {
+		vi.useRealTimers();
+		const read = vi.spyOn(ClusterNetworkAPI, "workloads").mockResolvedValue({
+			workloads: [
+				{
+					name: "coder",
+					namespace: "coder",
+					desired: 2,
+					ready: 1,
+					available: 1,
+				},
+			],
+		});
+		try {
+			render(<Harness diagnosticClient={new QueryClient()} />);
+			fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+			const view = screen.getByTestId("announcement-scroll-view");
+			type("help");
+			fireEvent.keyDown(view, { key: "Enter" });
+			expect(
+				screen.getByText(/deployments.*List Kubernetes deployments/s),
+			).toBeVisible();
+			type("deploy");
+			fireEvent.keyDown(view, { key: "Enter" });
+			expect(await screen.findByText(/coder\/coder/)).toBeVisible();
+			expect(read).toHaveBeenCalledWith("deployments");
+		} finally {
+			read.mockRestore();
+		}
+	});
+
+	it("keeps the diagnostics out of the help for users without deployment access", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		type("help");
 		fireEvent.keyDown(screen.getByTestId("announcement-scroll-view"), {
 			key: "Enter",
 		});
-		fireEvent.click(toggle);
-		fireEvent.click(toggle);
-		expect(screen.queryByRole("region", { name: "DOOM" })).toBeNull();
+		expect(screen.getByText(/Commands:.*whoami/)).not.toHaveTextContent(
+			"deployments",
+		);
 	});
 
 	it("completes the command being typed on Tab, listing the choices when it cannot", () => {

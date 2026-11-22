@@ -2,7 +2,6 @@ import {
 	ArrowUpRightIcon,
 	GaugeIcon,
 	SlidersHorizontalIcon,
-	TerminalIcon,
 } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "react-query";
@@ -20,7 +19,7 @@ import { Button } from "#/components/Button/Button";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { useProductLogoURL } from "#/components/Icons/ProductLogo";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
-import { hudTerminalPath, pingLatencyPath } from "#/modules/navigation";
+import { pingLatencyPath } from "#/modules/navigation";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
@@ -419,15 +418,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 												</Link>
 											</DropdownMenuItem>
 										)}
-										{adminPermissions.canViewHud &&
-											(pathname === "/hud" || pathname === pingLatencyPath) && (
-												<DropdownMenuItem asChild>
-													<Link to={hudTerminalPath}>
-														<TerminalIcon aria-hidden />
-														Cluster terminal
-													</Link>
-												</DropdownMenuItem>
-											)}
 										<DropdownMenuItem asChild>
 											<Link
 												to={pathname + search}

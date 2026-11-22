@@ -27,7 +27,6 @@ import { DashboardBackgroundMenu } from "./DashboardBackgroundMenu";
 import { Navbar } from "./Navbar/Navbar";
 import { NavbarActionTarget, NavbarStartTarget } from "./Navbar/NavbarAction";
 import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
-import { useHudTerminalShortcut } from "./useHudTerminalShortcut";
 import { useUpdateCheck } from "./useUpdateCheck";
 
 const AnnouncementSettingsView = lazy(async () => ({
@@ -49,7 +48,6 @@ export const DashboardLayout: React.FC = () => {
 	// Platform: a page in another dashboard page's frame (the workspace grid) is that page alone - the page round it
 	// has the navigation bar, the banners and the deployment's bar.
 	const embedded = isEmbeddedFrame();
-	useHudTerminalShortcut(canViewDeployment && !embedded);
 	const canEditDeployment =
 		!embedded && Boolean(permissions.editDeploymentConfig);
 	const editAnnouncement = canEditDeployment

@@ -9,7 +9,9 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import type { QueryClient } from "react-query";
 import { useLocation } from "react-router";
+import { getErrorMessage } from "#/api/errors";
 import type { Banner } from "#/api/platform";
 import { CornerExpandButton } from "#/components/Button/CornerExpandButton";
 import { AnnouncementPanelMenu } from "./AnnouncementPanelMenu";
@@ -18,6 +20,12 @@ import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
 import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
+import {
+	diagnosticCommandHelp,
+	diagnosticCommandNames,
+	parseTerminalCommand,
+	runTerminalCommand,
+} from "./clusterDiagnosticCommands";
 import { DoomScreen } from "./DoomScreen";
 import { DotMatrixTime } from "./DotMatrixTime";
 import { enterFullscreen, leaveFullscreen } from "./fullscreen";
@@ -39,12 +47,13 @@ import {
 	useTerminalConnector,
 } from "./terminalConnector";
 import { useAnnouncementMotion } from "./useAnnouncementMotion";
+import { useDoomUnlock } from "./useDoomUnlock";
 import "./bannerScrollView.css";
 import { toCssPx } from "#/utils/appZoom";
 
 const CLOSE_MS = 220;
 /** The longest line the prompt takes, and how many earlier commands it keeps. */
-const MAX_TYPED = 64;
+const MAX_TYPED = 540;
 const MAX_HISTORY = 20;
 /** Typed at the prompt: the easter egg (SkynetOverlay). */
 const SKYNET = "skynet";
@@ -57,7 +66,7 @@ const MOUSE = "/dev/mouse";
 const TIME = "time";
 /** Run at the prompt: the Matrix's rain over the screen (MatrixOverlay) until a key or the mouse. */
 const MATRIX = "matrix";
-/** Run at the prompt: DOOM in this panel, in place of the terminal (DoomScreen), until it is exited. */
+/** Reopens DOOM in the panel after the shortcut unlocks it. */
 const DOOM = "doom";
 
 /** What a command run at the prompt is answered with (TerminalAnswers); "clear" and the effects print nothing. */
@@ -98,6 +107,13 @@ export const answerFor = (command: string): Answer => {
 };
 type Rect = { top: number; left: number; width: number };
 
+type HistoryEntry = {
+	id: number;
+	command: string;
+	answer: Answer;
+	output?: string;
+};
+
 type BannerScrollViewProps = {
 	banner: Pick<
 		Banner,
@@ -119,6 +135,7 @@ type BannerScrollViewProps = {
 	colors?: { bg: string; fg: string };
 	/** The banner card: the view opens just under it, at least as wide. */
 	anchor: React.RefObject<HTMLElement | null>;
+	diagnosticClient?: QueryClient;
 };
 
 /**
@@ -145,6 +162,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	banner,
 	anchor,
 	colors,
+	diagnosticClient,
 }) => {
 	const motion = useAnnouncementMotion();
 	// Platform: the banner's background picture (an animated GIF too) across the terminal's screen as well
@@ -183,9 +201,15 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	const [cat, setCat] = useState(0);
 	const [flash, setFlash] = useState(0);
 	const [echo, setEcho] = useState(false);
-	const [history, setHistory] = useState<{ command: string; answer: Answer }[]>(
-		[],
-	);
+	const [history, setHistory] = useState<readonly HistoryEntry[]>([]);
+	const nextEntryId = useRef(0);
+	const record = (command: string, answer: Answer, output?: string) => {
+		const id = nextEntryId.current++;
+		setHistory((entries) =>
+			[...entries, { id, command, answer, output }].slice(-MAX_HISTORY),
+		);
+		return id;
+	};
 	// "clear": the screen empty, the message too, until the view is opened again
 	const [cleared, setCleared] = useState(false);
 	const [skynet, setSkynet] = useState(false);
@@ -208,9 +232,19 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		leaveFullscreen();
 	}, []);
 	const [doom, setDoom] = useState(false);
+	const [doomUnlocked, setDoomUnlocked] = useState(false);
+	const unlockDoom = useCallback(() => {
+		setDoomUnlocked(true);
+		setTyped("");
+		setOpen(true);
+		setDoom(true);
+	}, []);
 	/** The commands a Tab could not choose between, listed over the prompt until the next key. */
 	const [completions, setCompletions] = useState<string[] | null>(null);
-	const endDoom = useCallback(() => setDoom(false), []);
+	const endDoom = useCallback(() => {
+		setDoom(false);
+		panel.current?.focus({ preventScroll: true });
+	}, []);
 
 	// Flush under the announcement and exactly as wide, in CSS pixels under the app's scale (the panel is portaled
 	// to the body, outside the navbar's own zoom).
@@ -304,9 +338,41 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 
 	// Without the pseudo-terminal (the admin turned it off) the panel shows the message alone and takes no commands.
 	const terminal = banner.terminal !== false;
+	useDoomUnlock(
+		terminal && !workspace && !doom && !closing,
+		anchor,
+		panel,
+		unlockDoom,
+	);
+	const commands = () =>
+		terminalCommands(
+			location.pathname === "/workspaces",
+			Boolean(diagnosticClient),
+			doomUnlocked,
+		);
+	const runDiagnostic = async (
+		command: string,
+		client: QueryClient,
+		screen: HTMLElement,
+	) => {
+		const id = record(command, "none", "Running…");
+		let output: string;
+		try {
+			output = await runTerminalCommand(
+				client,
+				parseTerminalCommand(command),
+				screen,
+			);
+		} catch (error) {
+			output = getErrorMessage(error, "The command could not be completed.");
+		}
+		setHistory((entries) =>
+			entries.map((entry) => (entry.id === id ? { ...entry, output } : entry)),
+		);
+	};
 
 	const onPromptKey = (event: React.KeyboardEvent) => {
-		if (workspace || !terminal) return;
+		if (doom || workspace || !terminal) return;
 		if (echo) {
 			setEcho(false);
 			event.preventDefault();
@@ -334,10 +400,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		}
 		setCompletions(null);
 		if (event.key === "Tab") {
-			const done = completeCommand(
-				typed,
-				terminalCommands(location.pathname === "/workspaces"),
-			);
+			const done = completeCommand(typed, commands());
 			typeLine(done.typed);
 			setCompletions(done.candidates ?? null);
 		} else if (event.key === "Backspace") {
@@ -368,10 +431,25 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			if (keyword === "echo") setEcho(true);
 			if (command.toLowerCase() === "clear") {
 				clear();
-			} else {
-				setHistory((h) =>
-					[...h, { command, answer: answerFor(command) }].slice(-MAX_HISTORY),
+			} else if (command.toLowerCase() === "help") {
+				record(
+					command,
+					"none",
+					[
+						`Commands: ${commands().join(", ")}`,
+						...(diagnosticClient ? [diagnosticCommandHelp()] : []),
+					].join("\n\n"),
 				);
+			} else if (
+				diagnosticClient &&
+				panel.current &&
+				diagnosticCommandNames.includes(keyword)
+			) {
+				void runDiagnostic(command, diagnosticClient, panel.current);
+			} else if (command.toLowerCase() === DOOM && !doomUnlocked) {
+				record(command, "none", "DOOM is locked.");
+			} else {
+				record(command, answerFor(command));
 			}
 			if (RM_RF.test(command)) {
 				enterFullscreen();
@@ -381,7 +459,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 				enterFullscreen();
 				setMatrix(true);
 				close();
-			} else if (command.toLowerCase() === DOOM) {
+			} else if (command.toLowerCase() === DOOM && doomUnlocked) {
 				setDoom(true);
 			} else if (command === MOUSE) {
 				close();
@@ -558,13 +636,22 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 										</div>
 									)}
 									{terminal &&
-										history.map(({ command, answer }, i) => (
-											<div key={i} className="banner-scroll-prompt">
+										history.map(({ id, command, answer, output }) => (
+											<div key={id} className="banner-scroll-prompt">
 												<i>root@platform</i>:<em>~</em># {command}
-												<TerminalAnswer
-													answer={answer}
-													time={<DotMatrixTime />}
-												/>
+												{output === undefined ? (
+													<TerminalAnswer
+														answer={answer}
+														time={<DotMatrixTime />}
+													/>
+												) : (
+													<pre
+														aria-live="polite"
+														className="banner-scroll-out max-w-full overflow-x-auto"
+													>
+														{output}
+													</pre>
+												)}
 											</div>
 										))}
 									{terminal && cat > 0 && (

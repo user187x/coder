@@ -14,7 +14,7 @@ import { RequireAuth } from "./contexts/auth/RequireAuth";
 import { DashboardLayout } from "./modules/dashboard/DashboardLayout";
 import { AdminSettingsFrame } from "./modules/management/AdminSettingsFrame";
 import { DefaultViewRedirect } from "./modules/management/DefaultViewRedirect";
-import { hudTerminalPath, pingLatencyPath } from "./modules/navigation";
+import { pingLatencyPath } from "./modules/navigation";
 import { LeaseLoginPage } from "./modules/platform/shortTermLeases/LeaseLoginPage";
 import AuditPage from "./pages/AuditPage/AuditPage";
 import ConnectionLogPage from "./pages/ConnectionLogPage/ConnectionLogPage";
@@ -217,7 +217,6 @@ const MonitoringSettingsPage = lazy(
 		),
 );
 const HudPage = lazy(() => import("./pages/HudPage/HudPage"));
-const HudTerminalPage = lazy(() => import("./pages/HudPage/HudTerminalPage"));
 const PingLatencyPage = lazy(() => import("./pages/HudPage/PingLatencyPage"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage/DashboardPage"));
 const TrafficControlPage = lazy(
@@ -497,7 +496,6 @@ export const router = createBrowserRouter(
 						<Route index element={<TrafficControlPage />} />
 					</Route>
 					<Route path="/hud" element={<HudPage />} />
-					<Route path={hudTerminalPath} element={<HudTerminalPage />} />
 					<Route path={pingLatencyPath} element={<PingLatencyPage />} />
 
 					<Route

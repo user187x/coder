@@ -13,6 +13,7 @@ import {
 } from "#/api/queries/platform";
 import { terminateSignoffs } from "#/api/queries/workspacePower";
 import { workspaceByOwnerAndName } from "#/api/queries/workspaces";
+import { useOptionalAuthContext } from "#/contexts/auth/AuthProvider";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { navbarPageLabel } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { GlobalLockdownNotice } from "#/modules/platform/globalLockdown/GlobalLockdown";
@@ -261,6 +262,8 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const splash = showSections ? sectionSplash : null;
 	const showSplash = introductions || Boolean(splash);
 	const queryClient = useQueryClient();
+	const canRunDiagnostics =
+		useOptionalAuthContext()?.permissions?.viewDeploymentConfig;
 	// Receipts (who viewed it, Confirm): not on the sign-in page, and only when
 	// the announcement asks for them (a greeting need not).
 	// A blank banner has nothing to read or confirm, and announces nothing.
@@ -439,7 +442,12 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				</BannerLcd>
 				{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
 				{placement !== "login" && pulldown && (
-					<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
+					<BannerScrollView
+						banner={banner}
+						anchor={card}
+						colors={{ bg, fg }}
+						diagnosticClient={canRunDiagnostics ? queryClient : undefined}
+					/>
 				)}
 				{opening && <OpenLayers effect={openEffect} />}
 				{motion.effects && close.closing && (
