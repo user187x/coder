@@ -54,7 +54,7 @@ import { toScreenPx } from "#/utils/appZoom";
 import {
 	SettingsDockControl,
 	type SettingsDockMode,
-	settingsDockPillClassName,
+	SettingsDockPill,
 } from "./SettingsDockControl";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
@@ -314,7 +314,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	);
 
 	const dockDisabled = docking.isPending || !prefs.data;
-	const dockMode = compact ? "strip" : docked ? "panel" : "breadcrumb";
 	const setDockLayout = (next: SettingsDockMode, fromTrigger = false) => {
 		if (next === "breadcrumb") setOpen(fromTrigger && !compact);
 		docking.mutate({
@@ -572,34 +571,13 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									</InlineMenuPanel>
 								)}
 								{controls && (
-									<div
-										role="group"
-										aria-label="Docking"
-										className={cn(settingsDockPillClassName, "flex-1")}
-									>
-										<SettingsDockControl
-											edge={edge}
-											mode={dockMode}
-											target={docked ? "breadcrumb" : "panel"}
-											label={docked ? "Return to dropdown" : "Dock Settings"}
-											className="min-h-8 flex-1 justify-center rounded-none px-1"
-											disabled={dockDisabled}
-											onChange={setDockLayout}
-										/>
-										<SettingsDockControl
-											edge={edge}
-											mode={dockMode}
-											target="strip"
-											label={
-												docked
-													? "Collapse Settings to shortcut icons"
-													: "Dock Settings as shortcut icons"
-											}
-											className="min-h-8 flex-1 justify-center rounded-none border-0 border-l border-solid border-border px-1"
-											disabled={dockDisabled}
-											onChange={setDockLayout}
-										/>
-									</div>
+									<SettingsDockPill
+										edge={edge}
+										docked={docked}
+										hud={hud}
+										disabled={dockDisabled}
+										onChange={setDockLayout}
+									/>
 								)}
 							</div>
 						)}

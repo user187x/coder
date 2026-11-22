@@ -135,12 +135,42 @@
 .settings-menu .settings-pill > :is([role="menuitem"], button) {
 	background: transparent;
 }
+.settings-menu .settings-dock-pill {
+	display: grid;
+	flex: 1 1 0%;
+	min-inline-size: 0;
+	margin-inline-start: auto;
+	grid-template-columns: minmax(0, 0fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.settings-menu .settings-dock-pill[data-dock-expanded] {
+	flex-grow: 3;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.settings-menu .settings-dock-pill[data-dock-without-hud] {
+	flex: 0 1 50%;
+}
+.settings-menu .settings-dock-pill[data-dock-without-hud][data-dock-expanded] {
+	flex-basis: 75%;
+}
+@media (prefers-reduced-motion: no-preference) {
+	html:not([data-animations="off"]) .settings-menu .settings-dock-pill {
+		transition:
+			flex-grow 180ms ease-out,
+			flex-basis 180ms ease-out,
+			grid-template-columns 180ms ease-out;
+	}
+}
 .settings-menu
 	.settings-pill
 	> :is([role="menuitem"], button)
 	+ :is([role="menuitem"], button) {
 	border-left-color: var(--skeuo-face-edge);
 	box-shadow: inset 1px 0 0 var(--skeuo-highlight);
+}
+.settings-menu
+	.settings-dock-pill:not([data-dock-expanded])
+	> [data-dock-primary] {
+	box-shadow: none;
 }
 .settings-menu :is(.settings-pill, .workspaces-pill) svg {
 	filter: var(--skeuo-glyph);

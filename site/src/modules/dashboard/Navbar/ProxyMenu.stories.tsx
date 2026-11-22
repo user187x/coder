@@ -295,6 +295,20 @@ export const TemplatesOnly: Story = {
 	},
 };
 
+export const ExpandedDockingPill: Story = {
+	...SettingsMenuOpened,
+	play: async (context) => {
+		await SettingsMenuOpened.play?.(context);
+		await userEvent.pointer({
+			target: within(context.canvasElement.ownerDocument.body).getByRole(
+				"menuitem",
+				{ name: "Dock Settings" },
+			),
+			keys: "[MouseRight]",
+		});
+	},
+};
+
 export const SettingsSlitDirection: Story = {
 	...SettingsMenuOpened,
 	play: async (context) => {

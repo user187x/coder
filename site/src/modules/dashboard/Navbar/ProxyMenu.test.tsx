@@ -208,11 +208,11 @@ describe("ProxyMenu", () => {
 	);
 
 	it.each([
-		["left", "Return to dropdown", "right"],
-		["right", "Collapse Settings to shortcut icons", "left"],
+		["left", "Return to dropdown"],
+		["right", "Collapse Settings to shortcut icons"],
 	] as const)(
-		"slides out the dock choices into the page from the %s",
-		async (edge, label, side) => {
+		"returns to the dropdown from the %s dock",
+		async (edge, label) => {
 			const prefs = {
 				settings_sidebar: true,
 				settings_sidebar_compact: false,
@@ -226,16 +226,11 @@ describe("ProxyMenu", () => {
 			renderMenu({ proxyContextValue: value, hud: true, controls });
 			const control = await screen.findByRole("menuitem", { name: label });
 			await user.pointer({ target: control, keys: "[MouseRight]" });
-			const choices = await screen.findByRole("dialog", {
-				name: "Settings layout",
+			const choices = screen.getByRole("group", {
+				name: "Docking",
 			});
-			expect(choices).toHaveAttribute("data-side", side);
-			expect(
-				within(choices).getByRole("button", { name: "Side Panel" }),
-			).toHaveAttribute("aria-current", "true");
-			expect(within(choices).getAllByRole("button")).toHaveLength(3);
 			await user.click(
-				within(choices).getByRole("button", { name: "Breadcrumb" }),
+				within(choices).getByRole("menuitem", { name: "Return to dropdown" }),
 			);
 			await waitFor(() =>
 				expect(save).toHaveBeenCalledWith({
@@ -243,9 +238,6 @@ describe("ProxyMenu", () => {
 					settings_sidebar_compact: false,
 				}),
 			);
-			expect(
-				screen.queryByRole("dialog", { name: "Settings layout" }),
-			).toBeNull();
 		},
 	);
 
@@ -511,6 +503,40 @@ describe("ProxyMenu", () => {
 			}),
 		);
 	});
+
+	it.each(["Dock Settings", "Dock Settings as shortcut icons"])(
+		"expands the same docking pill from %s",
+		async (trigger) => {
+			const save = vi
+				.spyOn(PlatformAPI, "setUserUIPreferences")
+				.mockImplementation(async (changes) => changes);
+			const user = userEvent.setup();
+			renderMenu({ proxyContextValue: value, hud: true, controls });
+			const menu = await openMenu();
+			const docking = within(menu).getByRole("group", { name: "Docking" });
+			const item = within(docking).getByRole("menuitem", {
+				name: trigger,
+			});
+			await user.pointer({ target: item, keys: "[MouseRight]" });
+			await user.click(
+				within(docking).getByRole("menuitem", { name: "Breadcrumb" }),
+			);
+			expect(save).not.toHaveBeenCalled();
+			expect(item).toHaveFocus();
+			await user.pointer({ target: item, keys: "[MouseRight]" });
+			await user.click(
+				within(docking).getByRole("menuitem", {
+					name: "Dock Settings",
+				}),
+			);
+			await waitFor(() =>
+				expect(save).toHaveBeenCalledWith({
+					settings_sidebar: true,
+					settings_sidebar_compact: false,
+				}),
+			);
+		},
+	);
 
 	it("collapses the Controls drawer and restores it from the bottom panel", async () => {
 		const user = userEvent.setup();
