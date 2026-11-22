@@ -36,8 +36,11 @@ const setup = (resources: QuotaMeResources = MockQuotaMeResources) => {
 	vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(
 		MockCloudDriveSettings,
 	);
+	const heartbeat = vi
+		.spyOn(globalThis, "fetch")
+		.mockImplementation(async () => new Response("OK"));
 	render(<DashboardPage />);
-	return { quota, history };
+	return { quota, history, heartbeat };
 };
 
 const summary = () => screen.getByRole("region", { name: "Summary" });
@@ -111,20 +114,27 @@ it("shows the GPUs a running workspace claims", async () => {
 
 it("stops refreshing while Live is switched off", async () => {
 	vi.useFakeTimers({ shouldAdvanceTime: true });
-	const { quota, history } = setup();
+	const { quota, history, heartbeat } = setup();
 	const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 	await screen.findByRole("img", { name: /CPU: 6 of 8 cores/ });
 	await act(() => vi.advanceTimersByTimeAsync(HUD_REFRESH_MS + 500));
 	await waitFor(() => expect(quota.mock.calls.length).toBeGreaterThan(1));
+	const probes = () =>
+		heartbeat.mock.calls.filter(([input]) => input === "/healthz").length;
+	expect(probes()).toBeGreaterThan(1);
 
 	const live = screen.getByRole("button", { name: "Live" });
 	await user.click(live);
 	expect(live).toHaveAttribute("aria-pressed", "false");
 	const quotaCalls = quota.mock.calls.length;
 	const historyCalls = history.mock.calls.length;
+	const probeCalls = probes();
 	await act(() => vi.advanceTimersByTimeAsync(HUD_REFRESH_MS * 3));
 	expect(quota).toHaveBeenCalledTimes(quotaCalls);
 	expect(history).toHaveBeenCalledTimes(historyCalls);
+	expect(probes()).toBe(probeCalls);
+	await user.click(live);
+	await waitFor(() => expect(probes()).toBeGreaterThan(probeCalls));
 });
 
 it("writes a ring's reading in the middle while its legend is pointed at", async () => {

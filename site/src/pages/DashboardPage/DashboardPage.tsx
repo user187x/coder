@@ -53,6 +53,7 @@ import {
 	totalLimit,
 } from "./dashboardModel";
 import {
+	LatencyCard,
 	NetworkCardBody,
 	type NetworkReading,
 	UsageCardBody,
@@ -425,6 +426,11 @@ const DashboardPage: React.FC = () => {
 					</CardState>
 				</DashboardCard>
 			),
+		},
+		{
+			id: "latency",
+			label: "Latency",
+			node: <LatencyCard paused={paused} showDetails={isAdmin} />,
 		},
 		{
 			id: "processor",

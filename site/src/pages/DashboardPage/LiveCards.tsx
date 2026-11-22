@@ -1,5 +1,8 @@
 import { cn } from "cn";
-import { ChevronDownIcon } from "lucide-react";
+import { ArrowUpRightIcon, ChevronDownIcon, RadioIcon } from "lucide-react";
+import { useQuery } from "react-query";
+import { Link } from "react-router";
+import { coderHeartbeat } from "#/api/queries/platform";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -7,9 +10,11 @@ import {
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { HudHeartbeat } from "#/modules/dashboard/Navbar/HudHeartbeat";
+import { pingLatencyPath } from "#/modules/navigation";
 import { formatRate } from "#/modules/platform/networkLeds/NetworkHistogram";
 import { formatQuotaNumber } from "#/pages/UsersPage/quotaFormatting";
-import { GraphFrame, ShowWorkspaces } from "./DashboardCard";
+import { DashboardCard, GraphFrame, ShowWorkspaces } from "./DashboardCard";
 import {
 	type BarSegment,
 	GraphLegend,
@@ -23,6 +28,35 @@ import {
 	totalLimit,
 } from "./dashboardModel";
 import { RESOURCE_STYLE } from "./SummaryCard";
+
+export const LatencyCard: React.FC<{
+	paused: boolean;
+	showDetails: boolean;
+}> = ({ paused, showDetails }) => {
+	const heartbeat = useQuery({ ...coderHeartbeat(), enabled: !paused });
+	return (
+		<DashboardCard title="Latency" icon={RadioIcon}>
+			<GraphFrame>
+				<HudHeartbeat
+					label="Browser to Coder"
+					latency={heartbeat.isError ? undefined : heartbeat.data?.latency}
+					previous={heartbeat.data?.previous}
+					failed={heartbeat.isError}
+					updatedAt={heartbeat.dataUpdatedAt}
+				/>
+			</GraphFrame>
+			{showDetails && (
+				<Link
+					to={pingLatencyPath}
+					className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-content-link hover:underline"
+				>
+					View ping and latency
+					<ArrowUpRightIcon aria-hidden className="size-3.5" />
+				</Link>
+			)}
+		</DashboardCard>
+	);
+};
 
 /** Segment colours for the largest allocations; the rest are grouped as "Other". */
 const SEGMENT_FILLS = [

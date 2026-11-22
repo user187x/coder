@@ -90,6 +90,8 @@
 	inline-size: var(--navbar-action-width);
 }
 .navbar-soft [data-navbar-item="banner"]:has(#coder-system-banner) {
+	/* The neighboring wells overlap the banner, even where their masks are transparent. */
+	z-index: 1;
 	border-radius: var(--navbar-pill-radius);
 }
 /* The controls fill their well: as tall as the action height, joined where an item holds several. */

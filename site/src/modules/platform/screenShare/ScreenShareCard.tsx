@@ -104,7 +104,7 @@ export const ScreenShareCard = ({
 			aria-label="Live workspace support"
 			className="support-monitor mb-8 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
 		>
-			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+			<div className="support-monitor-header mb-4">
 				<div>
 					<h2 className="m-0 text-base font-semibold">
 						Live workspace support
@@ -114,8 +114,14 @@ export const ScreenShareCard = ({
 						owner for control of their Coder dashboard.
 					</p>
 				</div>
+				<SupportWorkspaceSearch
+					overview={overview}
+					value={workspace}
+					onChange={setWorkspace}
+					disabled={request.isPending || Boolean(media.id || directWorkspace)}
+				/>
 				<div
-					className="flex flex-wrap items-center gap-2"
+					className="support-monitor-controls flex flex-wrap items-center gap-2"
 					role="group"
 					aria-label="Support monitor controls"
 				>
@@ -293,13 +299,7 @@ export const ScreenShareCard = ({
 					</span>
 				</div>
 			</div>
-			<div className="support-search-controls mt-4">
-				<SupportWorkspaceSearch
-					overview={overview}
-					value={workspace}
-					onChange={setWorkspace}
-					disabled={request.isPending || Boolean(media.id || directWorkspace)}
-				/>
+			<div className="mt-4 flex justify-end">
 				<Button
 					disabled={
 						!selected ||

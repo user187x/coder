@@ -23,11 +23,13 @@ export function heartbeatLabel(latency: number | undefined, failed: boolean) {
 
 /** Draws one sweep for each successful probe, with slower responses represented by wider beat spacing. */
 export const HudHeartbeat = ({
+	label = "Coder heartbeat",
 	latency,
 	previous,
 	failed,
 	updatedAt,
 }: {
+	label?: string;
 	latency?: number;
 	previous?: number;
 	failed: boolean;
@@ -51,9 +53,7 @@ export const HudHeartbeat = ({
 	return (
 		<div className="hud-heartbeat" style={{ color }}>
 			<div className="flex items-center justify-between gap-2 px-2 pt-1.5 text-xs">
-				<span className="font-medium text-content-primary">
-					Coder heartbeat
-				</span>
+				<span className="font-medium text-content-primary">{label}</span>
 				<span
 					className="flex items-center gap-0.5 font-mono tabular-nums"
 					aria-live="polite"

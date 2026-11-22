@@ -3,6 +3,7 @@ import { userEvent, within } from "storybook/test";
 import {
 	cloudDriveConnections,
 	cloudDriveSettings,
+	coderHeartbeat,
 	hudHistory,
 	quotaMeResources,
 	quotaReport,
@@ -35,6 +36,7 @@ const meta: Meta<typeof DashboardPage> = {
 		user: MockUserMember,
 		permissions: {},
 		queries: [
+			{ key: coderHeartbeat().queryKey, data: { latency: 89, previous: 108 } },
 			{ key: quotaMeResources(false).queryKey, data: MockQuotaMeResources },
 			{
 				key: workspaceResourceHistory(dev.id).queryKey,
@@ -64,6 +66,7 @@ export const Default: Story = {};
 export const NearQuota: Story = {
 	parameters: {
 		queries: [
+			{ key: coderHeartbeat().queryKey, data: { latency: 89, previous: 108 } },
 			{
 				key: quotaMeResources(false).queryKey,
 				data: {
@@ -85,6 +88,7 @@ export const NearQuota: Story = {
 export const WithGpu: Story = {
 	parameters: {
 		queries: [
+			{ key: coderHeartbeat().queryKey, data: { latency: 89, previous: 108 } },
 			{
 				key: quotaMeResources(false).queryKey,
 				data: {
@@ -106,6 +110,7 @@ export const WithGpu: Story = {
 export const NoWorkspaces: Story = {
 	parameters: {
 		queries: [
+			{ key: coderHeartbeat().queryKey, data: { latency: 89, previous: 108 } },
 			{
 				key: quotaMeResources(false).queryKey,
 				data: {
@@ -125,6 +130,7 @@ export const AdminWholeCluster: Story = {
 		user: MockUserOwner,
 		permissions: { viewDeploymentConfig: true },
 		queries: [
+			{ key: coderHeartbeat().queryKey, data: { latency: 89, previous: 108 } },
 			{
 				key: quotaMeResources(false).queryKey,
 				data: { ...MockQuotaMeResources, exempt: true },
