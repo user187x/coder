@@ -65,9 +65,9 @@
 	display: flex;
 	align-items: center;
 	gap: var(--navbar-control-gap);
-	flex: 0 0 auto;
-	width: fit-content;
-	min-width: min-content;
+	flex: 0 1 auto;
+	/* The joined controls need their full widths, even at the smallest resize setting. */
+	width: max-content;
 	max-width: 100%;
 	/* The dock uses the same gap scaled by the navbar zoom. */
 	align-self: flex-start;
@@ -78,8 +78,7 @@
 	border-radius: 9999px;
 	background-color: var(--navbar-strip-bg);
 	box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
-	interpolate-size: allow-keywords;
-	transition: width 0.3s ease;
+	transition: min-width 0.3s ease;
 }
 .navbar-soft[data-navbar-strip="off"] .navbar-resizable-group {
 	background-color: transparent;
@@ -92,8 +91,12 @@
 }
 .navbar-resizable-group .navbar-arrange {
 	flex: 1 1 auto;
-	min-width: auto;
+	min-width: 0;
 	height: auto;
+}
+.navbar-resizable-group .navbar-arrange:not([data-arranging]) {
+	flex-wrap: wrap;
+	row-gap: 0.375rem;
 }
 .navbar-resizable-group [data-navbar-item="banner"] {
 	flex: 1 1 auto;
@@ -425,7 +428,14 @@ html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
 	height: 1rem;
 }
 @container dashboard (width < 48rem) {
-	.navbar-soft [data-navbar-item]:not([data-navbar-item="action"]) {
+	.navbar-soft
+		.navbar-arrange:not([data-arranging])
+		> [data-navbar-item]:not([data-navbar-item="action"]) {
+		display: none !important;
+	}
+}
+@container dashboard (width < 36rem) {
+	.navbar-soft .navbar-start {
 		display: none;
 	}
 }

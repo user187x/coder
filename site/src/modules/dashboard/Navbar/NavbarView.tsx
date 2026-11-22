@@ -141,7 +141,15 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				// Sortable items retain their DOM order while flex order places them.
 				for (const item of items) {
 					const rect = item.getBoundingClientRect();
-					if (item === bannerItem || !rect.width || !rect.height) continue;
+					if (
+						item === bannerItem ||
+						!rect.width ||
+						!rect.height ||
+						rect.bottom <= bannerRect.top ||
+						rect.top >= bannerRect.bottom
+					) {
+						continue;
+					}
 					const center = rect.left + rect.width / 2;
 					if (center < bannerCenter && rect.right > beforeEdge) {
 						before = item;

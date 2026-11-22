@@ -154,6 +154,27 @@ export const BreadcrumbFacingAnnouncement: Story = {
 		],
 	},
 };
+export const MinimumResizableWidth: Story = {
+	...BreadcrumbFacingAnnouncement,
+	parameters: {
+		...BreadcrumbFacingAnnouncement.parameters,
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					navbar_floating: true,
+					navbar_resizable_width: 20,
+					navbar_layout: {
+						order: ["settings-chevrons", "banner", "action"],
+						hidden: ["logo", "workspaces", "notifications", "account"],
+					},
+				},
+			},
+			{ key: bannerKey, data: { ...MockBanner, receipts: false } },
+		],
+	},
+};
+
 export const SettingsBetweenAnnouncementAndLogo: Story = {
 	...BreadcrumbFacingAnnouncement,
 	parameters: {

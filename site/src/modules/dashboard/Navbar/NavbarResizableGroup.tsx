@@ -43,13 +43,8 @@ export const NavbarResizableGroup: React.FC<{
 	// The pill's width now, as a percentage of the room the bar gives it.
 	const measure = () => {
 		const element = pill.current;
-		const bar = element?.parentElement;
-		if (!element || !bar) return null;
-		const style = getComputedStyle(bar);
-		const room =
-			bar.clientWidth -
-			Number.parseFloat(style.paddingLeft) -
-			Number.parseFloat(style.paddingRight);
+		if (!element) return null;
+		const room = element.parentElement?.clientWidth ?? 0;
 		if (!Number.isFinite(room) || room <= 0) return null;
 		return { element, room, percent: (element.offsetWidth / room) * 100 };
 	};
@@ -149,16 +144,18 @@ export const NavbarResizableGroup: React.FC<{
 	);
 
 	return (
-		<div
-			ref={pill}
-			data-testid="navbar-resizable-group"
-			data-dragging={dragging !== null || undefined}
-			className="navbar-resizable-group"
-			style={width === null ? undefined : { width: `${width}%` }}
-		>
-			{handle(-1)}
-			{children}
-			{handle(1)}
+		<div className="flex min-w-0 flex-1 justify-center">
+			<div
+				ref={pill}
+				data-testid="navbar-resizable-group"
+				data-dragging={dragging !== null || undefined}
+				className="navbar-resizable-group"
+				style={width === null ? undefined : { minWidth: `${width}%` }}
+			>
+				{handle(-1)}
+				{children}
+				{handle(1)}
+			</div>
 		</div>
 	);
 };
