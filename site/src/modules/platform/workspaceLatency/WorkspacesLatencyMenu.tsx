@@ -234,9 +234,8 @@ export const WorkspacesLatencyMenu: React.FC<{
 	}, [open, chatExpanded]);
 	useEffect(() => stopHold, []);
 
-	// Locked: a press anywhere but the list (and the pill, which unlocks it itself) lets go of it - in the menu, once
-	// the press ends: the list sliding shut under it would otherwise bring another item under the pointer, which its
-	// release would choose.
+	// Inside Settings, wait for release so the list can slide shut without moving a different item under the pointer.
+	// Keep the list locked through its own context menu clicks so Close can run before its label changes to Open.
 	useEffect(() => {
 		if (!locked) {
 			return;
@@ -245,7 +244,9 @@ export const WorkspacesLatencyMenu: React.FC<{
 			const target = event.target instanceof Node ? event.target : null;
 			if (
 				target &&
-				(listRef.current?.contains(target) || rowRef.current?.contains(target))
+				(listRef.current?.contains(target) ||
+					rowRef.current?.contains(target) ||
+					document.getElementById(options.id)?.contains(target))
 			) {
 				return;
 			}
@@ -260,7 +261,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 		};
 		document.addEventListener("pointerdown", elsewhere, true);
 		return () => document.removeEventListener("pointerdown", elsewhere, true);
-	}, [locked]);
+	}, [locked, options.id]);
 
 	// A press keeps the list open until it ends, wherever the pointer is by then. Ending it on a workspace opens that
 	// workspace (the menu's own press, move and release); on any other item of the menu it chooses nothing - the
@@ -391,6 +392,8 @@ export const WorkspacesLatencyMenu: React.FC<{
 						onOpen={() => {
 							options.close();
 							if (expanded) {
+								stopHold();
+								setPressed(false);
 								setLocked(false);
 								setKeyboard(false);
 							} else {

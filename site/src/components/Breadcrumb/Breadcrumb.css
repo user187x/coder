@@ -42,12 +42,7 @@
 		color 150ms ease-out;
 }
 
-.breadcrumb-connected > ol > li > a:hover,
-.breadcrumb-connected > ol > li > .settings-breadcrumb-trigger:hover,
-.breadcrumb-connected
-	> ol
-	> li
-	> .settings-breadcrumb-trigger[data-state="open"] {
+.breadcrumb-connected > ol > li > a:hover {
 	background: hsl(var(--surface-quaternary));
 	color: hsl(var(--content-primary));
 }
@@ -326,10 +321,6 @@
 	min-width: 3rem;
 }
 .breadcrumb-connected.admin-navbar-breadcrumb > ol > li > :is(a, span, button),
-.breadcrumb-connected.admin-navbar-breadcrumb
-	> ol
-	> li:first-child
-	> .settings-breadcrumb-trigger:not(:hover):not([data-state="open"]),
 .breadcrumb-connected.admin-navbar-breadcrumb
 	.category-breadcrumb-button::before,
 .breadcrumb-connected.admin-navbar-breadcrumb

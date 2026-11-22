@@ -184,6 +184,11 @@ export const PingAndLatencyBreadcrumb: Story = {
 			routing: { path: "/hud/latency" },
 		}),
 	},
+	play: async ({ canvasElement }) => {
+		await userEvent.hover(
+			within(canvasElement).getByRole("button", { name: "Ping and Latency" }),
+		);
+	},
 };
 
 export const CategoryDropdown: Story = {

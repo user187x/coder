@@ -195,6 +195,29 @@ describe("WorkspacesLatencyMenu", () => {
 		fireEvent.click(row);
 		expect(screen.getByRole("menu")).toBeInTheDocument();
 	});
+
+	it("closes both the workspace list and its right-click menu while keeping Settings open", async () => {
+		mockWorkspaces();
+		const onOpenChange = vi.fn();
+		renderMenu(onOpenChange);
+		const user = userEvent.setup();
+		const row = await screen.findByRole("menuitem", { name: /Workspaces.*2/ });
+
+		await user.dblClick(row);
+		await user.pointer({ target: row, keys: "[MouseRight]" });
+		const close = screen.getByRole("menuitem", { name: "Close" });
+		fireEvent.pointerDown(close, { button: 0 });
+		fireEvent.pointerUp(close, { button: 0 });
+		expect(row).toHaveAttribute("aria-expanded", "true");
+		fireEvent.click(close);
+
+		expect(row).toHaveAttribute("aria-expanded", "false");
+		expect(
+			screen.queryByRole("group", { name: "Workspaces options" }),
+		).toBeNull();
+		expect(onOpenChange).not.toHaveBeenCalled();
+	});
+
 	it("locks open when held through the ring (hold to confirm) or double clicked, until a press elsewhere", async () => {
 		mockWorkspaces();
 		renderMenu();
