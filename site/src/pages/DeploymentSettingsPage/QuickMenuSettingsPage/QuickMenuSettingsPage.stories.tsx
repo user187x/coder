@@ -19,6 +19,14 @@ const meta: Meta<typeof QuickMenuSettingsPage> = {
 export default meta;
 type Story = StoryObj<typeof QuickMenuSettingsPage>;
 export const Default: Story = {};
+export const RecordedCombination: Story = {
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Record shortcut" }),
+		);
+		await userEvent.keyboard("{Control>}{Shift>}k{/Shift}{/Control}");
+	},
+};
 export const Disabled: Story = {
 	parameters: {
 		queries: [

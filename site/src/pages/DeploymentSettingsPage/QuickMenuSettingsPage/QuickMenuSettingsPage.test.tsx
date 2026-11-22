@@ -66,7 +66,7 @@ it("records a custom shortcut and restores the default combination", async () =>
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith(expect.any(Array), "Ctrl+Shift+K", true),
 	);
-	await user.click(screen.getByRole("button", { name: "Use Ctrl+Escape" }));
+	await user.click(screen.getByRole("button", { name: "Use Control+Escape" }));
 	await user.click(screen.getByRole("button", { name: "Save" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenLastCalledWith(

@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -18,6 +18,7 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { Input } from "#/components/Input/Input";
+import { Kbd } from "#/components/Kbd/Kbd";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
 import { Spinner } from "#/components/Spinner/Spinner";
@@ -40,6 +41,26 @@ import {
 	wheelOf,
 } from "#/modules/platform/radialMenu/wheelChoices";
 import { pageTitle } from "#/utils/page";
+
+const shortcutKeys = (shortcut: string) =>
+	shortcut
+		.split("+")
+		.map((key) => (key === "Ctrl" ? "Control" : key === "Plus" ? "+" : key));
+
+function ShortcutKeycaps({ shortcut }: { shortcut: string }) {
+	return (
+		<span className="inline-flex flex-wrap items-center gap-1">
+			{shortcutKeys(shortcut).map((key, index) => (
+				<Fragment key={key}>
+					{index > 0 && <span className="text-content-secondary">+</span>}
+					<Kbd className="h-6 min-w-6 border border-solid border-border px-1.5">
+						{key}
+					</Kbd>
+				</Fragment>
+			))}
+		</span>
+	);
+}
 
 const GROUP_LABEL: Record<WheelChoice["group"], string> = {
 	dashboard: "Dashboard",
@@ -166,25 +187,44 @@ const QuickMenuSettingsPage: React.FC = () => {
 								Key or key combination
 							</Label>
 							<div className="flex flex-wrap items-center gap-2">
-								<Input
-									ref={shortcutInput}
-									id="quick-menu-shortcut"
-									data-quick-menu-shortcut
-									readOnly
-									value={recording ? "Press a key or combination" : shortcut}
-									className="w-full"
-									disabled={busy || !enabled}
-									onKeyDown={(event) => {
-										event.preventDefault();
-										event.stopPropagation();
-										const next = shortcutFromEvent(event.nativeEvent);
-										if (next) {
-											setShortcutDraft(next);
-											setRecording(false);
-											event.currentTarget.blur();
+								<div
+									className={cn(
+										"relative flex min-h-10 w-full items-center rounded-md border border-solid border-border bg-surface-primary px-3 py-1.5 text-sm",
+										"focus-within:border-content-link focus-within:ring-1 focus-within:ring-content-link",
+										(busy || !enabled) && "opacity-50",
+									)}
+								>
+									<Input
+										ref={shortcutInput}
+										id="quick-menu-shortcut"
+										data-quick-menu-shortcut
+										readOnly
+										value={
+											recording
+												? "Press a key or combination"
+												: shortcutKeys(shortcut).join(" + ")
 										}
-									}}
-								/>
+										className="absolute inset-0 size-full opacity-0"
+										disabled={busy || !enabled}
+										onKeyDown={(event) => {
+											event.preventDefault();
+											event.stopPropagation();
+											const next = shortcutFromEvent(event.nativeEvent);
+											if (next) {
+												setShortcutDraft(next);
+												setRecording(false);
+												event.currentTarget.blur();
+											}
+										}}
+									/>
+									<span aria-hidden="true" className="pointer-events-none">
+										{recording ? (
+											"Press a key or combination"
+										) : (
+											<ShortcutKeycaps shortcut={shortcut} />
+										)}
+									</span>
+								</div>
 								<Button
 									variant="outline"
 									disabled={busy || !enabled}
@@ -203,7 +243,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 										setRecording(false);
 									}}
 								>
-									Use Ctrl+Escape
+									Use <ShortcutKeycaps shortcut={DEFAULT_QUICK_MENU_SHORTCUT} />
 								</Button>
 							</div>
 							<p className="m-0 text-xs text-content-secondary">
