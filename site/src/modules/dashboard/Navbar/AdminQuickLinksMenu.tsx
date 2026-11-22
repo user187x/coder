@@ -20,6 +20,7 @@ import {
 	GripVerticalIcon,
 	PinIcon,
 	Trash2Icon,
+	XIcon,
 } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -784,6 +785,7 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 										onRemove();
 									}}
 								>
+									<XIcon aria-hidden />
 									Remove from quick links
 								</DropdownMenuItem>
 							)}

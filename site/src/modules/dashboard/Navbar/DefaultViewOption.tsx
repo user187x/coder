@@ -32,7 +32,7 @@ export const DefaultViewOption: React.FC<{
 				view.set(current ? null : path);
 			}}
 		>
-			{context && (current ? <XIcon aria-hidden /> : <HouseIcon aria-hidden />)}
+			{current ? <XIcon aria-hidden /> : <HouseIcon aria-hidden />}
 			{current ? "Clear Default" : "Set Default"}
 			{!context && " View"}
 		</Item>

@@ -14,8 +14,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import { PlusIcon } from "lucide-react";
-import { useRef } from "react";
+import { PinIcon, PlusIcon, XIcon } from "lucide-react";
+import { useRef, useState } from "react";
 import { NavLink } from "react-router";
 import {
 	ContextMenu,
@@ -46,8 +46,14 @@ const CompactQuickLinkMenu: React.FC<{
 	onChange?: (ids: string[]) => void;
 	children: React.ReactElement;
 }> = ({ link, ids, others, onChange, children }) => {
+	const [pinned, setPinned] = useState(false);
 	return (
-		<ContextMenu>
+		<ContextMenu
+			modal={false}
+			onOpenChange={(open) => {
+				if (!open) setPinned(false);
+			}}
+		>
 			<ContextMenuTrigger
 				asChild
 				onContextMenu={(event) => event.stopPropagation()}
@@ -56,16 +62,35 @@ const CompactQuickLinkMenu: React.FC<{
 			</ContextMenuTrigger>
 			<ContextMenuContent
 				aria-label={`${link.label} options`}
-				className="z-[2147483647] max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto"
+				className="z-[2147483647] max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto bg-[color-mix(in_srgb,hsl(var(--surface-secondary))_91%,black)]"
 				onContextMenu={(event) => event.stopPropagation()}
+				onInteractOutside={(event) => {
+					if (pinned) event.preventDefault();
+				}}
 			>
+				<ContextMenuItem
+					role="menuitemcheckbox"
+					aria-checked={pinned}
+					aria-label="Keep submenu open"
+					title={pinned ? "Unpin submenu" : "Pin submenu"}
+					className={cn(
+						"ml-auto size-6 justify-center p-0",
+						pinned && "text-content-link",
+					)}
+					onSelect={(event) => {
+						event.preventDefault();
+						setPinned((previous) => !previous);
+					}}
+				>
+					<PinIcon aria-hidden className="size-3" />
+				</ContextMenuItem>
 				{onChange && others.length > 0 && (
 					<ContextMenuSub>
 						<ContextMenuSubTrigger>
 							<PlusIcon aria-hidden />
 							Add
 						</ContextMenuSubTrigger>
-						<ContextMenuSubContent className="z-[2147483647] max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto">
+						<ContextMenuSubContent className="z-[2147483647] max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto bg-[color-mix(in_srgb,hsl(var(--surface-secondary))_91%,black)]">
 							{others.map((page) => (
 								<ContextMenuItem
 									key={page.id}
@@ -89,6 +114,7 @@ const CompactQuickLinkMenu: React.FC<{
 					<ContextMenuItem
 						onSelect={() => onChange(ids.filter((id) => id !== link.id))}
 					>
+						<XIcon aria-hidden />
 						Remove from quick links
 					</ContextMenuItem>
 				)}

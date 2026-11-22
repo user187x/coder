@@ -1,5 +1,6 @@
 import { cn } from "cn";
-import { useId, useState } from "react";
+import { ArrowRightIcon, PinIcon } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 
@@ -9,27 +10,32 @@ import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
  * the menu has them, so the mouse works the same everywhere: an entry with
  * nothing else to offer has "Open", which does what a click on it does.
  */
-export function useInlineMenu() {
+export function useInlineMenu({ arrowRight = false } = {}) {
 	const [open, setOpen] = useState(false);
 	const id = useId();
-	const toggle = (event: React.SyntheticEvent) => {
+	const anchor = useRef<HTMLElement>(null);
+	const close = useCallback(() => setOpen(false), []);
+	const toggle = (event: React.SyntheticEvent<HTMLElement>) => {
 		event.preventDefault();
 		event.stopPropagation();
+		anchor.current = event.currentTarget;
 		setOpen((previous) => !previous);
 	};
 	return {
 		open,
 		id,
-		close: () => setOpen(false),
+		anchor,
+		close,
 		/** Spread on the entry (a DropdownMenuItem). */
 		trigger: {
 			"aria-expanded": open,
 			"aria-controls": open ? id : undefined,
 			onContextMenu: toggle,
-			onKeyDown: (event: React.KeyboardEvent) => {
+			onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
 				if (
 					event.key === "ContextMenu" ||
-					(event.shiftKey && event.key === "F10")
+					(event.shiftKey && event.key === "F10") ||
+					(arrowRight && event.key === "ArrowRight")
 				) {
 					toggle(event);
 				}
@@ -42,20 +48,66 @@ export const InlineMenuPanel: React.FC<{
 	id: string;
 	label: string;
 	className?: string;
+	quickLinkMenu?: ReturnType<typeof useInlineMenu>;
 	children: React.ReactNode;
-}> = ({ id, label, className, children }) => (
-	<div
-		id={id}
-		role="group"
-		aria-label={label}
-		className={cn(
-			"my-1 w-full min-w-0 rounded-md border border-solid border-border bg-surface-secondary p-1",
-			className,
-		)}
-	>
-		{children}
-	</div>
-);
+}> = ({ id, label, className, quickLinkMenu, children }) => {
+	const panel = useRef<HTMLDivElement>(null);
+	const [pinned, setPinned] = useState(false);
+	const close = quickLinkMenu?.close;
+	const anchor = quickLinkMenu?.anchor;
+	useEffect(() => {
+		if (!close || pinned) return;
+		const dismiss = (event: PointerEvent) => {
+			if (!(event.target instanceof Node)) return;
+			if (
+				!panel.current?.contains(event.target) &&
+				!anchor?.current?.contains(event.target)
+			) {
+				close();
+			}
+		};
+		document.addEventListener("pointerdown", dismiss, true);
+		return () => document.removeEventListener("pointerdown", dismiss, true);
+	}, [anchor, close, pinned]);
+
+	return (
+		<div
+			ref={panel}
+			id={id}
+			role="group"
+			aria-label={label}
+			className={cn(
+				"my-1 w-full min-w-0 rounded-md border border-solid border-border p-1",
+				quickLinkMenu
+					? "bg-[color-mix(in_srgb,hsl(var(--surface-secondary))_91%,black)]"
+					: "bg-surface-secondary",
+				className,
+			)}
+		>
+			{quickLinkMenu && (
+				<div className="flex justify-end">
+					<DropdownMenuItem
+						role="menuitemcheckbox"
+						aria-checked={pinned}
+						aria-label="Keep submenu open"
+						title={pinned ? "Unpin submenu" : "Pin submenu"}
+						className={cn(
+							"size-6 justify-center p-0",
+							pinned && "text-content-link",
+						)}
+						onSelect={(event) => {
+							event.preventDefault();
+							setPinned((previous) => !previous);
+						}}
+					>
+						<PinIcon aria-hidden className="size-3" />
+					</DropdownMenuItem>
+				</div>
+			)}
+			{children}
+		</div>
+	);
+};
 
 /** "Open": a link to the entry's page, or the entry's own action. */
 export const OpenMenuItem: React.FC<
@@ -63,7 +115,10 @@ export const OpenMenuItem: React.FC<
 > = ({ label = "Open", ...props }) =>
 	"to" in props ? (
 		<DropdownMenuItem asChild>
-			<Link to={props.to}>{label}</Link>
+			<Link to={props.to}>
+				<ArrowRightIcon aria-hidden />
+				{label}
+			</Link>
 		</DropdownMenuItem>
 	) : (
 		<DropdownMenuItem
@@ -72,6 +127,7 @@ export const OpenMenuItem: React.FC<
 				props.onOpen();
 			}}
 		>
+			<ArrowRightIcon aria-hidden />
 			{label}
 		</DropdownMenuItem>
 	);
@@ -127,6 +183,7 @@ export const PageMenuItem: React.FC<{
 					id={menu.id}
 					label={`${label} options`}
 					className={panelClassName}
+					quickLinkMenu={menu}
 				>
 					<OpenMenuItem to={to} />
 					{options}

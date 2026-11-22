@@ -1,6 +1,6 @@
 import { cn } from "cn";
-import { MonitorIcon, PlusIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { FileTextIcon, MonitorIcon, PlusIcon } from "lucide-react";
+import { useState } from "react";
 import { useQuery } from "react-query";
 import { Link, useLocation, useNavigate } from "react-router";
 import { deploymentConfig } from "#/api/queries/deployment";
@@ -31,7 +31,7 @@ import {
 import { useWorkspaceIcons } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import type { AdminPage } from "./adminQuickLinks";
 import { BreadcrumbMenuPanel, breadcrumbMenuClass } from "./BreadcrumbMenu";
-import { MenuLabel } from "./InlineMenu";
+import { InlineMenuPanel, MenuLabel, useInlineMenu } from "./InlineMenu";
 import { navbarSettingsSide } from "./settingsMenuHost";
 
 export function SettingsDestinationMenu({
@@ -46,30 +46,13 @@ export function SettingsDestinationMenu({
 	/** More right-click options, after its destinations. */
 	options?: React.ReactNode;
 }) {
-	const [open, setOpen] = useState(false);
-	const id = useId();
-	const toggle = (event: React.SyntheticEvent) => {
-		event.preventDefault();
-		event.stopPropagation();
-		setOpen((previous) => !previous);
-	};
+	const menu = useInlineMenu({ arrowRight: true });
 	return (
 		<>
 			<DropdownMenuItem
 				asChild
-				aria-expanded={open}
-				aria-controls={open ? id : undefined}
+				{...menu.trigger}
 				className={cn("min-w-0 flex-1", className)}
-				onContextMenu={toggle}
-				onKeyDown={(event) => {
-					if (
-						event.key === "ContextMenu" ||
-						(event.shiftKey && event.key === "F10") ||
-						event.key === "ArrowRight"
-					) {
-						toggle(event);
-					}
-				}}
 				title={`Right-click to show or hide ${link.label.toLowerCase()}`}
 			>
 				<Link to={link.path}>
@@ -77,14 +60,14 @@ export function SettingsDestinationMenu({
 					<MenuLabel badge={labelBadge}>{link.label}</MenuLabel>
 				</Link>
 			</DropdownMenuItem>
-			{open && (
-				<div
-					id={id}
-					role="group"
-					aria-label={
+			{menu.open && (
+				<InlineMenuPanel
+					id={menu.id}
+					quickLinkMenu={menu}
+					label={
 						link.id === "workspaces" ? "Your workspaces" : "Available templates"
 					}
-					className="order-last my-1 w-full min-w-0 rounded-md border border-solid border-border bg-surface-secondary p-1"
+					className="order-last"
 				>
 					{link.id === "workspaces" ? (
 						<WorkspaceDestinations />
@@ -92,7 +75,7 @@ export function SettingsDestinationMenu({
 						<TemplateDestinations />
 					)}
 					{options}
-				</div>
+				</InlineMenuPanel>
 			)}
 		</>
 	);
@@ -273,6 +256,7 @@ export function TemplateDestinations() {
 			{query.data?.map((item) => (
 				<DropdownMenuItem key={item.id} asChild>
 					<Link to={getLink(linkToTemplate(item.organization_name, item.name))}>
+						<FileTextIcon aria-hidden />
 						{item.display_name || item.name}{" "}
 						<small className="ml-auto text-content-secondary">
 							{item.organization_display_name || item.organization_name}

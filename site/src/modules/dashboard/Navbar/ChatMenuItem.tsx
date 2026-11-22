@@ -6,7 +6,6 @@ import {
 	PinIcon,
 	SquareTerminalIcon,
 } from "lucide-react";
-import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -25,6 +24,7 @@ import {
 } from "#/modules/platform/chat/chatStore";
 import { CHAT_CONSOLE_PAGE } from "#/modules/platform/chat/consolePlaces";
 import { useChatEnabled } from "#/modules/platform/chat/useChatEnabled";
+import { InlineMenuPanel, useInlineMenu } from "./InlineMenu";
 
 /** The navbar's recovery control for a hidden chat dock. */
 const ChatMenuItemBody = ({
@@ -41,13 +41,7 @@ const ChatMenuItemBody = ({
 	onPin?: () => void;
 }) => {
 	const total = unreadTotal(useChatSnapshot());
-	const [optionsOpen, setOptionsOpen] = useState(false);
-	const optionsId = useId();
-	const toggleOptions = (event: React.SyntheticEvent) => {
-		event.preventDefault();
-		event.stopPropagation();
-		setOptionsOpen((open) => !open);
-	};
+	const menu = useInlineMenu({ arrowRight: true });
 	const navigate = useNavigate();
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
@@ -89,18 +83,9 @@ const ChatMenuItemBody = ({
 		<>
 			<DropdownMenuItem
 				className={className}
-				aria-expanded={onToggle ? expanded : undefined}
-				aria-controls={optionsOpen ? optionsId : undefined}
+				{...menu.trigger}
+				aria-expanded={menu.open || Boolean(onToggle && expanded)}
 				title="Right-click for Chat options"
-				onContextMenu={toggleOptions}
-				onKeyDown={(event) => {
-					if (
-						event.key === "ContextMenu" ||
-						(event.shiftKey && event.key === "F10") ||
-						event.key === "ArrowRight"
-					)
-						toggleOptions(event);
-				}}
 				onSelect={(event) => {
 					if (onToggle) {
 						event.preventDefault();
@@ -114,12 +99,12 @@ const ChatMenuItemBody = ({
 				<span className="flex-1">Chat</span>
 				{total > 0 && <CountBadge count={total} />}
 			</DropdownMenuItem>
-			{optionsOpen && (
-				<div
-					id={optionsId}
-					role="group"
-					className="order-last my-1 w-full min-w-0 rounded-md border border-solid border-border bg-surface-secondary p-1"
-					aria-label="Chat options"
+			{menu.open && (
+				<InlineMenuPanel
+					id={menu.id}
+					className="order-last"
+					label="Chat options"
+					quickLinkMenu={menu}
 				>
 					{onPin && (
 						<DropdownMenuItem
@@ -172,7 +157,7 @@ const ChatMenuItemBody = ({
 						<EyeOffIcon aria-hidden />
 						Hide
 					</DropdownMenuItem>
-				</div>
+				</InlineMenuPanel>
 			)}
 		</>
 	);

@@ -743,7 +743,7 @@ export const PanelHandleLockMenu: Story = {
 	},
 };
 
-/** An entry's right-click options, under it: Audit logs has only Open. */
+/** A quick-link submenu pinned open. */
 export const EntryOptions: Story = {
 	...SettingsMenuOpened,
 	args: {
@@ -767,6 +767,11 @@ export const EntryOptions: Story = {
 			),
 			keys: "[MouseRight]",
 		});
+		await userEvent.click(
+			within(canvasElement.ownerDocument.body).getByRole("menuitemcheckbox", {
+				name: "Keep submenu open",
+			}),
+		);
 	},
 };
 

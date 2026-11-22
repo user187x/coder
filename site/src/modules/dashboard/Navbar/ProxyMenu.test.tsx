@@ -654,6 +654,7 @@ describe("ProxyMenu", () => {
 	});
 
 	it("expands the current user's workspace links inside their pinned row", async () => {
+		const user = userEvent.setup();
 		vi.spyOn(API, "getWorkspaces").mockResolvedValue({
 			workspaces: [{ ...MockWorkspace, owner_name: "test", name: "Browser" }],
 			count: 1,
@@ -685,10 +686,20 @@ describe("ProxyMenu", () => {
 		expect(
 			await within(destinations).findByRole("menuitem", { name: "Browser" }),
 		).toHaveAttribute("href", "/@test/Browser");
-		fireEvent.contextMenu(link);
+		const pin = within(destinations).getByRole("menuitemcheckbox", {
+			name: "Keep submenu open",
+		});
+		await user.click(pin);
+		await user.click(menu);
+		expect(pin).toBeChecked();
+		await user.click(pin);
+		await user.click(menu);
+		await user.pointer({ target: link, keys: "[MouseRight]" });
 		expect(
-			within(menu).queryByRole("group", { name: "Your workspaces" }),
-		).toBeNull();
+			await within(menu).findByRole("menuitemcheckbox", {
+				name: "Keep submenu open",
+			}),
+		).not.toBeChecked();
 	});
 
 	it.each([
