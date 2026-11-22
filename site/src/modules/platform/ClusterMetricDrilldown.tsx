@@ -186,7 +186,7 @@ export function ClusterMetricPlot<T extends ClusterMetricSample>({
 			asChild
 			disabled={!samples.length}
 			className={cn(
-				"relative m-0 block w-full min-w-0 cursor-pointer touch-none overflow-hidden rounded p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link [&>svg]:h-full",
+				"relative m-0 block w-full min-w-0 cursor-pointer touch-none overflow-hidden rounded p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-content-link [&>svg]:size-full",
 				className,
 			)}
 			onSelect={(event) => event.preventDefault()}
