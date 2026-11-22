@@ -1343,6 +1343,22 @@ class LoginPageSettingsTest(unittest.TestCase):
         self.assertEqual(ui.LOGIN_PAGE_DEFAULT["effect"], "wireframe")
         self.assertEqual(ui.LOGIN_PAGE_DEFAULT["title"], "")
 
+    def test_background_appearance_reads_saved_settings_and_handles_reset(self):
+        pool = mock.Mock()
+        with mock.patch.object(ui.BackgroundStore, "peek"):
+            backgrounds = ui.BackgroundStore(mock.Mock(pool=pool))
+        backgrounds.ready = True
+        pool.query.side_effect = [
+            [(ui.BG_PICTURE_REF, b"/pictures/login-orbit.gif\n4486133", "sha", 0.64, "cover", "under", "{}")],
+            [],
+        ]
+        self.assertEqual(backgrounds.appearance("login"), {
+            "url": "/pictures/login-orbit.gif", "opacity": 0.64, "fit": "cover", "layer": "under",
+            "kind": "image", "builtin": True, "params": {},
+        })
+        self.assertIsNone(backgrounds.appearance("login"))
+        self.assertEqual(pool.query.call_args.args[1], ["login", ui.BG_PICTURE_REF])
+
     def test_image_heading_validation(self):
         import base64
         base = {"color": "#ffffff", "headingMode": "image"}

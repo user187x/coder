@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { API } from "#/api/api";
 import { MockUserOwner, mockApiError } from "#/testHelpers/entities";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
@@ -23,6 +24,17 @@ const fillAndSubmitForm = async () => {
 };
 
 describe("AccountPage", () => {
+	it("signs out without submitting account edits", async () => {
+		const logout = vi.spyOn(API, "logout").mockResolvedValue(undefined);
+		const update = vi.spyOn(API, "updateProfile");
+		const user = userEvent.setup();
+		renderWithAuth(<AccountPage />);
+		await user.type(await screen.findByLabelText("Name"), "edited");
+		await user.click(screen.getByRole("button", { name: "Sign out" }));
+		await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
+		expect(update).not.toHaveBeenCalled();
+	});
+
 	describe("when it is a success", () => {
 		it("shows the success message", async () => {
 			vi.spyOn(API, "updateProfile").mockImplementationOnce((userId, data) =>

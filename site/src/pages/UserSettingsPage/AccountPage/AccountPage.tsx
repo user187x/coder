@@ -16,8 +16,13 @@ import { AccountUserGroups } from "./AccountUserGroups";
 
 const AccountPage: React.FC = () => {
 	const { permissions, user: me } = useAuthenticated();
-	const { updateProfile, updateProfileError, isUpdatingProfile } =
-		useAuthContext();
+	const {
+		updateProfile,
+		updateProfileError,
+		isUpdatingProfile,
+		signOut,
+		isSigningOut,
+	} = useAuthContext();
 	const { entitlements } = useDashboard();
 	const [search] = useSearchParams();
 	const authMethodsQuery = useQuery(authMethods());
@@ -56,6 +61,8 @@ const AccountPage: React.FC = () => {
 						avatar_url: me.avatar_url ?? "",
 					}}
 					onSubmit={updateProfile}
+					onSignOut={signOut}
+					isSigningOut={isSigningOut}
 				/>
 			</div>
 

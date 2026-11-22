@@ -34,7 +34,7 @@
   POST /__coder-ui/api/classification     admins: {enabled, showOnLogin, text, height, background, color}
 
   Sign-in and sign-out page
-  GET  /__coder-ui/api/login-page         public (the sign-in page reads it; boot.js has it too)
+  GET  /__coder-ui/api/login-page         public: heading, messages and sign-in background settings
   POST /__coder-ui/api/login-page         admins: {title, effect, color, speed, message, signedOutMessage}
   GET  /__coder-ui/api/quick-menu         the quick access wheel's wedges (signed in; items null: the default)
   POST /__coder-ui/api/quick-menu {items}  admins: 3 to 12 choices' IDs, in order   POST .../quick-menu/reset
@@ -3584,6 +3584,29 @@ class BackgroundStore:
         )
         self.ready = True
 
+    @staticmethod
+    def params(text):
+        try:
+            value = json.loads(text or "{}")
+            return value if isinstance(value, dict) else {}
+        except ValueError:
+            return {}
+
+    def appearance(self, slot):
+        """Read saved display settings without loading the background's image bytes."""
+        with self.lock:
+            self._schema()
+        rows = self.pool.query(
+            "SELECT content_type, CASE WHEN content_type = $2 THEN data END, sha256, opacity, fit, layer, params "
+            "FROM coder_ui_updates.background WHERE slot = $1",
+            [slot, BG_PICTURE_REF],
+        )
+        if not rows:
+            return None
+        ctype, picture, sha, opacity, fit, layer, params = rows[0]
+        return background_public(slot, {"type": ctype, "data": picture, "sha": sha, "opacity": float(opacity),
+                                       "fit": fit, "layer": layer, "params": self.params(params)})
+
     def all(self, fresh=False):
         """{slot: {"type", "data", "sha", "opacity", "fit", "layer", "by", "at"}}. Raises when the database is down."""
         if not self.pool:
@@ -3597,16 +3620,9 @@ class BackgroundStore:
                 "FROM coder_ui_updates.background"
             )
 
-            def params(text):
-                try:
-                    value = json.loads(text or "{}")
-                    return value if isinstance(value, dict) else {}
-                except ValueError:
-                    return {}
-
             self.cache = {
                 r[0]: {"type": r[1], "data": r[2], "sha": r[3], "opacity": float(r[4]), "fit": r[5], "layer": r[6],
-                       "by": r[7], "at": r[8], "params": params(r[9])}
+                       "by": r[7], "at": r[8], "params": self.params(r[9])}
                 for r in rows if r[0] in BG_SLOTS
             }
             self.loaded_at = time.time()
@@ -9475,7 +9491,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == BASE + "/api/animations":
             return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
-            return self.send_json(200, login_page_settings())
+            settings = login_page_settings()
+            try:
+                if BACKGROUNDS and BACKGROUNDS.pool:
+                    settings["background"] = BACKGROUNDS.appearance("login")
+            except Exception as e:  # noqa: BLE001 - use the background from boot.js if storage is unavailable
+                log(event="login-background-read-failed", error=str(e)[:200])
+            return self.send_json(200, settings)
         if path == BASE + "/api/quick-menu":
             user, err = self.user()
             if err:

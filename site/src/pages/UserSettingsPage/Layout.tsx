@@ -1,4 +1,4 @@
-import { ChevronDownIcon, UserRoundCogIcon } from "lucide-react";
+import { ChevronDownIcon, LogOutIcon, UserRoundCogIcon } from "lucide-react";
 import { Suspense } from "react";
 import { Navigate, Outlet, useMatch } from "react-router";
 import {
@@ -8,9 +8,12 @@ import {
 import { Button } from "#/components/Button/Button";
 import {
 	DropdownMenu,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { PageLoader } from "#/components/Loader/Loader";
+import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import { BreadcrumbDropdownContent } from "#/modules/dashboard/Navbar/BreadcrumbMenu";
 import {
 	NavbarAction,
@@ -28,11 +31,17 @@ import "./userSettings.css";
 import "#/modules/dashboard/Navbar/settingsMenuSkeuo.css";
 
 function UserSettingsMenu({ trigger }: { trigger: React.ReactElement }) {
+	const { signOut, isSigningOut } = useAuthContext();
 	return (
 		<DropdownMenu modal={false}>
 			<DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
 			<BreadcrumbDropdownContent aria-label="User Settings sections">
 				<Sidebar menu />
+				<DropdownMenuSeparator />
+				<DropdownMenuItem disabled={isSigningOut} onSelect={signOut}>
+					<LogOutIcon aria-hidden />
+					Sign out
+				</DropdownMenuItem>
 			</BreadcrumbDropdownContent>
 		</DropdownMenu>
 	);

@@ -18,6 +18,7 @@ import {
 	type KeycloakFix,
 	type KeycloakReport,
 	type KeycloakSettings,
+	type LoginPageAppearance,
 	type LoginPageSettings,
 	type PersistenceFix,
 	type PersistenceSettings,
@@ -178,12 +179,9 @@ export const updateClassification = (queryClient: QueryClient) => ({
 export const loginPageKey = [...platformKey, "login-page"] as const;
 
 /** The sign-in page's settings (public: the page reads them before anyone signs in). */
-export const loginPage = (
-	initialData?: LoginPageSettings,
-): UseQueryOptions<LoginPageSettings> => ({
+export const loginPage = (): UseQueryOptions<LoginPageAppearance> => ({
 	queryKey: loginPageKey,
 	queryFn: PlatformAPI.getLoginPage,
-	initialData,
 	staleTime: 30_000,
 });
 

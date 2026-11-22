@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { createMemoryRouter } from "react-router";
+import { LOGIN_PAGE_DEFAULT, PlatformAPI } from "#/api/platform";
 import { ShortTermLeasesAPI } from "#/api/shortTermLeases";
 import { MockUserOwner } from "#/testHelpers/entities";
 import {
@@ -42,6 +43,19 @@ describe("LoginPage", () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		locationHrefSpy.mockReset();
+	});
+
+	it("refreshes saved appearance when the browser has startup settings", async () => {
+		vi.stubGlobal("__cuiLoginPage", LOGIN_PAGE_DEFAULT);
+		const loadAppearance = vi
+			.spyOn(PlatformAPI, "getLoginPage")
+			.mockResolvedValue({
+				...LOGIN_PAGE_DEFAULT,
+				headingMode: "none",
+				background: null,
+			});
+		render(<LoginPage />);
+		await waitFor(() => expect(loadAppearance).toHaveBeenCalledTimes(1));
 	});
 
 	it("shows an error message if SignIn fails", async () => {

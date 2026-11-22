@@ -83,6 +83,7 @@ export const SettingsFacePanel: React.FC<{
 		preferences.data?.settings_face_collapse_direction ?? "down";
 	const fillsPanel =
 		full || (layout === "face" && direction === "down" && !fitContent);
+	const fitMetrics = fitContent && current === "metrics";
 	const renderHandle = (target: "links" | "face") => {
 		const selected = layout === target;
 		const movesUp = (direction === "up") !== selected;
@@ -175,7 +176,11 @@ export const SettingsFacePanel: React.FC<{
 			data-face-collapsed={hidden ? direction : undefined}
 			className={cn(
 				"settings-face-panel relative mx-1 mt-2 mb-1",
-				fillsPanel ? "flex min-h-0 flex-1 flex-col" : "shrink-0",
+				fillsPanel
+					? "flex min-h-0 flex-1 flex-col"
+					: fitMetrics
+						? "flex min-h-0 flex-col"
+						: "shrink-0",
 			)}
 		>
 			{faces.length > 0 && (
@@ -245,11 +250,13 @@ export const SettingsFacePanel: React.FC<{
 			<div
 				hidden={hidden}
 				className={cn(
-					fillsPanel ? "flex min-h-0 flex-1 flex-col" : "flex flex-col",
+					fillsPanel || fitMetrics
+						? "flex min-h-0 flex-1 flex-col"
+						: "flex flex-col",
 					hidden && "hidden",
 				)}
 				style={
-					fillsPanel
+					fillsPanel || fitMetrics
 						? undefined
 						: current === "chat"
 							? { height: tallest || CHAT_FACE_HEIGHT }
@@ -264,6 +271,7 @@ export const SettingsFacePanel: React.FC<{
 					ref={measure}
 					className={cn(
 						"settings-face flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain [&>*]:flex-1",
+						current === "metrics" && "scrollbar-none",
 						turn === "right"
 							? "settings-face-turn-right"
 							: "settings-face-turn-left",

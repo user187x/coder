@@ -1,13 +1,16 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UsersIcon } from "lucide-react";
+import { createMemoryRouter } from "react-router";
 import { PlatformAPI } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import { render } from "#/testHelpers/renderHelpers";
+import { MockPermissions } from "#/testHelpers/entities";
+import { render, renderWithRouter } from "#/testHelpers/renderHelpers";
+import { settingsPagesFor } from "./adminQuickLinks";
 import { SettingsCategoryDropdown } from "./SettingsCategoryDropdown";
 
 afterEach(() => vi.restoreAllMocks());
@@ -58,4 +61,46 @@ it("saves category moves, sorts alphabetically, and opens Profile", async () => 
 	);
 	await user.click(menu.getByRole("menuitem", { name: "Profile" }));
 	expect(router.state.location.pathname).toBe("/settings/account");
+});
+
+it("marks only the selected category when switching between HUD and Ping and Latency", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	const categories = (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button>Open categories</Button>
+			</DropdownMenuTrigger>
+			<SettingsCategoryDropdown
+				categories={settingsPagesFor({
+					permissions: MockPermissions,
+					oauth2Provider: true,
+				})}
+				quickLinks={[]}
+				hud
+			/>
+		</DropdownMenu>
+	);
+	renderWithRouter(
+		createMemoryRouter([{ path: "*", element: categories }], {
+			initialEntries: ["/hud"],
+		}),
+	);
+	const user = userEvent.setup();
+	const open = () =>
+		user.click(screen.getByRole("button", { name: "Open categories" }));
+	await open();
+	for (const [selected, other] of [
+		["Ping and Latency", "HUD"],
+		["HUD", "Ping and Latency"],
+	]) {
+		await user.click(await screen.findByRole("menuitem", { name: selected }));
+		await open();
+		expect(screen.getByRole("menuitem", { name: selected })).toHaveAttribute(
+			"aria-current",
+			"page",
+		);
+		expect(screen.getByRole("menuitem", { name: other })).not.toHaveAttribute(
+			"aria-current",
+		);
+	}
 });

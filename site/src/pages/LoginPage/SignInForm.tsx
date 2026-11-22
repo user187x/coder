@@ -5,6 +5,7 @@ import {
 	UserRoundIcon,
 } from "lucide-react";
 import { useState } from "react";
+import type { LoginPageSettings } from "#/api/platform";
 import type { AuthMethods } from "#/api/typesGenerated";
 import { Alert } from "#/components/Alert/Alert";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
@@ -19,7 +20,6 @@ import {
 import {
 	justSignedOut,
 	SignInTitle,
-	useLoginPageSettings,
 } from "#/modules/platform/loginPage/SignInTitle";
 import { LeaseTokenSignInForm } from "#/modules/platform/shortTermLeases/LeaseTokenSignInForm";
 import { getApplicationName } from "#/utils/appearance";
@@ -28,6 +28,7 @@ import { OAuthSignInForm } from "./OAuthSignInForm";
 import { PasswordSignInForm } from "./PasswordSignInForm";
 
 type SignInFormProps = {
+	settings?: LoginPageSettings;
 	isSigningIn: boolean;
 	redirectTo: string;
 	error?: unknown;
@@ -37,6 +38,7 @@ type SignInFormProps = {
 };
 
 export const SignInForm: React.FC<SignInFormProps> = ({
+	settings,
 	authMethods,
 	redirectTo,
 	isSigningIn,
@@ -47,7 +49,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({
 	const oAuthEnabled = Boolean(authMethods?.oidc.enabled);
 	const passwordEnabled = authMethods?.password.enabled ?? true;
 	const applicationName = getApplicationName();
-	const settings = useLoginPageSettings();
 	const [selection, setSelection] = useState("");
 	const defaultMethod = passwordEnabled
 		? "password"

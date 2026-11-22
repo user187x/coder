@@ -27,6 +27,7 @@ describe("AccountForm", () => {
 					initialValues={mockInitialValues}
 					isLoading={false}
 					onSubmit={vi.fn()}
+					onSignOut={vi.fn()}
 				/>,
 			);
 
@@ -57,6 +58,7 @@ describe("AccountForm", () => {
 				initialValues={mockInitialValues}
 				isLoading={false}
 				onSubmit={vi.fn()}
+				onSignOut={vi.fn()}
 			/>,
 		);
 
@@ -82,6 +84,7 @@ describe("AccountForm", () => {
 					initialValues={mockInitialValues}
 					isLoading={false}
 					onSubmit={vi.fn()}
+					onSignOut={vi.fn()}
 				/>,
 			);
 
@@ -107,6 +110,7 @@ it("submits an email change with current-password confirmation", async () => {
 			}}
 			isLoading={false}
 			onSubmit={onSubmit}
+			onSignOut={vi.fn()}
 		/>,
 	);
 	await user.clear(screen.getByLabelText("Email"));

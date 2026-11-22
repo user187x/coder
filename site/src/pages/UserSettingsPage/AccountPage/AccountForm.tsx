@@ -30,6 +30,8 @@ type AccountFormProps = {
 	isLoading: boolean;
 	initialValues: UpdateUserProfileRequest;
 	onSubmit: (values: UpdateUserProfileRequest) => void;
+	onSignOut: () => void;
+	isSigningOut?: boolean;
 	updateProfileError?: unknown;
 	// initialTouched is only used for testing the error state of the form.
 	initialTouched?: FormikTouched<UpdateUserProfileRequest>;
@@ -43,6 +45,8 @@ export const AccountForm: React.FC<AccountFormProps> = ({
 	email,
 	isLoading,
 	onSubmit,
+	onSignOut,
+	isSigningOut,
 	initialValues,
 	updateProfileError,
 	initialTouched,
@@ -133,10 +137,18 @@ export const AccountForm: React.FC<AccountFormProps> = ({
 						form.handleChange(event);
 					}}
 				/>
-				<div>
+				<div className="flex flex-wrap items-center gap-2">
 					<Button disabled={isLoading} type="submit">
 						<Spinner loading={isLoading} />
 						Update account
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						disabled={isSigningOut}
+						onClick={onSignOut}
+					>
+						Sign out
 					</Button>
 				</div>
 			</FormFields>

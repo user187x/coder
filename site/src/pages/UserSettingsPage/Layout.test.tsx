@@ -1,6 +1,7 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { API } from "#/api/api";
 import { NavbarActionTarget } from "#/modules/dashboard/Navbar/NavbarAction";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
 import Layout from "./Layout";
@@ -38,4 +39,19 @@ it("opens the User Settings menu from Action and navigates to its sections", asy
 	await user.click(await screen.findByRole("menuitem", { name: "SSH Keys" }));
 	await screen.findByRole("heading", { name: "SSH Keys" });
 	expect(router.state.location.pathname).toBe("/settings/ssh-keys");
+});
+
+it("signs out from the User Settings Action menu", async () => {
+	const logout = vi.spyOn(API, "logout").mockResolvedValue(undefined);
+	const user = userEvent.setup();
+	renderWithAuth(<WithNavbarAction />, {
+		path: "/settings",
+		route: "/settings/account",
+		children: [{ path: "account", element: <h1>Account</h1> }],
+	});
+	await user.click(
+		await screen.findByRole("button", { name: "User Settings actions" }),
+	);
+	await user.click(await screen.findByRole("menuitem", { name: "Sign out" }));
+	await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
 });

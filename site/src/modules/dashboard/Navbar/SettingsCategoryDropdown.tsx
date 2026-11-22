@@ -102,7 +102,7 @@ export function SettingsCategoryDropdown({
 									reorder(arrayMove(orderedIds, from, to));
 							}}
 						>
-							<NavLink to={path}>
+							<NavLink to={path} end={id === "hud"}>
 								<Icon aria-hidden />
 								<span className="truncate">{label}</span>
 							</NavLink>

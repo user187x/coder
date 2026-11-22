@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { userEvent, within } from "storybook/test";
+import { fn, userEvent, within } from "storybook/test";
 import { mockApiError } from "#/testHelpers/entities";
 import { AccountForm } from "./AccountForm";
 
@@ -10,6 +10,7 @@ const meta: Meta<typeof AccountForm> = {
 		emailEditable: true,
 		email: "test-user@org.com",
 		isLoading: false,
+		onSignOut: fn(),
 		initialValues: {
 			username: "test-user",
 			name: "Test User",

@@ -1,5 +1,9 @@
 import { useQuery } from "react-query";
-import { LOGIN_PAGE_DEFAULT, type LoginPageSettings } from "#/api/platform";
+import {
+	LOGIN_PAGE_DEFAULT,
+	type LoginPageAppearance,
+	type LoginPageSettings,
+} from "#/api/platform";
 import { loginPage } from "#/api/queries/platform";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { ContourTitle } from "#/modules/platform/contourTitle/ContourTitle";
@@ -33,12 +37,16 @@ export const justSignedOut = () => {
 };
 
 /** The sign-in page's settings: boot.js's copy at once, the platform service's after. */
-export const useLoginPageSettings = (): LoginPageSettings | undefined => {
+export const useLoginPageSettings = (): LoginPageAppearance | undefined => {
 	const query = useQuery({
-		...loginPage(window.__cuiLoginPage),
+		...loginPage(),
+		placeholderData: window.__cuiLoginPage,
+		refetchOnMount: "always",
 		retry: false,
 	});
-	return query.isLoading ? undefined : { ...LOGIN_PAGE_DEFAULT, ...query.data };
+	return query.isLoading
+		? undefined
+		: { ...LOGIN_PAGE_DEFAULT, ...(query.data ?? window.__cuiLoginPage) };
 };
 
 type SignInTitleProps = {

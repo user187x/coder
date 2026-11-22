@@ -208,6 +208,10 @@ export const LOGIN_PAGE_DEFAULT: LoginPageSettings = {
 	signedOutMessage: "",
 };
 
+export type LoginPageAppearance = LoginPageSettings & {
+	background?: BackgroundImage | null;
+};
+
 export type ClassificationSettings = {
 	enabled: boolean;
 	showOnLogin?: boolean;
@@ -2828,7 +2832,8 @@ export const PlatformAPI = {
 			color: settings.color,
 		}),
 
-	getLoginPage: () => get<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`),
+	getLoginPage: () =>
+		get<LoginPageAppearance>(`${PLATFORM_BASE}/api/login-page`),
 	getQuickMenu: () => get<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`),
 	saveQuickMenu: (items: string[], shortcut?: string, enabled = true) =>
 		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`, {

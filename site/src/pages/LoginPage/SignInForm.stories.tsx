@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
+import { LOGIN_PAGE_DEFAULT } from "#/api/platform";
 import { mockApiError } from "#/testHelpers/entities";
 import { SignInForm } from "./SignInForm";
 
@@ -7,6 +8,7 @@ const meta: Meta<typeof SignInForm> = {
 	title: "pages/LoginPage/SignInForm",
 	component: SignInForm,
 	args: {
+		settings: LOGIN_PAGE_DEFAULT,
 		isSigningIn: false,
 	},
 };

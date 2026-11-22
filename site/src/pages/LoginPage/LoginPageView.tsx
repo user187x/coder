@@ -39,7 +39,7 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 	return (
 		<div className="p-6 flex flex-1 items-center justify-center min-h-0 text-center">
 			{/* Platform: the sign-in page's background image (Customize). */}
-			<PlatformBackground slot="login" />
+			<PlatformBackground slot="login" image={settings?.background} />
 			<div className="w-full max-w-xs flex flex-col items-center gap-4">
 				{settings && settings.headingMode !== "none" && (
 					<ProductLogo className="h-28 max-w-[320px]" />
@@ -59,6 +59,7 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 					</>
 				) : (
 					<SignInForm
+						settings={settings}
 						authMethods={authMethods}
 						redirectTo={redirectTo}
 						isSigningIn={isSigningIn}

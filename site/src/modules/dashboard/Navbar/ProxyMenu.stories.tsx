@@ -286,6 +286,19 @@ export const SettingsMenuOpened: Story = {
 		);
 	},
 };
+
+export const MetricsWithControlsCollapsed: Story = {
+	...SettingsMenuOpened,
+	play: async (context) => {
+		await SettingsMenuOpened.play?.(context);
+		await userEvent.click(
+			within(context.canvasElement.ownerDocument.body).getByRole("menuitem", {
+				name: "Collapse quick links",
+			}),
+		);
+	},
+};
+
 export const WorkspacesPillHovered: Story = {
 	...SettingsMenuOpened,
 	play: async (context) => {

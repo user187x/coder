@@ -295,16 +295,19 @@
 
 /* In the split layout, reserve space for the quick links and their controls. */
 .settings-menu-surface[data-slit-layout="both"]
-	.settings-menu-well
+	.settings-menu-well:not([hidden])
 	~ .settings-face-panel {
 	display: flex;
 	flex-direction: column;
 	--settings-face-min-height: 0px;
-	max-height: calc(
-		var(--radix-dropdown-menu-content-available-height, 80vh) *
-		0.5 /
-		var(--app-zoom, 1)
-	);
+	/* Give Metrics its full height before the quick links use the remaining space. */
+	&:not([data-face="metrics"]) {
+		max-height: calc(
+			var(--radix-dropdown-menu-content-available-height, 80vh) *
+			0.5 /
+			var(--app-zoom, 1)
+		);
+	}
 
 	& .settings-face-arrows {
 		flex-shrink: 0;
@@ -318,7 +321,7 @@
 
 .settings-menu[data-settings-docked]
 	.settings-menu-surface[data-slit-layout="both"]
-	.settings-menu-well
-	~ .settings-face-panel {
+	.settings-menu-well:not([hidden])
+	~ .settings-face-panel:not([data-face="metrics"]) {
 	max-height: 50%;
 }

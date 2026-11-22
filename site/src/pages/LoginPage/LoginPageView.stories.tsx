@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
 import { LOGIN_PAGE_DEFAULT } from "#/api/platform";
 import { loginPageKey } from "#/api/queries/platform";
+import { DEFAULT_BACKGROUNDS } from "#/modules/platform/pictures";
 import {
 	MockAuthMethodsAll,
 	MockAuthMethodsExternal,
@@ -37,7 +38,11 @@ export const NoHeading: Story = {
 		queries: [
 			{
 				key: loginPageKey,
-				data: { ...LOGIN_PAGE_DEFAULT, headingMode: "none" },
+				data: {
+					...LOGIN_PAGE_DEFAULT,
+					headingMode: "none",
+					background: { ...DEFAULT_BACKGROUNDS.login, opacity: 0.64 },
+				},
 			},
 		],
 	},

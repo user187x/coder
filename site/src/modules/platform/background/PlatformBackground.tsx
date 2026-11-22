@@ -215,13 +215,17 @@ const useRoomBeneath = (active: boolean) => {
  * or the network. Its dials set its animations' speed (paused while
  * Animations > Moving background is off) and its colour filters.
  */
-export const PlatformBackground: React.FC<{ slot: BackgroundSlot }> = ({
-	slot,
-}) => {
-	const image = usePlatformSnapshot().backgrounds[slot];
+export const PlatformBackground: React.FC<{
+	slot: BackgroundSlot;
+	image?: BackgroundImage | null;
+}> = ({ slot, image }) => {
+	const bootImage = usePlatformSnapshot().backgrounds[slot];
+	const background = image === undefined ? bootImage : image;
 	// A page in another page's frame: the page around it has the background. A GIF stands still while animations of
 	// the background or GIFs are off.
-	const shown = useStillWhenStopped(image && !isEmbeddedFrame() ? image : null);
+	const shown = useStillWhenStopped(
+		background && !isEmbeddedFrame() ? background : null,
+	);
 	const animations = useBackgroundAnimated();
 	useUnderlay(shown);
 	useRoomBeneath(
