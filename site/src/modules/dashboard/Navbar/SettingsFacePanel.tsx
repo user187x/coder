@@ -1,5 +1,10 @@
 import { cn } from "cn";
-import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import {
+	ArrowDownIcon,
+	ArrowUpIcon,
+	ChevronDownIcon,
+	ChevronUpIcon,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import {
@@ -80,6 +85,8 @@ export const SettingsFacePanel: React.FC<{
 		full || (layout === "face" && direction === "down" && !fitContent);
 	const renderHandle = (target: "links" | "face") => {
 		const selected = layout === target;
+		const movesUp = (direction === "up") !== selected;
+		const Chevron = movesUp ? ChevronUpIcon : ChevronDownIcon;
 		const label = selected
 			? "Show both panels"
 			: target === "links"
@@ -91,6 +98,7 @@ export const SettingsFacePanel: React.FC<{
 					<button
 						type="button"
 						className="settings-face-handle"
+						data-motion-direction={movesUp ? "up" : "down"}
 						aria-pressed={selected}
 						aria-label={label}
 						title={label}
@@ -98,6 +106,7 @@ export const SettingsFacePanel: React.FC<{
 						onContextMenu={(event) => event.stopPropagation()}
 					>
 						<span aria-hidden className="settings-face-handle-grip" />
+						<Chevron aria-hidden className="settings-face-handle-chevron" />
 					</button>
 				</ContextMenuTrigger>
 				<ContextMenuContent

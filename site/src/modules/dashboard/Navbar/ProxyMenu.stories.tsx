@@ -295,6 +295,18 @@ export const TemplatesOnly: Story = {
 	},
 };
 
+export const SettingsSlitDirection: Story = {
+	...SettingsMenuOpened,
+	play: async (context) => {
+		await SettingsMenuOpened.play?.(context);
+		await userEvent.hover(
+			within(context.canvasElement.ownerDocument.body).getByRole("button", {
+				name: "Show only quick links",
+			}),
+		);
+	},
+};
+
 export const HiddenChatMenu: Story = {
 	...SettingsMenuOpened,
 	args: {
