@@ -30,7 +30,7 @@ export const WorkspacesDropdown: React.FC<{
 	templates?: boolean;
 }> = ({ images = false, templates = false }) => {
 	return (
-		<DropdownMenu>
+		<DropdownMenu modal={false}>
 			<DropdownMenuTrigger asChild>
 				<Button
 					variant="outline"

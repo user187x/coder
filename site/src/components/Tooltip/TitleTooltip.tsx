@@ -117,7 +117,7 @@ export function TitleTooltip() {
 	return createPortal(
 		<div
 			role="tooltip"
-			className="pointer-events-none fixed z-[2147483647] max-w-[min(20rem,calc(50vw-1rem))] rounded-xl border border-solid border-border bg-surface-primary px-3 py-2 text-xs font-medium whitespace-pre-wrap text-content-secondary shadow-md [overflow-wrap:anywhere]"
+			className="pointer-events-none fixed z-[2147483647] w-max max-w-[min(20rem,calc(50vw-1rem))] rounded-xl border border-solid border-border bg-surface-primary px-3 py-2 text-xs font-medium whitespace-pre-wrap text-content-secondary shadow-md [overflow-wrap:anywhere]"
 			style={{
 				left: hint.x + (flipX ? -12 : 12),
 				top: hint.y + (flipY ? -12 : 12),

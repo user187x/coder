@@ -22,12 +22,15 @@ measured.
 Honest numbers only. This service times what it reaches itself - TCP connects to pod IPs and Services, HTTP health
 requests, a SQL round trip on Coder's database - and passes on what the components measure themselves: Coder's health
 check (its database ping, the DERP round trip through the access URL) and each workspace agent's latency to Coder's
-relay, as the agent reported it. A connection seen only inside another pod (the relay in a workspace pod, the
-replicator's queries) is drawn without a number, and says why.
+relay, as the agent reported it. Bounded probes inside the workspace relay and replicator measure those paths
+directly. The primary's CloudNativePG exporter provides WAL replay lag for each standby.
 """
 import collections
 import concurrent.futures
+import http.client
+import ipaddress
 import json
+import math
 import os
 import re
 import socket
@@ -39,6 +42,8 @@ import urllib.parse
 import urllib.request
 import uuid
 from datetime import datetime, timezone
+
+import kexec
 
 BASE = "/__coder-ui"
 NAMESPACE = os.environ.get("CODER_NAMESPACE", "coder")
@@ -53,6 +58,8 @@ MESH_HISTORY = 30  # measurements kept per connection (the link panel's sparklin
 PROBE_TIMEOUT = 2.0  # seconds a TCP connect may take before it counts as failed
 HTTP_TIMEOUT = 3.0
 HEALTH_TTL = 60  # Coder's health report is Coder's own measurement, refreshed on its side: read at most once a minute
+SOURCE_PROBE_TTL = 30  # one bounded set of pod probes for all viewers
+SOURCE_PROBE_LIMIT = 8
 SERVICES_TTL = 5
 HEARTBEAT_TTL = 45  # csha.py's: a cluster whose replicator has not written for longer is not answering
 NAME_RE = re.compile(r"^[a-z0-9]([-a-z0-9.]{0,251}[a-z0-9])?$")
@@ -609,6 +616,96 @@ def _median(values):
     return round(statistics.median(values), 3) if values else None
 
 
+WORKSPACE_HEALTH = """import http.client, signal, time
+signal.alarm(4)
+conn = http.client.HTTPConnection('127.0.0.1', 13337, timeout=2)
+try:
+    start = time.perf_counter()
+    conn.request('GET', '/healthz')
+    response = conn.getresponse()
+    if response.status != 200:
+        raise SystemExit(1)
+    response.read(4096)
+    print((time.perf_counter() - start) * 1000)
+finally:
+    conn.close()
+"""
+
+REPLICATOR_SQL = """import os, signal, sys, time
+sys.path.insert(0, '/app')
+import pgwire
+signal.alarm(4)
+conn = pgwire.Connection(os.environ['CSHA_DB'], cafile=os.environ.get('CSHA_DB_CA'), timeout=2,
+                         application_name='coder-latency-probe')
+try:
+    start = time.perf_counter()
+    conn.query('SELECT 1')
+    print((time.perf_counter() - start) * 1000)
+finally:
+    conn.close()
+"""
+
+
+def _ready_container(pod, name):
+    return any(c.get("name") == name and c.get("ready")
+               for c in (pod.get("status") or {}).get("containerStatuses") or [])
+
+
+def _source_probe(pod, container, script, method, target):
+    """Read a single number from a fixed command. Pod output and connection errors stay out of the report."""
+    meta = pod["metadata"]
+    output = bytearray()
+
+    def collect(data):
+        if len(output) + len(data) > 64:
+            raise ValueError("Unexpected probe output")
+        output.extend(data)
+
+    try:
+        code, _ = kexec.exec_stream(KUBE, meta["namespace"], meta["name"], container,
+                                    ["python3", "-c", script], collect, timeout=5)
+        value = float(output)
+        if code != 0 or not math.isfinite(value) or not 0 <= value <= 4000:
+            raise ValueError("No valid timing")
+        return {"target": target, "ms": round(value, 3), "error": None, "method": method}
+    except (RuntimeError, OSError, ValueError):
+        return {"target": target, "ms": None, "error": "Probe unavailable", "method": method}
+
+
+REPLAY_LAG = re.compile(r'^cnpg_pg_stat_replication_replay_lag_seconds\{([^}]+)\}\s+(\S+)(?:\s+\S+)?$')
+REPLICA_NAME = re.compile(r'(?:^|,)application_name="([a-z0-9.-]+)"(?:,|$)')
+
+
+def _replica_replay_samples(primary, replicas):
+    """Read only the primary's WAL replay lag series for these streaming replicas."""
+    lags = {}
+    try:
+        host = str(ipaddress.ip_address(primary["status"]["podIP"]))
+        conn = http.client.HTTPConnection(host, pod_port(primary, ("metrics",), 9187), timeout=2)
+        try:
+            conn.request("GET", "/metrics")
+            response = conn.getresponse()
+            if response.status != 200:
+                raise OSError("Exporter unavailable")
+            for line in response.read(2_000_000).decode(errors="replace").splitlines():
+                match = REPLAY_LAG.fullmatch(line)
+                name = REPLICA_NAME.search(match[1]) if match else None
+                if name and name[1] in replicas:
+                    try:
+                        value = float(match[2]) * 1000
+                    except ValueError:
+                        continue
+                    # The default exporter maps an idle or missing measurement to zero.
+                    if value > 0 and math.isfinite(value):
+                        lags[name[1]] = round(value, 3)
+        finally:
+            conn.close()
+    except (OSError, ValueError, http.client.HTTPException):
+        return [{"target": name, "ms": None, "error": "Exporter unavailable", "method": "WAL replay lag"}
+                for name in replicas]
+    return [{"target": name, "ms": lags.get(name), "error": None, "method": "WAL replay lag"} for name in replicas]
+
+
 class Mesh:
     """The platform's components and the connections between them, measured at most every MESH_TTL seconds (whoever
     asks waits for the one measurement running), each connection's last MESH_HISTORY numbers kept."""
@@ -618,6 +715,49 @@ class Mesh:
         self.last = None  # (time, report)
         self.history = {}  # edge id -> deque of [time, ms]
         self.health = (0.0, None)  # (read at, Coder's health report)
+        self.sources = None  # (monotonic time, sampled at, samples by edge)
+        self.source_offset = 0
+
+    def measure_sources(self, groups):
+        if self.sources and time.monotonic() - self.sources[0] < SOURCE_PROBE_TTL:
+            return self.sources[1:]
+
+        jobs = collections.defaultdict(list)
+        replica_jobs = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            for kind, container, script, method in (
+                    ("workspaces", "code-server-relay", WORKSPACE_HEALTH, "HTTP GET /healthz through the workspace relay"),
+                    ("replicator", "operator", REPLICATOR_SQL, "SELECT 1 from the replicator pod")):
+                pods = sorted((pod for pod in groups[kind] if _ready_container(pod, container)),
+                              key=lambda pod: (pod["metadata"]["namespace"], pod["metadata"]["name"]))
+                if len(pods) > SOURCE_PROBE_LIMIT:
+                    offset = self.source_offset % len(pods)
+                    pods = (pods[offset:] + pods[:offset])[:SOURCE_PROBE_LIMIT]
+                for pod in pods:
+                    metadata = pod["metadata"]
+                    labels = metadata.get("labels") or {}
+                    owner = labels.get("com.coder.user.username")
+                    workspace = labels.get("com.coder.workspace.name")
+                    target = "%s/%s" % (owner, workspace) if owner and workspace else metadata["name"]
+                    jobs[kind].append(executor.submit(_source_probe, pod, container, script, method, target))
+
+            for primary in groups["database"]:
+                meta = primary["metadata"]
+                labels = meta.get("labels") or {}
+                cluster = labels.get("cnpg.io/cluster")
+                if not cluster or labels.get("cnpg.io/instanceRole") != "primary" or not primary["status"].get("podIP"):
+                    continue
+                replicas = sorted(pod["metadata"]["name"] for pod in groups["replicas"]
+                                  if pod["metadata"]["namespace"] == meta["namespace"]
+                                  and pod["metadata"]["labels"].get("cnpg.io/cluster") == cluster)
+                if replicas:
+                    replica_jobs.append(executor.submit(_replica_replay_samples, primary, replicas))
+
+        samples = {kind: [job.result() for job in pending] for kind, pending in jobs.items()}
+        samples["replicas"] = [row for job in replica_jobs for row in job.result()]
+        self.source_offset += SOURCE_PROBE_LIMIT
+        self.sources = (time.monotonic(), now_iso(), samples)
+        return self.sources[1:]
 
     def report(self, token):
         with self.lock:
@@ -710,6 +850,8 @@ class Mesh:
                          svc(lambda s: s["name"] == "coder-ui-updates")),
         }
         present = {k for k, v in groups.items() if v} | {"gateway", "coder", "workspaces", "database", "platform"}
+        if any(_ready_container(pod, "code-server-relay") for pod in groups["workspaces"]):
+            present.add("code-server")
         if backend and backend.get("endpoint"):
             present.add("storage")
         nodes = []
@@ -734,6 +876,8 @@ class Mesh:
 
         submit("health", lambda e: {"error": e}, self.coder_health, token)
         submit("agents", lambda e: ([], e), workspaces_agents, token)
+        if present & {"code-server", "replicator", "replicas"}:
+            submit("sources", lambda e: (None, {}), self.measure_sources, groups)
         submit("coder-http", lambda e: (None, e, None), http_ms, CODER_URL + "/healthz")
         if ACCESS_URL:
             submit("access-http", lambda e: (None, e, None), http_ms, ACCESS_URL + "/healthz")
@@ -793,11 +937,19 @@ class Mesh:
             return ms, (None if ms is not None else (sm[0]["error"] if sm else "no pod address"))
 
         edges = []
+        source_at, source_samples = done.get("sources") or (None, {})
 
         def edge(eid, a, b, kind, method, ms=None, error=None, note=None, by=None, measured=None, sample=None):
             edges.append({"id": eid, "from": a, "to": b, "kind": kind, "ms": ms, "error": error, "method": method,
                           "note": note, "measuredBy": by, "measuredAt": measured if ms is not None else None,
                           "samples": sample or []})
+
+        def source_edge(eid, a, b, group, method, by, absent, summarize=_median):
+            rows = source_samples.get(group, [])
+            values = [r["ms"] for r in rows if r["ms"] is not None]
+            error = next((r["error"] for r in rows if r["error"]), None) if not values else None
+            edge(eid, a, b, "traffic", method, ms=summarize(values) if values else None, error=error,
+                 note=None if values else absent, by=by if rows else None, measured=source_at, sample=rows)
 
         # What the components measure themselves.
         health = done.get("health") or {}
@@ -824,13 +976,10 @@ class Mesh:
              ms=_median([go_duration_ms(dbh.get("latency"))]), by="Coder", measured=health_at,
              error=health.get("error") or (None if dbh.get("reachable", True) else "Coder reports it unreachable"),
              note=None if dbh.get("latency") else "Coder's health report has no database latency.")
-        # What only another pod sees: drawn, not numbered.
         if "code-server" in present:
-            edge("workspaces-code-server", "workspaces", "code-server", "traffic",
-                 "the relay in each workspace pod (where code-server would listen, 127.0.0.1:13337) pipes every "
-                 "connection to the active instance's station (:8080)",
-                 note="Not measured: the relay runs inside the workspace pod. The platform service times its own "
-                      "connection to each instance's station (platform service -> code-server).")
+            source_edge("workspaces-code-server", "workspaces", "code-server", "workspaces",
+                        "HTTP /healthz through each sampled workspace relay to its active code-server (median)",
+                        "workspace relays", "No workspace relay health response was measured.")
         if "replicator" in present:
             beats = done.get("heartbeats") or {}
             beat = ", ".join("%s %.0f s ago" % (k, v) for k, v in sorted(beats.items()))
@@ -838,15 +987,15 @@ class Mesh:
                 edge("replicator-code-server", "replicator", "code-server", "control",
                      "the replicator starts, replaces and fences the instances through the Kubernetes API",
                      note="Control, not traffic: nothing to time.")
-            edge("replicator-database", "replicator", "database", "traffic",
-                 "the replicator's heartbeat, leases and operator lock in Coder's database (schema code_server_ha)",
-                 note="Not measured: the replicator's queries are timed only inside it." + (
-                     " Its last heartbeat: %s." % beat if beat else ""))
+            source_edge("replicator-database", "replicator", "database", "replicator",
+                        "SQL round trip (SELECT 1) from the replicator pods using their configured connection (median)",
+                        "replicator pods", "No replicator SQL response was measured." + (
+                            " Last heartbeat: %s." % beat if beat else ""))
         if "replicas" in present:
-            edge("database-replicas", "database", "replicas", "traffic",
-                 "PostgreSQL streaming replication from the primary",
-                 note="Not measured: the replication lag (pg_stat_replication) is shown only to pg_monitor, and the "
-                      "platform service signs in as the database's owner.")
+            source_edge("database-replicas", "database", "replicas", "replicas",
+                        "PostgreSQL WAL replay lag reported by the primary (slowest measured replica)",
+                        "CloudNativePG exporter", "No recent WAL replay timing reported. Idle replicas may report no sample.",
+                        summarize=max)
         # What the platform service times itself.
         ms, err, code = done.get("access-http") or (None, "no access URL configured", None)
         edge("platform-gateway", "platform", "gateway", "probe",

@@ -98,7 +98,11 @@ export function ServiceLatencies() {
 								<ConnectionHeartbeat
 									latency={edge.ms}
 									failed={Boolean(edge.error)}
-									updatedAt={query.dataUpdatedAt}
+									updatedAt={
+										edge.measuredAt
+											? new Date(edge.measuredAt).getTime()
+											: query.dataUpdatedAt
+									}
 								/>
 							</div>
 							<p className="m-0 break-words text-xs text-content-secondary">

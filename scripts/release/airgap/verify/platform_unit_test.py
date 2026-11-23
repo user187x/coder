@@ -4605,7 +4605,11 @@ class ClusterNetworkViewTest(unittest.TestCase):
         self.assertIsNone(ms)
         self.assertTrue(err)
 
-    def mesh_env(self):
+    def mesh_env(self, probe_sources=False):
+        if not probe_sources:
+            patcher = mock.patch.object(self.cn.Mesh, "measure_sources", return_value=(None, {}))
+            patcher.start()
+            self.addCleanup(patcher.stop)
         health = {"time": "2026-10-21T02:24:16Z",
                   "derp": {"regions": {"999": {"node_reports": [{"round_trip_ping": "442.724µs",
                                                                  "round_trip_ping_ms": 0}]}}},
@@ -4684,7 +4688,7 @@ class ClusterNetworkViewTest(unittest.TestCase):
         self.assertIsNone(samples["dan/d.main"]["ms"])
         self.assertIsNone(samples["dan/d.main"]["error"])
         self.assertEqual(samples["carol/c.main"]["error"], "timeout")
-        # what only another pod sees: drawn, never numbered
+        # Without sources, the topology remains visible without substituted timings.
         for eid in ("workspaces-code-server", "replicator-database", "replicator-code-server", "database-replicas"):
             self.assertIsNone(e[eid]["ms"], eid)
             self.assertIsNone(e[eid]["measuredBy"], eid)
@@ -4706,9 +4710,56 @@ class ClusterNetworkViewTest(unittest.TestCase):
         link = self.cn.entity("tok", "type=link&id=platform-coder")
         self.assertEqual((link["from"]["label"], link["to"]["kind"], link["history"][0][1]),
                          ("Platform service", "coder", 1.5))
-        self.assertNotIn("workspaces-code-server", self.cn.MESH.history)      # never measurable: no history
+        self.assertNotIn("workspaces-code-server", self.cn.MESH.history)
         with self.assertRaises(LookupError):
             self.cn.entity("tok", "type=link&id=nothing-here")
+
+    def test_source_edges_use_the_origin_probe_and_replica_exporter(self):
+        self.mesh_env(probe_sources=True)
+        self.pods.append(self.pod("coder-db-3", labels={"cnpg.io/cluster": "coder-db", "cnpg.io/instanceRole": "replica"}))
+
+        def run_probe(kube, namespace, name, container, command, collect, timeout):
+            self.assertEqual(namespace, "coder")
+            script = (self.cn.WORKSPACE_HEALTH if container == "code-server-relay" else self.cn.REPLICATOR_SQL)
+            self.assertEqual(command, ["python3", "-c", script])
+            self.assertEqual(timeout, 5)
+            collect(b"12.5" if container == "code-server-relay" else b"30.25")
+            return 0, ""
+
+        metrics = b'\n'.join([
+            b'cnpg_pg_stat_replication_replay_lag_seconds{application_name="coder-db-2",client_port="55232"} 0.0021',
+            b'cnpg_pg_stat_replication_replay_lag_seconds{application_name="coder-db-3"} 0.0035',
+            b'cnpg_pg_stat_replication_replay_lag_seconds{application_name="foreign-replica"} 1.5',
+        ])
+        with mock.patch.object(self.cn.kexec, "exec_stream", side_effect=run_probe) as run, \
+                mock.patch.object(self.cn.http.client, "HTTPConnection") as exporter, \
+                mock.patch.object(self.cn, "tcp_ms", return_value=(1, None)), \
+                mock.patch.object(self.cn, "http_ms", return_value=(1, None, 200)):
+            conn = exporter.return_value
+            conn.getresponse.return_value.status = 200
+            conn.getresponse.return_value.read.return_value = metrics
+            report = self.cn.MESH.measure("tok")
+            self.cn.MESH.measure("tok")
+            self.assertEqual(run.call_count, 2, "cached source probes serve intervening mesh refreshes")
+            exporter.assert_called_once_with("10.0.0.20", 9187, timeout=2)
+            conn.request.assert_called_once_with("GET", "/metrics")
+            conn.close.assert_called_once()
+        edges = {edge["id"]: edge for edge in report["edges"]}
+        self.assertEqual((edges["workspaces-code-server"]["ms"], edges["replicator-database"]["ms"]), (12.5, 30.25))
+        self.assertEqual(edges["workspaces-code-server"]["samples"][0]["target"], "alice/look")
+        replicas = edges["database-replicas"]
+        self.assertEqual(replicas["ms"], 3.5)
+        self.assertEqual([(s["target"], s["ms"]) for s in replicas["samples"]], [("coder-db-2", 2.1), ("coder-db-3", 3.5)])
+        self.assertTrue(replicas["measuredAt"])
+
+    def test_failed_probe_does_not_expose_pod_output(self):
+        def run_probe(kube, namespace, name, container, command, collect, timeout):
+            collect(b"nan")
+            return 1, "private database credentials"
+
+        with mock.patch.object(self.cn.kexec, "exec_stream", side_effect=run_probe):
+            result = self.cn._source_probe(self.pods[0], "operator", self.cn.REPLICATOR_SQL, "SELECT 1", "replicator")
+        self.assertEqual(result, {"target": "replicator", "method": "SELECT 1", "ms": None, "error": "Probe unavailable"})
 
     def test_coder_probe_uses_the_services_target_port(self):
         for target, expected in (("secure", 9443), (8443, 8443)):
