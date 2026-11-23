@@ -2316,7 +2316,7 @@ class ImageImportTest(unittest.TestCase):
             q = {"name": ["up-" + label.replace(".", "-")], "file": ["x." + label]}
             if label == "junk":
                 before = sorted(os.listdir(os.path.join(self.dir.name, "imports")))
-                with self.assertRaisesRegex(ValueError, "not an image archive"):
+                with self.assertRaisesRegex(ValueError, "Upload a Docker save or OCI image archive"):
                     ib.import_upload(h, q, {"username": "alice"})
                 self.assertEqual(sorted(os.listdir(os.path.join(self.dir.name, "imports"))), before)  # nothing left
                 continue
