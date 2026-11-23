@@ -540,7 +540,7 @@ describe("the Images list's ways in", () => {
 			"contents",
 			"inUse",
 			"onNodes",
-			"library",
+			"dependencies",
 			"securityData",
 		] as const) {
 			vi.spyOn(ImagesAPI, name).mockImplementation(never);
@@ -618,7 +618,7 @@ describe("the Images list's ways in", () => {
 			"contents",
 			"inUse",
 			"onNodes",
-			"library",
+			"dependencies",
 			"securityData",
 		] as const) {
 			vi.spyOn(ImagesAPI, name).mockImplementation(never);

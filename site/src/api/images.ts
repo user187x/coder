@@ -488,35 +488,10 @@ type ImageInUse = {
 	entry: string | null;
 };
 
-/** The shared libraries: files every workspace has read-only - the ISO library's disk images at ~/isos. */
-export type LibraryKind = "isos";
-
-/** A file of a library. */
-type LibraryFile = { name: string; size: number; modified: string };
-
-/** A file the service downloads into a library. */
-type LibraryImport = {
-	name: string;
-	url: string;
-	bytes: number;
-	total: number | null;
-	error: string | null;
-	done: boolean;
-	by: string;
-	startedAt: number;
+type DependencyLibrary = {
+	images: string[];
+	upload: { reference: string; error: string | null } | null;
 };
-
-export type Library = {
-	enabled: boolean;
-	canEdit: boolean;
-	mountPath: string;
-	maxBytes: number;
-	files: LibraryFile[];
-	usedBytes: number;
-	imports: LibraryImport[];
-};
-
-const LIBRARY = (kind: LibraryKind) => `${base}/api/${kind}`;
 
 export type BuildSummary = {
 	id: number;
@@ -784,21 +759,17 @@ export const ImagesAPI = {
 	/** Any image scanned as it is (from the cluster's registry, else from a node that holds it): its entry and the scan. */
 	scan: (image: string) =>
 		post<{ id: string; build: number }>(`${IMAGES}/scan`, { image }),
-	library: (kind: LibraryKind) => get<Library>(LIBRARY(kind)),
-	uploadToLibrary: (
-		kind: LibraryKind,
+	dependencies: () => get<DependencyLibrary>(`${IMAGES}/dependencies`),
+	uploadDependency: (
+		ref: string,
 		file: File,
 		onProgress?: (fraction: number) => void,
 	) =>
-		upload<{ ok: true; name: string; size: number }>(
-			`${LIBRARY(kind)}/upload?name=${enc(file.name)}`,
+		upload<{ ok: true }>(
+			`${IMAGES}/dependencies?ref=${enc(ref)}`,
 			file,
 			onProgress,
 		),
-	importToLibrary: (kind: LibraryKind, url: string, name: string) =>
-		post<{ ok: true; name: string }>(`${LIBRARY(kind)}/import`, { url, name }),
-	deleteFromLibrary: (kind: LibraryKind, name: string) =>
-		post<{ ok: true }>(`${LIBRARY(kind)}/delete`, { name }),
 };
 
 /** The Terraform a workspace template uses to run on the image. */

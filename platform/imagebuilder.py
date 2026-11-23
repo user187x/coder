@@ -39,6 +39,8 @@ before building on it, or using it in an enclave.
     GET/POST /__coder-ui/api/images/settings/trivy     install or upgrade the optional Trivy scanner (admins)
     POST /__coder-ui/api/images/import {name, description, ref, username?, password?}   an image copied from a registry
     PUT  /__coder-ui/api/images/import-upload?name=&description=&file=   an image from a `docker save` / OCI archive
+    GET  /__coder-ui/api/images/dependencies           local pull references for uploaded dependencies
+    PUT  /__coder-ui/api/images/dependencies?ref=      upload a Docker or OCI archive under its repository and tag
     GET  /__coder-ui/api/images/in-use                  the images workspaces run now, and the templates' own
     GET  /__coder-ui/api/images/contents                what each image of ours holds (image-contents.json, written by
                                                         development/tools/image-contents.py): the Coder fork's tree
@@ -126,6 +128,9 @@ MAX_UPLOAD = 2 * 1024 * 1024 * 1024
 # Imports: the largest archive taken, and what an image reference may look like (registry/repo:tag or @digest).
 IMPORT_MAX = int(float(os.environ.get("BUILDER_IMPORT_MAX_GIB", "20")) * 1024 ** 3)
 REF_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*(?::[0-9]+)?(?:/[a-z0-9][a-z0-9._-]*)+(?::[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$")
+DEPENDENCY_REPO = "coder-dependencies"
+DEPENDENCY_LOCK = threading.Lock()
+DEPENDENCY_IMPORT = None
 # The templates the chart pushes (BUILDER_TEMPLATES: [{name, displayName, image}]): the In use list, and where a
 # workspace can be made on an image (their Workspace image parameter).
 try:
@@ -2787,54 +2792,182 @@ def complete_layout(path):
     return True
 
 
+def receive_image_archive(h, path):
+    """Stream an archive to disk without buffering the request body."""
+    n = int(h.headers.get("Content-Length") or -1)
+    if n <= 0:
+        raise ValueError("The upload needs a nonempty archive with a Content-Length.")
+    if n > IMPORT_MAX:
+        raise ValueError("An image archive can be at most %d GB." % (IMPORT_MAX // 1024 ** 3))
+    if shutil.disk_usage(FILES).free < n * 2.5:
+        raise ValueError("Not enough room on the image builder's volume for this archive (imageBuilder.files.size).")
+    with open(path, "wb") as out:
+        left = n
+        while left > 0:
+            chunk = h.rfile.read(min(1024 * 1024, left))
+            if not chunk:
+                raise ValueError("The upload was cut short.")
+            out.write(chunk)
+            left -= len(chunk)
+    return n
+
+
+def prepare_image_archive(path):
+    """Prepare a Docker or OCI tar for regctl. Bound the expanded archive as well as the upload."""
+    with open(path, "rb") as archive:
+        gzipped = archive.read(2) == b"\x1f\x8b"
+    if gzipped:
+        limit = min(IMPORT_MAX, shutil.disk_usage(FILES).free // 2)
+        with gzip.open(path, "rb") as archive, open(path + ".tar", "wb") as out:
+            while chunk := archive.read(1024 * 1024):
+                limit -= len(chunk)
+                if limit < 0:
+                    raise ValueError("The expanded archive is too large for the image builder's volume.")
+                out.write(chunk)
+        os.replace(path + ".tar", path)
+    if not tarfile.is_tarfile(path):
+        raise ValueError("Upload a Docker save or OCI image archive (.tar or .tar.gz).")
+    return complete_layout(path)
+
+
 def import_upload(h, q_, user):
-    """An image archive streamed to the builder volume (gzip is taken off as it comes), then imported."""
+    """Queue a Docker or OCI archive for the workspace image builder."""
     first = lambda k: (q_.get(k) or [""])[0]  # noqa: E731
     name, description, filename = first("name"), first("description"), first("file") or "image.tar"
     if not NAME_RE.match(name.strip().lower()):
         raise ValueError("A name of 3-40 lowercase letters, digits and dashes (it becomes the image's name).")
-    n = int(h.headers.get("Content-Length") or -1)
-    if n < 0:
-        raise ValueError("The upload needs a Content-Length.")
-    if n > IMPORT_MAX:
-        raise ValueError("An image archive can be at most %d GB." % (IMPORT_MAX // 1024 ** 3))
     os.makedirs(os.path.join(FILES, "imports"), exist_ok=True)
-    if shutil.disk_usage(FILES).free < n * 2.5:
-        raise ValueError("Not enough room on the image builder's volume for this archive (imageBuilder.files.size).")
     dest = os.path.join(FILES, "imports", "%s.tar" % secrets.token_hex(8))
     try:
-        with open(dest + ".part", "wb") as out:
-            left = n
-            while left > 0:
-                chunk = h.rfile.read(min(1024 * 1024, left))
-                if not chunk:
-                    raise ValueError("The upload was cut short.")
-                out.write(chunk)
-                left -= len(chunk)
-        with open(dest + ".part", "rb") as f:
-            gzipped = f.read(2) == b"\x1f\x8b"
-        if gzipped:  # a .tar.gz: regctl takes the tar
-            with gzip.open(dest + ".part", "rb") as gz, open(dest, "wb") as out:
-                shutil.copyfileobj(gz, out, 1024 * 1024)
-            os.remove(dest + ".part")
-        else:
-            os.replace(dest + ".part", dest)
-        if not tarfile.is_tarfile(dest):
-            raise ValueError("%s is not an image archive: a `docker save` tar (or .tar.gz) or an OCI layout." % filename)
-        if complete_layout(dest):
+        n = receive_image_archive(h, dest)
+        if prepare_image_archive(dest):
             LOG(event="image-import-platform", file=filename, note="index pointed at the platform the archive holds")
+        source = {"kind": "upload", "file": dest, "name": re.sub(r"[^A-Za-z0-9._ -]", "_", filename)[:120]}
+        image_id, build_id = start_import(name, description, source, user["username"])
     except Exception:
-        for f in (dest, dest + ".part"):
-            try:
-                os.remove(f)
-            except OSError:
-                pass
+        for suffix in ("", ".tar", ".fix"):
+            pathlib.Path(dest + suffix).unlink(missing_ok=True)
         raise
-    source = {"kind": "upload", "file": dest, "name": re.sub(r"[^A-Za-z0-9._ -]", "_", filename)[:120]}
-    image_id, build_id = start_import(name, description, source, user["username"])
     LOG(event="image-import-upload", image=image_id, bytes=n, by=user["username"])
     h.send_json(200, {"image": image_id, "build": build_id})
     return True
+
+
+def dependency_reference(ref):
+    """Qualify an archive reference, including Docker Hub's library namespace."""
+    repository, _, tag = ref.rpartition(":")
+    host = registry_host(repository)
+    repo = repository.removeprefix(host + "/")
+    if host == "docker.io" and "/" not in repo:
+        repo = "library/" + repo
+    if len(ref) > 512 or not REF_RE.fullmatch("%s/%s:%s" % (host, repo, tag)):
+        raise ValueError("Enter the archive image's repository and tag, for example postgres:18 or ghcr.io/cloudnative-pg/pgbouncer:1.25.1.")
+    return "%s/%s" % (host, repo), tag
+
+
+def dependency_archive_name(path, source):
+    """Select the requested tag without accidentally importing another image in the tar."""
+    repository, tag = dependency_reference(source)
+    qualified = "%s:%s" % (repository, tag)
+    with tarfile.open(path) as archive:
+        names = set(archive.getnames())
+        if "oci-layout" in names:
+            entries = json.load(archive.extractfile("index.json"))["manifests"]
+            annotations = [(entry.get("annotations") or {}) for entry in entries]
+            ref_name = "org.opencontainers.image.ref.name"
+            matching = [
+                a[ref_name] for a in annotations if ref_name in a
+                and (a.get("io.containerd.image.name") in (qualified, source)
+                     or (not a.get("io.containerd.image.name") and a[ref_name] in (source, qualified, tag)))
+            ]
+            if len(matching) == 1 and sum(a.get(ref_name) == matching[0] for a in annotations) == 1:
+                return matching[0]
+            if len(entries) == 1 and not annotations[0].get(ref_name):
+                return None
+        elif "manifest.json" in names:
+            entries = json.load(archive.extractfile("manifest.json"))
+            matching = [ref for entry in entries for ref in (entry.get("RepoTags") or [])
+                        if ref in (source, qualified) or dependency_reference(ref) == (repository, tag)]
+            if len(matching) == 1:
+                return matching[0]
+    raise ValueError("The archive does not contain a unique matching image tag. Export the requested image on its own.")
+
+
+def registry_names(path, key):
+    last = None
+    while True:
+        query = urllib.parse.urlencode({"n": 100, **({"last": last} if last else {})})
+        with registry("GET", path + "?" + query, accept="application/json", timeout=10) as response:
+            names = json.load(response).get(key) or []
+            more = response.headers.get("Link")
+        yield from names
+        if not more or not names or names[-1] == last:
+            return
+        last = names[-1]
+
+
+def dependency_library():
+    """List dependencies from the registry, including imports made before a service restart."""
+    refs = []
+    for repo in registry_names("_catalog", "repositories"):
+        if repo.startswith(DEPENDENCY_REPO + "/"):
+            refs.extend("%s/%s:%s" % (PULL_PREFIX, repo, tag) for tag in registry_names(repo + "/tags/list", "tags"))
+    return {"images": sorted(refs), "upload": DEPENDENCY_IMPORT}
+
+
+def store_dependency(directory, source, repo, tag, user):
+    global DEPENDENCY_IMPORT
+    reference = "%s/%s:%s" % (PULL_PREFIX, repo, tag)
+    path = os.path.join(directory, "archive")
+    try:
+        prepare_image_archive(path)
+        archive_name = dependency_archive_name(path, source)
+        select_image = ["--name", archive_name] if archive_name else []
+        subprocess.run(["regctl", "--host", "reg=%s,tls=disabled" % REGISTRY, "image", "import",
+                        "%s/%s:%s" % (REGISTRY, repo, tag), path] + select_image,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=True,
+                       timeout=BUILD_TIMEOUT * 60)
+        with registry("HEAD", "%s/manifests/%s" % (repo, tag), timeout=15):
+            pass
+        LOG(event="dependency-image-imported", image=reference, by=user)
+        DEPENDENCY_IMPORT = None
+    except Exception as e:  # a malformed archive or failed registry write must finish the upload
+        error = (e.stderr or "").strip().splitlines()[-1:] if isinstance(e, subprocess.CalledProcessError) else [str(e)]
+        DEPENDENCY_IMPORT = {"reference": reference, "error": (" ".join(error) or "The registry import failed.")[:600]}
+        LOG(event="dependency-image-import-failed", image=reference, by=user, error=DEPENDENCY_IMPORT["error"])
+    finally:
+        shutil.rmtree(directory, ignore_errors=True)
+        DEPENDENCY_LOCK.release()
+
+
+def upload_dependency(h, source, user):
+    global DEPENDENCY_IMPORT
+    repository, tag = dependency_reference(source)
+    path = source.rsplit(":", 1)[0].removeprefix(repository.split("/", 1)[0] + "/")
+    repo = "%s/%s" % (DEPENDENCY_REPO, path)
+    if not DEPENDENCY_LOCK.acquire(blocking=False):
+        raise ValueError("A dependency upload is already in progress.")
+    directory = None
+    try:
+        try:
+            with registry("HEAD", "%s/manifests/%s" % (repo, tag), timeout=15):
+                raise ValueError("This tag already exists in the Docker Image Library.")
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+        os.makedirs(os.path.join(FILES, "imports"), exist_ok=True)
+        directory = tempfile.mkdtemp(prefix="dependency-", dir=os.path.join(FILES, "imports"))
+        receive_image_archive(h, os.path.join(directory, "archive"))
+        DEPENDENCY_IMPORT = {"reference": "%s/%s:%s" % (PULL_PREFIX, repo, tag), "error": None}
+        threading.Thread(target=store_dependency, args=(directory, source, repo, tag, user), daemon=True).start()
+    except Exception:
+        if directory:
+            shutil.rmtree(directory, ignore_errors=True)
+        if DEPENDENCY_IMPORT and DEPENDENCY_IMPORT["error"] is None:
+            DEPENDENCY_IMPORT = None
+        DEPENDENCY_LOCK.release()
+        raise
+    return h.send_json(202, {"ok": True}) or True
 
 
 def images_in_use():
@@ -3700,6 +3833,15 @@ def route(h, method, rest, query, user, editor, admin):
         if rest == "/import-upload" and method == "PUT":
             need(editor)
             return import_upload(h, q_, user) or True
+        if rest == "/dependencies" and method in ("GET", "PUT"):
+            need(admin)
+            try:
+                if method == "GET":
+                    return h.send_json(200, dependency_library()) or True
+                return upload_dependency(h, (q_.get("ref") or [""])[0].strip(), user["username"])
+            except OSError as e:
+                LOG(event="dependency-library-unavailable", error=str(e)[:300])
+                return h.send_json(503, {"error": "The local image registry or upload volume is unavailable."}) or True
         if rest == "/in-use" and method == "GET":
             return h.send_json(200, {"images": images_in_use()}) or True
         if rest == "/download" and method == "GET" and "ref" in q_:
@@ -3900,7 +4042,7 @@ def _quiet(fn, *args):
 SCANNED_NOTE = ("This entry is a scan of %s as it is, not an image built or kept here: it only holds its report. "
                 "Import the image to build on it.")
 RESERVED_NAMES = {"security-data", "rescan-all", "settings", "apt-check", "apt-search", "apt-refresh", "lint", "format",
-                  "dockerfile", "import", "import-upload", "in-use", "on-nodes", "scan", "contents", TRACKED_ID}
+                  "dockerfile", "import", "import-upload", "dependencies", "in-use", "on-nodes", "scan", "contents", TRACKED_ID}
 
 IMPORTED_NOTE = ("This image was imported (%s), not built here: import a new version of it instead of building, or "
                  "build on it with New Image.")
@@ -4133,6 +4275,9 @@ def start():
     global STORE
     if ENABLED:
         STORE = DB(os.path.join(FILES, "images.sqlite"))
+        # The single service replica owns these transfers. A restart ends any unfinished import.
+        for directory in pathlib.Path(FILES, "imports").glob("dependency-*"):
+            shutil.rmtree(directory, ignore_errors=True)
         securitydata.setup(FILES)
         scanner = trivy_status()
         if scanner["enabled"] and scanner["requestedVersion"] != scanner["activeVersion"]:

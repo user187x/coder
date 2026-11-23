@@ -2,9 +2,9 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
-import { ImagesAPI, type Library } from "#/api/images";
+import { ImagesAPI } from "#/api/images";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { IsoLibrary } from "./FileLibrary";
+import { DockerImageLibrary } from "./DockerImageLibrary";
 import { ImagesInUse, ImagesOnNodes } from "./ImagesInUse";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
 import { nameFrom } from "./ImportImageDialog";
@@ -149,76 +149,33 @@ describe("Trivy settings", () => {
 	});
 });
 
-describe("IsoLibrary", () => {
+describe("Docker Image Library", () => {
 	afterEach(() => vi.restoreAllMocks());
-	const library: Library = {
-		enabled: true,
-		canEdit: true,
-		mountPath: "/home/coder/isos",
-		maxBytes: 20 * 1024 ** 3,
-		files: [
-			{
-				name: "ubuntu.iso",
-				size: 6 * 1024 ** 3,
-				modified: "2026-10-17T05:00:00Z",
-			},
-		],
-		usedBytes: 6 * 1024 ** 3,
-		imports: [
-			{
-				name: "debian.iso",
-				url: "https://x/debian.iso",
-				bytes: 50,
-				total: 100,
-				error: null,
-				done: false,
-				by: "admin",
-				startedAt: 1,
-			},
-		],
-	};
 
-	it("shows the library where workspaces have it, and an import's progress", async () => {
-		vi.spyOn(ImagesAPI, "library").mockResolvedValue(library);
-		withQueries(<IsoLibrary />);
-		expect(await screen.findByText("~/isos/ubuntu.iso")).toBeInTheDocument();
-		expect(
-			screen.getByRole("progressbar", { name: "Fetching debian.iso" }),
-		).toHaveAttribute("aria-valuenow", "50");
-		expect(
-			screen.getByRole("button", { name: "Upload ISO" }),
-		).toBeInTheDocument();
-	});
-
-	it("lets only editors change it, and deletes after a second click", async () => {
-		vi.spyOn(ImagesAPI, "library").mockResolvedValue({
-			...library,
-			canEdit: false,
-			imports: [],
+	it("uploads the selected archive with its original reference and refreshes the library", async () => {
+		const user = userEvent.setup();
+		const archive = new File(["archive"], "pgbouncer.tar", {
+			type: "application/x-tar",
 		});
-		withQueries(<IsoLibrary />);
-		await screen.findByText("~/isos/ubuntu.iso");
-		expect(screen.queryByRole("button", { name: "Upload ISO" })).toBeNull();
-		expect(
-			screen.queryByRole("button", { name: "Delete ubuntu.iso" }),
-		).toBeNull();
-	});
-
-	it("deletes after a second click", async () => {
-		vi.spyOn(ImagesAPI, "library").mockResolvedValue({
-			...library,
-			imports: [],
-		});
-		const del = vi
-			.spyOn(ImagesAPI, "deleteFromLibrary")
+		const ref = "ghcr.io/cloudnative-pg/pgbouncer:1.25.1";
+		const list = vi
+			.spyOn(ImagesAPI, "dependencies")
+			.mockResolvedValue({ images: [], upload: null });
+		const upload = vi
+			.spyOn(ImagesAPI, "uploadDependency")
 			.mockResolvedValue({ ok: true });
-		withQueries(<IsoLibrary />);
-		fireEvent.click(
-			await screen.findByRole("button", { name: "Delete ubuntu.iso" }),
+		withQueries(<DockerImageLibrary canUpload />);
+		await user.click(screen.getByRole("button", { name: "Upload image" }));
+		await user.type(
+			screen.getByRole("textbox", { name: "Image reference in the archive" }),
+			ref,
 		);
-		expect(del).not.toHaveBeenCalled();
-		fireEvent.click(screen.getByRole("button", { name: "Delete?" }));
-		await waitFor(() => expect(del).toHaveBeenCalledWith("isos", "ubuntu.iso"));
+		await user.upload(screen.getByLabelText("Image archive"), archive);
+		await user.click(screen.getByRole("button", { name: "Upload" }));
+		await waitFor(() =>
+			expect(upload).toHaveBeenCalledWith(ref, archive, expect.any(Function)),
+		);
+		await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
 	});
 });
 

@@ -103,7 +103,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 				data-testid="dialog"
 				onCloseAutoFocus={onCloseAutoFocus}
 			>
-				<DialogHeader>
+				<DialogHeader className="wrap-anywhere">
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription asChild>
 						<div className="text-sm text-content-secondary font-medium [&_strong]:text-content-primary [&_p]:m-0 [&_p+p]:mt-2">

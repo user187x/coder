@@ -59,7 +59,7 @@ import {
 } from "./badges";
 import "./pitStop.css";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
-import { IsoLibrary } from "./FileLibrary";
+import { DockerImageLibrary } from "./DockerImageLibrary";
 import { ImagesInUse, ImagesOnNodes } from "./ImagesInUse";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
 import {
@@ -306,7 +306,7 @@ const ImagesPage: React.FC = () => {
 				onImport={(initial) => setImporting(initial)}
 			/>
 			<ImagesOnNodes canEdit={canEdit} />
-			<IsoLibrary />
+			<DockerImageLibrary canUpload={canEdit} />
 			{creating && <NewImageDialog onClose={() => setCreating(false)} />}
 			{importing && (
 				<ImportImageDialog

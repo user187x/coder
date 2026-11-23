@@ -73,6 +73,18 @@ It checks every file against `SHA256SUMS` (and `SHA256SUMS.public`), then loads,
 `$REGISTRY/<its path without the source registry>` (e.g. `docker.io/mrshll187/coder-platform:T` →
 `$REGISTRY/user187x/coder-platform:T`) - where the chart pulls it - and ends with a summary.
 
+### Upload dependencies to a running cluster
+
+In **Images → Docker Image Library**, choose **Upload image**. Provide a Docker save or OCI archive and the
+tagged reference from the deployment, such as `ghcr.io/cloudnative-pg/pgbouncer:1.25.1`. The library stores
+it in the cluster's image registry as `localhost:5000/coder-dependencies/cloudnative-pg/pgbouncer:1.25.1`
+with the default node registry port. Existing tags are protected from replacement.
+
+Copy the local pull reference into the workload's image setting. For a deployment whose images are all
+mirrored at this prefix, set `global.registry: localhost:5000/coder-dependencies`. Keep a separately
+reachable copy of the images that start the local registry and its node proxy so the cluster can bootstrap.
+For workloads pinned by digest, use an archive that preserves that manifest.
+
 ## 2. Values
 
 ```bash

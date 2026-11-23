@@ -47,6 +47,15 @@ export const InfoDialog: Story = {
 	},
 };
 
+export const LongImageReference: Story = {
+	args: {
+		title: "Delete scan #4",
+		description:
+			"Delete this scan's record, log and report for registry.example.com/coder/workspaces/coder-workspace:1.8.188@sha256:274053d9b213af768c8c26105bfa22857392d509daf7e8c6070a573874a4a8c8.",
+		type: "delete",
+	},
+};
+
 export const InfoDialogWithCancel: Story = {
 	args: {
 		description: "Information can be cool!",
