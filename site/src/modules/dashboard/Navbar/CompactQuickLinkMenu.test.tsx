@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
+import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import {
 	DropdownMenu,
@@ -9,9 +10,17 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { CHAT_CONSOLE_PAGE } from "#/modules/platform/chat/consolePlaces";
-import { MockPermissions } from "#/testHelpers/entities";
+import {
+	MockPermissions,
+	MockUserAppearanceSettings,
+	MockWorkspace,
+} from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { adminPagesFor } from "./adminQuickLinks";
+import {
+	type AdminPage,
+	adminPagesFor,
+	workspacesQuickLink,
+} from "./adminQuickLinks";
 import { CompactQuickLinks } from "./CompactQuickLinkMenu";
 
 const pages = adminPagesFor({
@@ -20,26 +29,92 @@ const pages = adminPagesFor({
 });
 const [first, second, third] = pages;
 
-const renderStrip = (onChange = vi.fn()) => {
+const renderStrip = (onChange = vi.fn(), links?: readonly AdminPage[]) => {
 	if (!first || !second || !third) throw new Error("too few admin pages");
-	renderComponent(
-		<QueryClientProvider client={new QueryClient()}>
-			<MemoryRouter>
+	const router = createMemoryRouter([
+		{
+			path: "*",
+			element: (
 				<DropdownMenu open>
 					<DropdownMenuTrigger>Settings</DropdownMenuTrigger>
 					<DropdownMenuContent>
 						<CompactQuickLinks
-							links={[first, second]}
+							links={links ?? [first, second]}
 							pages={pages}
 							onChange={onChange}
 						/>
 					</DropdownMenuContent>
 				</DropdownMenu>
-			</MemoryRouter>
+			),
+		},
+	]);
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<RouterProvider router={router} />
 		</QueryClientProvider>,
 	);
-	return { onChange, first, second, third };
+	return { onChange, first, second, third, router };
 };
+
+it.each([
+	["light", "dark"],
+	["dark", "light"],
+])(
+	"switches from %s to %s from the Appearance context menu",
+	async (from, to) => {
+		const appearance = pages.find((page) => page.id === "customize");
+		if (!appearance) throw new Error("Appearance is missing from Settings");
+		const settings = {
+			...MockUserAppearanceSettings,
+			theme_preference: from,
+			theme_light: "light-tritan",
+			theme_dark: "dark-protan-deuter",
+			terminal_font: "fira-code" as const,
+		};
+		vi.spyOn(API, "getAppearanceSettings").mockResolvedValue(settings);
+		const update = vi.spyOn(API, "updateAppearanceSettings").mockResolvedValue({
+			...settings,
+			theme_preference: to,
+		});
+		renderStrip(undefined, [appearance]);
+		const user = userEvent.setup();
+		await user.pointer({
+			target: screen.getByRole("menuitem", { name: "Appearance" }),
+			keys: "[MouseRight]",
+		});
+		await user.click(
+			await screen.findByRole("menuitemcheckbox", {
+				name: "Dark Mode",
+				checked: from === "dark",
+			}),
+		);
+		await waitFor(() =>
+			expect(update).toHaveBeenCalledExactlyOnceWith({
+				...settings,
+				theme_preference: to,
+			}),
+		);
+	},
+);
+
+it("opens an owned workspace from the Workspaces context menu", async () => {
+	const list = vi.spyOn(API, "getWorkspaces").mockResolvedValue({
+		workspaces: [MockWorkspace],
+		count: 1,
+	});
+	const { router } = renderStrip(undefined, [workspacesQuickLink]);
+	const user = userEvent.setup();
+	const link = screen.getByRole("menuitem", { name: "Workspaces" });
+	await user.pointer({ target: link, keys: "[MouseRight]" });
+	const owned = await screen.findByRole("group", { name: "Your workspaces" });
+	await user.click(
+		await within(owned).findByRole("menuitem", { name: MockWorkspace.name }),
+	);
+	expect(list).toHaveBeenCalledWith({ q: "owner:me" });
+	expect(router.state.location.pathname).toBe(
+		`/@${MockWorkspace.owner_name}/${MockWorkspace.name}`,
+	);
+});
 
 it.each([false, true])(
 	"updates the default home from a thin-strip quick link (already default: %s)",

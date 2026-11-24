@@ -18,6 +18,7 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { useInlineMenu } from "./InlineMenu";
+import { SettingsStripTooltip } from "./SettingsStripTooltip";
 
 const settingsDockPillClassName =
 	"settings-pill flex min-h-8 items-stretch overflow-hidden rounded-full border border-solid border-border";
@@ -86,29 +87,31 @@ export function SettingsDockControl({
 
 	return (
 		<Popover open={menu.open} onOpenChange={(open) => !open && menu.close()}>
-			<PopoverAnchor asChild>
-				<DropdownMenuItem
-					{...menu.trigger}
-					ref={key}
-					aria-label={label}
-					title={label}
-					aria-haspopup="dialog"
-					disabled={disabled}
-					className={cn(className, menu.open && "invisible")}
-					onPointerLeave={(event) => {
-						if (menu.open) event.preventDefault();
-					}}
-					onSelect={(event) => {
-						event.preventDefault();
-						choose(target, true);
-					}}
-				>
-					<OriginalIcon aria-hidden className={original.iconClassName} />
-				</DropdownMenuItem>
-			</PopoverAnchor>
+			<SettingsStripTooltip label={label}>
+				<PopoverAnchor asChild>
+					<DropdownMenuItem
+						{...menu.trigger}
+						ref={key}
+						aria-label={label}
+						aria-haspopup="dialog"
+						disabled={disabled}
+						className={cn(className, menu.open && "invisible")}
+						onPointerLeave={(event) => {
+							if (menu.open) event.preventDefault();
+						}}
+						onSelect={(event) => {
+							event.preventDefault();
+							choose(target, true);
+						}}
+					>
+						<OriginalIcon aria-hidden className={original.iconClassName} />
+					</DropdownMenuItem>
+				</PopoverAnchor>
+			</SettingsStripTooltip>
 			<PopoverContent
 				id={menu.id}
 				aria-label="Settings layout"
+				data-settings-strip-menu
 				side={edge === "left" ? "right" : "left"}
 				sideOffset={0}
 				avoidCollisions={false}

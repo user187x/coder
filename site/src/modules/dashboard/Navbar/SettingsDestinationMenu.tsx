@@ -17,6 +17,7 @@ import {
 	ComboboxList,
 	ComboboxTrigger,
 } from "#/components/Combobox/Combobox";
+import { ContextMenuItem } from "#/components/ContextMenu/ContextMenu";
 import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
@@ -43,7 +44,6 @@ export function SettingsDestinationMenu({
 	link: AdminPage;
 	className?: string;
 	labelBadge?: React.ReactNode;
-	/** More right-click options, after its destinations. */
 	options?: React.ReactNode;
 }) {
 	const menu = useInlineMenu({ arrowRight: true });
@@ -70,11 +70,17 @@ export function SettingsDestinationMenu({
 					className="order-last"
 				>
 					{link.id === "workspaces" ? (
-						<WorkspaceDestinations />
+						<>
+							{options}
+							{options && <DropdownMenuSeparator />}
+							<WorkspaceDestinations />
+						</>
 					) : (
-						<TemplateDestinations />
+						<>
+							<TemplateDestinations />
+							{options}
+						</>
 					)}
-					{options}
 				</InlineMenuPanel>
 			)}
 		</>
@@ -199,15 +205,22 @@ export function WorkspacePicker({
 	);
 }
 
-function WorkspaceDestinations() {
+/** Owned workspace links for a Settings destination menu. */
+export function WorkspaceDestinations({
+	context = false,
+}: {
+	context?: boolean;
+}) {
 	const { canCreateWorkspace, query, icons, createSearch, ownedWorkspaces } =
 		useWorkspaceDestinations();
+	const Item = context ? ContextMenuItem : DropdownMenuItem;
+	const showCreate = canCreateWorkspace && !context;
 	return (
 		<>
 			{ownedWorkspaces.map((item) => {
 				const icon = icons?.[item.id] || item.template_icon;
 				return (
-					<DropdownMenuItem key={item.id} asChild>
+					<Item key={item.id} asChild>
 						<Link
 							to={`/@${encodeURIComponent(item.owner_name)}/${encodeURIComponent(item.name)}`}
 						>
@@ -224,19 +237,17 @@ function WorkspaceDestinations() {
 							)}
 							{item.name}
 						</Link>
-					</DropdownMenuItem>
+					</Item>
 				);
 			})}
-			{query.isLoading && (
-				<DropdownMenuItem disabled>Loading workspaces…</DropdownMenuItem>
-			)}
+			{query.isLoading && <Item disabled>Loading workspaces…</Item>}
 			{!ownedWorkspaces.length && query.isError && (
-				<DropdownMenuItem disabled>Could not load workspaces</DropdownMenuItem>
+				<Item disabled>Could not load workspaces</Item>
 			)}
-			{query.isSuccess && !ownedWorkspaces.length && !canCreateWorkspace && (
-				<DropdownMenuItem disabled>No workspaces</DropdownMenuItem>
+			{query.isSuccess && !ownedWorkspaces.length && !showCreate && (
+				<Item disabled>No workspaces</Item>
 			)}
-			{canCreateWorkspace && (
+			{showCreate && (
 				<>
 					{ownedWorkspaces.length > 0 && <DropdownMenuSeparator />}
 					<DropdownMenuItem asChild>

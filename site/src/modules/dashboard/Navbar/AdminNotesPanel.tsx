@@ -154,7 +154,7 @@ export const AdminNotesPanel = ({
 		<div
 			ref={panel}
 			className="settings-notes-content flex min-h-0 flex-col"
-			style={{ minHeight: height ?? undefined }}
+			style={{ height: height ?? undefined }}
 			role="dialog"
 			aria-label="Admin notes"
 			onKeyDown={(event) => event.stopPropagation()}
@@ -371,7 +371,7 @@ export const AdminNotesPanel = ({
 													: null;
 											setContextNote(row?.getAttribute("data-note-id") ?? null);
 										}}
-										className="settings-notes-list shrink-0 overflow-hidden rounded-lg border border-solid border-border bg-surface-primary"
+										className="settings-notes-list shrink-0 grow overflow-hidden rounded-lg border border-solid border-border bg-surface-primary"
 									>
 										<Table aria-label="Admin notes" className="table-fixed">
 											<TableHeader>

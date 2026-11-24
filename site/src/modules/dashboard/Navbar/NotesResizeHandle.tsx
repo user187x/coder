@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import "#/modules/platform/buildFooter/buildFooter.css";
+import { toCssPx } from "#/utils/appZoom";
 
 /** Resizes notes from a fixed starting height, keeping the grip inside the viewport. */
 export const NotesResizeHandle = ({
@@ -18,8 +19,10 @@ export const NotesResizeHandle = ({
 		previous: number | null;
 	} | null>(null);
 	const resize = (value: number, top: number) => {
-		const maximum = Math.max(0, window.innerHeight - top - 12);
-		onResize(Math.min(maximum, Math.max(Math.min(280, maximum), value)));
+		const maximum = toCssPx(Math.max(0, window.innerHeight - top - 12));
+		onResize(
+			Math.min(maximum, Math.max(Math.min(280, maximum), toCssPx(value))),
+		);
 	};
 	const cancel = () => {
 		if (!drag.current) return;

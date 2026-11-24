@@ -11,6 +11,7 @@ import {
 } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { settingsSections } from "#/pages/UserSettingsPage/settingsSections";
+import { SettingsStripTooltip } from "./SettingsStripTooltip";
 
 /**
  * The Settings menu's Account button: the user's avatar, which opens User Settings; its right-click menu lists User
@@ -20,7 +21,8 @@ export const UserSettingsShortcut: React.FC<{
 	user: User;
 	buildInfo?: BuildInfoResponse;
 	onSignOut: () => void;
-}> = ({ user, buildInfo, onSignOut }) => {
+	compact?: boolean;
+}> = ({ user, buildInfo, onSignOut, compact = false }) => {
 	const navigate = useNavigate();
 	// As User Settings' own list: no Appearance (it has a page of its own), OAuth2 only where Coder provides it, and
 	// no Schedule (an Enterprise feature the platform's open-source Coder lacks).
@@ -32,27 +34,34 @@ export const UserSettingsShortcut: React.FC<{
 	);
 	return (
 		<ContextMenu>
-			<ContextMenuTrigger
-				asChild
-				onContextMenu={(event) => event.stopPropagation()}
-			>
-				<DropdownMenuItem
-					className="settings-orb size-8 shrink-0 justify-center rounded-full border border-solid border-border p-0"
-					aria-label="Account: User Settings"
-					title="User Settings; right-click for its sections"
-					onSelect={() => void navigate("/settings/account")}
+			<SettingsStripTooltip label="User Settings" enabled={compact}>
+				<ContextMenuTrigger
+					asChild
+					onContextMenu={(event) => event.stopPropagation()}
 				>
-					<Avatar
-						size="sm"
-						src={user.avatar_url}
-						fallback={user.username}
-						// Round, without the avatar's own square frame: the button's circle is its edge
-						className="size-6 rounded-full border-0"
-					/>
-				</DropdownMenuItem>
-			</ContextMenuTrigger>
+					<DropdownMenuItem
+						className="settings-orb size-8 shrink-0 justify-center rounded-full border border-solid border-border p-0"
+						aria-label="Account: User Settings"
+						title={
+							compact
+								? undefined
+								: "User Settings; right-click for its sections"
+						}
+						onSelect={() => void navigate("/settings/account")}
+					>
+						<Avatar
+							size="sm"
+							src={user.avatar_url}
+							fallback={user.username}
+							// Round, without the avatar's own square frame: the button's circle is its edge
+							className="size-6 rounded-full border-0"
+						/>
+					</DropdownMenuItem>
+				</ContextMenuTrigger>
+			</SettingsStripTooltip>
 			<ContextMenuContent
 				aria-label="User Settings sections"
+				data-settings-strip-menu={compact || undefined}
 				className="z-[2147483647]"
 				onContextMenu={(event) => event.stopPropagation()}
 			>

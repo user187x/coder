@@ -1,10 +1,5 @@
 import { cn } from "cn";
-import {
-	MonitorIcon,
-	RadioIcon,
-	ScanEyeIcon,
-	SettingsIcon,
-} from "lucide-react";
+import { RadioIcon, ScanEyeIcon, SettingsIcon } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -43,8 +38,8 @@ import {
 	type AdminSettingsPermissions,
 	canViewAdminSettings,
 } from "./AdminSettings";
-import type { AdminPage } from "./adminQuickLinks";
-import { CompactQuickLinks } from "./CompactQuickLinkMenu";
+import { type AdminPage, workspacesQuickLink } from "./adminQuickLinks";
+import { CompactQuickLink, CompactQuickLinks } from "./CompactQuickLinkMenu";
 import { HudHeartbeat, heartbeatLabel } from "./HudHeartbeat";
 import { InlineMenuPanel, OpenMenuItem, useInlineMenu } from "./InlineMenu";
 import { sortProxiesByLatency } from "./proxyUtils";
@@ -573,6 +568,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								<DropdownMenuSeparator className="mx-auto my-1 w-6 shrink-0" />
 								<span className="flex justify-center">
 									<UserSettingsShortcut
+										compact
 										user={user}
 										buildInfo={buildInfo}
 										onSignOut={onSignOut}
@@ -583,17 +579,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								<div className="settings-strip-well">
 									{!controls?.quickLinks?.some(
 										(link) => link.id === "workspaces",
-									) && (
-										<DropdownMenuItem asChild className="settings-strip-key">
-											<NavLink
-												to="/workspaces"
-												aria-label="Workspaces"
-												title="Workspaces"
-											>
-												<MonitorIcon aria-hidden />
-											</NavLink>
-										</DropdownMenuItem>
-									)}
+									) && <CompactQuickLink link={workspacesQuickLink} />}
 									<CompactQuickLinks
 										unreadGlow={unreadGlow}
 										links={controls?.quickLinks ?? []}

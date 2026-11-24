@@ -435,6 +435,12 @@
 html[data-animations="off"] .settings-strip-dock-options {
 	animation: none;
 }
+/* Both the hints and the menus are portaled outside the strip. */
+body:has([data-settings-strip-menu][data-state="open"])
+[data-settings-strip-tooltip] {
+	display: none;
+}
+
 .settings-menu .settings-strip-key.rounded-full {
 	border-radius: 9999px;
 }

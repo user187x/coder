@@ -31,21 +31,23 @@ import {
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import type { AdminPage } from "./adminQuickLinks";
 import { DefaultViewOption } from "./DefaultViewOption";
-
+import { WorkspaceDestinations } from "./SettingsDestinationMenu";
+import { SettingsStripTooltip } from "./SettingsStripTooltip";
+import { ThemeToggleItem } from "./UserDropdown/ThemeToggleItem";
 import { type UnreadGlow, unreadRowClass } from "./useUnreadGlow";
 
 /**
- * A quick link's right-click menu in the Settings sidebar's thin strip.
+ * A quick link and its right-click menu in the Settings sidebar's thin strip.
  */
-const CompactQuickLinkMenu: React.FC<{
+export const CompactQuickLink: React.FC<{
 	link: AdminPage;
 	/** The quick links' page IDs, in order. */
-	ids: readonly string[];
+	ids?: readonly string[];
 	/** The pages available to add or replace. */
-	others: readonly AdminPage[];
+	others?: readonly AdminPage[];
 	onChange?: (ids: string[]) => void;
-	children: React.ReactElement;
-}> = ({ link, ids, others, onChange, children }) => {
+	unreadGlow?: UnreadGlow;
+}> = ({ link, ids = [], others = [], onChange, unreadGlow }) => {
 	const [open, setOpen] = useState(false);
 	const [pinned, setPinned] = useState(false);
 	return (
@@ -56,18 +58,31 @@ const CompactQuickLinkMenu: React.FC<{
 				if (!nextOpen) setPinned(false);
 			}}
 		>
-			<ContextMenuTrigger
-				asChild
-				onContextMenu={(event) => event.stopPropagation()}
-				onPointerLeave={(event) => {
-					// The enclosing dropdown would take focus back as the pointer enters the context menu.
-					if (open) event.preventDefault();
-				}}
-			>
-				{children}
-			</ContextMenuTrigger>
+			<SettingsStripTooltip label={link.label}>
+				<ContextMenuTrigger
+					asChild
+					onContextMenu={(event) => event.stopPropagation()}
+					onPointerLeave={(event) => {
+						// The enclosing dropdown would take focus back as the pointer enters the context menu.
+						if (open) event.preventDefault();
+					}}
+				>
+					<DropdownMenuItem
+						asChild
+						className={cn(
+							"settings-strip-key",
+							unreadRowClass(link.id, unreadGlow),
+						)}
+					>
+						<NavLink to={link.path} aria-label={link.label}>
+							<link.icon aria-hidden />
+						</NavLink>
+					</DropdownMenuItem>
+				</ContextMenuTrigger>
+			</SettingsStripTooltip>
 			<ContextMenuContent
 				aria-label={`${link.label} options`}
+				data-settings-strip-menu
 				className="z-[2147483647] max-h-[calc(70vh/var(--app-zoom,1))] overflow-y-auto bg-[color-mix(in_srgb,hsl(var(--surface-secondary))_91%,black)]"
 				onContextMenu={(event) => event.stopPropagation()}
 				onInteractOutside={(event) => {
@@ -90,6 +105,9 @@ const CompactQuickLinkMenu: React.FC<{
 				>
 					<PinIcon aria-hidden className="size-3" />
 				</ContextMenuItem>
+				{link.id === "customize" && (
+					<ThemeToggleItem context showDetails={false} />
+				)}
 				{onChange && others.length > 0 && (
 					<ContextMenuSub>
 						<ContextMenuSubTrigger>
@@ -145,6 +163,14 @@ const CompactQuickLinkMenu: React.FC<{
 						</ContextMenuGroup>
 					</>
 				)}
+				{link.id === "workspaces" && (
+					<>
+						<ContextMenuSeparator />
+						<ContextMenuGroup aria-label="Your workspaces">
+							<WorkspaceDestinations context />
+						</ContextMenuGroup>
+					</>
+				)}
 			</ContextMenuContent>
 		</ContextMenu>
 	);
@@ -197,28 +223,13 @@ export const CompactQuickLinks: React.FC<{
 						disabled={!onChange}
 						dragged={dragged}
 					>
-						<CompactQuickLinkMenu
+						<CompactQuickLink
 							link={link}
 							ids={ids}
 							others={others}
 							onChange={onChange}
-						>
-							<DropdownMenuItem
-								asChild
-								className={cn(
-									"settings-strip-key",
-									unreadRowClass(link.id, unreadGlow),
-								)}
-							>
-								<NavLink
-									to={link.path}
-									title={`${link.label}; right-click for quick-link options, hold to move`}
-									aria-label={link.label}
-								>
-									<link.icon aria-hidden />
-								</NavLink>
-							</DropdownMenuItem>
-						</CompactQuickLinkMenu>
+							unreadGlow={unreadGlow}
+						/>
 					</CompactSortable>
 				))}
 			</SortableContext>

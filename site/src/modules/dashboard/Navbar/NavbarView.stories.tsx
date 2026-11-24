@@ -10,6 +10,8 @@ import {
 	hudHistory,
 	userUIPreferences,
 } from "#/api/queries/platform";
+import { myAppearanceKey } from "#/api/queries/users";
+import { workspaces } from "#/api/queries/workspaces";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import DeploymentSettingsLayout from "#/modules/management/DeploymentSettingsLayout";
@@ -17,8 +19,10 @@ import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
 import {
 	MockBuildInfo,
 	MockPermissions,
+	MockUserAppearanceSettings,
 	MockUserMember,
 	MockUserOwner,
+	MockWorkspace,
 } from "#/testHelpers/entities";
 import { MockHudHistory } from "#/testHelpers/hud";
 import { pixelWithDesktop, pixelWithTablet } from "#/testHelpers/pixel";
@@ -479,6 +483,50 @@ export const CompactSettingsDockOptions: Story = {
 			name: "Expand Settings sidebar",
 		});
 		await userEvent.pointer({ target: key, keys: "[MouseRight]" });
+	},
+};
+
+export const CompactAppearanceQuickLink: Story = {
+	...CompactDockWithoutPageAction,
+	args: {
+		adminQuickLinks: {
+			pages: adminPages,
+			links: resolveAdminQuickLinks(["customize"], adminPages),
+			onChange: fn(),
+		},
+	},
+	parameters: {
+		...CompactDockWithoutPageAction.parameters,
+		queries: [
+			...(CompactDockWithoutPageAction.parameters?.queries ?? []),
+			{ key: myAppearanceKey, data: MockUserAppearanceSettings },
+			{
+				key: workspaces({ q: "owner:me" }).queryKey,
+				data: { workspaces: [MockWorkspace], count: 1 },
+			},
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.pointer({
+			target: await within(canvasElement.ownerDocument.body).findByRole(
+				"menuitem",
+				{ name: "Appearance" },
+			),
+			keys: "[MouseRight]",
+		});
+	},
+};
+
+export const CompactWorkspacesQuickLink: Story = {
+	...CompactAppearanceQuickLink,
+	play: async ({ canvasElement }) => {
+		await userEvent.pointer({
+			target: await within(canvasElement.ownerDocument.body).findByRole(
+				"menuitem",
+				{ name: /^Workspaces$/ },
+			),
+			keys: "[MouseRight]",
+		});
 	},
 };
 

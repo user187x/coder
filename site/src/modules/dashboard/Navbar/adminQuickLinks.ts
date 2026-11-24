@@ -185,6 +185,14 @@ export const adminPageChoices = (): readonly (AdminPage & {
 
 export type { AdminPageAccess };
 
+/** The Workspaces destination used by the Settings quick links. */
+export const workspacesQuickLink = {
+	id: "workspaces",
+	label: "Workspaces",
+	icon: MonitorIcon,
+	path: "/workspaces",
+} satisfies AdminPage;
+
 /** Pages outside General that Settings and General's sidebar also link to. */
 const WORKSPACE_PAGES: readonly AdminPage[] = [
 	{
@@ -199,12 +207,7 @@ const WORKSPACE_PAGES: readonly AdminPage[] = [
 		icon: WaypointsIcon,
 		path: "/traffic-control",
 	},
-	{
-		id: "workspaces",
-		label: "Workspaces",
-		icon: MonitorIcon,
-		path: "/workspaces",
-	},
+	workspacesQuickLink,
 	{
 		id: "templates",
 		label: "Templates",

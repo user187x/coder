@@ -20,6 +20,7 @@ import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
 import { ClusterMetricDrilldown } from "#/modules/platform/ClusterMetricDrilldown";
 import { CompactClusterGraphs } from "./CompactClusterGraphs";
+import { SettingsStripTooltip } from "./SettingsStripTooltip";
 
 /** Chat temporarily occupies the graph area without changing the user's saved layout. */
 export const SettingsMetricGraphs: React.FC<{
@@ -62,7 +63,6 @@ export const SettingsMetricGraphs: React.FC<{
 		const toggle = (
 			<DropdownMenuItem
 				aria-label={label}
-				title={label}
 				aria-expanded={expanded}
 				aria-controls={id}
 				disabled={save.isPending || !preferences.isSuccess}
@@ -82,10 +82,19 @@ export const SettingsMetricGraphs: React.FC<{
 					expanded ? "min-h-60" : "min-h-0",
 				)}
 			>
-				{canViewHud ? (
-					<ContextMenu>
-						<ContextMenuTrigger asChild>{toggle}</ContextMenuTrigger>
-						<ContextMenuContent className="z-[2147483647]">
+				<ContextMenu>
+					<SettingsStripTooltip label={label}>
+						{canViewHud ? (
+							<ContextMenuTrigger asChild>{toggle}</ContextMenuTrigger>
+						) : (
+							toggle
+						)}
+					</SettingsStripTooltip>
+					{canViewHud && (
+						<ContextMenuContent
+							data-settings-strip-menu
+							className="z-[2147483647]"
+						>
 							<ContextMenuItem asChild>
 								<Link to="/hud">
 									<GaugeIcon aria-hidden />
@@ -93,10 +102,8 @@ export const SettingsMetricGraphs: React.FC<{
 								</Link>
 							</ContextMenuItem>
 						</ContextMenuContent>
-					</ContextMenu>
-				) : (
-					toggle
-				)}
+					)}
+				</ContextMenu>
 				<div id={id} hidden={!expanded} className="min-h-0 flex-1">
 					{expanded && (
 						<ClusterMetricDrilldown canViewHud={canViewHud}>

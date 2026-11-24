@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ExternalLinkIcon } from "lucide-react";
+import { CodeXmlIcon, ExternalLinkIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import {
@@ -182,10 +182,16 @@ const TemplateFilesPage: React.FC = () => {
 								))}
 							</div>
 							{permissions.canUpdateTemplate && (
-								<Button asChild variant="outline" size="sm">
+								<Button
+									asChild
+									variant="outline"
+									size="sm"
+									className="border-content-link/35 bg-surface-sky text-content-link font-semibold hover:border-content-link/60 hover:bg-surface-sky hover:text-content-link"
+								>
 									<RouterLink
 										to={`${getLink(linkToTemplate(template.organization_name, template.name))}/versions/${version.name}/edit`}
 									>
+										<CodeXmlIcon aria-hidden />
 										Developer mode
 									</RouterLink>
 								</Button>

@@ -84,6 +84,16 @@ export const Empty: Story = {
 	},
 };
 
+export const ResizedEmptyList: Story = {
+	...Empty,
+	play: async ({ canvasElement }) => {
+		within(canvasElement)
+			.getByRole("button", { name: "Resize notes panel" })
+			.focus();
+		await userEvent.keyboard("{ArrowDown>8/}");
+	},
+};
+
 export const Shared: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);

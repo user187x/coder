@@ -7,6 +7,7 @@ import {
 	updateAppearanceSettings,
 } from "#/api/queries/users";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
+import { ContextMenuItem } from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { ThemeColorCircle } from "#/pages/UserSettingsPage/AppearancePage/ThemeSwatch";
@@ -14,6 +15,7 @@ import { THEME_COPY } from "#/pages/UserSettingsPage/AppearancePage/themeCopy";
 import type { ConcreteThemeName } from "#/theme";
 import { baseModeFor } from "#/theme";
 import { DEFAULT_TERMINAL_FONT } from "#/theme/constants";
+import { withDefaultTheme } from "#/theme/customTheme";
 import {
 	migrateLegacyPreference,
 	resolveActiveThemeName,
@@ -28,8 +30,9 @@ import { usePreferredColorScheme } from "#/theme/usePreferredColorScheme";
  */
 export const ThemeToggleItem: React.FC<{
 	compact?: boolean;
+	context?: boolean;
 	showDetails?: boolean;
-}> = ({ compact = false, showDetails = true }) => {
+}> = ({ compact = false, context = false, showDetails = true }) => {
 	const [expanded, setExpanded] = useState(false);
 	const queryClient = useQueryClient();
 	const { metadata } = useEmbeddedMetadata();
@@ -40,10 +43,11 @@ export const ThemeToggleItem: React.FC<{
 	const settings =
 		appearanceQuery.data ?? metadata.userAppearance?.value ?? undefined;
 	const activeTheme = resolveActiveThemeName(
-		migrateLegacyPreference(settings ?? {}),
+		migrateLegacyPreference(withDefaultTheme(settings ?? {})),
 		osColorScheme,
 	);
 	const isDark = baseModeFor(activeTheme) === "dark";
+	const Item = context ? ContextMenuItem : DropdownMenuItem;
 
 	const choose = (theme: ConcreteThemeName) =>
 		updateAppearance.mutate({
@@ -55,20 +59,14 @@ export const ThemeToggleItem: React.FC<{
 		});
 	return (
 		<>
-			<DropdownMenuItem
+			<Item
 				role="menuitemcheckbox"
 				title={`Dark Mode: ${isDark ? "On" : "Off"}`}
 				aria-checked={isDark}
-				disabled={updateAppearance.isPending}
+				disabled={!settings || updateAppearance.isPending}
 				onSelect={(event) => {
 					event.preventDefault();
-					updateAppearance.mutate({
-						theme_preference: isDark ? "light" : "dark",
-						theme_mode: "single",
-						theme_light: settings?.theme_light || "light",
-						theme_dark: settings?.theme_dark || "dark",
-						terminal_font: settings?.terminal_font || DEFAULT_TERMINAL_FONT,
-					});
+					choose(isDark ? "light" : "dark");
 				}}
 			>
 				<MoonIcon />
@@ -90,9 +88,9 @@ export const ThemeToggleItem: React.FC<{
 						/>
 					</span>
 				)}
-			</DropdownMenuItem>
+			</Item>
 			{showDetails && (
-				<DropdownMenuItem
+				<Item
 					title="Theme colors"
 					aria-expanded={expanded}
 					onSelect={(event) => {
@@ -103,7 +101,7 @@ export const ThemeToggleItem: React.FC<{
 					{compact && <PaletteIcon />}
 					<span className={compact ? "sr-only" : undefined}>Theme colors</span>
 					{!compact && <ChevronDownIcon className="ml-auto size-4" />}
-				</DropdownMenuItem>
+				</Item>
 			)}
 			{updateAppearance.error && <ErrorAlert error={updateAppearance.error} />}
 			{expanded && (
@@ -129,7 +127,7 @@ export const ThemeToggleItem: React.FC<{
 							<div className={cn("flex gap-2", compact && "flex-col")}>
 								{([`${mode}-protan-deuter`, `${mode}-tritan`] as const).map(
 									(theme) => (
-										<DropdownMenuItem
+										<Item
 											key={theme}
 											role="menuitemradio"
 											aria-label={THEME_COPY[theme].title}
@@ -148,7 +146,7 @@ export const ThemeToggleItem: React.FC<{
 											}}
 										>
 											<ThemeColorCircle theme={theme} />
-										</DropdownMenuItem>
+										</Item>
 									),
 								)}
 							</div>
